@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Project Documents</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        .form-group { margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body>
+{% include 'navbar.html' %}
+<div class="container">
+    <h1 class="text-center mb-4">Upload Project Documents</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="alert alert-{{ category }}" role="alert">
+                {% for category, message in messages %}
+                    {{ message }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <form action="/upload_documents" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="project_id">Select Project:</label>
+            <select name="project_id" class="form-control" required>
+                {% for project in projects %}
+                    <option value="{{ project[0] }}">{{ project[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="system">Enter System Name:</label>
+            <input type="text" name="system" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+            <label for="sld">Upload Single Line Diagram (SLD):</label>
+            <input type="file" name="sld" class="form-control-file" accept="application/pdf">
+        </div>
+
+        <div class="form-group">
+            <label for="technical_submittal">Upload Technical Submittal:</label>
+            <input type="file" name="technical_submittal" class="form-control-file" accept="application/pdf">
+        </div>
+
+        <div class="form-group">
+            <label for="other_document">Upload Other Document (optional):</label>
+            <input type="file" name="other_document" class="form-control-file" accept="application/pdf">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Upload</button>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Project Documents</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .sidebar {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-right: 1px solid #dee2e6;
+        }
+        .document-card {
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-weight: bold;
+        }
+        .filter-header {
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="sidebar">
+                    <h4 class="filter-header">Filter by Project Name</h4>
+                    <form method="GET" action="{{ url_for('view_documents') }}">
+                        <div class="form-group">
+                            <select name="project_name" class="form-control">
+                                <option value="">Select a project</option>
+                                {% for project in projects %}
+                                    <option value="{{ project }}">{{ project }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Filter</button>
+                    </form>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h2>Project Documents</h2>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                {% for document in documents %}
+                    <div class="card document-card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ document['project_name'] }}</h5>
+                            <h6 class="card-subtitle mb-2 text-muted">{{ document['system_name'] }}</h6>
+                            <p>Documents:</p>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <a href="{{ url_for('download_file', doc_type='sld', doc_id=document['id']) }}">Single Line Diagram (SLD)</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('download_file', doc_type='technical_submittal', doc_id=document['id']) }}">Technical Submittal</a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('download_file', doc_type='other_document', doc_id=document['id']) }}">Other Document</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

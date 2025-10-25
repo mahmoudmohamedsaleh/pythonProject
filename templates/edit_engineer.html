@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Engineer</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5">
+        <h1 class="text-center">Edit Engineer</h1>
+        <form action="{{ url_for('edit_engineer', engineer_id=engineer[0]) }}" method="POST">
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ engineer[1] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="text" class="form-control" id="phone" name="phone" value="{{ engineer[3] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" class="form-control" id="email" name="email" value="{{ engineer[4] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select class="form-control" id="role" name="role" required>
+                    <option value="Sales Engineer" {% if engineer[4] == 'Sales Engineer' %}selected{% endif %}>Sales Engineer</option>
+                    <option value="Presale Engineer" {% if engineer[4] == 'Presale Engineer' %}selected{% endif %}>Presale Engineer</option>
+                    <option value="Implementation Engineer" {% if engineer[4] == 'Implementation Engineer' %}selected{% endif %}>Implementation Engineer</option>
+                    <option value="Project Manager" {% if engineer[4] == 'Project Manager' %}selected{% endif %}>Project Manager</option>
+                    <option value="General Manager" {% if engineer[4] == 'General Manager' %}selected{% endif %}>General Manager</option>
+                    <option value="Technical Team Leader" {% if engineer[4] == 'Technical Team Leader' %}selected{% endif %}>Technical Team Leader</option>
+                    <option value="Project Coordinator" {% if engineer[4] == 'Project Coordinator' %}selected{% endif %}>Project Coordinator</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" class="form-control" id="username" name="username" value="{{ engineer[6] }}" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password" placeholder="Leave blank to keep current password">
+            </div>
+            <button type="submit" class="btn btn-success">Update Engineer</button>
+            <a href="{{ url_for('view_engineers') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

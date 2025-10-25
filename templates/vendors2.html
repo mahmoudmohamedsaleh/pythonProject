@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendors</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+        }
+        .vendor-card {
+            margin-bottom: 20px;
+        }
+        .register-button {
+            width: 100%;
+        }
+        .sidebar {
+            position: sticky;
+            top: 20px; /* Keep sidebar fixed when scrolling */
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container-fluid">
+        <h1 class="my-4">Vendor List</h1>
+
+        <div class="row">
+            <div class="col-md-3 sidebar">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Filter by Vendor Name</h5>
+                        <input type="text" id="vendor-filter" class="form-control" placeholder="Enter vendor name">
+                        <button class="btn btn-primary mt-2" onclick="filterVendors()">Filter</button>
+                    </div>
+                </div>
+
+                <!-- Button to Register a New Vendor moved to the sidebar -->
+                <a href="{{ url_for('register_vendor') }}" class="btn btn-success register-button">Register New Vendor</a>
+            </div>
+
+            <div class="col-md-9">
+                <div class="row" id="vendor-list">
+                    {% for vendor in vendors %}
+                        <div class="col-sm-6 col-md-4">
+                            <div class="card vendor-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ vendor[1] }}</h5> <!-- Vendor Name -->
+                                    <p class="card-text"><strong>Address:</strong> {{ vendor[2] }}</p> <!-- Address -->
+                                    <p class="card-text"><strong>Contact Person:</strong> {{ vendor[3] }}</p> <!-- Contact Person -->
+                                    <p class="card-text"><strong>Phone:</strong> {{ vendor[4] }}</p> <!-- Phone -->
+                                    <p class="card-text"><strong>Email:</strong> {{ vendor[5] }}</p> <!-- Email -->
+                                    <a href="{{ url_for('edit_vendor', vendor_id=vendor[0]) }}" class="btn btn-warning mt-2">Edit</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterVendors() {
+            const filterInput = document.getElementById('vendor-filter').value.toLowerCase();
+            const vendorCards = document.querySelectorAll('.vendor-card');
+
+            vendorCards.forEach(card => {
+                const vendorName = card.querySelector('.card-title').textContent.toLowerCase();
+                if (vendorName.includes(filterInput)) {
+                    card.parentElement.style.display = ''; // Show the column
+                } else {
+                    card.parentElement.style.display = 'none'; // Hide the column
+                }
+            });
+        }
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

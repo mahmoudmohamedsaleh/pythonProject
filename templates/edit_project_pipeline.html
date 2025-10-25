@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}Edit Project{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+    .form-control:read-only { background-color: #e9ecef; cursor: not-allowed; }
+    .btn-submit { font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; }
+    .form-text a { font-size: 0.9rem; }
+</style>
+
+<div class="container" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-edit mr-2"></i>Edit Project</div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="project_name">Project Name</label>
+                    <input type="text" class="form-control" id="project_name" name="project_name" value="{{ project['project_name'] }}" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="stage-select">Stage</label>
+                        <select class="form-control" id="stage-select" name="stage" required>
+                            {% for stage in stages %}
+                                <option value="{{ stage }}" {% if stage == project['stage'] %}selected{% endif %}>{{ stage }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="probability-input">Probability (%)</label>
+                        <input type="number" class="form-control" id="probability-input" name="probability" min="0" max="100" value="{{ project['probability'] }}" readonly required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="deal_value">Deal Value ($)</label>
+                        <input type="number" step="0.01" class="form-control" id="deal_value" name="deal_value" value="{{ project['deal_value'] }}" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="expected_close_date">Expected Close Date</label>
+                        <input type="date" class="form-control" id="expected_close_date" name="expected_close_date" value="{{ project['expected_close_date'] }}" required>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="sales_engineer_id">Sales Engineer</label>
+                        <select class="form-control" id="sales_engineer_id" name="sales_engineer_id" required>
+                            <option value="" disabled>Select a Sales Engineer...</option>
+                            {% for engineer in sales_engineers %}
+                                <option value="{{ engineer.id }}" {% if engineer.id == project['sales_engineer_id'] %}selected{% endif %}>{{ engineer.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="end_user_id">End User</label>
+                        <select class="form-control" id="end_user_id" name="end_user_id" required>
+                            {% for user in end_users %}
+                                <option value="{{ user.id }}" {% if user.id == project['end_user_id'] %}selected{% endif %}>{{ user.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            <a href="{{ url_for('register_end_user') }}">Register New End User</a>
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="contractor_id">Contractor</label>
+                        <select class="form-control" id="contractor_id" name="contractor_id">
+                            <option value="">No Contractor</option>
+                            {% for contractor in contractors %}
+                                <option value="{{ contractor.id }}" {% if contractor.id == project['contractor_id'] %}selected{% endif %}>{{ contractor.name }}</option>
+                            {% endfor %}
+                        </select>
+                         <small class="form-text text-muted">
+                            <a href="{{ url_for('register_contractor') }}">Register New Contractor</a>
+                        </small>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="consultant_id">Consultant</label>
+                        <select class="form-control" id="consultant_id" name="consultant_id">
+                            <option value="">No Consultant</option>
+                            {% for consultant in consultants %}
+                                <option value="{{ consultant.id }}" {% if consultant.id == project['consultant_id'] %}selected{% endif %}>{{ consultant.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            <a href="{{ url_for('register_consultant') }}">Register New Consultant</a>
+                        </small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="scope_of_work">Scope of Work</label>
+                    <textarea class="form-control" id="scope_of_work" name="scope_of_work" rows="3" required>{{ project['scope_of_work'] }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="note">Note</label>
+                    <textarea class="form-control" id="note" name="note" rows="3">{{ project['note'] }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-submit mt-3"><i class="fas fa-save mr-2"></i>Update Project</button>
+                <a href="{{ url_for('project_pipeline') }}" class="btn btn-secondary mt-3">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const stageProbabilityMap = {
+            'Prospecting': 0.01,
+            'Qualification': 1.00,
+            'Proposal Prep': 1.00,
+            'Proposal Sent': 5.00,
+            'Customer Pending': 2.00,
+            'Technical Discussion': 50.00,
+            'Negotiation': 70.00,
+            'Closed Won': 100.00,
+            'Closed Lost': 0.00,
+            'Cancelled': 0.00
+        };
+
+        const stageSelect = document.getElementById('stage-select');
+        const probabilityInput = document.getElementById('probability-input');
+
+        function updateProbability() {
+            const selectedStage = stageSelect.value;
+            const probability = stageProbabilityMap[selectedStage];
+            if (probability !== undefined) {
+                probabilityInput.value = probability.toFixed(2);
+            } else {
+                probabilityInput.value = '';
+            }
+        }
+
+        // Listen for changes on the stage dropdown
+        stageSelect.addEventListener('change', updateProbability);
+
+        // Run once on page load to set the initial value
+        updateProbability();
+    });
+</script>
+{% endblock %}

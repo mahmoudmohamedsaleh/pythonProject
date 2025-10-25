@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Edit Vendor{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+</style>
+
+<div class="container" style="max-width: 700px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-edit mr-2"></i>Edit Vendor</div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="name">Vendor Name</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ vendor.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="address">Address</label>
+                    <input type="text" class="form-control" id="address" name="address" value="{{ vendor.address }}">
+                </div>
+                <div class="form-group">
+                    <label for="main_phone">Main Phone</label>
+                    <input type="text" class="form-control" id="main_phone" name="main_phone" value="{{ vendor.main_phone }}">
+                </div>
+                <div class="form-group">
+                    <label for="main_email">Main Email</label>
+                    <input type="email" class="form-control" id="main_email" name="main_email" value="{{ vendor.main_email }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="account_manager_id">Account Manager</label>
+                    <select class="form-control" id="account_manager_id" name="account_manager_id">
+                        <option value="">None</option>
+                        {% for contact in contacts %}
+                            <option value="{{ contact.id }}" {% if contact.id == vendor.account_manager_id %}selected{% endif %}>
+                                {{ contact.contact_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ vendor.notes }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Update Vendor</button>
+                <a href="{{ url_for('show_vendors') }}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

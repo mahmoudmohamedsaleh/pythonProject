@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}Request for Quotation{% endblock %}
+
+{% block content %}
+<style>
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+    }
+    .card-header {
+        background-color: #ffffff;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+        font-size: 1.25rem;
+        padding: 1.5rem;
+    }
+    .card-body {
+        padding: 2rem;
+    }
+    .form-control:read-only {
+        background-color: #e9ecef;
+        opacity: 1;
+    }
+    .btn-submit {
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+    }
+</style>
+
+<div class="container" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-file-alt mr-2"></i>Request for Quotation (RFQ)
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="rfq_reference">RFQ Reference</label>
+                    <input type="text" class="form-control" id="rfq_reference" name="rfq_reference" value="RFQ-{{ current_datetime }}" readonly>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="project_name">Project Name</label>
+                        <select class="form-control" id="project_name" name="project_name" required>
+                            <option value="" disabled {% if not project_name_prefill %}selected{% endif %}>Select a Project...</option>
+                            {% for project in projects %}
+                                <option value="{{ project[0] }}" {% if project[0] == project_name_prefill %}selected{% endif %}>{{ project[0] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="project_status">Project Status</label>
+                        <select class="form-control" id="project_status" name="project_status" required>
+                            <option value="On hand">On hand</option>
+                            <option value="Tender">Tender</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="priority">Priority</label>
+                        <select class="form-control" id="priority" name="priority" required>
+                            {% for option in priority_options %}
+                                <option value="{{ option }}">{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="deadline">Deadline</label>
+                        <input type="date" class="form-control" id="deadline" name="deadline" required>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="sales_engineer_presale">Pre-Sales Engineer</label>
+                        <select class="form-control" id="sales_engineer_presale" name="sales_engineer_presale" required>
+                            <option value="" disabled selected>Select a Pre-Sales Engineer...</option>
+                            {% for engineer in presale_engineers %}
+                                <option value="{{ engineer }}">{{ engineer }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="sales_engineer_sales">Sales Engineer</label>
+                        <select class="form-control" id="sales_engineer_sales" name="sales_engineer_sales" required>
+                            <option value="" disabled {% if not sales_engineer_prefill %}selected{% endif %}>Select a Sales Engineer...</option>
+                            {% for engineer in sales_engineers %}
+                                <option value="{{ engineer }}" {% if engineer == sales_engineer_prefill %}selected{% endif %}>{{ engineer }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="rfq_status">RFQ Status</label>
+                        <select class="form-control" id="rfq_status" name="rfq_status" required>
+                            {% for option in rfq_status_options %}
+                                <option value="{{ option }}">{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="quotation_status">Quotation Status</label>
+                        <select class="form-control" id="quotation_status" name="quotation_status" required>
+                            {% for option in quotation_status_options %}
+                                <option value="{{ option }}">{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="note">Note</label>
+                    <textarea class="form-control" id="note" name="note" rows="4" placeholder="Add any additional notes here..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-submit mt-3">
+                    <i class="fas fa-paper-plane mr-2"></i>Submit RFQ
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Passive Products{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 {
+        font-weight: 700;
+    }
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .card-header {
+        background-color: #ffffff;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom-width: 2px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .table td, .table th {
+        vertical-align: middle;
+    }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap">
+    <div>
+        <h1>Passive Products Catalog</h1>
+        <p class="text-muted mb-0">A detailed list of all registered passive products.</p>
+    </div>
+    <div class="d-flex align-items-center mt-3 mt-md-0">
+        <a href="{{ url_for('register_passive_products') }}" class="btn btn-secondary mr-2">
+            <i class="fas fa-file-import mr-2"></i>Import Products
+        </a>
+        <a href="{{ url_for('quotation_builder') }}" class="btn btn-primary">
+            <i class="fas fa-plus mr-2"></i>Create Quotation
+        </a>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-list-ul mr-2"></i>Product List
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Part Number</th>
+                        <th style="width: 40%;">Description</th>
+                        <th>Vendor</th>
+                        <th>Solution Category</th>
+                        <th>Unit Price (SAR)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td><strong>{{ product[1] }}</strong></td>
+                        <td>{{ product[2] }}</td>
+                        <td>{{ product[3] }}</td>
+                        <td>{{ product[4] }}</td>
+                        <td>{{ "{:,.2f}".format(product[7]) if product[7] is not none else 'N/A' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <h4>No products found.</h4>
+                            <p>Click the "Import Products" button to add your first list.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

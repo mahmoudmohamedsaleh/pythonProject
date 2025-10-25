@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit PO Follow-Up</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f4f7f6; }
+        .main-content { margin-left: 260px; padding: 2rem; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.07); margin-bottom: 1.5rem; }
+        .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.1rem; }
+        .form-group label { font-weight: 600; color: #495057; }
+    </style>
+</head>
+<body>
+    {% include 'sidebar.html' %}
+
+    <main class="main-content">
+        <div class="text-center mb-4">
+            <h1>Edit Follow-Up Entry</h1>
+            <p class="text-muted">For PO Number: <strong>{{ entry.po_number }}</strong></p>
+        </div>
+
+        <form action="{{ url_for('edit_po_follow_up', entry_id=entry.id) }}" method="POST" enctype="multipart/form-data">
+            <div class="card">
+                <div class="card-header"><i class="fas fa-shipping-fast mr-2"></i>Order & Delivery Status</div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="order_date">Order Date</label>
+                            <input type="date" class="form-control" id="order_date" name="order_date" value="{{ entry.order_date }}" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="expected_delivery">Expected Delivery Date</label>
+                            <input type="date" class="form-control" id="expected_delivery" name="expected_delivery" value="{{ entry.expected_delivery }}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Delivery Status</label>
+                        <select class="form-control" id="status" name="status" required>
+                            <option {% if entry.status == 'Order Placed' %}selected{% endif %}>Order Placed</option>
+                            <option {% if entry.status == 'Confirmed by Distributor' %}selected{% endif %}>Confirmed by Distributor</option>
+                            <option {% if entry.status == 'Shipped' %}selected{% endif %}>Shipped</option>
+                            <option {% if entry.status == 'Partial Delivery Received' %}selected{% endif %}>Partial Delivery Received</option>
+                            <option {% if entry.status == 'Full Delivery Received' %}selected{% endif %}>Full Delivery Received</option>
+                            <option {% if entry.status == 'Completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-paperclip mr-2"></i>Documents</div>
+                <div class="card-body">
+                    <p class="text-muted small">Only upload a file if you want to replace the existing one.</p>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="invoice">Upload New Invoice (PDF)</label>
+                            <div class="custom-file"><input type="file" class="custom-file-input" id="invoice" name="invoice" accept=".pdf"><label class="custom-file-label" for="invoice">Choose file...</label></div>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="delivery_note">Upload New Delivery Note (PDF)</label>
+                            <div class="custom-file"><input type="file" class="custom-file-input" id="delivery_note" name="delivery_note" accept=".pdf"><label class="custom-file-label" for="delivery_note">Choose file...</label></div>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="delivered_boq">Upload New Delivered BOQ (Excel)</label>
+                            <div class="custom-file"><input type="file" class="custom-file-input" id="delivered_boq" name="delivered_boq" accept=".xlsx, .xls"><label class="custom-file-label" for="delivered_boq">Choose file...</label></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-sticky-note mr-2"></i>Notes</div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <textarea class="form-control" id="notes" name="notes" rows="4">{{ entry.notes }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-lg btn-block mt-4">Save Changes</button>
+        </form>
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $('.custom-file-input').on('change', function() {
+           let fileName = $(this).val().split('\\').pop();
+           $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        });
+    </script>
+</body>
+</html>

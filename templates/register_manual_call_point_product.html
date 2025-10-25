@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+{% include 'navbar.html' %}
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Manual Call Point Product</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Link to your CSS file -->
+</head>
+<body>
+    <h1>Register Manual Call Point Product</h1>
+
+    <form method="POST" action="{{ url_for('register_manual_call_point_product') }}" enctype="multipart/form-data">
+        <label for="vendor_name">Vendor Name:</label>
+        <input type="text" name="vendor_name" id="vendor_name" required>
+
+        <label for="model_number">Model Number:</label>
+        <input type="text" name="model_number" id="model_number" required>
+
+        <label for="manual_call_point_type">Manual Call Point Type:</label>
+        <input type="text" name="manual_call_point_type" id="manual_call_point_type" required>
+
+        <label for="price">Price:</label>
+        <input type="number" name="price" id="price" step="0.01" required>
+
+        <label for="description">Description:</label>
+        <textarea name="description" id="description"></textarea>
+
+        <label for="image">Upload Image:</label>
+        <input type="file" name="image" id="image" accept="image/*" required>
+
+        <button type="submit">Register Product</button>
+    </form>
+</body>
+</html>

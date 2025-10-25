@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}Fiber Solution Builder{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+    .table thead th { background-color: #f8f9fa; border-bottom-width: 2px; font-weight: 600; }
+    .custom-file-label::after { content: "Browse"; }
+    .section-title { font-weight: 600; color: #343a40; margin-top: 1.5rem; margin-bottom: 1rem; border-bottom: 1px solid #e9ecef; padding-bottom: 0.5rem; }
+</style>
+
+<div class="container" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-wave-square mr-2"></i>Fiber Solution Calculator</div>
+        <div class="card-body">
+            <h5 class="card-title">Project Requirements</h5>
+            <p class="text-muted">Enter the project details and upload the rack distribution file to generate a BoQ.</p>
+
+            <form method="POST" enctype="multipart/form-data">
+                
+                <h6 class="section-title">Step 1: Upload Excel File</h6>
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Your Excel file must contain a column named `Connection of fiber with the main rack` with values 'MM' or 'SM'.
+                </div>
+                <div class="form-group">
+                    <label for="boq_file"><strong>Select Excel File</strong></label>
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="boq_file" name="boq_file" required accept=".xlsx, .xls">
+                        <label class="custom-file-label" for="boq_file">Choose file...</label>
+                    </div>
+                </div>
+
+                <h6 class="section-title">Step 2: Define Fiber Specs</h6>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label><strong>MM Fiber Type (IDF -> MDF)</strong></label>
+                        <div>
+                            <div class="custom-control custom-radio custom-control-inline">
+                                <input type="radio" id="om4_idf" name="mm_type_idf" value="OM4" class="custom-control-input" {% if not inputs or inputs.mm_type_idf == 'OM4' %}checked{% endif %}>
+                                <label class="custom-control-label" for="om4_idf">OM4</label>
+                            </div>
+                            <div class="custom-control custom-radio custom-control-inline">
+                                <input type="radio" id="om3_idf" name="mm_type_idf" value="OM3" class="custom-control-input" {% if inputs and inputs.mm_type_idf == 'OM3' %}checked{% endif %}>
+                                <label class="custom-control-label" for="om3_idf">OM3</label>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="form-group col-md-6">
+                        <label><strong>MM Fiber Type (MDF <-> MDF)</strong></label>
+                        <div>
+                            <div class="custom-control custom-radio custom-control-inline">
+                                <input type="radio" id="om4_mdf" name="mm_type_mdf" value="OM4" class="custom-control-input" {% if not inputs or inputs.mm_type_mdf == 'OM4' %}checked{% endif %}>
+                                <label class="custom-control-label" for="om4_mdf">OM4</label>
+                            </div>
+                            <div class="custom-control custom-radio custom-control-inline">
+                                <input type="radio" id="om3_mdf" name="mm_type_mdf" value="OM3" class="custom-control-input" {% if inputs and inputs.mm_type_mdf == 'OM3' %}checked{% endif %}>
+                                <label class="custom-control-label" for="om3_mdf">OM3</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-3"><label for="mm_cores_idf"><strong>MM Cores (IDF)</strong></label><input type="number" class="form-control" id="mm_cores_idf" name="mm_cores_idf" value="{{ inputs.mm_cores_idf if inputs else '12' }}" required></div>
+                    <div class="form-group col-md-3"><label for="sm_cores_idf"><strong>SM Cores (IDF)</strong></label><input type="number" class="form-control" id="sm_cores_idf" name="sm_cores_idf" value="{{ inputs.sm_cores_idf if inputs else '12' }}" required></div>
+                    <div class="form-group col-md-3"><label for="mm_cores_mdf"><strong>MM Cores (MDF)</strong></label><input type="number" class="form-control" id="mm_cores_mdf" name="mm_cores_mdf" value="{{ inputs.mm_cores_mdf if inputs else '12' }}" required></div>
+                    <div class="form-group col-md-3"><label for="sm_cores_mdf"><strong>SM Cores (MDF)</strong></label><input type="number" class="form-control" id="sm_cores_mdf" name="sm_cores_mdf" value="{{ inputs.sm_cores_mdf if inputs else '12' }}" required></div>
+                </div>
+
+                <h6 class="section-title">Step 3: Define Redundancy & Switch Options</h6>
+                <div class="form-group">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="is_redundant" name="is_redundant" {% if inputs and inputs.is_redundant %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_redundant">Is this a Redundant Solution?</label>
+                    </div>
+                </div>
+                <div class="pl-4">
+                    <div class="form-group">
+                        <div class="custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="is_dist_switch" name="is_dist_switch" {% if inputs and inputs.is_dist_switch %}checked{% endif %}>
+                            <label class="custom-control-label" for="is_dist_switch">Is there a Distribution Switch?</label>
+                        </div>
+                        <div class="pl-4 custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="dist_in_sep_cabinet" name="dist_in_sep_cabinet" {% if inputs and inputs.dist_in_sep_cabinet %}checked{% endif %}>
+                            <label class="custom-control-label" for="dist_in_sep_cabinet">...in a separate cabinet?</label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="is_core_switch" name="is_core_switch" {% if inputs and inputs.is_core_switch %}checked{% endif %}>
+                            <label class="custom-control-label" for="is_core_switch">Is there a Core Switch?</label>
+                        </div>
+                        <div class="pl-4 custom-control custom-switch mb-2">
+                            <input type="checkbox" class="custom-control-input" id="core_in_sep_cabinet" name="core_in_sep_cabinet" {% if inputs and inputs.core_in_sep_cabinet %}checked{% endif %}>
+                            <label class="custom-control-label" for="core_in_sep_cabinet">...in a separate cabinet?</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="mdf_connection_type"><strong>Connection Between MDFs</strong></label>
+                    <select class="form-control" id="mdf_connection_type" name="mdf_connection_type">
+                        <option value="MM" {% if inputs and inputs.mdf_connection_type == 'MM' %}selected{% endif %}>Multimode (MM)</option>
+                        <option value="SM" {% if inputs and inputs.mdf_connection_type == 'SM' %}selected{% endif %}>Singlemode (SM)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-4"><i class="fas fa-cogs mr-2"></i>Build Fiber Solution</button>
+            </form>
+        </div>
+    </div>
+
+    {% if results is not none %}
+    <div class="card mt-4">
+        <div class="card-header"><i class="fas fa-clipboard-list mr-2"></i>Generated Fiber BoQ</div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead><tr><th>Item</th><th>Calculated Quantity</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        {% for item in results %}
+                        <tr>
+                            <td><strong>{{ item.item }}</strong></td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.notes }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center p-4">No data could be calculated. Please check your inputs and file.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelector('.custom-file-input').addEventListener('change', function (e) {
+        var fileName = document.getElementById("boq_file").files[0].name;
+        var nextSibling = e.target.nextElementSibling;
+        nextSibling.innerText = fileName;
+    });
+</script>
+{% endblock %}

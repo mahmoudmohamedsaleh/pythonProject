@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register PO Follow-Up</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f4f7f6; }
+        .main-content { margin-left: 260px; padding: 2rem; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.07); margin-bottom: 1.5rem; }
+        .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.1rem; padding: 1rem 1.5rem; }
+        .form-group label { font-weight: 600; color: #495057; }
+        .input-group-text { background-color: #e9ecef; border: 1px solid #ced4da; }
+        .btn-primary { font-weight: 600; }
+        input[readonly] { background-color: #e9ecef; }
+    </style>
+</head>
+<body>
+    {% include 'sidebar.html' %}
+
+    <main class="main-content">
+        <div class="text-center mb-4">
+            <h1>Register PO Follow-Up</h1>
+            <p class="text-muted">Add a delivery or status update for PO Number: <strong>{{ po_number }}</strong></p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('register_po_follow_up') }}" method="POST" enctype="multipart/form-data">
+
+            <input type="hidden" name="po_number" value="{{ po_number }}">
+            <input type="hidden" name="total_amount" value="{{ total_amount }}">
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-shipping-fast mr-2"></i>Order & Delivery Status</div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="order_date">Order Date</label>
+
+                            <input type="date" class="form-control" id="order_date" name="order_date" value="{{ first_order_date or '' }}" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="expected_delivery">Expected Delivery Date</label>
+                            <input type="date" class="form-control" id="expected_delivery" name="expected_delivery">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Delivery Status</label>
+                        <select class="form-control" id="status" name="status" required>
+                            <option>Order Placed</option>
+                            <option>Confirmed by Distributor</option>
+                            <option>Shipped</option>
+                            <option>Partial Delivery Received</option>
+                            <option>Full Delivery Received</option>
+                            <option>Completed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-paperclip mr-2"></i>Documents</div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="invoice">Upload Invoice (PDF)</label>
+                            <div class="custom-file"><input type="file" class="custom-file-input" id="invoice" name="invoice" accept=".pdf"><label class="custom-file-label" for="invoice">Choose file...</label></div>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="delivery_note">Upload Delivery Note (PDF)</label>
+                            <div class="custom-file"><input type="file" class="custom-file-input" id="delivery_note" name="delivery_note" accept=".pdf"><label class="custom-file-label" for="delivery_note">Choose file...</label></div>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="delivered_boq">Upload Delivered BOQ (Excel)</label>
+                            <div class="custom-file"><input type="file" class="custom-file-input" id="delivered_boq" name="delivered_boq" accept=".xlsx, .xls"><label class="custom-file-label" for="delivered_boq">Choose file...</label></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-sticky-note mr-2"></i>Notes</div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="Add any relevant notes here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg btn-block mt-4">Register Follow-Up Entry</button>
+        </form>
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        // Script to show filename in custom file input
+        $('.custom-file-input').on('change', function() {
+           let fileName = $(this).val().split('\\').pop();
+           $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        });
+    </script>
+</body>
+</html>

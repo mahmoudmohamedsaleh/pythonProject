@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Request</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>Edit Technical Support Request</h1>
+    <form method="POST" action="{{ url_for('edit_request') }}">
+        <input type="hidden" name="request_id" value="{{ request_details[0] }}">
+
+        <div class="form-group">
+            <label for="request_status">Request Status</label>
+            <select name="request_status" class="form-control" required>
+                {% for status in request_status_options %}
+                    <option value="{{ status }}" {% if status == request_details[7] %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="request_result">Request Result</label>
+            <select name="request_result" class="form-control" required>
+                {% for result in request_result_options %}
+                    <option value="{{ result }}" {% if result == request_details[8] %}selected{% endif %}>{{ result }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Request</button>
+        <a href="{{ url_for('technical_support_summary') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

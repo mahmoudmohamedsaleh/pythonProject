@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register New Product</title>
+    {% include 'navbar.html' %}
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Register New CCTV Product</h2>
+        <form action="{{ url_for('register_product') }}" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="vendor_name">Vendor Name:</label>
+                <input type="text" class="form-control" id="vendor_name" name="vendor_name" required>
+            </div>
+            <div class="form-group">
+                <label for="model_number">Model Number:</label>
+                <input type="text" class="form-control" id="model_number" name="model_number" required>
+            </div>
+            <div class="form-group">
+                <label for="image_sensor">Image Sensor:</label>
+                <input type="text" class="form-control" id="image_sensor" name="image_sensor">
+            </div>
+            <div class="form-group">
+                <label for="max_resolution">Max Resolution:</label>
+                <input type="text" class="form-control" id="max_resolution" name="max_resolution">
+            </div>
+            <div class="form-group">
+                <label for="min_illumination">Min Illumination:</label>
+                <input type="text" class="form-control" id="min_illumination" name="min_illumination">
+            </div>
+            <div class="form-group">
+                <label for="lens_type">Lens Type:</label>
+                <input type="text" class="form-control" id="lens_type" name="lens_type">
+            </div>
+            <div class="form-group">
+                <label for="focal_length">Focal Length:</label>
+                <input type="text" class="form-control" id="focal_length" name="focal_length">
+            </div>
+            <div class="form-group">
+                <label for="iris_type">Iris Type:</label>
+                <input type="text" class="form-control" id="iris_type" name="iris_type">
+            </div>
+            <div class="form-group">
+                <label for="supplement_light_type">Supplement Light Type:</label>
+                <input type="text" class="form-control" id="supplement_light_type" name="supplement_light_type">
+            </div>
+            <div class="form-group">
+                <label for="supplement_light_range">Supplement Light Range:</label>
+                <input type="text" class="form-control" id="supplement_light_range" name="supplement_light_range">
+            </div>
+            <div class="form-group">
+                <label for="built_in_mic">Built-in MIC:</label>
+                <input type="text" class="form-control" id="built_in_mic" name="built_in_mic">
+            </div>
+            <div class="form-group">
+                <label for="wdr">WDR:</label>
+                <input type="text" class="form-control" id="wdr" name="wdr">
+            </div>
+             <div class="form-group">
+                <label for="camera_image">Camera Image:</label>
+               <input type="file" class="form-control" id="camera_image" name="camera_image" accept="image/*" required>
+            </div>
+            <div class="form-group">
+                <label for="price">price:</label>
+                <input type="number" class="form-control" id="price" name="price">
+            </div>
+            <div class="form-group">
+                <label for="camera_type">camera_type:</label>
+                <input type="text" class="form-control" id="camera_type" name="camera_type">
+            </div>
+            <button type="submit" class="btn btn-primary">Register Product</button>
+        </form>
+    </div>
+</body>
+</html>
