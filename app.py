@@ -71,13 +71,16 @@ def init_db():
             status TEXT,
             quotation_note TEXT,
             feedback TEXT,
-            registered_date TEXT,  -- New column for registered date
-            quarter TEXT,          -- New column for quarter
-            quotation_cost REAL     -- New column for quotation cost
-            progress TEXT,          -- New column for project progress
-            updated_time TEXT,     -- New column for last updated time
-            registered_by TEXT     -- New column for the user who registered the project
-            updated_by TEXT  -- Column to store the user who updated the project
+            registered_date TEXT,
+            quarter TEXT,
+            quotation_cost REAL,
+            quotation_selling_price REAL,
+            margin REAL,
+            progress TEXT,
+            rfq_reference TEXT,
+            registered_by TEXT,
+            updated_time TEXT,
+            updated_by TEXT
         )
     ''')
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -134,12 +137,34 @@ def login():
         # The users table schema is: (id, username, password, role)
         c.execute("SELECT * FROM users WHERE username=?", (username,))
         user = c.fetchone()
+        
+        # Check password (support both hashed and legacy plaintext passwords)
+        password_valid = False
+        if user:
+            stored_password = user[2]
+            # Try hashed password first (new format)
+            try:
+                if check_password_hash(stored_password, password):
+                    password_valid = True
+            except ValueError:
+                # Not a valid hash format, try plaintext comparison
+                pass
+            
+            # Fallback: check if it's a legacy plaintext password
+            if not password_valid and stored_password == password:
+                password_valid = True
+                # Auto-upgrade to hashed password
+                hashed_password = generate_password_hash(password)
+                c.execute("UPDATE users SET password=? WHERE username=?", (hashed_password, username))
+                # Also update engineers table if user is an engineer
+                c.execute("UPDATE engineers SET password=? WHERE username=?", (hashed_password, username))
+                conn.commit()
+        
         conn.close()
 
-        if user and check_password_hash(user[2], password):
+        if password_valid:
             session['user_id'] = user[0]
             session['username'] = user[1]
-            # --- THIS IS THE NEW LINE ---
             session['user_role'] = user[3]  # Save user's role in the session
 
             flash('Login successful!', 'success')
