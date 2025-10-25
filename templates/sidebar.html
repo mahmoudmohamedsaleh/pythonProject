@@ -115,8 +115,8 @@
             <li class="nav-item"><a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
 
             <li class="menu-header">CRM</li>
-            <li class="nav-item"><a href="{{ url_for('view_projects') }}" class="{{ 'active' if 'project' in request.endpoint and 'pipeline_analysis' not in request.endpoint and 'sales_performance' not in request.endpoint else '' }}"><i class="fas fa-project-diagram"></i> Projects & Pipeline</a></li>
-            <li class="nav-item"><a href="{{ url_for('project_pipeline') }}" class="{{ 'active' if request.endpoint == 'pipeline_analysis' else '' }}"><i class="fas fa-chart-line"></i> Pipeline Analysis</a></li>
+            <li class="nav-item"><a href="{{ url_for('view_projects') }}" class="{{ 'active' if request.endpoint == 'view_projects' or request.endpoint == 'project_pipeline' else '' }}"><i class="fas fa-project-diagram"></i> Projects & Pipeline</a></li>
+            <li class="nav-item"><a href="{{ url_for('pipeline_analysis') }}" class="{{ 'active' if request.endpoint == 'pipeline_analysis' else '' }}"><i class="fas fa-chart-line"></i> Pipeline Analysis</a></li>
             <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="{{ 'active' if request.endpoint == 'sales_performance' else '' }}"><i class="fas fa-trophy"></i> Sales Performance</a></li>
             <li class="nav-item"><a href="{{ url_for('aging_dashboard') }}" class="{{ 'active' if request.endpoint == 'aging_dashboard' else '' }}"><i class="fas fa-history"></i> Aging Dashboard</a></li>
             <li class="nav-item"><a href="{{ url_for('view_end_users') }}" class="{{ 'active' if 'end_user' in request.endpoint else '' }}"><i class="fas fa-building"></i> End Users</a></li>
