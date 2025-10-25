@@ -16,6 +16,7 @@ import base64
 from io import BytesIO
 import pandas as pd
 from flask import send_file
+from werkzeug.security import generate_password_hash, check_password_hash
 
 def role_required(*roles):
     def decorator(f):
@@ -44,7 +45,7 @@ def role_required(*roles):
     return decorator
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
+app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())
 
 # Sample lists of names for engineers
 PRESALE_ENGINEERS = ["m.saleh", "R.Elnaggar", "S.Hussin", "m.fakhrany",]
@@ -85,6 +86,16 @@ def init_db():
             password TEXT,
             role TEXT
         )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS engineers (
+            id INTEGER PRIMARY KEY,
+            name TEXT,
+            engineer_code TEXT UNIQUE,
+            phone TEXT,
+            email TEXT,
+            role TEXT,
+            username TEXT UNIQUE,
+            password TEXT
+        )''')
 
     conn.commit()
     conn.close()
@@ -121,11 +132,11 @@ def login():
         conn = sqlite3.connect('ProjectStatus.db')
         c = conn.cursor()
         # The users table schema is: (id, username, password, role)
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        c.execute("SELECT * FROM users WHERE username=?", (username,))
         user = c.fetchone()
         conn.close()
 
-        if user:
+        if user and check_password_hash(user[2], password):
             session['user_id'] = user[0]
             session['username'] = user[1]
             # --- THIS IS THE NEW LINE ---
@@ -229,7 +240,8 @@ def register_engineer():
         email = request.form['email']
         role = request.form['role']
         username = request.form['username']
-        password = request.form['password']  # No hashing
+        password = request.form['password']
+        hashed_password = generate_password_hash(password)
 
         # Generate engineer code
         engineer_code = generate_engineer_code(name)
@@ -243,11 +255,11 @@ def register_engineer():
             # Insert into engineers table
             c.execute('''INSERT INTO engineers (name, engineer_code, phone, email, role, username, password)
                          VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                      (name, engineer_code, phone, email, role, username, password))
+                      (name, engineer_code, phone, email, role, username, hashed_password))
 
             # Insert into users table
             c.execute('''INSERT INTO users (username, password, role)
-                         VALUES (?, ?, ?)''', (username, password, role))
+                         VALUES (?, ?, ?)''', (username, hashed_password, role))
 
             conn.commit()
             flash('Engineer registered successfully!', 'success')
@@ -3160,9 +3172,10 @@ def edit_engineer(engineer_id):
             # --- Update the engineers table ---
             if new_password:
                 # If a new password is provided, update it
+                hashed_password = generate_password_hash(new_password)
                 c.execute('''UPDATE engineers SET name=?, phone=?, email=?, role=?, username=?, password=? 
                              WHERE id=?''',
-                          (name, phone, email, role, new_username, new_password, engineer_id))
+                          (name, phone, email, role, new_username, hashed_password, engineer_id))
             else:
                 # If password field is blank, keep the old password (don't update it)
                 c.execute('''UPDATE engineers SET name=?, phone=?, email=?, role=?, username=? 
@@ -3172,9 +3185,10 @@ def edit_engineer(engineer_id):
             # --- Update the corresponding users table record ---
             if new_password:
                 # If a new password is provided, update it here as well
+                hashed_password = generate_password_hash(new_password)
                 c.execute('''UPDATE users SET username=?, password=?, role=?
                              WHERE username=?''',
-                          (new_username, new_password, role, old_username))
+                          (new_username, hashed_password, role, old_username))
             else:
                 # If password field is blank, keep the old password
                 c.execute('''UPDATE users SET username=?, role=?
@@ -5063,4 +5077,7 @@ def delete_task(task_id):
 ##############################################
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', '0') == '1'
+    app.run(host=host, port=port, debug=debug)
