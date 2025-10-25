@@ -96,31 +96,33 @@ The application uses SQLite with multiple tables including:
 ## User Preferences
 (None specified yet)
 
-## CRITICAL SECURITY WARNINGS
+## Security Improvements
 
-⚠️ **This application has serious security vulnerabilities that must be addressed before production deployment:**
+✅ **The following security improvements have been implemented:**
 
-1. **Hard-coded Secret Key**: The Flask `app.secret_key` is set to 'your_secret_key' (line 47 in app.py), which is:
-   - A literal string known to anyone with source access
-   - Shared across all instances, allowing session forgery
-   - **REQUIRED FIX**: Move to environment variable with a strong random value
-   ```python
-   app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())
-   ```
+1. **Secret Key Security** (FIXED):
+   - Changed from hard-coded 'your_secret_key' to environment-based configuration
+   - Implementation: `app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())`
+   - Uses random generation as fallback if SECRET_KEY environment variable not set
+   - For production deployment, set a strong SECRET_KEY environment variable
 
-2. **Plaintext Password Storage**: User passwords are stored in cleartext in SQLite:
-   - Direct string comparison in login function (line 124)
-   - Database breach would expose all passwords
-   - **REQUIRED FIX**: Implement password hashing using werkzeug.security:
-   ```python
-   from werkzeug.security import generate_password_hash, check_password_hash
-   ```
+2. **Password Hashing** (FIXED):
+   - Implemented werkzeug.security password hashing throughout the application
+   - New passwords are hashed using `generate_password_hash()` before storage
+   - Login verification uses `check_password_hash()` for secure comparison
+   - **Password Migration**: Automatic upgrade system for existing plaintext passwords
+     - Legacy plaintext passwords are detected and validated on login
+     - Upon successful login, plaintext passwords are automatically upgraded to hashed format
+     - Both users and engineers tables are updated simultaneously
+     - No user intervention required - migration happens transparently
 
-3. **Database Security**: SQLite database file contains sensitive data but is:
-   - Not encrypted at rest
-   - Accessible to anyone with file system access
-   - **RECOMMENDED**: Migrate to PostgreSQL with proper access controls for production
+3. **Database Security** (PARTIAL):
+   - SQLite database file still not encrypted at rest
+   - **RECOMMENDED for Production**: Migrate to Replit PostgreSQL with proper access controls
+   - Contact information stored in database should be considered sensitive
 
-## Known Issues
-- Static folder case sensitivity resolved with symbolic link (should rename Static/ to static/ in source control)
-- Some LSP warnings about imports (resolved at runtime)
+## Technical Notes
+- Static folder case sensitivity resolved with symbolic link (Static -> static)
+- All database tables properly initialized with complete schema
+- Password migration system handles legacy accounts automatically
+- LSP diagnostics about imports are cosmetic (all imports resolve correctly at runtime)
