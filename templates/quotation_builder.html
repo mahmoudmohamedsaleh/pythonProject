@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% block title %}Quotation Builder{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+    #product-search-results {
+        position: absolute;
+        background: white;
+        border: 1px solid #ddd;
+        width: 100%;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+    }
+    #product-search-results .list-group-item {
+        cursor: pointer;
+    }
+    #product-search-results .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+    tfoot { font-weight: bold; }
+</style>
+
+<div class="container" style="max-width: 1000px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-calculator mr-2"></i>Passive Product Quotation Builder</div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label for="project-name">Project Name</label>
+                    <select id="project-name" class="form-control">
+                        <option value="">Select a Project...</option>
+                        {% for project in projects %}
+                            <option value="{{ project[0] }}">{{ project[0] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group col-md-6">
+                    <label for="quote-ref">Quote Reference</label>
+                    <input type="text" id="quote-ref" class="form-control" placeholder="Enter a unique reference...">
+                </div>
+            </div>
+            <hr>
+
+            <div class="card bg-light mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Add Product to Quote</h5>
+                    <div class="form-row" id="product-filters">
+                        <div class="form-group col-md-4">
+                            <label>Vendor</label>
+                            <select id="vendor-filter" class="form-control filter-input">
+                                <option value="">All</option>
+                                {% for v in vendors %}
+                                    <option value="{{ v[0] }}">{{ v[0] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Solution</label>
+                            <select id="solution-filter" class="form-control filter-input">
+                                <option value="">All</option>
+                                {% for s in solutions %}
+                                    <option value="{{ s[0] }}">{{ s[0] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Specific Solution</label>
+                            <select id="specific-solution-filter" class="form-control filter-input" disabled>
+                                <option value="">Select a Solution first...</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Part Number</label>
+                            <input id="part-number-filter" type="text" class="form-control filter-input" placeholder="Search Part No...">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Specs</label>
+                            <input id="specs-filter" type="text" class="form-control filter-input" placeholder="Search Specs...">
+                        </div>
+                    </div>
+                    <div class="position-relative">
+                        <div id="product-search-results" class="list-group" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="mt-4">Quotation Items</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Part Number</th>
+                            <th style="width: 40%;">Description</th>
+                            <th>Qty</th>
+                            <th>Unit Price</th>
+                            <th>Total Price</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quote-items-table">
+                        </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-right"><strong>Grand Total</strong></td>
+                            <td id="grand-total" class="text-right">SAR 0.00</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <form id="save-form" action="{{ url_for('save_quotation') }}" method="POST" style="display: none;">
+                <input type="hidden" name="quotation_data" id="quotation-data-input">
+            </form>
+
+            <button id="save-download-btn" class="btn btn-success mt-3 float-right"><i class="fas fa-save mr-2"></i>Save & Download Quotation</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterContainer = document.getElementById('product-filters');
+    const solutionFilter = document.getElementById('solution-filter');
+    const specificSolutionFilter = document.getElementById('specific-solution-filter');
+    const searchResults = document.getElementById('product-search-results');
+    const quoteItemsTable = document.getElementById('quote-items-table');
+    const grandTotalEl = document.getElementById('grand-total');
+    const saveDownloadBtn = document.getElementById('save-download-btn');
+    const saveForm = document.getElementById('save-form');
+    const saveDataInput = document.getElementById('quotation-data-input');
+
+    let debounceTimer;
+
+    // --- Dependent Dropdown Logic ---
+    solutionFilter.addEventListener('change', function() {
+        const selectedSolution = this.value;
+        specificSolutionFilter.innerHTML = '<option value="">Loading...</option>';
+
+        if (!selectedSolution) {
+            specificSolutionFilter.innerHTML = '<option value="">Select a Solution first...</option>';
+            specificSolutionFilter.disabled = true;
+            fetchFilteredProducts();
+            return;
+        }
+
+        fetch(`/get_specific_solutions/${selectedSolution}`)
+            .then(response => response.json())
+            .then(data => {
+                specificSolutionFilter.innerHTML = '<option value="">All</option>';
+                data.forEach(specific => {
+                    const option = document.createElement('option');
+                    option.value = specific;
+                    option.textContent = specific;
+                    specificSolutionFilter.appendChild(option);
+                });
+                specificSolutionFilter.disabled = false;
+                fetchFilteredProducts();
+            });
+    });
+
+    // --- Product Filtering ---
+    filterContainer.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(fetchFilteredProducts, 300);
+    });
+    filterContainer.addEventListener('change', fetchFilteredProducts);
+
+    function fetchFilteredProducts() {
+        const params = new URLSearchParams({
+            vendor: document.getElementById('vendor-filter').value,
+            solution: document.getElementById('solution-filter').value,
+            specific_solution: specificSolutionFilter.value,
+            part_number: document.getElementById('part-number-filter').value,
+            specs: document.getElementById('specs-filter').value
+        });
+
+        fetch(`/search_products?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                searchResults.innerHTML = '';
+                if (data.length) {
+                    data.forEach(product => {
+                        const item = document.createElement('a');
+                        item.href = '#';
+                        item.classList.add('list-group-item', 'list-group-item-action', 'py-2');
+                        item.innerHTML = `<strong>${product.part_number}</strong><br><small class="text-muted">${product.description}</small>`;
+                        item.dataset.product = JSON.stringify(product);
+                        searchResults.appendChild(item);
+                    });
+                    searchResults.style.display = 'block';
+                } else {
+                    searchResults.style.display = 'none';
+                }
+            });
+    }
+
+    // --- Add Product to Table ---
+    searchResults.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = e.target.closest('a');
+        if (target) {
+            const product = JSON.parse(target.dataset.product);
+            addProductToTable(product);
+            filterContainer.querySelectorAll('input').forEach(input => input.value = '');
+            searchResults.style.display = 'none';
+        }
+    });
+
+    function addProductToTable(product) {
+        if (quoteItemsTable.querySelector(`[data-part-number="${product.part_number}"]`)) {
+            alert('This product is already in the quotation.');
+            return;
+        }
+        const row = document.createElement('tr');
+        row.dataset.partNumber = product.part_number;
+        row.innerHTML = `
+            <td>${product.part_number}</td>
+            <td>${product.description}</td>
+            <td><input type="number" class="form-control quantity-input" value="1" min="1"></td>
+            <td class="unit-price">${parseFloat(product.unit_price || 0).toFixed(2)}</td>
+            <td class="total-price">${parseFloat(product.unit_price || 0).toFixed(2)}</td>
+            <td><button class="btn btn-danger btn-sm remove-item-btn"><i class="fas fa-trash"></i></button></td>
+        `;
+        quoteItemsTable.appendChild(row);
+        updateTotals();
+    }
+
+    // --- Update Totals & Remove Items ---
+    quoteItemsTable.addEventListener('input', function(e) {
+        if (e.target.classList.contains('quantity-input')) {
+            const row = e.target.closest('tr');
+            updateRowTotal(row);
+        }
+    });
+    quoteItemsTable.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-item-btn')) {
+            e.target.closest('tr').remove();
+            updateTotals();
+        }
+    });
+
+    function updateRowTotal(row) {
+        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.unit-price').textContent) || 0;
+        const totalPriceEl = row.querySelector('.total-price');
+        totalPriceEl.textContent = (quantity * unitPrice).toFixed(2);
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let grandTotal = 0;
+        quoteItemsTable.querySelectorAll('tr').forEach(row => {
+            grandTotal += parseFloat(row.querySelector('.total-price').textContent) || 0;
+        });
+        grandTotalEl.textContent = `SAR ${grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    // --- Save & Download Quotation ---
+    saveDownloadBtn.addEventListener('click', function() {
+        const items = [];
+        quoteItemsTable.querySelectorAll('tr').forEach(row => {
+            items.push({
+                'Part Number': row.dataset.partNumber,
+                'Description': row.cells[1].textContent,
+                'Quantity': row.querySelector('.quantity-input').value,
+                'Unit Price': row.querySelector('.unit-price').textContent,
+                'Total Price': row.querySelector('.total-price').textContent
+            });
+        });
+
+        const dataToSend = {
+            projectName: document.getElementById('project-name').value,
+            quoteRef: document.getElementById('quote-ref').value,
+            items: items,
+            totalValue: parseFloat(grandTotalEl.textContent.replace(/[SAR,]/g, ''))
+        };
+
+        if (!dataToSend.projectName || !dataToSend.quoteRef || items.length === 0) {
+            alert('Please select a project, enter a quote reference, and add at least one item.');
+            return;
+        }
+
+        // Put the data into the hidden form field as a JSON string
+        saveDataInput.value = JSON.stringify(dataToSend);
+
+        // Submit the form to trigger the save and download
+        saveForm.submit();
+    });
+});
+</script>
+{% endblock %}

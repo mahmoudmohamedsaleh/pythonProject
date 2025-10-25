@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% block title %}Project Pipeline{% endblock %}
+
+{% block content %}
+<style>
+    /* Styles specific to this page */
+    .page-header { margin-bottom: 1.5rem; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+
+    /* Wrapper to control horizontal scrolling */
+    .pipeline-wrapper {
+        overflow-x: auto;
+        padding-bottom: 1rem;
+    }
+    .pipeline-board {
+        display: flex;
+        width: max-content; /* Allows the board to expand as needed */
+        padding-top: 10px;
+    }
+
+    .pipeline-column {
+        flex: 0 0 320px; width: 320px; margin: 0 10px; background-color: #e9ecef;
+        border-radius: 8px; display: flex; flex-direction: column;
+    }
+    .column-header { padding: 15px; border-bottom: 3px solid #ced4da; }
+    .column-title { font-weight: 600; margin-bottom: 5px; color: #343a40; }
+    .header-meta { font-size: 0.9rem; color: #6c757d; font-weight: 500; }
+    .column-body { padding: 10px; flex-grow: 1; overflow-y: auto; max-height: 60vh; }
+    .project-card {
+        background-color: #ffffff; border-radius: 8px; padding: 15px; margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid #007bff; cursor: grab;
+    }
+    .project-card:active { cursor: grabbing; }
+    .project-card h6 { font-weight: 600; width: 90%; }
+    .card-detail { font-size: 0.9rem; color: #495057; margin-bottom: 0.5rem; }
+    .card-detail i { width: 20px; color: #6c757d; }
+    .card-detail .value { font-weight: 600; color: #28a745; }
+    .sow-text { font-size: 0.85rem; color: #6c757d; padding-left: 20px; border-left: 2px solid #e9ecef; margin-left: 10px; }
+    .sortable-ghost { opacity: 0.4; background: #c8ebfb; }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap">
+    <div>
+        <h1 class="mb-0">Deals & Pipeline</h1>
+        <p class="text-muted mb-0">Manage your sales opportunities by dragging cards between stages.</p>
+    </div>
+    <div class="d-flex align-items-center mt-3 mt-md-0">
+        <a href="{{ url_for('register_project') }}" class="btn btn-success">
+            <i class="fas fa-plus mr-2"></i>Register New Project
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="form-inline p-3">
+            {% if user_role != 'Sales Engineer' %}
+            <div class="form-group mr-3">
+                <label for="sales_engineer_id" class="mr-2">Sales Engineer</label>
+                <select class="form-control" id="sales_engineer_id" name="sales_engineer_id">
+                    <option value="">All</option>
+                    {% for engineer in sales_engineers %}
+                        <option value="{{ engineer[0] }}" {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>{{ engineer[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="form-group mr-3">
+                <label for="start_date" class="mr-2">Registered From</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ current_filters.start_date or '' }}">
+            </div>
+            <div class="form-group mr-3">
+                <label for="end_date" class="mr-2">To</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ current_filters.end_date or '' }}">
+            </div>
+            <button type="submit" class="btn btn-info mr-2"><i class="fas fa-filter mr-1"></i> Filter</button>
+            <a href="{{ url_for('project_pipeline') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i> Clear</a>
+        </form>
+    </div>
+</div>
+
+<div class="pipeline-wrapper">
+    <div class="pipeline-board">
+        {% for stage_name in stages_ordered %}
+        <div class="pipeline-column">
+            <div class="column-header" data-header-for="{{ stage_name }}">
+                <h5 class="column-title">{{ stage_name }}</h5>
+                <div class="header-meta">
+                    <span class="deal-count">{{ pipeline_data[stage_name].count }}</span> Deals
+                    <span>-</span>
+                    <span class="deal-value">${{ "{:,.2f}".format(pipeline_data[stage_name].total_value) }}</span>
+                </div>
+            </div>
+            <div class="column-body" data-stage="{{ stage_name }}">
+                {% for project in pipeline_data[stage_name].projects %}
+                <div class="project-card" data-project-name="{{ project.name }}" data-value="{{ project.value }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h6>{{ project.name }}</h6>
+                        <a href="{{ url_for('edit_project_pipeline', project_id=project.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Project"><i class="fas fa-edit"></i></a>
+                    </div>
+                    <div class="card-detail"><i class="fas fa-user-tag"></i> <strong>Sales Eng:</strong> {{ project.sales_engineer or 'N/A' }}</div>
+                    <div class="card-detail"><i class="fas fa-building"></i> <strong>End User:</strong> {{ project.end_user or 'N/A' }}</div>
+                    <div class="card-detail"><i class="fas fa-hard-hat"></i> <strong>Contractor:</strong> {{ project.contractor or 'N/A' }}</div>
+                    <div class="card-detail"><i class="fas fa-dollar-sign"></i> <span class="value">${{ "{:,.2f}".format(project.value) }}</span></div>
+                    <div class="card-detail card-probability"><i class="fas fa-percentage"></i> <span class="probability-value">{{ project.probability|float|round(2) if project.probability is not none else 'N/A' }}</span>%</div>
+                    <div class="card-detail"><i class="fas fa-calendar-alt"></i> {{ project.close_date or 'N/A' }}</div>
+                    <div class="card-detail"><i class="fas fa-calendar-week"></i> <strong>Quarter:</strong> {{ project.quarter or 'N/A' }}</div>
+                    <hr class="my-2">
+                    <div class="card-detail"><i class="fas fa-tasks"></i> <strong>Scope:</strong></div>
+                    <p class="sow-text">{{ project.sow or 'Not specified.' }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const columns = document.querySelectorAll('.column-body');
+        function updateHeaders(fromColumn, toColumn, cardValue) {
+            if (fromColumn === toColumn) return;
+            const fromHeader = document.querySelector(`[data-header-for="${fromColumn.dataset.stage}"]`);
+            const toHeader = document.querySelector(`[data-header-for="${toColumn.dataset.stage}"]`);
+            const fromCountEl = fromHeader.querySelector('.deal-count');
+            const toCountEl = toHeader.querySelector('.deal-count');
+            fromCountEl.textContent = parseInt(fromCountEl.textContent) - 1;
+            toCountEl.textContent = parseInt(toCountEl.textContent) + 1;
+            const fromValueEl = fromHeader.querySelector('.deal-value');
+            const toValueEl = toHeader.querySelector('.deal-value');
+            const fromValue = parseFloat(fromValueEl.textContent.replace(/[$,]/g, ''));
+            const toValue = parseFloat(toValueEl.textContent.replace(/[$,]/g, ''));
+            fromValueEl.textContent = '$' + (fromValue - cardValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            toValueEl.textContent = '$' + (toValue + cardValue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        columns.forEach(column => {
+            new Sortable(column, {
+                group: 'shared-pipeline',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: function (evt) {
+                    const item = evt.item;
+                    const fromColumn = evt.from;
+                    const toColumn = evt.to;
+                    const projectName = item.dataset.projectName;
+                    const newStage = toColumn.dataset.stage;
+                    const cardValue = parseFloat(item.dataset.value) || 0;
+                    fetch('/update_project_stage', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            project_name: projectName,
+                            new_stage: newStage,
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            console.log('Successfully updated stage for:', projectName);
+                            updateHeaders(fromColumn, toColumn, cardValue);
+                            const probabilityValueEl = item.querySelector('.probability-value');
+                            if (probabilityValueEl && data.newProbability !== undefined) {
+                                probabilityValueEl.textContent = data.newProbability.toFixed(2);
+                            }
+                        } else {
+                            console.error('Failed to update stage:', data.message);
+                            fromColumn.appendChild(item);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        fromColumn.appendChild(item);
+                    });
+                },
+            });
+        });
+    });
+</script>
+{% endblock %}

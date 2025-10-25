@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% block title %}Presales Performance{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 {
+        font-weight: 700;
+    }
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .card-header {
+        background-color: #ffffff;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+    }
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom-width: 2px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .table td, .table th {
+        vertical-align: middle;
+    }
+</style>
+
+<div class="page-header">
+    <h1>Presales Performance</h1>
+    <p class="text-muted">Analysis of RFQ requests versus quotations submitted per quarter.</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="form-inline p-3">
+            <div class="form-group mr-3">
+                <label for="year" class="mr-2">Select Year</label>
+                <select class="form-control" id="year" name="year">
+                    {% for year in year_range %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mr-3">
+                <label for="presale_engineer" class="mr-2">Presales Engineer</label>
+                <select class="form-control" id="presale_engineer" name="presale_engineer">
+                    <option value="">All</option>
+                    {% for engineer in presale_engineers %}
+                        <option value="{{ engineer }}" {% if engineer == presale_filter %}selected{% endif %}>{{ engineer }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-info"><i class="fas fa-filter mr-1"></i> Filter</button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-chart-bar mr-2"></i>RFQ Performance for {{ selected_year }}</div>
+            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="performanceChart"></canvas></div></div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-clock mr-2"></i>Average RFQ Turnaround Time (Days)</div>
+            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="turnaroundChart"></canvas></div></div>
+        </div>
+    </div>
+    <div class="col-lg-12 mb-4"> <div class="card">
+            <div class="card-header"><i class="fas fa-balance-scale-right mr-2"></i>Quoted vs. Won Value Analysis (SAR)</div>
+            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="valueChart"></canvas></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-trophy mr-2"></i>Presales Leaderboard for {{ selected_year }}</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Presales Engineer</th>
+                        <th>Quotations Submitted</th>
+                        <th>Deals Won</th>
+                        <th>Win Rate</th>
+                        <th>Total Won Value (SAR)</th>
+                        <th>Avg. Margin on Won Deals</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in leaderboard_data %}
+                    <tr>
+                        <td><strong>{{ row[0] }}</strong></td>
+                        <td>{{ row[1] }}</td>
+                        <td>{{ row[2] }}</td>
+                        <td>{{ "{:.1f}".format((row[2] / row[1] * 100)) if row[1] > 0 else '0.0' }}%</td>
+                        <td>{{ "{:,.2f}".format(row[3]) if row[3] else '0.00' }}</td>
+                        <td>{{ "{:.2f}".format(row[4]) if row[4] else 'N/A' }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">No performance data found for the selected criteria.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+    Chart.register(ChartDataLabels);
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Chart 1: RFQ Performance
+        const ctxPerf = document.getElementById('performanceChart').getContext('2d');
+        const performanceChart = new Chart(ctxPerf, {
+            type: 'bar',
+            data: {
+                labels: {{ labels|tojson }},
+                datasets: [
+                    {
+                        label: 'RFQs Requested',
+                        data: {{ requested_data|tojson }},
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1, borderRadius: 5
+                    },
+                    {
+                        label: 'RFQs Quoted',
+                        data: {{ quoted_data|tojson }},
+                        backgroundColor: 'rgba(40, 167, 69, 0.6)',
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        borderWidth: 1, borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.parsed.y}` } },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        formatter: (value) => value > 0 ? value : null,
+                        font: { weight: 'bold' }, color: '#495057'
+                    }
+                }
+            }
+        });
+
+        // Chart 2: Turnaround Time
+        const ctxTurn = document.getElementById('turnaroundChart').getContext('2d');
+        const turnaroundChart = new Chart(ctxTurn, {
+            type: 'bar',
+            data: {
+                labels: {{ turnaround_labels|tojson }},
+                datasets: [{
+                    label: 'Average Days',
+                    data: {{ turnaround_data|tojson }},
+                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    borderWidth: 1, borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y', // This makes the bar chart horizontal
+                scales: { x: { beginAtZero: true, title: { display: true, text: 'Average Days to Quote' } } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: context => `Avg. ${context.parsed.x.toFixed(2)} days`
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        formatter: (value) => value > 0 ? value.toFixed(1) + 'd' : null,
+                        font: { weight: 'bold' }, color: '#495057'
+                    }
+                }
+            }
+        });
+
+        // Chart 3: Win Rate & Value Analysis
+        const ctxValue = document.getElementById('valueChart').getContext('2d');
+        const valueChart = new Chart(ctxValue, {
+            type: 'bar',
+            data: {
+                labels: {{ value_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Total Quoted Value',
+                        data: {{ total_quoted_data|tojson }},
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1, borderRadius: 5
+                    },
+                    {
+                        label: 'Total Won Value',
+                        data: {{ total_won_data|tojson }},
+                        backgroundColor: 'rgba(40, 167, 69, 0.6)',
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        borderWidth: 1, borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { callback: value => 'SAR ' + value.toLocaleString() } } },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { callbacks: { label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` } },
+                    datalabels: { display: false }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

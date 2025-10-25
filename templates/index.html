@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 { font-weight: 700; }
+    .kpi-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s ease; }
+    .kpi-card:hover { transform: translateY(-5px); }
+    .kpi-card .card-body { padding: 1.5rem; }
+    .kpi-card .kpi-value { font-size: 2rem; font-weight: 700; }
+    .kpi-card .kpi-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+    .kpi-card .kpi-icon { font-size: 2.5rem; opacity: 0.15; }
+    .border-left-primary { border-left: 0.25rem solid #007bff !important; }
+    .border-left-success { border-left: 0.25rem solid #28a745 !important; }
+    .border-left-danger { border-left: 0.25rem solid #dc3545 !important; }
+    .border-left-info { border-left: 0.25rem solid #17a2b8 !important; }
+    .chart-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
+
+    .action-card {
+        text-align: center;
+        padding: 2rem;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        background-color: #ffffff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+    .action-card i { font-size: 2.5rem; margin-bottom: 1rem; }
+</style>
+
+<div class="page-header">
+    <h1>Dashboard</h1>
+    {% if session.username %}
+    <p class="lead text-muted">Welcome back, {{ session.username }}! Here is a summary of your system.</p>
+    {% endif %}
+</div>
+
+<!-- New KPI Cards Row -->
+<div class="row">
+    <!-- Pipeline Deals -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card kpi-card border-left-primary h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label text-primary">Pipeline Deals</div>
+                    <div class="kpi-value">{{ pipeline_deals_count }}</div>
+                    <div class="text-muted font-weight-bold">SAR {{ "{:,.2f}".format(pipeline_deals_amount) }}</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-filter"></i></div>
+            </div>
+        </div>
+    </div>
+    <!-- Won Deals -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card kpi-card border-left-success h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label text-success">Won Deals (This Year)</div>
+                    <div class="kpi-value">{{ won_projects_count }}</div>
+                    <div class="text-muted font-weight-bold">SAR {{ "{:,.2f}".format(won_projects_amount) }}</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-trophy"></i></div>
+            </div>
+        </div>
+    </div>
+    <!-- Lost Deals -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card kpi-card border-left-danger h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-label text-danger">Lost Deals (This Year)</div>
+                    <div class="kpi-value">{{ lost_projects_count }}</div>
+                    <div class="text-muted font-weight-bold">SAR {{ "{:,.2f}".format(lost_projects_amount) }}</div>
+                </div>
+                <div class="kpi-icon"><i class="fas fa-times-circle"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Updated Chart Row -->
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="card chart-card">
+            <div class="card-header"><i class="fas fa-chart-pie mr-2"></i>Active Deals by Stage</div>
+            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="dealsByStageChart"></canvas></div></div>
+        </div>
+    </div>
+</div>
+
+<hr class="my-4">
+
+<!-- Quick Access Section (Unchanged) -->
+<div class="row">
+    <div class="col-12"><h3 class="mb-3">Quick Access</h3></div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <a href="{{ url_for('project_pipeline') }}" class="card action-card text-decoration-none text-dark h-100">
+            <i class="fas fa-stream text-primary"></i>
+            <h4>Projects & Pipeline</h4>
+            <p class="text-muted">View the sales pipeline and project table.</p>
+        </a>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+        <a href="{{ url_for('rfq_summary') }}" class="card action-card text-decoration-none text-dark h-100">
+            <i class="fas fa-file-alt text-info"></i>
+            <h4>RFQ Dashboard</h4>
+            <p class="text-muted">Manage all Requests for Quotation.</p>
+        </a>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+         <a href="{{ url_for('show_vendors') }}" class="card action-card text-decoration-none text-dark h-100">
+            <i class="fas fa-store text-warning"></i>
+            <h4>Vendors</h4>
+            <p class="text-muted">View and manage supplier vendors.</p>
+        </a>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-4">
+         <a href="{{ url_for('show_distributors') }}" class="card action-card text-decoration-none text-dark h-100">
+            <i class="fas fa-truck text-success"></i>
+            <h4>Distributors</h4>
+            <p class="text-muted">View and manage product distributors.</p>
+        </a>
+    </div>
+     <div class="col-lg-3 col-md-6 mb-4">
+        <a href="{{ url_for('tasks') }}" class="card action-card text-decoration-none text-dark h-100">
+            <i class="fas fa-tasks text-secondary"></i>
+            <h4>Task Manager</h4>
+            <p class="text-muted">View and manage team and personal tasks.</p>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+    Chart.register(ChartDataLabels);
+    document.addEventListener('DOMContentLoaded', function () {
+        // Chart 1: Active Deals by Stage
+        const ctxDeals = document.getElementById('dealsByStageChart').getContext('2d');
+        new Chart(ctxDeals, {
+            type: 'doughnut',
+            data: {
+                labels: {{ deals_stage_labels|tojson }},
+                datasets: [{
+                    data: {{ deals_stage_data|tojson }},
+                    backgroundColor: ['#007bff', '#6610f2', '#6f42c1', '#e83e8c', '#fd7e14', '#ffc107', '#28a745', '#dc3545', '#343a40'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    datalabels: {
+                        formatter: (value) => value > 0 ? value : null,
+                        color: '#fff',
+                        font: { weight: 'bold' }
+                    },
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

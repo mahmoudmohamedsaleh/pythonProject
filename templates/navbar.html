@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Eshraq Al-Jazeera Tech</title>
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+        .nav-item {
+            margin-left: 15px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <img src="{{ url_for('static', filename='ejt.png') }}" alt="CJ Tech Logo" style="height: 80px;">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('registration_page') }}">registration Page</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('view_summary') }}">View Summaries</a>
+                </li>
+
+                 <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('registered_quotations') }}">ALL Submitted Quotations</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('documents_page') }}">Documents Page</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('vd_page') }}">View SRM</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('crm_page') }}">View CRM</a>
+                </li>
+
+                {% if session.get('user_id') %}
+                    <li class="nav-item dropdown notification-dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="notificationDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Notifications <span class="badge badge-danger">{{ session['notifications'] | length }}</span>
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="notificationDropdown">
+                            {% for notification in session['notifications'] %}
+                                <a class="dropdown-item" href="#">{{ notification[2] }} - {{ notification[4] }}</a>
+                            {% else %}
+                                <a class="dropdown-item" href="#">No new notifications</a>
+                            {% endfor %}
+                        </div>
+                    </li>
+                {% endif %}
+
+
+                {% if session.get('user_id') %}
+                    <li class="nav-item"><span class="nav-link">Welcome, {{ session['username'] }}!</span></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Sign out</a></li>
+                {% else %}
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Sign in</a></li>
+                {% endif %}
+
+            </ul>
+        </div>
+    </nav>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

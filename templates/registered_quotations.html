@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}All Submitted Quotations{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 { font-weight: 700; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); margin-bottom: 30px; }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
+    .table thead th { background-color: #f8f9fa; border-bottom-width: 2px; font-weight: 600; white-space: nowrap; }
+    .table td, .table th { vertical-align: middle; }
+    .badge { font-size: 85%; font-weight: 600; padding: 0.4em 0.7em; }
+</style>
+
+<div class="page-header">
+    <h1>All Submitted Quotations</h1>
+    <p class="text-muted">A detailed log of all quotations submitted through the system.</p>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-filter mr-2"></i>Filter Report</div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="form-row">
+                <div class="form-group col-md-3"><label>Registered From</label><input type="date" class="form-control" name="start_registered_date" value="{{ current_filters.start_registered or '' }}"></div>
+                <div class="form-group col-md-3"><label>Registered To</label><input type="date" class="form-control" name="end_registered_date" value="{{ current_filters.end_registered or '' }}"></div>
+                <div class="form-group col-md-3"><label>Updated From</label><input type="date" class="form-control" name="start_updated_date" value="{{ current_filters.start_updated or '' }}"></div>
+                <div class="form-group col-md-3"><label>Updated To</label><input type="date" class="form-control" name="end_updated_date" value="{{ current_filters.end_updated or '' }}"></div>
+                <div class="form-group col-md-6"><label>Presales Engineer</label>
+                    <select name="presale_eng" class="form-control">
+                        <option value="">All</option>
+                        {% for engineer in presale_engineers %}<option value="{{ engineer }}" {% if engineer == current_filters.presale_eng %}selected{% endif %}>{{ engineer }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-group col-md-6"><label>Sales Engineer</label>
+                    <select name="sales_eng" class="form-control">
+                        <option value="">All</option>
+                        {% for engineer in sales_engineers %}<option value="{{ engineer }}" {% if engineer == current_filters.sales_eng %}selected{% endif %}>{{ engineer }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-search mr-1"></i>Apply</button>
+            <a href="{{ url_for('registered_quotations') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i>Clear</a>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list-ul mr-2"></i>Quotation Details</span>
+        <a href="{{ url_for('download_quotations_excel', **request.args) }}" class="btn btn-success btn-sm"><i class="fas fa-file-excel mr-1"></i>Download Report</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Quote Reference</th>
+                        <th>Presale Eng.</th>
+                        <th>Sales Eng.</th>
+                        <th>Status</th>
+                        <th>Cost Price (SAR)</th>
+                        <th>Selling Price (SAR)</th>
+                        <th>Margin</th>
+                        <th>Registered Date</th>
+                        <th>Last Update</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in quotations %}
+                    <tr>
+                        <td><strong>{{ q[1] }}</strong></td>
+                        <td>{{ q[2] }}</td>
+                        <td>{{ q[3] }}</td>
+                        <td>{{ q[4] }}</td>
+                        <td>
+                            {% set status = q[5] %}
+                            {% if status == 'WON' %}<span class="badge badge-success">{{ status }}</span>
+                            {% elif status == 'LOST' %}<span class="badge badge-danger">{{ status }}</span>
+                            {% else %}<span class="badge badge-secondary">{{ status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ "{:,.2f}".format(q[10]) if q[10] is not none else 'N/A' }}</td>
+                        <td>{{ "{:,.2f}".format(q[6]) if q[6] is not none else 'N/A' }}</td>
+                        <td>{{ "%.1f"|format(q[7]) if q[7] is not none else 'N/A' }}%</td>
+                        <td>{{ q[8].split(' ')[0] if q[8] else 'N/A' }}</td>
+                        <td>{{ q[9].split(' ')[0] if q[9] else 'N/A' }}</td>
+                        <td>
+                            <a href="{{ url_for('edit_project', quote_ref=q[2]) }}" class="btn btn-warning btn-sm" title="Edit Quotation"><i class="fas fa-edit"></i></a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="11" class="text-center text-muted py-5">No quotations found matching your criteria.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

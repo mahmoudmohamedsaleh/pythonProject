@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributors</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+        }
+        .distributor-card {
+            margin-bottom: 20px;
+        }
+        .register-button {
+            width: 100%;
+        }
+        .sidebar {
+            position: sticky;
+            top: 20px; /* Keep sidebar fixed when scrolling */
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container-fluid">
+        <h1 class="my-4">Distributor List</h1>
+
+        <div class="row">
+            <div class="col-md-3 sidebar">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Filter by Distributor or Vendor Name</h5>
+                        <input type="text" id="filter-input" class="form-control" placeholder="Enter distributor or vendor name">
+                        <button class="btn btn-primary mt-2" onclick="filterDistributors()">Filter</button>
+                    </div>
+                </div>
+
+                <!-- Button to Register a New Distributor -->
+                <a href="{{ url_for('register_distributor') }}" class="btn btn-success register-button">Register New Distributor</a>
+            </div>
+
+            <div class="col-md-9">
+                <div class="row" id="distributor-list">
+                    {% for distributor, vendors in distributor_data %}
+                        <div class="col-sm-6 col-md-4">
+                            <div class="card distributor-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ distributor[1] }}</h5> <!-- Distributor Name -->
+                                    <p class="card-text"><strong>Address:</strong> {{ distributor[2] }}</p> <!-- Address -->
+                                    <p class="card-text"><strong>Contact Person:</strong> {{ distributor[3] }}</p> <!-- Contact Person -->
+                                    <p class="card-text"><strong>Phone:</strong> {{ distributor[4] }}</p> <!-- Phone -->
+                                    <p class="card-text"><strong>Email:</strong> {{ distributor[5] }}</p> <!-- Email -->
+
+                                    <h6>Associated Vendors:</h6>
+                                    <div>
+                                        {% if vendors %}
+                                            {% for vendor in vendors %}
+                                                <p><strong>{{ vendor[1] }}</strong> ({{ vendor[4] }}) - {{ vendor[3] }}</p> <!-- Vendor Name, Phone, Address -->
+                                            {% endfor %}
+                                        {% else %}
+                                            <p>No associated vendors.</p>
+                                        {% endif %}
+                                         <a href="/edit_distributor/{{ distributor[0] }}" class="btn btn-warning mt-2">Edit</a>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterDistributors() {
+            const filterInput = document.getElementById('filter-input').value.toLowerCase();
+            const distributorCards = document.querySelectorAll('.distributor-card');
+
+            distributorCards.forEach(card => {
+                const distributorName = card.querySelector('.card-title').textContent.toLowerCase();
+                const vendorTexts = Array.from(card.querySelectorAll('h6 + div p')).map(vendor => vendor.textContent.toLowerCase());
+                const associatedVendors = vendorTexts.join(' ');
+
+                if (distributorName.includes(filterInput) || associatedVendors.includes(filterInput)) {
+                    card.parentElement.style.display = ''; // Show the column
+                } else {
+                    card.parentElement.style.display = 'none'; // Hide the column
+                }
+            });
+        }
+    </script>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

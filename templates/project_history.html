@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project History</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+    /* Custom styles for table columns */
+    .wide-column {
+        width: 500px; /* Adjust the width as needed */
+        min-width: 300px; /* Ensure a minimum width */
+    }
+    </style>
+    <style>
+    /* Custom styles for table columns */
+    .wide-column2 {
+        width: 200px; /* Adjust the width as needed */
+        min-width: 150px; /* Ensure a minimum width */
+    }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container mt-5">
+        <h1>History for Project: {{ project_name }}</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th class="wide-column2">Project Name</th>
+                    <th class="wide-column">Quote Reference</th>
+                    <th>Presale Engineer</th>
+                    <th>Sales Engineer</th>
+                    <th>System</th>
+                    <th class="wide-column">SOW</th>
+                    <th>Status</th>
+                     <th class="wide-column">Quotation Note</th>
+                    <th class="wide-column">Feedback</th>
+                    <th>Quarter</th> <!-- New column for Quarter -->
+                    <th>Quotation Cost</th> <!-- New column for Quotation Cost -->
+                    <th>Quotation Selling Price</th>
+                    <th>Margin</th>
+                    <th class="wide-column2">Registered Date</th>
+                    <th>Progress</th> <!-- New column for Progress -->
+                    <th>Updated By</th> <!-- New column for Updated By -->
+                    <th>Registered By</th> <!-- New column for Registered By -->
+                    <th>Updated Time</th>
+                    <th>Update</th>  <!-- New column for Update -->
+
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                    <tr>
+                        <td>{{ project[0] }}</td>
+                        <td>{{ project[1] }}</td>
+                        <td><a href="{{ url_for('show_comparison', ref=project[2]) }}">{{ project[2] }}</a></td>
+                        <td>{{ project[3] }}</td>
+                        <td>{{ project[4] }}</td>
+                        <td>{{ project[5] }}</td>
+                        <td>{{ project[6] }}</td>
+                        <td>{{ project[9] }}</td>
+                        <td>{{ project[10] }}</td>
+                        <td>{{ project[11] }}</td>
+                        <td>{{ project[13] }}</td>
+                        <td>{{ project[14] }}</td>
+                         <td>{{ project[15] }}</td>
+                         <td>{{ project[16] }}</td>
+                        <td>{{ project[12] }}</td>
+                        <td>{{ project[17] }}</td>
+                        <td>{{ project[19] }}</td>
+                        <td>{{ project[20] }}</td>
+                        <td>{{ project[18] }}</td>
+                        <td>
+                            <a href="{{ url_for('edit_project', quote_ref=project[2]) }}" class="btn btn-warning btn-sm">Update</a> <!-- Update button -->
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a>
+        <a href="{{ url_for('download_project_history', project_name=project_name) }}" class="btn btn-secondary">Download Project History</a>
+    </div>
+</body>
+</html>

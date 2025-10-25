@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Registered Consultants{% endblock %}
+
+{% block content %}
+<style>
+    /* Styles specific to this page */
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    .page-header h1 {
+        font-weight: 700;
+    }
+    .consultant-card {
+        background-color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .consultant-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+    .card-body {
+        flex-grow: 1;
+        padding: 1.5rem; /* Added padding for better spacing */
+    }
+    .card-body p {
+        margin-bottom: 0.75rem;
+        color: #6c757d;
+    }
+    .card-body p i {
+        width: 20px;
+        margin-right: 10px;
+        color: #007bff;
+    }
+    .card-body p strong {
+        color: #343a40;
+    }
+    .no-consultants {
+        text-align: center;
+        padding: 3rem;
+        background-color: #ffffff;
+        border-radius: 12px;
+    }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap">
+    <div>
+        <h1>Registered Consultants</h1>
+        <p class="text-muted mb-0">Manage your consultant contact information.</p>
+    </div>
+    <div class="d-flex align-items-center mt-3 mt-md-0">
+        <form method="GET" action="{{ url_for('view_consultants') }}" class="form-inline mr-3">
+            <div class="input-group">
+                <input type="text" name="search_query" class="form-control" placeholder="Search by name..." value="{{ search_query or '' }}">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+        </form>
+        <a href="{{ url_for('register_consultant') }}" class="btn btn-primary">
+            <i class="fas fa-plus mr-2"></i>Register Consultant
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    {% for consultant in consultants %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="consultant-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-primary">
+                        <i class="fas fa-user-tie mr-2"></i>{{ consultant[1] }}
+                    </h5>
+                    <a href="{{ url_for('edit_consultant', consultant_id=consultant[0]) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-edit mr-1"></i>Edit
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p><i class="fas fa-user fa-fw"></i><strong>Contact:</strong> {{ consultant[2] if consultant[2] else 'N/A' }}</p>
+                    <p><i class="fas fa-phone fa-fw"></i><strong>Phone:</strong> {{ consultant[3] if consultant[3] else 'N/A' }}</p>
+                    <p><i class="fas fa-envelope fa-fw"></i><strong>Email:</strong> {{ consultant[4] if consultant[4] else 'N/A' }}</p>
+                    <hr>
+                    <p class="mb-2"><i class="fas fa-sticky-note fa-fw"></i><strong>Note:</strong></p>
+                    <p class="text-muted pl-4">{{ consultant[5] if consultant[5] else 'No notes available.' }}</p>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="col-12">
+            <div class="no-consultants">
+                <h4 class="text-muted">No consultants found.</h4>
+                {% if search_query %}
+                    <p>Your search for "{{ search_query }}" did not match any records.</p>
+                {% else %}
+                    <p>Click the "Register New Consultant" button to add your first one.</p>
+                {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

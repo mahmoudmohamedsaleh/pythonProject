@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparison Charts</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            display: flex;
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .sidebar {
+            min-width: 220px;
+            background-color: #343a40; /* Dark background for sidebar */
+            color: white;
+            padding: 20px;
+            height: 100vh; /* Full-height sidebar */
+            position: fixed; /* Fix the sidebar */
+        }
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            display: block; /* Make the link a block element */
+            margin: 10px 0; /* Spacing between links */
+            padding: 10px;
+            border-radius: 5px; /* Rounded corners */
+            transition: background 0.3s; /* Smooth background transition */
+        }
+        .sidebar a:hover {
+            background-color: #495057; /* Highlight on hover */
+        }
+        .content {
+            flex-grow: 1;
+            padding: 40px;
+            margin-left: 240px; /* Leave space for sidebar */
+        }
+        .chart-container {
+            position: relative;
+            height: 50vh; /* Increased height */
+            width: 100%; /* Full width of content */
+            margin: auto;
+            background-color: white; /* White background for contrast */
+            border-radius: 10px; /* Rounded corners */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+            padding: 20px; /* Padding inside the chart container */
+        }
+        .margin-info, .markup-info, .cost-info, .price-info {
+            font-size: 1.5rem; /* Increased font size */
+            font-weight: bold;
+            position: absolute;
+            color: #28a745; /* Green color for Margin and Markup */
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.7); /* Optional background for readability */
+            padding: 5px; /* Optional padding */
+            border-radius: 5px; /* Optional rounded corners */
+        }
+        .margin-info {
+            top: 40%; /* Adjusted position */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Adjust for the center */
+        }
+        .markup-info {
+            top: 55%; /* Position below Margin */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Adjust for the center */
+        }
+        .cost-info {
+            top: 10%; /* Position for Cost label */
+            left: 20%; /* Position for Cost label */
+        }
+        .price-info {
+            top: 10%; /* Position for Price label */
+            left: 80%; /* Position for Price label */
+        }
+        h1, h2 {
+            color: #343a40;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Navigation</h2>
+        <div class="button-container">
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-block">Back to Home</a>
+        </div>
+        <h4>Downloads</h4>
+
+        <form action="{{ url_for('download_cost_sheet') }}" method="post" class="mb-3">
+            <input type="hidden" name="quote_ref" value="{{ data['quotation_reference'] }}">
+            <button type="submit" class="btn btn-primary btn-block">Download Cost Sheet</button>
+        </form>
+
+        <form action="{{ url_for('download_quotation') }}" method="post">
+            <input type="hidden" name="quote_ref" value="{{ data['quotation_reference'] }}">
+            <button type="submit" class="btn btn-secondary btn-block">Download Quotation</button>
+        </form>
+    </div>
+    <div class="content">
+        <h1 class="text-center">Margin And Markup for Quote Reference: {{ data['quotation_reference'] }}</h1>
+        <h2 class="text-center">Charts</h2>
+
+        <div class="chart-container">
+            <canvas id="comparisonChart"></canvas>
+            <div class="margin-info">
+                <p>Margin: {{ "%.2f"|format(data['margin']) }}%</p>
+            </div>
+            <div class="markup-info">
+                <p>Markup: {{ "%.2f"|format(((data['quotation_selling_price'] - data['quotation_cost']) / data['quotation_cost']) * 100) }}%</p>
+            </div>
+            <div class="cost-info">
+                <p>Cost: SAR{{ data['quotation_cost'] }}</p>
+            </div>
+            <div class="price-info">
+                <p>Price: SAR{{ data['quotation_selling_price'] }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script>
+        const ctx = document.getElementById('comparisonChart').getContext('2d');
+        const comparisonChart = new Chart(ctx, {
+            type: 'bar', // Use 'bar' for side-by-side comparisons
+            data: {
+                labels: ['Quotation Cost', 'Quotation Selling Price'],
+                datasets: [{
+                    label: 'Amount (SAR)',
+                    data: [
+                        {{ data['quotation_cost'] }},
+                        {{ data['quotation_selling_price'] }}
+                    ],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)', // Light blue for Quotation Cost
+                        'rgba(255, 99, 132, 0.6)'  // Light red for Quotation Selling Price
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount (SAR)',
+                            font: {
+                                size: 16
+                            }
+                        }
+                    }
+                },
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Comparison of Quotation Cost and Selling Price',
+                        font: {
+                            size: 18
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

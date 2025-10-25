@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Pipeline Analysis{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 { font-weight: 700; }
+    .kpi-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+    .kpi-card .card-body { padding: 1.5rem; }
+    .kpi-card .kpi-value { font-size: 1.75rem; font-weight: 700; }
+    .kpi-card .kpi-icon { font-size: 2.5rem; opacity: 0.2; }
+    .border-left-primary { border-left: 0.25rem solid #007bff !important; }
+    .border-left-success { border-left: 0.25rem solid #28a745 !important; }
+    .border-left-danger { border-left: 0.25rem solid #dc3545 !important; }
+    .border-left-info { border-left: 0.25rem solid #17a2b8 !important; }
+    .chart-card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
+</style>
+
+<div class="page-header">
+    <h1>Pipeline Analysis</h1>
+    <p class="text-muted">An overview of expected, won, and lost deal values for the selected year.</p>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body p-3">
+        <form method="GET" class="form-inline">
+            <div class="form-group mr-3">
+                <label for="year" class="mr-2">Select Year</label>
+                <select class="form-control" id="year" name="year">
+                    {% for year in year_range %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if user_role in ['General Manager', 'Technical Team Leader'] %}
+            <div class="form-group mr-3">
+                <label for="sales_engineer_id" class="mr-2">Sales Engineer</label>
+                <select class="form-control" id="sales_engineer_id" name="sales_engineer_id">
+                    <option value="">All</option>
+                    {% for engineer in sales_engineers %}
+                        <option value="{{ engineer[0] }}" {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>{{ engineer[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-info"><i class="fas fa-filter mr-1"></i> Filter</button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card kpi-card border-left-primary h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Expected Value</div>
+                    <div class="kpi-value">SAR {{ "{:,.2f}".format(total_expected_value) }}</div>
+                </div>
+                <div class="kpi-icon text-gray-300"><i class="fas fa-bullseye"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card kpi-card border-left-success h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Won Value</div>
+                    <div class="kpi-value">SAR {{ "{:,.2f}".format(total_won_value) }}</div>
+                </div>
+                <div class="kpi-icon text-gray-300"><i class="fas fa-trophy"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card kpi-card border-left-danger h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Total Lost Value</div>
+                    <div class="kpi-value">SAR {{ "{:,.2f}".format(total_lost_value) }}</div>
+                </div>
+                <div class="kpi-icon text-gray-300"><i class="fas fa-times-circle"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card kpi-card border-left-info h-100">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Deals in Pipeline</div>
+                    <div class="kpi-value">{{ deal_count }}</div>
+                </div>
+                <div class="kpi-icon text-gray-300"><i class="fas fa-project-diagram"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card chart-card">
+    <div class="card-header"><i class="fas fa-chart-bar mr-2"></i>Quarterly Pipeline Summary for {{ selected_year }}</div>
+    <div class="card-body p-4"><div style="height: 50vh;"><canvas id="quarterlyChart"></canvas></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+    Chart.register(ChartDataLabels);
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('quarterlyChart').getContext('2d');
+        const quarterlyChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Expected Value',
+                        data: {{ expected_data|tojson }},
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Won Value',
+                        data: {{ won_data|tojson }},
+                        backgroundColor: 'rgba(40, 167, 69, 0.6)',
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    },
+                    {
+                        label: 'Lost Value',
+                        data: {{ lost_data|tojson }},
+                        backgroundColor: 'rgba(220, 53, 69, 0.6)',
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: value => 'SAR ' + value.toLocaleString()
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'end',
+                        formatter: function(value) {
+                             if (value === 0) return null;
+                             if (Math.abs(value) >= 1.0e+6) return (value / 1.0e+6).toFixed(1) + "M";
+                             if (Math.abs(value) >= 1.0e+3) return (value / 1.0e+3).toFixed(0) + "K";
+                             return value;
+                        },
+                        font: { weight: 'bold' },
+                        color: '#495057'
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% include 'navbar.html' %}
+<div class="container">
+    <h1>Fire Alarm Products</h1>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <img src="static/Fire/detectors.jpg" class="card-img-top" alt="detectors Products"> <!-- Update with the correct image path -->
+                <div class="card-body">
+                    <h5 class="card-title">View Detectors Products</h5>
+                    <a href="{{ url_for('view_detectors_products') }}" class="btn btn-primary">Go to Detectors Products</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <img src="static/Fire/mcp.jpg" class="card-img-top" alt="mcp Products"> <!-- Update with the correct image path -->
+                <div class="card-body">
+                    <h5 class="card-title">View Manual Call Point Products</h5>
+                    <a href="{{ url_for('view_manual_call_point_products') }}" class="btn btn-primary">Go to Manual Call Point Products</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <img src="static/Fire/Flashersounder.jpg" class="card-img-top" alt="Flashersounder Products"> <!-- Update with the correct image path -->
+                <div class="card-body">
+                    <h5 class="card-title">View Flasher and Sounder</h5>
+                    <a href="{{ url_for('view_flasher_sounder') }}" class="btn btn-primary">Go to Flasher and Sounder Products</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <img src="static/Fire/CM.jpg" class="card-img-top" alt="CM Products"> <!-- Update with the correct image path -->
+                <div class="card-body">
+                    <h5 class="card-title">View Control and Monitor Module Products</h5>
+                    <a href="{{ url_for('view_control_monitor_module') }}" class="btn btn-primary">Go to Control Module Products</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <img src="static/Fire/FACP.jpg" class="card-img-top" alt="FACP Products"> <!-- Update with the correct image path -->
+                <div class="card-body">
+                    <h5 class="card-title">View FACP Products</h5>
+                    <a href="{{ url_for('view_facp') }}" class="btn btn-primary">Go to FACP Products</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

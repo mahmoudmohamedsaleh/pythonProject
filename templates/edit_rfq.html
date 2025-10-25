@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Edit RFQ{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+    .form-control:disabled { background-color: #e9ecef; }
+</style>
+
+<div class="container" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-edit mr-2"></i>Edit Request for Quotation</div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="rfq_reference">RFQ Reference</label>
+                        <input type="text" class="form-control" id="rfq_reference" value="{{ rfq['rfq_reference'] }}" disabled>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="requested_time">Requested Time</label>
+                        <input type="text" class="form-control" id="requested_time" value="{{ rfq['requested_time'] }}" disabled>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="project_name">Project Name</label>
+                        <select class="form-control" id="project_name" name="project_name" required>
+                            {% for project in projects %}
+                                <option value="{{ project.project_name }}" {% if project.project_name == rfq['project_name'] %}selected{% endif %}>{{ project.project_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="project_status">Project Status</label>
+                        <select class="form-control" id="project_status" name="project_status" required>
+                            <option value="On hand" {% if rfq['project_status'] == 'On hand' %}selected{% endif %}>On hand</option>
+                            <option value="Tender" {% if rfq['project_status'] == 'Tender' %}selected{% endif %}>Tender</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="priority">Priority</label>
+                        <select class="form-control" id="priority" name="priority" required>
+                            {% for option in priority_options %}
+                                <option value="{{ option }}" {% if option == rfq['priority'] %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="deadline">Deadline</label>
+                        <input type="date" class="form-control" id="deadline" name="deadline" value="{{ rfq['deadline'] }}" required>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="sales_engineer_presale">Pre-Sales Engineer</label>
+                        <select class="form-control" id="sales_engineer_presale" name="sales_engineer_presale" required>
+                            {% for engineer in presale_engineers %}
+                                <option value="{{ engineer.username }}" {% if engineer.username == rfq['sales_engineer_presale'] %}selected{% endif %}>{{ engineer.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="sales_engineer_sales">Sales Engineer</label>
+                        <select class="form-control" id="sales_engineer_sales" name="sales_engineer_sales" required>
+                            {% for engineer in sales_engineers %}
+                                <option value="{{ engineer.username }}" {% if engineer.username == rfq['sales_engineer_sales'] %}selected{% endif %}>{{ engineer.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="rfq_status">RFQ Status</label>
+                        <select class="form-control" id="rfq_status" name="rfq_status" required>
+                            {% for option in rfq_status_options %}
+                                <option value="{{ option }}" {% if option == rfq['rfq_status'] %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="quotation_status">Quotation Status</label>
+                        <select class="form-control" id="quotation_status" name="quotation_status" required>
+                            {% for option in quotation_status_options %}
+                                <option value="{{ option }}" {% if option == rfq['quotation_status'] %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="note">Note</label>
+                    <textarea class="form-control" id="note" name="note" rows="4">{{ rfq['note'] if rfq['note'] is not none else '' }}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Update RFQ</button>
+                <a href="{{ url_for('rfq_summary') }}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

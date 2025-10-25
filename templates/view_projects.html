@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}Registered Projects{% endblock %}
+
+{% block content %}
+<style>
+    /* Styles specific to this page */
+    .page-header {
+        margin-bottom: 1.5rem;
+    }
+    .page-header h1 {
+        font-weight: 700;
+    }
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .card-body-padding {
+        padding: 0;
+    }
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom-width: 2px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    .table td, .table th {
+        vertical-align: middle;
+    }
+    .badge {
+        font-size: 85%;
+        font-weight: 600;
+        padding: 0.4em 0.7em;
+    }
+    .progress {
+        height: 20px;
+        font-size: 0.8rem;
+        background-color: #e9ecef;
+    }
+    .truncate {
+        max-width: 200px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .action-buttons a, .action-buttons button {
+        margin: 0 2px;
+    }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap">
+    <div>
+        <h1>Registered Projects</h1>
+        <p class="text-muted mb-0">A detailed list of all registered projects and their sales data.</p>
+    </div>
+    <div class="d-flex align-items-center mt-3 mt-md-0">
+        <a href="{{ url_for('register_project') }}" class="btn btn-success">
+            <i class="fas fa-plus mr-2"></i>Register New Project
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="form-inline p-3">
+            {% if user_role != 'Sales Engineer' %}
+            <div class="form-group mr-3">
+                <label for="sales_engineer_id" class="mr-2">Sales Engineer</label>
+                <select class="form-control" id="sales_engineer_id" name="sales_engineer_id">
+                    <option value="">All</option>
+                    {% for engineer in sales_engineers %}
+                        <option value="{{ engineer[0] }}" {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>{{ engineer[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="form-group mr-3">
+                <label for="start_date" class="mr-2">Registered From</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ current_filters.start_date or '' }}">
+            </div>
+            <div class="form-group mr-3">
+                <label for="end_date" class="mr-2">To</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ current_filters.end_date or '' }}">
+            </div>
+            <button type="submit" class="btn btn-info mr-2"><i class="fas fa-filter mr-1"></i> Filter</button>
+            <a href="{{ url_for('view_projects') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i> Clear</a>
+        </form>
+    </div>
+</div>
+
+
+<div class="card">
+    <div class="card-body card-body-padding">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>End User</th>
+                        <th>Sales Engineer</th>
+                        <th>Stage</th>
+                        <th>Deal Value</th>
+                        <th>Probability</th>
+                        <th>Expected Close Date</th>
+                        <th>Registered Date</th>
+                        <th>Scope of Work</th>
+                        <th>Note</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>
+                            <strong>
+                                <a href="{{ url_for('show_project_history', project_name=project[1]) }}">{{ project[1] }}</a>
+                            </strong>
+                        </td>
+                        <td>{{ project[2] if project[2] else 'N/A' }}</td>
+                        <td>{{ project[7] if project[7] else 'N/A' }}</td>
+                        <td>
+                            {% set stage = project[3] %}
+                            {% if stage == 'Prospecting' %}<span class="badge badge-light">{{ stage }}</span>
+                            {% elif stage == 'Qualification' %}<span class="badge badge-info">{{ stage }}</span>
+                            {% elif stage == 'Proposal Prep' %}<span class="badge badge-primary">{{ stage }}</span>
+                            {% elif stage == 'Proposal Sent' %}<span class="badge" style="background-color: #6f42c1; color: white;">{{ stage }}</span>
+                            {% elif stage == 'Customer Pending' %}<span class="badge badge-dark">{{ stage }}</span>
+                            {% elif stage == 'Technical Discussion' %}<span class="badge" style="background-color: #fd7e14; color: white;">{{ stage }}</span>
+                            {% elif stage == 'Negotiation' %}<span class="badge badge-warning">{{ stage }}</span>
+                            {% elif stage == 'Closed Won' %}<span class="badge badge-success">{{ stage }}</span>
+                            {% elif stage == 'Closed Lost' %}<span class="badge badge-danger">{{ stage }}</span>
+                            {% else %}<span class="badge badge-secondary">{{ stage }}</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ "{:,.2f}".format(project[4]) if project[4] else 'N/A' }}</td>
+                        <td>
+                            <div class="progress">
+                                <div class="progress-bar" role="progressbar" style="width: {{ project[5] }}%;" aria-valuenow="{{ project[5] }}">{{ project[5] }}%</div>
+                            </div>
+                        </td>
+                        <td>{{ project[6] if project[6] else 'N/A' }}</td>
+                        <td>{{ project[8].split(' ')[0] if project[8] else 'N/A' }}</td>
+                        <td title="{{ project[9] }}"><div class="truncate">{{ project[9] | truncate(30) }}</div></td>
+                        <td title="{{ project[10] }}"><div class="truncate">{{ project[10] | truncate(30) }}</div></td>
+                        <td class="action-buttons">
+                            <a href="#" class="btn btn-primary btn-sm" title="View Details"
+                               data-toggle="modal"
+                               data-target="#projectDetailsModal"
+                               data-projectname="{{ project[1] }}"
+                               data-enduser="{{ project[2] if project[2] else 'N/A' }}"
+                               data-contractor="{{ project[11] if project[11] else 'N/A' }}"
+                               data-consultant="{{ project[12] if project[12] else 'N/A' }}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('edit_project_pipeline', project_id=project[0]) }}" class="btn btn-warning btn-sm" title="Edit Project"><i class="fas fa-edit"></i></a>
+                            <a href="{{ url_for('request_for_quotation', project_name=project[1], sales_engineer=project[7]) }}" class="btn btn-info btn-sm" title="Request For Quotation"><i class="fas fa-file-alt"></i></a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="11" class="text-center text-muted py-5">No projects found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="projectDetailsModal" tabindex="-1" role="dialog" aria-labelledby="projectDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="projectDetailsModalLabel">Project Details</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p><strong>End User:</strong> <span id="modalEndUser"></span></p>
+                <p><strong>Contractor:</strong> <span id="modalContractor"></span></p>
+                <p><strong>Consultant:</strong> <span id="modalConsultant"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#projectDetailsModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget); // Button that triggered the modal
+
+        // Extract info from data-* attributes
+        var projectName = button.data('projectname');
+        var endUser = button.data('enduser');
+        var contractor = button.data('contractor');
+        var consultant = button.data('consultant');
+
+        // Update the modal's content.
+        var modal = $(this);
+        modal.find('.modal-title').text('Details for: ' + projectName);
+        modal.find('#modalEndUser').text(endUser);
+        modal.find('#modalContractor').text(contractor);
+        modal.find('#modalConsultant').text(consultant);
+    });
+});
+</script>
+{% endblock %}

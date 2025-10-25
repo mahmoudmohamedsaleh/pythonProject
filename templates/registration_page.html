@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Center</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .action-card {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        .icon-circle {
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 1.5rem auto;
+            border-radius: 50%;
+            background-color: #e8f0fe;
+            color: #007bff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+        .action-card h5 {
+            font-weight: 600;
+            color: #343a40;
+        }
+        .action-card p {
+            color: #6c757d;
+            font-size: 0.95rem;
+            flex-grow: 1;
+        }
+        .action-card .btn {
+            border-radius: 50px;
+            font-weight: 500;
+            padding: 0.6rem 1.5rem;
+        }
+        .page-header {
+            padding: 3rem 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Registration Center</h1>
+            <p class="lead">Select an option below to get started.</p>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <h5 class="card-title">Submit Quotation</h5>
+                        <p class="card-text">Enter details to submit a quotation for a project.</p>
+                    </div>
+                    <a href="{{ url_for('upload') }}" class="btn btn-primary">Go to Submit Quotation</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-file-alt"></i></div>
+                        <h5 class="card-title">Request for Quotation</h5>
+                        <p class="card-text">Create and manage your Requests for Quotation (RFQ).</p>
+                    </div>
+                    <a href="{{ url_for('request_for_quotation') }}" class="btn btn-primary">Go to RFQ</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-headset"></i></div>
+                        <h5 class="card-title">Request Technical Support</h5>
+                        <p class="card-text">Request technical support for your projects (RFTS).</p>
+                    </div>
+                    <a href="{{ url_for('request_technical_support') }}" class="btn btn-primary">Go to RFTS</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-folder-plus"></i></div>
+                        <h5 class="card-title">Register Project</h5>
+                        <p class="card-text">Register a new project and its stakeholders.</p>
+                    </div>
+                    <a href="{{ url_for('register_project') }}" class="btn btn-primary">Go to Register Project</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-user-plus"></i></div>
+                        <h5 class="card-title">Register Engineer</h5>
+                        <p class="card-text">Add a new engineer to the system and define their role.</p>
+                    </div>
+                    <a href="{{ url_for('register_engineer') }}" class="btn btn-primary">Go to Register Engineer</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-users"></i></div>
+                        <h5 class="card-title">View Engineers</h5>
+                        <p class="card-text">View and manage all registered engineers.</p>
+                    </div>
+                    <a href="{{ url_for('view_engineers') }}" class="btn btn-primary">Go to View Engineers</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="action-card">
+                    <div>
+                        <div class="icon-circle"><i class="fas fa-shopping-cart"></i></div>
+                        <h5 class="card-title">Register PO</h5>
+                        <p class="card-text">Register a new Purchase Order for a project.</p>
+                    </div>
+                    <a href="{{ url_for('register_po') }}" class="btn btn-primary">Go to Register PO</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

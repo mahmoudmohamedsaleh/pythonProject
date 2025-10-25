@@ -1,0 +1,76 @@
+{% include 'navbar.html' %}
+
+<div class="container-fluid" style="padding: 0;">
+    <div class="row" style="margin: 0;">
+        <div class="col-md-3" style="padding: 0;">
+            <a href="{{ url_for('register_detector_product') }}" class="btn btn-primary">Register New Detector</a>
+
+            <h2>Filter Products</h2>
+            <form method="GET" action="{{ url_for('view_detectors_products') }}" class="filter-form">
+                <div class="form-group">
+                    <label for="vendor_name">Vendor Name:</label>
+                    <select name="vendor_name" class="form-control">
+                        <option value="">Select Vendor</option>
+                        {% for vendor in vendors %}
+                        <option value="{{ vendor }}">{{ vendor }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="model_number">Model Number:</label>
+                    <select name="model_number" class="form-control">
+                        <option value="">Select Model</option>
+                        {% for model in models %}
+                        <option value="{{ model }}">{{ model }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="detector_type">Detector Type:</label>
+                    <select name="detector_type" class="form-control">
+                        <option value="">Select Detector Type</option>
+                        {% for type in detector_types %}
+                        <option value="{{ type }}">{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Filter Products</button>
+            </form>
+        </div>
+
+        <div class="col-md-9" style="padding: 0;">
+            <h2>Available Detectors</h2>
+            <div class="row">
+                {% for product in products %}
+                <div class="card col-md-4">
+                    <img src="data:image/jpeg;base64,{{ product[4] }}" alt="{{ product[1] }}" class="card-img-top" />
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product[0] }} - {{ product[1] }}</h5>
+                        <p class="card-text">Detector Type: {{ product[2] }}</p>
+                        <p class="card-text">Max Area Coverage: {{ product[5] }} m²</p> <!-- Added Max Area Coverage -->
+                        <p class="card-text">Price: {{ product[3] }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        margin: 0;
+    }
+    .container-fluid {
+        padding: 0;
+    }
+    .row {
+        margin: 0;
+    }
+    .card {
+        margin-bottom: 20px;
+    }
+</style>

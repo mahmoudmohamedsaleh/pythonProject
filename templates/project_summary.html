@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+{% include 'navbar.html' %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Summary</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+</head>
+<body>
+<div class="container">
+    <h1>Project Summary</h1>
+    <!-- Button to navigate to the charts page -->
+    <a href="{{ url_for('charts') }}" class="btn btn-primary">View Charts</a>
+
+            <form method="GET" class="mb-4">
+                <div class="row">
+                    <div class="col">
+                        <select name="presale_eng" class="form-control">
+                            <option value="">Select Presale Engineer</option>
+                            {% for engineer in presale_engineers %}
+                                <option value="{{ engineer }}">{{ engineer }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select name="sales_eng" class="form-control">
+                            <option value="">Select Sales Engineer</option>
+                            {% for engineer in sales_engineers %}
+                                <option value="{{ engineer }}">{{ engineer }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select name="status" class="form-control">
+                            <option value="">Select Status</option>
+                            {% for status in projects %}
+                                <option value="{{ status }}">{{ status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col">
+                        <select name="quarter" class="form-control">
+                            <option value="">Select Quarter</option>
+                            {% for quarter in quarters %}
+                                <option value="{{ quarter }}">{{ quarter }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- New Year of Registration Filter -->
+                    <div class="col">
+                        <select name="reg_year" class="form-control">
+                            <option value="">Select Year of Registration</option>
+                            {% for year in range(2010, current_year + 1) %}
+                                <option value="{{ year }}">{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col">
+                        <select name="upd_year" class="form-control">
+                            <option value="">Select Year of Last Update</option>
+                            {% for year in range(2010, current_year + 1) %}
+                                <option value="{{ year }}">{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+
+                    <div class="col">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <h2>Project Status Distribution</h2>
+    <canvas id="projectStatusChart" width="100" height="50"></canvas>
+
+    <h2>Project Details</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Project Name</th>
+                <th>Presale Engineer</th>
+                <th>Sales Engineer</th>
+                <th>Status</th>
+                <th>Quarter</th>
+            </tr>
+        </thead>
+        <tbody id="projectTableBody">
+            {% for projec in projec %}
+                <tr>
+                    <td>
+                <a href="{{ url_for('show_project_history', project_name=projec[0]) }}">{{ projec[0] }}</a> <!-- Link to project history -->
+            </td>
+            <td>{{ projec[1] }}</td>
+            <td>{{ projec[2] }}</td>
+            <td>{{ projec[3] }}</td>
+            <td>{{ projec[4] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Function to render the pie chart
+    function renderChart(labels, data) {
+        const ctx = document.getElementById('projectStatusChart').getContext('2d');
+        const projectStatusChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Project Status Distribution',
+                    data: data,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(153, 102, 255, 0.6)'
+                    ],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Project Status Distribution'
+                    },
+                    datalabels: {
+                        formatter: (value, ctx) => {
+                            const total = ctx.chart.data.datasets[0].data.reduce((acc, val) => acc + val, 0);
+                            const percentage = ((value / total) * 100).toFixed(2) + '%';
+                            return percentage;
+                        },
+                        color: '#fff',
+                    }
+                }
+            },
+            plugins: [ChartDataLabels]
+        });
+    }
+
+    // Function to get the status counts from the filtered table
+    function getStatusCounts() {
+        const rows = document.querySelectorAll('#projectTableBody tr');
+        const statusCounts = {};
+
+        rows.forEach(row => {
+            const status = row.cells[3].innerText; // Status is in the 4th column
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+
+        return statusCounts;
+    }
+
+    // Render the chart on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const statusCounts = getStatusCounts();
+        const labels = Object.keys(statusCounts);
+        const data = Object.values(statusCounts);
+
+        renderChart(labels, data);
+    });
+</script>
+</body>
+</html>

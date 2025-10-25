@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Edit Contact{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+</style>
+
+<div class="container" style="max-width: 700px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-user-edit mr-2"></i>Edit Contact Details</div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="contact_name">Contact Name</label>
+                    <input type="text" class="form-control" id="contact_name" name="contact_name" value="{{ contact.contact_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="contact_position">Position</label>
+                    <input type="text" class="form-control" id="contact_position" name="contact_position" value="{{ contact.contact_position }}">
+                </div>
+                <div class="form-group">
+                    <label for="contact_phone">Phone</label>
+                    <input type="text" class="form-control" id="contact_phone" name="contact_phone" value="{{ contact.contact_phone }}">
+                </div>
+                <div class="form-group">
+                    <label for="contact_email">Email</label>
+                    <input type="email" class="form-control" id="contact_email" name="contact_email" value="{{ contact.contact_email }}">
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Update Contact</button>
+                <a href="{{ url_for('add_vendor_contact', vendor_id=contact.vendor_id) }}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

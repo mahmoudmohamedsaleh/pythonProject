@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 260px;
+            background-color: #343a40; /* Darker background */
+            color: #f8f9fa;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .sidebar .logo img {
+            max-height: 50px;
+        }
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            flex-grow: 1; /* Pushes the user profile to the bottom */
+            overflow-y: auto;
+        }
+        .sidebar-menu .menu-header {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            padding: 0 15px;
+        }
+        .sidebar-menu .nav-item a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #adb5bd;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .sidebar-menu .nav-item a:hover {
+            background-color: #495057;
+            color: #ffffff;
+        }
+        .sidebar-menu .nav-item a.active {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+        .sidebar-menu .nav-item a i {
+            width: 24px;
+            margin-right: 15px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        /* User Profile Section Styles */
+        .user-profile {
+            padding-top: 1rem;
+            border-top: 1px solid #495057;
+        }
+        .user-profile a {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            text-decoration: none;
+            color: #adb5bd;
+            border-radius: 8px;
+        }
+        .user-profile a:hover {
+            background-color: #495057;
+            color: #ffffff;
+        }
+        .user-profile .user-icon {
+            font-size: 2rem;
+            margin-right: 15px;
+        }
+        .user-profile .user-info {
+            line-height: 1.2;
+        }
+        .user-profile .user-name {
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .user-profile .user-role {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .user-profile .logout-icon {
+            margin-left: auto;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='ejt.png') }}" alt="EJTech Logo">
+            </a>
+        </div>
+
+        <ul class="sidebar-menu">
+            <li class="menu-header">Dashboard</li>
+            <li class="nav-item"><a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+
+            <li class="menu-header">CRM</li>
+            <li class="nav-item"><a href="{{ url_for('view_projects') }}" class="{{ 'active' if 'project' in request.endpoint and 'pipeline_analysis' not in request.endpoint and 'sales_performance' not in request.endpoint else '' }}"><i class="fas fa-project-diagram"></i> Projects & Pipeline</a></li>
+            <li class="nav-item"><a href="{{ url_for('project_pipeline') }}" class="{{ 'active' if request.endpoint == 'pipeline_analysis' else '' }}"><i class="fas fa-chart-line"></i> Pipeline Analysis</a></li>
+            <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="{{ 'active' if request.endpoint == 'sales_performance' else '' }}"><i class="fas fa-trophy"></i> Sales Performance</a></li>
+            <li class="nav-item"><a href="{{ url_for('aging_dashboard') }}" class="{{ 'active' if request.endpoint == 'aging_dashboard' else '' }}"><i class="fas fa-history"></i> Aging Dashboard</a></li>
+            <li class="nav-item"><a href="{{ url_for('view_end_users') }}" class="{{ 'active' if 'end_user' in request.endpoint else '' }}"><i class="fas fa-building"></i> End Users</a></li>
+            <li class="nav-item"><a href="{{ url_for('view_contractors') }}" class="{{ 'active' if 'contractor' in request.endpoint else '' }}"><i class="fas fa-hard-hat"></i> Contractors</a></li>
+            <li class="nav-item"><a href="{{ url_for('view_consultants') }}" class="{{ 'active' if 'consultant' in request.endpoint else '' }}"><i class="fas fa-user-tie"></i> Consultants</a></li>
+
+            <li class="menu-header">Presales</li>
+            <li class="nav-item"><a href="{{ url_for('presales_performance') }}" class="{{ 'active' if request.endpoint == 'presales_performance' else '' }}"><i class="fas fa-chart-pie"></i> Presales Performance</a></li>
+            <li class="nav-item"><a href="{{ url_for('rfq_summary') }}" class="{{ 'active' if 'rfq' in request.endpoint else '' }}"><i class="fas fa-file-alt"></i> RFQ</a></li>
+            <li class="nav-item"><a href="{{ url_for('technical_support_summary') }}" class="{{ 'active' if 'technical_support' in request.endpoint or 'edit_request' in request.endpoint else '' }}"><i class="fas fa-headset"></i> RFTS</a></li>
+            <li class="nav-item"><a href="{{ url_for('registered_quotations') }}" class="{{ 'active' if 'reports' in request.endpoint or 'edit_request' in request.endpoint else '' }}"><i class="fas fa-headset"></i> reports</a></li>
+            <li class="nav-item"><a href="{{ url_for('products_page') }}" class="{{ 'active' if 'products' in request.endpoint else '' }}"><i class="fas fa-box-open"></i> Products</a></li>
+
+            <li class="nav-item">
+                <a href="{{ url_for('solution_builder') }}" class="{{ 'active' if 'solution' in request.endpoint else '' }}">
+                    <i class="fas fa-drafting-compass"></i> Solution Builder
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('quotation_builder') }}" class="{{ 'active' if 'quotation_builder' in request.endpoint else '' }}">
+                    <i class="fas fa-calculator"></i> Quotation Builder
+                </a>
+            </li>
+
+            <li class="menu-header">Purchasing</li>
+            <li class="nav-item"><a href="{{ url_for('view_po_status') }}" class="{{ 'active' if '_po' in request.endpoint else '' }}"><i class="fas fa-shopping-cart"></i> PO Status</a></li>
+            <li class="menu-header">Task Management</li>
+            <li class="nav-item"><a href="{{ url_for('tasks') }}" class="{{ 'active' if 'tasks' in request.endpoint else '' }}"><i class="fas fa-tasks"></i> Tasks</a></li>
+            <li class="menu-header">SRM</li>
+            <li class="nav-item"><a href="{{ url_for('show_vendors') }}" class="{{ 'active' if 'vendor' in request.endpoint else '' }}"><i class="fas fa-store"></i> Vendors</a></li>
+            <li class="nav-item"><a href="{{ url_for('show_distributors') }}" class="{{ 'active' if 'distributor' in request.endpoint else '' }}"><i class="fas fa-truck"></i> Distributors</a></li>
+
+            <li class="menu-header">Registration</li>
+            <li class="nav-item"><a href="{{ url_for('registration_page') }}" class="{{ 'active' if 'registration_page' in request.endpoint else '' }}"><i class="fas fa-plus-circle"></i> Registration Hub</a></li>
+        </ul>
+
+        <div class="user-profile">
+            {% if session.get('user_id') %}
+                <a href="#"> <i class="fas fa-user-circle user-icon"></i>
+                    <div class="user-info">
+                        <div class="user-name">Welcome, {{ session['username'] }}</div>
+                        <div class="user-role">{{ session['user_role'] }}</div>
+                    </div>
+                    <a href="{{ url_for('logout') }}" title="Sign Out">
+                        <i class="fas fa-sign-out-alt logout-icon text-danger"></i>
+                    </a>
+                </a>
+            {% else %}
+                <a href="{{ url_for('login') }}">
+                    <i class="fas fa-sign-in-alt user-icon"></i>
+                    <div class="user-info">
+                        <div class="user-name">Sign In</div>
+                    </div>
+                </a>
+            {% endif %}
+        </div>
+    </nav>
+</body>
+</html>

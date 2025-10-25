@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Call Point Products</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            margin: 0; /* Remove default body margin */
+        }
+        .product-card {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .product-card img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 0; /* Optional: Remove padding if needed */
+        }
+        .sidebar {
+            padding-right: 0; /* Remove padding for the sidebar */
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-3 sidebar">
+                <div class="filters">
+                    <h2>Filters</h2>
+                    <form method="GET" action="{{ url_for('view_manual_call_point_products') }}">
+                        <div class="form-row">
+                            <div class="form-group col-md-12">
+                                <label>Vendor Name:</label>
+                                <select name="vendor_name" class="form-control">
+                                    <option value="">All</option>
+                                    {% for vendor in vendors %}
+                                    <option value="{{ vendor }}">{{ vendor }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label>Model Number:</label>
+                                <select name="model_number" class="form-control">
+                                    <option value="">All</option>
+                                    {% for model in models %}
+                                    <option value="{{ model }}">{{ model }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group col-md-12">
+                                <label>Type:</label>
+                                <select name="manual_call_point_type" class="form-control">
+                                    <option value="">All</option>
+                                    {% for type in manual_call_point_types %}
+                                    <option value="{{ type }}">{{ type }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <a class="btn btn-success mb-3" href="{{ url_for('register_manual_call_point_product_page') }}">Register Manual Call Point Product</a>
+
+                <h1 class="mt-4">Available Manual Call Point Products</h1>
+
+                <div class="row">
+                    {% for product in products %}
+                    <div class="col-md-4">
+                        <div class="product-card">
+                            {% if product[4] %}
+                            <img src="data:image/jpeg;base64,{{ product[4] | b64encode }}" alt="Product Image" />
+                            {% endif %}
+                            <p><strong>Vendor:</strong> {{ product[0] }}</p>
+                            <p><strong>Model Number:</strong> {{ product[1] }}</p>
+                            <p><strong>Type:</strong> {{ product[2] }}</p>
+                            <p><strong>Price:</strong> {{ product[3] }} SAR</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

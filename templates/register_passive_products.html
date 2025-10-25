@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Register Passive Products{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+    .custom-file-label::after { content: "Browse"; }
+</style>
+<div class="container" style="max-width: 800px;">
+    <div class="card">
+        <div class="card-header"><i class="fas fa-file-import mr-2"></i>Import Passive Products</div>
+        <div class="card-body">
+            <h5 class="card-title">Upload Products Excel Sheet</h5>
+            <p class="text-muted">Upload the Excel file containing your list of passive products. The system will add or update them in the database.</p>
+            <div class="alert alert-info">
+                <strong>Note:</strong> Your Excel file must contain the columns: `Part Number`, `Product Description`, `Vendor`, `Solution`, `Specs`, `Specific solution`, and `Unit Price`.
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="products_file"><strong>Select Excel File</strong></label>
+                    <div class="custom-file">
+                        <input type="file" class="custom-file-input" id="products_file" name="products_file" required accept=".xlsx">
+                        <label class="custom-file-label" for="products_file">Choose file...</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-upload mr-2"></i>Import Products</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelector('.custom-file-input').addEventListener('change', function (e) {
+        var fileName = document.getElementById("products_file").files[0].name;
+        var nextSibling = e.target.nextElementSibling;
+        nextSibling.innerText = fileName;
+    });
+</script>
+{% endblock %}

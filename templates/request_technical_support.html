@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request for Technical Support</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Request for Technical Support</h1>
+        <form method="POST">
+            <div class="form-group">
+                <label for="request_type">Request Type</label>
+                <select class="form-control" id="request_type" name="request_type" required>
+                    <option value="SLD">SLD</option>
+                    <option value="Rack Elevation">Rack Elevation</option>
+                    <option value="Technical Submittal">Technical Submittal</option>
+                    <option value="Information">Information</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="project_name">Project Name</label>
+                <select class="form-control" id="project_name" name="project_name" required>
+                    <option value="">Select Project</option>
+                    {% for project in project_names %}
+                        <option value="{{ project }}">{{ project }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="priority">Priority</label>
+                <select class="form-control" id="priority" name="priority" required>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="presale_engineer">Presale Engineer</label>
+                <select class="form-control" id="presale_engineer" name="presale_engineer" required>
+                    <option value="">Select Presale Engineer</option>
+                    {% for engineer in presale_engineers %}
+                        <option value="{{ engineer }}">{{ engineer }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="sales_engineer">Sales Engineer</label>
+                <select class="form-control" id="sales_engineer" name="sales_engineer" required>
+                    <option value="">Select Sales Engineer</option>
+                    {% for engineer in sales_engineers %}
+                        <option value="{{ engineer }}">{{ engineer }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="request_status">Request Status</label>
+                <select class="form-control" id="request_status" name="request_status" required>
+                    <option value="Queue">Queue</option>
+                    <option value="Studying">Studying</option>
+                    <option value="Done">Done</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="request_result">Request Result</label>
+                <select class="form-control" id="request_result" name="request_result" required>
+                    <option value="Queue">Queue</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Dis Approved">Dis Approved</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="deadline">Deadline</label>
+                <input type="date" class="form-control" id="deadline" name="deadline" required>
+            </div>
+            <div class="form-group">
+                <label for="note">Note</label>
+                <textarea class="form-control" id="note" name="note" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Request</button>
+            <a href="{{ url_for('rfq_summary') }}" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</body>
+</html>

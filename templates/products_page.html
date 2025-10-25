@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Product Categories{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 {
+        font-weight: 700;
+    }
+    .action-card {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 2.5rem 2rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+    .icon-circle {
+        width: 70px;
+        height: 70px;
+        margin: 0 auto 1.5rem auto;
+        border-radius: 50%;
+        background-color: #e8f0fe;
+        color: #007bff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+    .action-card h5 {
+        font-weight: 600;
+        color: #343a40;
+    }
+    .action-card p {
+        color: #6c757d;
+        font-size: 0.95rem;
+        flex-grow: 1;
+    }
+    .action-card .btn {
+        border-radius: 50px;
+        font-weight: 500;
+        padding: 0.6rem 1.5rem;
+    }
+</style>
+
+<div class="page-header">
+    <h1>Product Categories</h1>
+    <p class="text-muted">Browse through the available product lines.</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="action-card">
+            <div>
+                <div class="icon-circle"><i class="fas fa-video"></i></div>
+                <h5 class="card-title">CCTV Products</h5>
+                <p class="card-text">View and compare a wide range of CCTV cameras and related equipment.</p>
+            </div>
+            <a href="{{ url_for('cctv_products') }}" class="btn btn-primary">View CCTV Products</a>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="action-card">
+            <div>
+                <div class="icon-circle" style="background-color: #fbeae5; color: #dc3545;">
+                    <i class="fas fa-fire-extinguisher"></i>
+                </div>
+                <h5 class="card-title">Fire Alarm Products</h5>
+                <p class="card-text">Explore various fire alarm systems, detectors, and components.</p>
+            </div>
+            <a href="{{ url_for('fire_alarm_products') }}" class="btn btn-danger">View Fire Alarm Products</a>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="action-card">
+            <div>
+                <div class="icon-circle" style="background-color: #d1ecf1; color: #0c5460;">
+                    <i class="fas fa-plug"></i>
+                </div>
+                <h5 class="card-title">Passive Products</h5>
+                <p class="card-text">View, manage, and import structured cabling and other passive components.</p>
+            </div>
+            <a href="{{ url_for('view_passive_products') }}" class="btn btn-info">View Passive Products</a>
+        </div>
+    </div>
+    </div>
+{% endblock %}

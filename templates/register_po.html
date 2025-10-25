@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Purchase Order</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body { background-color: #f4f7f6; }
+        .main-content { margin-left: 260px; padding: 2rem; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.07); margin-bottom: 1.5rem; }
+        .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.1rem; padding: 1rem 1.5rem; }
+        .form-group label { font-weight: 600; color: #495057; }
+        .input-group-text { background-color: #e9ecef; border: 1px solid #ced4da; }
+        .btn-success { font-weight: 600; }
+    </style>
+</head>
+<body>
+    {% include 'sidebar.html' %}
+
+    <main class="main-content">
+        <div class="text-center mb-4">
+            <h1>Register Purchase Order</h1>
+            <p class="text-muted">Fill in the details below to create a new PO request.</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('register_po') }}" method="POST" enctype="multipart/form-data">
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-file-invoice mr-2"></i>Core PO Details</div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6"><label for="po_request_number">PO Request Number (Zoho Ref)</label><input type="text" class="form-control" id="po_request_number" name="po_request_number" required></div>
+                        <div class="form-group col-md-6"><label for="project_name">Project Name</label><select class="form-control" id="project_name" name="project_name" required>{% for project in projects %}<option value="{{ project[0] }}">{{ project[1] }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="form-group"><label for="system">System / Scope</label><input type="text" class="form-control" id="system" name="system" required></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-users mr-2"></i>Personnel</div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6"><label for="presale_engineer">Pre-Sale Engineer</label><select class="form-control" id="presale_engineer" name="presale_engineer" required>{% for engineer in presale_engineers %}<option value="{{ engineer[0] }}">{{ engineer[1] }}</option>{% endfor %}</select></div>
+                        <div class="form-group col-md-6"><label for="project_manager">Project Manager</label><select class="form-control" id="project_manager" name="project_manager" required>{% for engineer in project_managers %}<option value="{{ engineer[0] }}">{{ engineer[1] }}</option>{% endfor %}</select></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-truck mr-2"></i>Distributor Information</div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label for="distributor" class="mb-0">Distributor</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#addDistributorModal"><i class="fas fa-plus-circle mr-1"></i>Add New</button>
+                        </div>
+                        <select class="form-control" id="distributor" name="distributor" required>
+                            <option value="" disabled selected>-- Select a Distributor --</option>
+                            {% for distributor in distributors %}
+                                <option value="{{ distributor[0] }}">{{ distributor[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6"><label for="distributor_engineer">Distributor Engineer</label><input type="text" class="form-control" id="distributor_engineer" name="distributor_engineer" required></div>
+                        <div class="form-group col-md-6"><label for="distributor_contact">Distributor Contact Number</label><input type="text" class="form-control" id="distributor_contact" name="distributor_contact" required></div>
+                    </div>
+                    <div class="form-group"><label for="distributor_email">Distributor Email</label><input type="email" class="form-control" id="distributor_email" name="distributor_email" required></div>
+                </div>
+            </div>
+
+            <div class="card">
+                 <div class="card-header"><i class="fas fa-cogs mr-2"></i>Status, Financials & Documents</div>
+                 <div class="card-body">
+                    <div class="form-row">
+                         <div class="form-group col-md-6"><label for="po_number">PO Number (Optional)</label><input type="text" class="form-control" id="po_number" name="po_number"></div>
+                        <div class="form-group col-md-6"><label for="total_amount">Total Amount (SAR)</label><div class="input-group"><div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-dollar-sign"></i></span></div><input type="number" class="form-control" id="total_amount" name="total_amount" step="0.01" required></div></div>
+                    </div>
+                     <div class="form-row">
+                        <div class="form-group col-md-6"><label for="po_approval_status">PO Approval Status</label><select class="form-control" id="po_approval_status" name="po_approval_status" required><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select></div>
+                        <div class="form-group col-md-6"><label for="po_delivery_status">PO Delivery Status</label><select class="form-control" id="po_delivery_status" name="po_delivery_status" required><option value="Order Not Placed">Order Not Placed</option><option value="Order Placed">Order Placed</option><option value="Delivered To Client">Delivered To Client</option></select></div>
+                    </div>
+                     <div class="form-row">
+                        <div class="form-group col-md-6"><label for="quotation">Upload Quotation (PDF)</label><div class="custom-file"><input type="file" class="custom-file-input" id="quotation" name="quotation" accept=".pdf" required><label class="custom-file-label" for="quotation">Choose file...</label></div></div>
+                        <div class="form-group col-md-6"><label for="po_document">Upload PO (Optional, PDF)</label><div class="custom-file"><input type="file" class="custom-file-input" id="po_document" name="po_document" accept=".pdf"><label class="custom-file-label" for="po_document">Choose file...</label></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-sticky-note mr-2"></i>Notes</div>
+                <div class="card-body">
+                     <div class="form-row">
+                        <div class="form-group col-md-6"><label for="po_notes_vendor">PO Notes (Vendor Side)</label><textarea class="form-control" id="po_notes_vendor" name="po_notes_vendor" rows="3"></textarea></div>
+                        <div class="form-group col-md-6"><label for="po_notes_client">PO Notes (Client Side)</label><textarea class="form-control" id="po_notes_client" name="po_notes_client" rows="3"></textarea></div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-lg btn-block mt-4">Register PO</button>
+        </form>
+    </main>
+
+    <div class="modal fade" id="addDistributorModal" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Register New Distributor</h5><button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div><div class="modal-body"><form id="addDistributorForm"><div id="modal-alert-placeholder"></div><div class="form-group"><label for="newDistributorName">Distributor Name</label><input type="text" class="form-control" id="newDistributorName" name="name" required></div><div class="form-group"><label for="newDistributorAddress">Address</label><input type="text" class="form-control" id="newDistributorAddress" name="address"></div><div class="form-group"><label for="newDistributorContactPerson">Contact Person</label><input type="text" class="form-control" id="newDistributorContactPerson" name="contact_person"></div><div class="form-row"><div class="form-group col-md-6"><label for="newDistributorPhone">Phone</label><input type="tel" class="form-control" id="newDistributorPhone" name="phone"></div><div class="form-group col-md-6"><label for="newDistributorEmail">Email</label><input type="email" class="form-control" id="newDistributorEmail" name="email"></div></div></form></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button><button type="submit" form="addDistributorForm" class="btn btn-primary">Save Distributor</button></div></div></div></div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Script to show filename in custom file input
+            $('.custom-file-input').on('change', function() {
+               let fileName = $(this).val().split('\\').pop();
+               $(this).next('.custom-file-label').addClass("selected").html(fileName);
+            });
+
+            // Modal form submission via AJAX
+            $('#addDistributorForm').on('submit', function(event) {
+                event.preventDefault();
+                const formData = { name: $('#newDistributorName').val(), address: $('#newDistributorAddress').val(), contact_person: $('#newDistributorContactPerson').val(), phone: $('#newDistributorPhone').val(), email: $('#newDistributorEmail').val() };
+                fetch("{{ url_for('add_distributor_ajax') }}", { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const newOption = new Option(data.name, data.id, true, true);
+                        $('#distributor').append(newOption).trigger('change');
+                        $('#addDistributorModal').modal('hide');
+                        $('#addDistributorForm')[0].reset();
+                        $('#modal-alert-placeholder').empty();
+                    } else {
+                        $('#modal-alert-placeholder').html(`<div class="alert alert-danger">${data.message}</div>`);
+                    }
+                })
+                .catch(error => { $('#modal-alert-placeholder').html(`<div class="alert alert-danger">An unexpected error occurred.</div>`); console.error('Error:', error); });
+            });
+
+            // NEW: Auto-populate fields when a distributor is selected
+            $('#distributor').on('change', function() {
+                const distributorId = $(this).val();
+                if (distributorId) {
+                    fetch(`/get_distributor_details/${distributorId}`)
+                        .then(response => {
+                            if (!response.ok) { throw new Error('Network response was not ok'); }
+                            return response.json();
+                        })
+                        .then(data => {
+                            $('#distributor_engineer').val(data.contact_person || '');
+                            $('#distributor_contact').val(data.phone || '');
+                            $('#distributor_email').val(data.email || '');
+                        })
+                        .catch(error => {
+                            console.error('Error fetching distributor details:', error);
+                            // Clear fields if the fetch fails
+                            $('#distributor_engineer').val('');
+                            $('#distributor_contact').val('');
+                            $('#distributor_email').val('');
+                        });
+                } else {
+                    // Clear fields if no distributor is selected
+                    $('#distributor_engineer').val('');
+                    $('#distributor_contact').val('');
+                    $('#distributor_email').val('');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
