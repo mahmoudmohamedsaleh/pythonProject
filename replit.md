@@ -13,6 +13,7 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
   - Initialized SQLite database
   - Configured deployment for autoscale mode
   - Created .gitignore for Python project
+  - **Production Database Integrated**: Replaced with user-provided database (48MB, 22 users, 126 projects, 24 tables)
 
 ## Technology Stack
 - **Backend**: Flask (Python web framework)
