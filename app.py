@@ -3417,6 +3417,61 @@ def view_po_status():
                            distributor_filter=distributor_filter,
                            po_delivery_status_filter=po_delivery_status_filter,
                            po_approval_status_filter=po_approval_status_filter)
+
+######################
+# PO Comments Routes
+######################
+@app.route('/add_po_comment/<int:po_id>', methods=['POST'])
+@login_required
+def add_po_comment(po_id):
+    comment_text = request.form.get('comment', '').strip()
+    
+    if not comment_text:
+        flash('Comment cannot be empty!', 'danger')
+        return redirect(url_for('view_po_status'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute('''
+            INSERT INTO po_comments (po_id, user_id, username, comment, created_at)
+            VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+        ''', (po_id, session['user_id'], session['username'], comment_text))
+        conn.commit()
+        flash('Comment added successfully!', 'success')
+    except Exception as e:
+        flash(f'Error adding comment: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('view_po_status'))
+
+@app.route('/get_po_comments/<int:po_id>', methods=['GET'])
+@login_required
+def get_po_comments(po_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT id, username, comment, created_at
+        FROM po_comments
+        WHERE po_id = ?
+        ORDER BY created_at DESC
+    ''', (po_id,))
+    
+    comments = c.fetchall()
+    conn.close()
+    
+    comments_list = [{
+        'id': c[0],
+        'username': c[1],
+        'comment': c[2],
+        'created_at': c[3]
+    } for c in comments]
+    
+    return jsonify({'comments': comments_list})
+
 ######################
 @app.route('/download_filtered_po_excel', methods=['GET'])
 #@role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed

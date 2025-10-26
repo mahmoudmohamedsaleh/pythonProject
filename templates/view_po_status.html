@@ -31,8 +31,33 @@
         font-weight: 600;
         padding: 0.4em 0.7em;
     }
-    .action-buttons a {
+    .action-buttons a, .action-buttons button {
         margin: 0 3px;
+    }
+    .comment-history {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+    }
+    .comment-item {
+        border-left: 3px solid #007bff;
+        padding: 10px;
+        margin-bottom: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+    .comment-header {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    .comment-time {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .comment-text {
+        margin-top: 5px;
+        color: #212529;
     }
 </style>
 
@@ -154,23 +179,108 @@
                         <td>{{ order[7] }}</td>
                         <td>{{ "{:,.2f}".format(order[11]) }}</td>
                         <td class="action-buttons">
-
                             <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='po_document') }}" target="_blank" class="btn btn-info btn-sm" title="Show PO">
                                 <i class="fas fa-eye"></i>
                             </a>
-
                             <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='quotation') }}" target="_blank" class="btn btn-secondary btn-sm" title="Show Quotation">
                                 <i class="fas fa-file-alt"></i>
                             </a>
                             <a href="{{ url_for('edit_po', po_id=order[0]) }}" class="btn btn-warning btn-sm" title="Edit PO"><i class="fas fa-edit"></i></a>
+                            <button class="btn btn-primary btn-sm" title="Comments" onclick="openCommentModal({{ order[0] }}, '{{ order[8] }}')">
+                                <i class="fas fa-comments"></i>
+                            </button>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="9" class="text-center text-muted py-5">No Purchase Orders found.</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted py-5">No Purchase Orders found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<!-- Comment Modal -->
+<div class="modal fade" id="commentModal" tabindex="-1" role="dialog" aria-labelledby="commentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentModalLabel"><i class="fas fa-comments mr-2"></i>PO Comments - <span id="modalPoNumber"></span></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Comment History -->
+                <div class="mb-4">
+                    <h6 class="font-weight-bold mb-3">Comment History</h6>
+                    <div id="commentHistory" class="comment-history">
+                        <p class="text-muted text-center">Loading comments...</p>
+                    </div>
+                </div>
+
+                <!-- Add Comment Form -->
+                <form id="commentForm" method="POST">
+                    <div class="form-group">
+                        <label for="commentText" class="font-weight-bold">Add New Comment</label>
+                        <textarea class="form-control" id="commentText" name="comment" rows="4" placeholder="Enter your follow-up comment here..." required></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane mr-1"></i>Submit Comment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPoId = null;
+
+function openCommentModal(poId, poNumber) {
+    currentPoId = poId;
+    document.getElementById('modalPoNumber').textContent = poNumber;
+    document.getElementById('commentForm').action = `/add_po_comment/${poId}`;
+    document.getElementById('commentText').value = '';
+    
+    // Load existing comments
+    loadComments(poId);
+    
+    $('#commentModal').modal('show');
+}
+
+function loadComments(poId) {
+    const historyDiv = document.getElementById('commentHistory');
+    historyDiv.innerHTML = '<p class="text-muted text-center">Loading comments...</p>';
+    
+    fetch(`/get_po_comments/${poId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.comments && data.comments.length > 0) {
+                let html = '';
+                data.comments.forEach(comment => {
+                    html += `
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <i class="fas fa-user-circle mr-1"></i>${comment.username}
+                                <span class="comment-time float-right">
+                                    <i class="fas fa-clock mr-1"></i>${comment.created_at}
+                                </span>
+                            </div>
+                            <div class="comment-text">${comment.comment}</div>
+                        </div>
+                    `;
+                });
+                historyDiv.innerHTML = html;
+            } else {
+                historyDiv.innerHTML = '<p class="text-muted text-center"><i class="fas fa-info-circle mr-1"></i>No comments yet. Be the first to add a comment!</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading comments:', error);
+            historyDiv.innerHTML = '<p class="text-danger text-center"><i class="fas fa-exclamation-triangle mr-1"></i>Error loading comments. Please try again.</p>';
+        });
+}
+</script>
 {% endblock %}
