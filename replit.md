@@ -4,6 +4,16 @@
 This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
 
 ## Recent Changes
+- **2025-10-28**: User Management System added with password encryption
+  - Created admin panel for General Managers to manage user accounts
+  - Add/Edit/Delete users with industry-standard password encryption (werkzeug.security)
+  - Password validation (minimum 6 characters, confirmation matching)
+  - Secure password hashing using `generate_password_hash()` and `check_password_hash()`
+  - Role-based access control (only General Manager can access user management)
+  - All passwords stored encrypted in database - never in plaintext
+  - New routes: `/manage_users`, `/add_user`, `/edit_user`, `/delete_user`
+  - Added "Administration" menu in sidebar (visible to General Manager only)
+  
 - **2025-10-28**: Vendor routes fixed to work with production database schema
   - Fixed vendor management routes to use `vendors` table instead of `srm_vendors`
   - Updated column mappings to match production schema (phone/email vs main_phone/main_email)
