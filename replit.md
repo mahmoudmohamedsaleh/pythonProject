@@ -4,6 +4,13 @@
 This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
 
 ## Recent Changes
+- **2025-10-28**: Vendor routes fixed to work with production database schema
+  - Fixed vendor management routes to use `vendors` table instead of `srm_vendors`
+  - Updated column mappings to match production schema (phone/email vs main_phone/main_email)
+  - Disabled vendor contacts feature (not present in production database)
+  - Added PO comment system with modal UI and backend routes
+  - Fixed navigation highlighting bug in sidebar
+  
 - **2025-10-25**: Initial Replit setup completed
   - Installed missing Python dependencies (xlsxwriter, openpyxl)
   - Fixed duplicate `if __name__ == '__main__'` blocks in app.py
