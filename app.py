@@ -5073,6 +5073,180 @@ def delete_task(task_id):
 
     conn.close()
     return redirect(url_for('tasks'))
+
+##############################################
+# ============ USER MANAGEMENT SYSTEM ============
+##############################################
+
+@app.route('/manage_users')
+@role_required('General Manager')
+def manage_users():
+    """
+    Admin panel to view and manage all system users
+    Only accessible by General Manager
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT id, username, role FROM users ORDER BY username")
+    users = c.fetchall()
+    
+    conn.close()
+    return render_template('manage_users.html', users=users)
+
+
+@app.route('/add_user', methods=['GET', 'POST'])
+@role_required('General Manager')
+def add_user():
+    """
+    Add a new user to the system with encrypted password
+    Only accessible by General Manager
+    """
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        role = request.form['role']
+        
+        # Validation
+        if not username or not password:
+            flash('Username and password are required!', 'danger')
+            return redirect(url_for('add_user'))
+        
+        if password != confirm_password:
+            flash('Passwords do not match!', 'danger')
+            return redirect(url_for('add_user'))
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long!', 'danger')
+            return redirect(url_for('add_user'))
+        
+        # Hash the password using werkzeug for security
+        hashed_password = generate_password_hash(password)
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        try:
+            # Insert new user with encrypted password
+            c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                     (username, hashed_password, role))
+            conn.commit()
+            flash(f'User "{username}" added successfully with encrypted password!', 'success')
+            return redirect(url_for('manage_users'))
+        except sqlite3.IntegrityError:
+            flash(f'Username "{username}" already exists!', 'danger')
+            return redirect(url_for('add_user'))
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('add_user'))
+        finally:
+            conn.close()
+    
+    # Available roles in the system
+    roles = ['editor', 'General Manager', 'Technical Team Leader', 
+             'Presale Engineer', 'Sales Engineer', 'Project Coordinator']
+    
+    return render_template('add_user.html', roles=roles)
+
+
+@app.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
+@role_required('General Manager')
+def edit_user(user_id):
+    """
+    Edit existing user details
+    Only accessible by General Manager
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        role = request.form['role']
+        new_password = request.form.get('new_password', '').strip()
+        
+        if not username:
+            flash('Username is required!', 'danger')
+            return redirect(url_for('edit_user', user_id=user_id))
+        
+        try:
+            # Update user details
+            if new_password:
+                # User wants to change password - hash it
+                if len(new_password) < 6:
+                    flash('Password must be at least 6 characters long!', 'danger')
+                    return redirect(url_for('edit_user', user_id=user_id))
+                
+                hashed_password = generate_password_hash(new_password)
+                c.execute("UPDATE users SET username = ?, role = ?, password = ? WHERE id = ?",
+                         (username, role, hashed_password, user_id))
+                flash(f'User "{username}" updated successfully with new encrypted password!', 'success')
+            else:
+                # Update without changing password
+                c.execute("UPDATE users SET username = ?, role = ? WHERE id = ?",
+                         (username, role, user_id))
+                flash(f'User "{username}" updated successfully!', 'success')
+            
+            conn.commit()
+            return redirect(url_for('manage_users'))
+        except sqlite3.IntegrityError:
+            flash(f'Username "{username}" already exists!', 'danger')
+            return redirect(url_for('edit_user', user_id=user_id))
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('edit_user', user_id=user_id))
+        finally:
+            conn.close()
+    
+    # GET request - load user data
+    c.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = c.fetchone()
+    conn.close()
+    
+    if not user:
+        flash('User not found!', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    roles = ['editor', 'General Manager', 'Technical Team Leader', 
+             'Presale Engineer', 'Sales Engineer', 'Project Coordinator']
+    
+    return render_template('edit_user.html', user=user, roles=roles)
+
+
+@app.route('/delete_user/<int:user_id>', methods=['POST'])
+@role_required('General Manager')
+def delete_user(user_id):
+    """
+    Delete a user from the system
+    Only accessible by General Manager
+    """
+    # Prevent deleting yourself
+    if user_id == session.get('user_id'):
+        flash('You cannot delete your own account!', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+        user = c.fetchone()
+        
+        if user:
+            c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.commit()
+            flash(f'User "{user[0]}" deleted successfully!', 'success')
+        else:
+            flash('User not found!', 'danger')
+    except Exception as e:
+        flash(f'An error occurred: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('manage_users'))
+
 ##############################################
 if __name__ == '__main__':
     init_db()

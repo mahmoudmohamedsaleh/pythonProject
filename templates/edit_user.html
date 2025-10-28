@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Edit User{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 700px;">
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-user-edit"></i> Edit User: {{ user.username }}
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Leave the password field empty if you don't want to change it. If you enter a new password, it will be encrypted automatically.
+            </div>
+            
+            <form method="POST" action="{{ url_for('edit_user', user_id=user.id) }}">
+                <div class="form-group mb-3">
+                    <label for="username"><i class="fas fa-user"></i> Username *</label>
+                    <input type="text" name="username" id="username" class="form-control" 
+                           value="{{ user.username }}" placeholder="Enter username" required autofocus>
+                    <small class="form-text text-muted">Must be unique</small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="role"><i class="fas fa-user-tag"></i> Role *</label>
+                    <select name="role" id="role" class="form-control" required>
+                        {% for role in roles %}
+                        <option value="{{ role }}" {% if user.role == role %}selected{% endif %}>
+                            {{ role }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <hr>
+                <h6><i class="fas fa-key"></i> Change Password (Optional)</h6>
+                
+                <div class="form-group mb-3">
+                    <label for="new_password"><i class="fas fa-lock"></i> New Password</label>
+                    <input type="password" name="new_password" id="new_password" class="form-control" 
+                           placeholder="Leave empty to keep current password" minlength="6">
+                    <small class="form-text text-muted">Minimum 6 characters (if changing)</small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="showPassword" onclick="togglePassword()">
+                        <label class="form-check-label" for="showPassword">
+                            <i class="fas fa-eye"></i> Show password
+                        </label>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('manage_users') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    var passwordField = document.getElementById('new_password');
+    var showPasswordCheckbox = document.getElementById('showPassword');
+    
+    if (showPasswordCheckbox.checked) {
+        passwordField.type = 'text';
+    } else {
+        passwordField.type = 'password';
+    }
+}
+</script>
+{% endblock %}

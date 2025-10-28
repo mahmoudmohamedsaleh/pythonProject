@@ -151,6 +151,11 @@
 
             <li class="menu-header">Registration</li>
             <li class="nav-item"><a href="{{ url_for('registration_page') }}" class="{{ 'active' if 'registration_page' in request.endpoint else '' }}"><i class="fas fa-plus-circle"></i> Registration Hub</a></li>
+            
+            {% if session.get('user_role') == 'General Manager' %}
+            <li class="menu-header">Administration</li>
+            <li class="nav-item"><a href="{{ url_for('manage_users') }}" class="{{ 'active' if 'user' in request.endpoint else '' }}"><i class="fas fa-users-cog"></i> Manage Users</a></li>
+            {% endif %}
         </ul>
 
         <div class="user-profile">
