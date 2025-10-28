@@ -4693,19 +4693,20 @@ def register_srm_vendor():
     if request.method == 'POST':
         name = request.form['name']
         address = request.form['address']
-        main_phone = request.form['main_phone']
-        main_email = request.form['main_email']
-        notes = request.form['notes']
+        # Map new form fields to production DB columns
+        contact_person = request.form.get('main_contact', '')  # Optional contact person
+        phone = request.form.get('main_phone', '')
+        email = request.form.get('main_email', '')
 
         conn = sqlite3.connect('ProjectStatus.db')
         c = conn.cursor()
         try:
-            c.execute("INSERT INTO srm_vendors (name, address, main_phone, main_email, notes) VALUES (?, ?, ?, ?, ?)",
-                      (name, address, main_phone, main_email, notes))
+            # Use production vendors table schema
+            c.execute("INSERT INTO vendors (name, address, contact_person, phone, email) VALUES (?, ?, ?, ?, ?)",
+                      (name, address, contact_person, phone, email))
             conn.commit()
-            new_vendor_id = c.lastrowid
-            flash('Vendor registered successfully! Now add their contacts.', 'success')
-            return redirect(url_for('add_vendor_contact', vendor_id=new_vendor_id))
+            flash('Vendor registered successfully!', 'success')
+            return redirect(url_for('show_vendors'))
         except sqlite3.IntegrityError:
             flash('A vendor with this name already exists.', 'danger')
             return redirect(url_for('register_srm_vendor'))
@@ -4718,35 +4719,9 @@ def register_srm_vendor():
 @app.route('/add_vendor_contact/<int:vendor_id>', methods=['GET', 'POST'])
 @login_required
 def add_vendor_contact(vendor_id):
-    conn = sqlite3.connect('ProjectStatus.db')
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    if request.method == 'POST':
-        contact_name = request.form['contact_name']
-        contact_position = request.form['contact_position']
-        contact_phone = request.form['contact_phone']
-        contact_email = request.form['contact_email']
-
-        c.execute("""
-            INSERT INTO srm_vendor_contacts (vendor_id, contact_name, contact_position, contact_phone, contact_email)
-            VALUES (?, ?, ?, ?, ?)
-        """, (vendor_id, contact_name, contact_position, contact_phone, contact_email))
-        conn.commit()
-        flash('New contact added successfully!', 'success')
-        return redirect(url_for('add_vendor_contact', vendor_id=vendor_id))
-
-    c.execute("SELECT name FROM srm_vendors WHERE id = ?", (vendor_id,))
-    vendor = c.fetchone()
-    c.execute("SELECT * FROM srm_vendor_contacts WHERE vendor_id = ?", (vendor_id,))
-    contacts = c.fetchall()
-    conn.close()
-
-    if not vendor:
-        flash('Vendor not found.', 'danger')
-        return redirect(url_for('show_vendors'))
-
-    return render_template('add_vendor_contact.html', vendor=vendor, contacts=contacts, vendor_id=vendor_id)
+    # Contacts feature not available in production database
+    flash('Vendor contacts feature is not available. Use the contact_person field in vendor details instead.', 'info')
+    return redirect(url_for('show_vendors'))
 
 ##########################
 @app.route('/vendors')
@@ -4758,25 +4733,20 @@ def show_vendors():
 
     search_query = request.args.get('search_query', '')
 
-    # Updated query to join tables and get the Account Manager's name
-    query = """
-        SELECT v.*, c.contact_name as account_manager_name
-        FROM srm_vendors v
-        LEFT JOIN srm_vendor_contacts c ON v.account_manager_id = c.id
-    """
+    # Query the actual vendors table (no contacts join since contacts table doesn't exist)
+    query = "SELECT * FROM vendors"
     params = []
     if search_query:
-        query += " WHERE v.name LIKE ?"
+        query += " WHERE name LIKE ?"
         params.append(f'%{search_query}%')
 
     c.execute(query, params)
     vendors = c.fetchall()
 
+    # Format for template compatibility - no contacts in production DB
     vendors_with_contacts = []
     for vendor in vendors:
-        c.execute("SELECT * FROM srm_vendor_contacts WHERE vendor_id = ?", (vendor['id'],))
-        contacts = c.fetchall()
-        vendors_with_contacts.append({'vendor': vendor, 'contacts': contacts})
+        vendors_with_contacts.append({'vendor': vendor, 'contacts': []})
 
     conn.close()
     return render_template('vendors.html', vendors_data=vendors_with_contacts, search_query=search_query)
@@ -4791,21 +4761,18 @@ def edit_vendor(vendor_id):
     if request.method == 'POST':
         name = request.form['name']
         address = request.form['address']
-        main_phone = request.form['main_phone']
-        main_email = request.form['main_email']
-        notes = request.form['notes']
-        account_manager_id = request.form.get('account_manager_id')  # Get the selected contact ID
-
-        # If "None" is selected, store NULL in the database
-        if account_manager_id == "":
-            account_manager_id = None
+        # Map form fields to production DB columns
+        contact_person = request.form.get('contact_person', '')
+        phone = request.form.get('main_phone', '')
+        email = request.form.get('main_email', '')
 
         try:
+            # Use production vendors table schema
             c.execute("""
-                UPDATE srm_vendors SET
-                name = ?, address = ?, main_phone = ?, main_email = ?, notes = ?, account_manager_id = ?
+                UPDATE vendors SET
+                name = ?, address = ?, contact_person = ?, phone = ?, email = ?
                 WHERE id = ?
-            """, (name, address, main_phone, main_email, notes, account_manager_id, vendor_id))
+            """, (name, address, contact_person, phone, email, vendor_id))
             conn.commit()
             flash('Vendor details updated successfully!', 'success')
         except Exception as e:
@@ -4815,81 +4782,33 @@ def edit_vendor(vendor_id):
 
         return redirect(url_for('show_vendors'))
 
-    # For GET request, fetch the vendor and their contacts
-    c.execute("SELECT * FROM srm_vendors WHERE id = ?", (vendor_id,))
+    # For GET request, fetch the vendor (no contacts table in production)
+    c.execute("SELECT * FROM vendors WHERE id = ?", (vendor_id,))
     vendor = c.fetchone()
-    c.execute("SELECT id, contact_name FROM srm_vendor_contacts WHERE vendor_id = ?", (vendor_id,))
-    contacts = c.fetchall()
     conn.close()
 
     if not vendor:
         flash('Vendor not found.', 'danger')
         return redirect(url_for('show_vendors'))
 
-    return render_template('edit_vendor.html', vendor=vendor, contacts=contacts)
+    return render_template('edit_vendor.html', vendor=vendor, contacts=[])
 
 
 ####################
 @app.route('/edit_vendor_contact/<int:contact_id>', methods=['GET', 'POST'])
 @login_required
 def edit_vendor_contact(contact_id):
-    conn = sqlite3.connect('ProjectStatus.db')
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-
-    if request.method == 'POST':
-        contact_name = request.form['contact_name']
-        contact_position = request.form['contact_position']
-        contact_phone = request.form['contact_phone']
-        contact_email = request.form['contact_email']
-
-        c.execute("""
-            UPDATE srm_vendor_contacts SET
-            contact_name = ?, contact_position = ?, contact_phone = ?, contact_email = ?
-            WHERE id = ?
-        """, (contact_name, contact_position, contact_phone, contact_email, contact_id))
-        conn.commit()
-
-        c.execute("SELECT vendor_id FROM srm_vendor_contacts WHERE id = ?", (contact_id,))
-        vendor_id = c.fetchone()['vendor_id']
-        conn.close()
-
-        flash('Contact updated successfully!', 'success')
-        return redirect(url_for('add_vendor_contact', vendor_id=vendor_id))
-
-    c.execute("SELECT * FROM srm_vendor_contacts WHERE id = ?", (contact_id,))
-    contact = c.fetchone()
-    conn.close()
-
-    if not contact:
-        flash('Contact not found.', 'danger')
-        return redirect(url_for('show_vendors'))
-
-    return render_template('edit_vendor_contact.html', contact=contact)
+    # Contacts feature not available in production database
+    flash('Vendor contacts feature is not available. Use the contact_person field in vendor details instead.', 'info')
+    return redirect(url_for('show_vendors'))
 
 
 @app.route('/delete_vendor_contact/<int:contact_id>', methods=['POST'])
 @login_required
 def delete_vendor_contact(contact_id):
-    conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
-
-    # Get the vendor_id before deleting so we can redirect back
-    c.execute("SELECT vendor_id FROM srm_vendor_contacts WHERE id = ?", (contact_id,))
-    result = c.fetchone()
-    if not result:
-        flash('Contact not found.', 'danger')
-        conn.close()
-        return redirect(url_for('show_vendors'))
-
-    vendor_id = result[0]
-
-    c.execute("DELETE FROM srm_vendor_contacts WHERE id = ?", (contact_id,))
-    conn.commit()
-    conn.close()
-
-    flash('Contact deleted successfully.', 'success')
-    return redirect(url_for('add_vendor_contact', vendor_id=vendor_id))
+    # Contacts feature not available in production database
+    flash('Vendor contacts feature is not available.', 'info')
+    return redirect(url_for('show_vendors'))
 ###########################################
 
 # =================================================================
