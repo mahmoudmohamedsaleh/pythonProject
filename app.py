@@ -698,6 +698,7 @@ def logout():
 ################################3
 @app.route('/')
 @login_required
+@permission_required('view_dashboard')
 def index():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -1283,6 +1284,7 @@ def edit_project(quote_ref):
                            status_options=status_options)
 #############
 @app.route('/registered_quotations')
+@permission_required('view_reports')
 def registered_quotations():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -1374,6 +1376,7 @@ def download_quotations_excel():
 
 #################
 @app.route('/aging_dashboard')
+@permission_required('view_aging_dashboard')
 def aging_dashboard():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -1616,7 +1619,7 @@ def register_distributor():
     return render_template('register_distributor.html', vendors=unique_vendors)
 ###################3
 @app.route('/distributors')
-#@role_required('editor')
+@permission_required('view_distributors')
 def show_distributors():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -2250,6 +2253,7 @@ def register_end_user():
 
 ##################################
 @app.route('/register_project', methods=['GET', 'POST'])
+@permission_required('view_projects')
 def register_project():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -2514,6 +2518,7 @@ def update_project_stage():
 ################3
 @app.route('/pipeline_analysis')
 @login_required
+@permission_required('view_pipeline_analysis')
 def pipeline_analysis():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -2611,6 +2616,7 @@ def pipeline_analysis():
                            current_filters={'sales_engineer_id': sales_engineer_filter})
 ################
 @app.route('/presales_performance')
+@permission_required('view_presales')
 def presales_performance():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -2722,6 +2728,7 @@ def presales_performance():
 ###############
 @app.route('/sales_performance')
 @login_required
+@permission_required('view_sales_performance')
 def sales_performance():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -2891,6 +2898,7 @@ def request_for_quotation():
 
 ########################
 @app.route('/rfq_summary', methods=['GET'])
+@permission_required('view_rfq')
 def rfq_summary():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3380,7 +3388,7 @@ def edit_request():
                            request_result_options=request_result_options)
 #######3
 @app.route('/registration_page')
-#@role_required('editor')
+@permission_required('view_registration_hub')
 def registration_page():
     return render_template('registration_page.html')
 #######
@@ -4499,6 +4507,7 @@ def download_po_details_excel(po_number):
 
 ########################
 @app.route('/solution_builder')
+@permission_required('view_solution_builder')
 def solution_builder():
     return render_template('solution_builder_hub.html')
 
@@ -5228,6 +5237,7 @@ def add_vendor_contact(vendor_id):
 ##########################
 @app.route('/vendors')
 @login_required
+@permission_required('view_vendors')
 def show_vendors():
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -5318,6 +5328,7 @@ def delete_vendor_contact(contact_id):
 # =================================================================
 @app.route('/tasks', methods=['GET', 'POST'])
 @login_required
+@permission_required('view_tasks')
 def tasks():
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -5582,6 +5593,7 @@ def delete_task(task_id):
 
 @app.route('/manage_users')
 @role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_users')
 def manage_users():
     """
     Admin panel to view and manage all system users
@@ -5894,6 +5906,7 @@ def register():
 
 @app.route('/pending_registrations')
 @role_required('General Manager', 'Technical Team Leader')
+@permission_required('view_pending_registrations')
 def pending_registrations():
     """
     Admin page to view and manage pending registration requests
@@ -6014,6 +6027,7 @@ def reject_registration(request_id):
 
 @app.route('/pending_otp_requests')
 @role_required('General Manager', 'Technical Team Leader')
+@permission_required('view_password_reset_otps')
 def pending_otp_requests():
     """
     Admin page to view pending OTP requests for password resets
@@ -6075,6 +6089,7 @@ def mark_otp_shared(token_id):
 
 @app.route('/access_control')
 @role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
 def access_control():
     """
     Admin page to manage user permissions
