@@ -6,7 +6,7 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
 ## Recent Changes
 - **2025-10-29**: Page-Level Permission System (Complete Implementation)
   
-  **Granular Access Control** ⭐ NEW FEATURE
+  **Granular Access Control** ⭐ FULLY ENFORCED
   - Complete page-level permission system for controlling user access to CRM features
   - **Admin Access Control UI**: New route `/access_control` for General Manager and Technical Team Leader
   - Three new database tables:
@@ -27,8 +27,9 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
   - Security features:
     * Permissions cached in session for performance
     * Session automatically refreshed when permissions change
-    * @permission_required decorator protects routes
+    * **@permission_required decorator actively protects ALL major routes**
     * user_has_permission() function available in templates for dynamic UI
+    * Users attempting to access denied pages receive flash error and redirect
   - Permission categories:
     * Dashboard: Main dashboard access
     * CRM: Projects, Pipeline, Sales Performance, Aging, End Users, Contractors, Consultants
@@ -40,6 +41,13 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
     * Administration: Manage Users, Access Control, Pending Registrations, Password Reset OTPs
   - New menu item: "Access Control" in Administration section
   - Full audit trail: tracks who updated permissions and when
+  - **Route Protection**: All 24 protected routes now enforce permissions server-side
+    * Dashboard routes: /, /dashboard
+    * CRM routes: /register_project, /project_pipeline, /sales_performance, /aging_dashboard, etc.
+    * Sales routes: /presales_performance, /rfq_summary, /registered_quotations, /solution_builder, etc.
+    * Vendor/Distributor routes: /vendors, /distributors
+    * Task management: /tasks
+    * Admin routes: /manage_users, /access_control, /pending_registrations, /pending_otp_requests
   
 - **2025-10-29**: Admin-Assisted Password Reset System (Complete Implementation)
   
