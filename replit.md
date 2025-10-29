@@ -9,23 +9,24 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
   - Users can request account access by filling out registration form
   - All passwords encrypted immediately upon registration
   - Admin approval workflow: pending → approved/rejected
-  - General Manager can review, approve, or reject registration requests
+  - General Manager and Technical Team Leader can review, approve, or reject registration requests
   - New database table: `registration_requests` (tracks all registration requests)
   - Admin panel: `/pending_registrations` (shows pending and reviewed requests)
   - Email and reason fields for better user tracking
   - Automatic account activation upon approval
   - Updated login page with "Request Account Access" link
   - Added "Pending Registrations" to Administration menu
+  - Role-based access: Both General Manager and Technical Team Leader have full admin access
   
 - **2025-10-28**: User Management System added with password encryption
-  - Created admin panel for General Managers to manage user accounts
+  - Created admin panel for General Managers and Technical Team Leaders to manage user accounts
   - Add/Edit/Delete users with industry-standard password encryption (werkzeug.security)
   - Password validation (minimum 6 characters, confirmation matching)
   - Secure password hashing using `generate_password_hash()` and `check_password_hash()`
-  - Role-based access control (only General Manager can access user management)
+  - Role-based access control (General Manager and Technical Team Leader can access user management)
   - All passwords stored encrypted in database - never in plaintext
   - New routes: `/manage_users`, `/add_user`, `/edit_user`, `/delete_user`
-  - Added "Administration" menu in sidebar (visible to General Manager only)
+  - Added "Administration" menu in sidebar (visible to General Manager and Technical Team Leader)
   
 - **2025-10-28**: Vendor routes fixed to work with production database schema
   - Fixed vendor management routes to use `vendors` table instead of `srm_vendors`
