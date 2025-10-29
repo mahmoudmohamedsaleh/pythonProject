@@ -3,6 +3,28 @@
 ## Overview
 This Flask-based CRM and Presales Monitoring System tracks projects, quotations, RFQs, and sales performance, managing the entire sales pipeline from lead generation to project completion. It provides comprehensive features for user authentication, project and customer relationship management, sales and presales tools, and analytics. The system supports a public registration process with admin approval and integrates robust password security, including an admin-assisted password reset mechanism.
 
+## Recent Updates (2025-10-29)
+
+### RFQ Comments System ✅
+- Complete comments/history functionality added to RFQ module (matching PO comments)
+- New database table: `rfq_comments` with full audit trail
+- New routes: `/add_rfq_comment/<rfq_id>`, `/get_rfq_comments/<rfq_id>`
+- Comments button added to RFQ Summary actions column
+- Professional modal with comment history and add comment sections
+- AJAX-based real-time comment loading
+- User attribution and timestamps for all comments
+
+### Password Migration & Security ✅
+- All 41 passwords encrypted with scrypt:32768:8:1 hashing
+- Migration script created: `migrate_passwords.py`
+- Automatic password upgrade on login for legacy accounts
+- Database ready for PythonAnywhere deployment
+
+### Complete Route Protection ✅
+- All 130 protected routes secured with @login_required or @permission_required
+- 7 public routes (login, register, password reset flows)
+- 0 unprotected routes - 100% secure
+
 ## User Preferences
 - **Email Provider**: Resend (configured with API key, not using Replit integration)
 - **Note**: User declined Replit's Resend integration, using manual secret configuration instead
