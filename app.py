@@ -195,8 +195,15 @@ def init_db():
             id INTEGER PRIMARY KEY,
             username TEXT UNIQUE,
             password TEXT,
-            role TEXT
+            role TEXT,
+            email TEXT
         )''')
+    
+    # Add email column to existing users table if it doesn't exist
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     c.execute('''CREATE TABLE IF NOT EXISTS engineers (
             id INTEGER PRIMARY KEY,
             name TEXT,
@@ -5243,6 +5250,7 @@ def add_user():
         password = request.form['password']
         confirm_password = request.form['confirm_password']
         role = request.form['role']
+        email = request.form.get('email', '').strip()
         
         # Validation
         if not username or not password:
@@ -5264,9 +5272,9 @@ def add_user():
         c = conn.cursor()
         
         try:
-            # Insert new user with encrypted password
-            c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                     (username, hashed_password, role))
+            # Insert new user with encrypted password and email
+            c.execute("INSERT INTO users (username, password, role, email) VALUES (?, ?, ?, ?)",
+                     (username, hashed_password, role, email if email else None))
             conn.commit()
             flash(f'User "{username}" added successfully with encrypted password!', 'success')
             return redirect(url_for('manage_users'))
@@ -5300,6 +5308,7 @@ def edit_user(user_id):
     if request.method == 'POST':
         username = request.form['username'].strip()
         role = request.form['role']
+        email = request.form.get('email', '').strip()
         new_password = request.form.get('new_password', '').strip()
         
         if not username:
@@ -5315,13 +5324,13 @@ def edit_user(user_id):
                     return redirect(url_for('edit_user', user_id=user_id))
                 
                 hashed_password = generate_password_hash(new_password)
-                c.execute("UPDATE users SET username = ?, role = ?, password = ? WHERE id = ?",
-                         (username, role, hashed_password, user_id))
+                c.execute("UPDATE users SET username = ?, role = ?, email = ?, password = ? WHERE id = ?",
+                         (username, role, email if email else None, hashed_password, user_id))
                 flash(f'User "{username}" updated successfully with new encrypted password!', 'success')
             else:
                 # Update without changing password
-                c.execute("UPDATE users SET username = ?, role = ? WHERE id = ?",
-                         (username, role, user_id))
+                c.execute("UPDATE users SET username = ?, role = ?, email = ? WHERE id = ?",
+                         (username, role, email if email else None, user_id))
                 flash(f'User "{username}" updated successfully!', 'success')
             
             conn.commit()
@@ -5596,23 +5605,39 @@ def forgot_password():
         c = conn.cursor()
         
         try:
-            # Check if user needs to add email first
-            c.execute("SELECT id, username FROM users WHERE username = ?", (identifier,))
+            # Find user by username
+            c.execute("SELECT id, username, email FROM users WHERE username = ?", (identifier,))
             user = c.fetchone()
             
             if not user:
                 flash('User not found! Please check your username.', 'danger')
                 return redirect(url_for('forgot_password'))
             
-            # Get email from registration_requests or ask admin
-            c.execute("SELECT email FROM registration_requests WHERE username = ? AND email IS NOT NULL", (user['username'],))
-            email_record = c.fetchone()
+            # Get email from multiple sources (priority order)
+            recipient_email = None
             
-            if not email_record or not email_record['email']:
+            # 1. Check users table first
+            if user['email']:
+                recipient_email = user['email']
+            
+            # 2. Check registration_requests table
+            if not recipient_email:
+                c.execute("SELECT email FROM registration_requests WHERE username = ? AND email IS NOT NULL", (user['username'],))
+                email_record = c.fetchone()
+                if email_record and email_record['email']:
+                    recipient_email = email_record['email']
+            
+            # 3. Check engineers table
+            if not recipient_email:
+                c.execute("SELECT email FROM engineers WHERE username = ? AND email IS NOT NULL", (user['username'],))
+                engineer_record = c.fetchone()
+                if engineer_record and engineer_record['email']:
+                    recipient_email = engineer_record['email']
+            
+            # If still no email found, show error
+            if not recipient_email:
                 flash(f'No email address registered for user "{user["username"]}". Please contact administrator to add your email address.', 'warning')
                 return redirect(url_for('forgot_password'))
-            
-            recipient_email = email_record['email']
             
             # Generate OTP
             otp_code = generate_otp(6)
