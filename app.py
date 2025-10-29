@@ -5079,11 +5079,11 @@ def delete_task(task_id):
 ##############################################
 
 @app.route('/manage_users')
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def manage_users():
     """
     Admin panel to view and manage all system users
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -5097,11 +5097,11 @@ def manage_users():
 
 
 @app.route('/add_user', methods=['GET', 'POST'])
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def add_user():
     """
     Add a new user to the system with encrypted password
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     if request.method == 'POST':
         username = request.form['username'].strip()
@@ -5152,11 +5152,11 @@ def add_user():
 
 
 @app.route('/edit_user/<int:user_id>', methods=['GET', 'POST'])
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def edit_user(user_id):
     """
     Edit existing user details
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -5216,11 +5216,11 @@ def edit_user(user_id):
 
 
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def delete_user(user_id):
     """
     Delete a user from the system
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     # Prevent deleting yourself
     if user_id == session.get('user_id'):
@@ -5321,11 +5321,11 @@ def register():
 
 
 @app.route('/pending_registrations')
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def pending_registrations():
     """
     Admin page to view and manage pending registration requests
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -5356,11 +5356,11 @@ def pending_registrations():
 
 
 @app.route('/approve_registration/<int:request_id>', methods=['POST'])
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def approve_registration(request_id):
     """
     Approve a registration request and create the user account
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -5405,11 +5405,11 @@ def approve_registration(request_id):
 
 
 @app.route('/reject_registration/<int:request_id>', methods=['POST'])
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def reject_registration(request_id):
     """
     Reject a registration request
-    Only accessible by General Manager
+    Accessible by General Manager and Technical Team Leader
     """
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
