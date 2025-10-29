@@ -16,8 +16,8 @@
             <div class="alert alert-info">
                 <i class="fas fa-info-circle"></i> All passwords are encrypted using industry-standard hashing (werkzeug.security)
             </div>
-            <div class="alert alert-warning">
-                <i class="fas fa-key"></i> <strong>Password Reset Requirement:</strong> Users MUST have an email address to reset their password using OTP. Add email addresses for all users!
+            <div class="alert alert-success">
+                <i class="fas fa-shield-alt"></i> <strong>Admin Password Reset:</strong> You can reset any user's password directly without email verification using the "Reset Password" button!
             </div>
             
             {% if users %}
@@ -59,13 +59,17 @@
                             <td class="text-center">
                                 <a href="{{ url_for('edit_user', user_id=user.id) }}" 
                                    class="btn btn-sm btn-primary" title="Edit User">
-                                    <i class="fas fa-edit"></i> Edit
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('admin_reset_password', user_id=user.id) }}" 
+                                   class="btn btn-sm btn-warning" title="Reset Password">
+                                    <i class="fas fa-key"></i>
                                 </a>
                                 <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" 
                                       style="display: inline;"
                                       onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone!');">
                                     <button type="submit" class="btn btn-sm btn-danger" title="Delete User">
-                                        <i class="fas fa-trash"></i> Delete
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
                             </td>

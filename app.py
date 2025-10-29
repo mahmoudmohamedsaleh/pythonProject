@@ -5440,6 +5440,74 @@ def edit_user(user_id):
     return render_template('edit_user.html', user=user, roles=roles)
 
 
+@app.route('/admin_reset_password/<int:user_id>', methods=['GET', 'POST'])
+@role_required('General Manager', 'Technical Team Leader')
+def admin_reset_password(user_id):
+    """
+    Admin can reset user password directly without email OTP
+    Accessible by General Manager and Technical Team Leader
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        
+        # Validation
+        if not new_password:
+            flash('Password is required!', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long!', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        
+        if new_password != confirm_password:
+            flash('Passwords do not match!', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        
+        try:
+            # Get user info
+            c.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+            user = c.fetchone()
+            
+            if not user:
+                flash('User not found!', 'danger')
+                return redirect(url_for('manage_users'))
+            
+            # Hash the new password
+            hashed_password = generate_password_hash(new_password)
+            
+            # Update password in users table
+            c.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
+            
+            # Also update in engineers table if the user exists there
+            c.execute("UPDATE engineers SET password = ? WHERE name = ?", (hashed_password, user['username']))
+            
+            conn.commit()
+            flash(f'Password for user "{user["username"]}" has been reset successfully by admin!', 'success')
+            return redirect(url_for('manage_users'))
+            
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('admin_reset_password', user_id=user_id))
+        finally:
+            conn.close()
+    
+    # GET request - show reset form
+    c.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = c.fetchone()
+    conn.close()
+    
+    if not user:
+        flash('User not found!', 'danger')
+        return redirect(url_for('manage_users'))
+    
+    return render_template('admin_reset_password.html', user=user)
+
+
 @app.route('/delete_user/<int:user_id>', methods=['POST'])
 @role_required('General Manager', 'Technical Team Leader')
 def delete_user(user_id):
