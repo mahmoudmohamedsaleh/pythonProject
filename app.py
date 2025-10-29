@@ -3943,6 +3943,60 @@ def view_po_status():
                            po_approval_status_filter=po_approval_status_filter)
 
 ######################
+# RFQ Comments Routes
+######################
+@app.route('/add_rfq_comment/<int:rfq_id>', methods=['POST'])
+@login_required
+def add_rfq_comment(rfq_id):
+    comment_text = request.form.get('comment', '').strip()
+    
+    if not comment_text:
+        flash('Comment cannot be empty!', 'danger')
+        return redirect(url_for('rfq_summary'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute('''
+            INSERT INTO rfq_comments (rfq_id, user_id, username, comment, created_at)
+            VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+        ''', (rfq_id, session['user_id'], session['username'], comment_text))
+        conn.commit()
+        flash('Comment added successfully!', 'success')
+    except Exception as e:
+        flash(f'Error adding comment: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('rfq_summary'))
+
+@app.route('/get_rfq_comments/<int:rfq_id>', methods=['GET'])
+@login_required
+def get_rfq_comments(rfq_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT id, username, comment, created_at
+        FROM rfq_comments
+        WHERE rfq_id = ?
+        ORDER BY created_at DESC
+    ''', (rfq_id,))
+    
+    comments = c.fetchall()
+    conn.close()
+    
+    comments_list = [{
+        'id': c[0],
+        'username': c[1],
+        'comment': c[2],
+        'created_at': c[3]
+    } for c in comments]
+    
+    return jsonify({'comments': comments_list})
+
+######################
 # PO Comments Routes
 ######################
 @app.route('/add_po_comment/<int:po_id>', methods=['POST'])
