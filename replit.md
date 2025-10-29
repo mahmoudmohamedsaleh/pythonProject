@@ -4,6 +4,43 @@
 This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
 
 ## Recent Changes
+- **2025-10-29**: Page-Level Permission System (Complete Implementation)
+  
+  **Granular Access Control** ⭐ NEW FEATURE
+  - Complete page-level permission system for controlling user access to CRM features
+  - **Admin Access Control UI**: New route `/access_control` for General Manager and Technical Team Leader
+  - Three new database tables:
+    * `permissions` - Master list of all 24 available pages/features
+    * `role_permissions` - Default permissions for each role (82 default permissions configured)
+    * `user_permissions` - User-specific overrides (allow/deny/inherit)
+  - Permission evaluation order: Explicit Deny > Explicit Allow > Role Default
+  - Hybrid role-and-permission system allows:
+    * Role-based defaults for all users
+    * Individual user overrides for fine-grained control
+    * Three permission states: Allow, Deny, Inherit
+  - Admin UI features:
+    * Select any user from list
+    * View all 24 permissions grouped by category (Dashboard, CRM, Sales, Purchasing, etc.)
+    * Toggle permissions with Allow/Deny/Inherit buttons
+    * Real-time permission updates via AJAX
+    * Visual indication of permission source (role default vs user override)
+  - Security features:
+    * Permissions cached in session for performance
+    * Session automatically refreshed when permissions change
+    * @permission_required decorator protects routes
+    * user_has_permission() function available in templates for dynamic UI
+  - Permission categories:
+    * Dashboard: Main dashboard access
+    * CRM: Projects, Pipeline, Sales Performance, Aging, End Users, Contractors, Consultants
+    * Sales: Presales, RFQ, RFTS, Reports, Products, Solution Builder, Quotation Builder
+    * Purchasing: PO Status
+    * Task Management: Tasks
+    * SRM: Vendors, Distributors
+    * Registration: Registration Hub
+    * Administration: Manage Users, Access Control, Pending Registrations, Password Reset OTPs
+  - New menu item: "Access Control" in Administration section
+  - Full audit trail: tracks who updated permissions and when
+  
 - **2025-10-29**: Admin-Assisted Password Reset System (Complete Implementation)
   
   **Manual OTP Distribution Dashboard** ⭐ RECOMMENDED WORKFLOW
