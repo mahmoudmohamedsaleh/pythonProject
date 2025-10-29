@@ -156,6 +156,7 @@
             <li class="menu-header">Administration</li>
             <li class="nav-item"><a href="{{ url_for('manage_users') }}" class="{{ 'active' if 'manage_users' in request.endpoint or 'edit_user' in request.endpoint or 'add_user' in request.endpoint else '' }}"><i class="fas fa-users-cog"></i> Manage Users</a></li>
             <li class="nav-item"><a href="{{ url_for('pending_registrations') }}" class="{{ 'active' if 'registration' in request.endpoint else '' }}"><i class="fas fa-user-clock"></i> Pending Registrations</a></li>
+            <li class="nav-item"><a href="{{ url_for('pending_otp_requests') }}" class="{{ 'active' if 'pending_otp' in request.endpoint else '' }}"><i class="fas fa-key"></i> Password Reset OTPs</a></li>
             {% endif %}
         </ul>
 
