@@ -1,259 +1,46 @@
 # CRM and Presales Monitoring System
 
 ## Overview
-This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
-
-## Recent Changes
-- **2025-10-29**: Page-Level Permission System (Complete Implementation)
-  
-  **Granular Access Control** ⭐ FULLY ENFORCED
-  - Complete page-level permission system for controlling user access to CRM features
-  - **Admin Access Control UI**: New route `/access_control` for General Manager and Technical Team Leader
-  - Three new database tables:
-    * `permissions` - Master list of all 24 available pages/features
-    * `role_permissions` - Default permissions for each role (82 default permissions configured)
-    * `user_permissions` - User-specific overrides (allow/deny/inherit)
-  - Permission evaluation order: Explicit Deny > Explicit Allow > Role Default
-  - Hybrid role-and-permission system allows:
-    * Role-based defaults for all users
-    * Individual user overrides for fine-grained control
-    * Three permission states: Allow, Deny, Inherit
-  - Admin UI features:
-    * Select any user from list
-    * View all 24 permissions grouped by category (Dashboard, CRM, Sales, Purchasing, etc.)
-    * Toggle permissions with Allow/Deny/Inherit buttons
-    * Real-time permission updates via AJAX
-    * Visual indication of permission source (role default vs user override)
-  - Security features:
-    * Permissions cached in session for performance
-    * Session automatically refreshed when permissions change
-    * **@permission_required decorator actively protects ALL major routes**
-    * user_has_permission() function available in templates for dynamic UI
-    * Users attempting to access denied pages receive flash error and redirect
-  - Permission categories:
-    * Dashboard: Main dashboard access
-    * CRM: Projects, Pipeline, Sales Performance, Aging, End Users, Contractors, Consultants
-    * Sales: Presales, RFQ, RFTS, Reports, Products, Solution Builder, Quotation Builder
-    * Purchasing: PO Status
-    * Task Management: Tasks
-    * SRM: Vendors, Distributors
-    * Registration: Registration Hub
-    * Administration: Manage Users, Access Control, Pending Registrations, Password Reset OTPs
-  - New menu item: "Access Control" in Administration section
-  - Full audit trail: tracks who updated permissions and when
-  - **Route Protection**: All 24 protected routes now enforce permissions server-side
-    * Dashboard routes: /, /dashboard
-    * CRM routes: /register_project, /project_pipeline, /sales_performance, /aging_dashboard, etc.
-    * Sales routes: /presales_performance, /rfq_summary, /registered_quotations, /solution_builder, etc.
-    * Vendor/Distributor routes: /vendors, /distributors
-    * Task management: /tasks
-    * Admin routes: /manage_users, /access_control, /pending_registrations, /pending_otp_requests
-  
-- **2025-10-29**: Admin-Assisted Password Reset System (Complete Implementation)
-  
-  **Manual OTP Distribution Dashboard** ⭐ RECOMMENDED WORKFLOW
-  - Complete admin-assisted password reset system (workaround until domain verified)
-  - Three-step user workflow: Request Reset → Contact Admin → Verify OTP → Set New Password
-  - **Admin OTP Dashboard**: New route `/pending_otp_requests` for General Manager and Technical Team Leader
-  - Dashboard shows all active password reset requests with:
-    * Username and role of requester
-    * Email address (if available)
-    * **OTP code displayed prominently** (large blue box, copyable)
-    * Created timestamp and expiration time
-    * Request status (pending/used/expired)
-  - Admins can copy OTP codes and share via phone, WhatsApp, or in-person
-  - **User workflow updated**: Forgot password page now instructs users to contact admin for OTP
-  - No email sending required - perfect for test environment without verified domain
-  - Automatic OTP expiration after 15 minutes
-  - One-time use validation prevents OTP reuse
-  - New menu item: "Password Reset OTPs" in Administration section
-  - Multi-source email lookup: users, registration_requests, engineers tables
-  
-- **2025-10-29**: Password Reset System (Two Methods)
-  
-  **Method 1: OTP via Email** (requires domain verification)
-  - Complete password reset workflow using One-Time Password (OTP)
-  - Three-step process: Request Reset → Verify OTP → Set New Password
-  - OTP sent via email with 15-minute expiration
-  - Secure OTP generation using Python secrets module
-  - Email support for multiple providers (Gmail, SendGrid, Resend, generic SMTP)
-  - Configuration via environment variables (EMAIL_PROVIDER, RESEND_API_KEY, SENDER_EMAIL)
-  - New database table: `password_reset_tokens` (stores OTP with expiration)
-  - New routes: `/forgot_password`, `/verify_otp`, `/reset_password_with_otp`, `/resend_otp`
-  - HTML email templates with professional design
-  - Fallback to console output if email not configured (for testing)
-  - Resend API integration with proper error handling
-  - **Email Column Added to Users Table**: All users can now have email addresses
-  - **Multi-source Email Lookup**: Checks users table, registration_requests, and engineers table
-  - **Note**: Resend requires domain verification to send to all users (test mode limited to verified email)
-  
-  **Method 2: Admin Password Reset** (no email required) ⭐ RECOMMENDED
-  - **New Feature (2025-10-29)**: Direct admin password reset without email
-  - Accessible by General Manager and Technical Team Leader roles
-  - New route: `/admin_reset_password/<user_id>`
-  - Admin can reset any user's password instantly
-  - No email verification required - perfect for users without email
-  - Password immediately encrypted using werkzeug.security
-  - Updates both users and engineers tables simultaneously
-  - Yellow "Reset Password" button (🔑 icon) in user management table
-  - Confirmation dialog before resetting password
-  - Flash message confirms successful password reset
-  - **Use this method until domain is verified for Resend!**
-  
-- **2025-10-29**: Public Registration with Admin Approval System
-  - Created public registration page at `/register` (no login required)
-  - Users can request account access by filling out registration form
-  - All passwords encrypted immediately upon registration
-  - Admin approval workflow: pending → approved/rejected
-  - General Manager and Technical Team Leader can review, approve, or reject registration requests
-  - New database table: `registration_requests` (tracks all registration requests)
-  - Admin panel: `/pending_registrations` (shows pending and reviewed requests)
-  - Email and reason fields for better user tracking
-  - Automatic account activation upon approval
-  - Updated login page with "Request Account Access" link
-  - Added "Pending Registrations" to Administration menu
-  - Role-based access: Both General Manager and Technical Team Leader have full admin access
-  
-- **2025-10-28**: User Management System added with password encryption
-  - Created admin panel for General Managers and Technical Team Leaders to manage user accounts
-  - Add/Edit/Delete users with industry-standard password encryption (werkzeug.security)
-  - Password validation (minimum 6 characters, confirmation matching)
-  - Secure password hashing using `generate_password_hash()` and `check_password_hash()`
-  - Role-based access control (General Manager and Technical Team Leader can access user management)
-  - All passwords stored encrypted in database - never in plaintext
-  - New routes: `/manage_users`, `/add_user`, `/edit_user`, `/delete_user`, `/admin_reset_password/<user_id>`
-  - Added "Administration" menu in sidebar (visible to General Manager and Technical Team Leader)
-  - **Admin Password Reset**: Three-button interface (Edit, Reset Password, Delete) for each user
-  - Email field added to Add/Edit user forms with password reset reminder
-  
-- **2025-10-28**: Vendor routes fixed to work with production database schema
-  - Fixed vendor management routes to use `vendors` table instead of `srm_vendors`
-  - Updated column mappings to match production schema (phone/email vs main_phone/main_email)
-  - Disabled vendor contacts feature (not present in production database)
-  - Added PO comment system with modal UI and backend routes
-  - Fixed navigation highlighting bug in sidebar
-  
-- **2025-10-25**: Initial Replit setup completed
-  - Installed missing Python dependencies (xlsxwriter, openpyxl)
-  - Fixed duplicate `if __name__ == '__main__'` blocks in app.py
-  - Updated app.py to use environment variables (HOST, PORT, FLASK_DEBUG) for flexible configuration
-  - Configured Flask to run on 0.0.0.0:5000 for Replit environment
-  - Created symbolic link from Static to static directory
-  - Initialized SQLite database
-  - Configured deployment for autoscale mode
-  - Created .gitignore for Python project
-  - **Production Database Integrated**: Replaced with user-provided database (48MB, 22 users, 126 projects, 24 tables)
-
-## Technology Stack
-- **Backend**: Flask (Python web framework)
-- **Database**: SQLite3
-- **Data Processing**: Pandas, openpyxl, xlsxwriter
-- **PDF Generation**: ReportLab
-- **Frontend**: HTML templates with Jinja2
-
-## Project Architecture
-
-### Key Features
-1. **User Authentication & Authorization**
-   - Role-based access control (General Manager, Technical Team Leader, Presale Engineer, Sales Engineer, etc.)
-   - Login/logout functionality
-   - Session management
-
-2. **Project Management**
-   - Project registration and tracking
-   - Quotation submission and management
-   - Project history and status updates
-   - Multiple project stages (Lead, Proposal Prep, Proposal Sent, etc.)
-
-3. **CRM Features**
-   - Customer relationship tracking
-   - Vendor management with contacts
-   - Distributor, contractor, consultant, and end-user management
-   - Technical support request tracking
-
-4. **Sales & Presales Tools**
-   - RFQ (Request for Quotation) management
-   - Quotation builder
-   - Solution builder (Fiber, Passive, etc.)
-   - Cost sheet management
-
-5. **Analytics & Reporting**
-   - Sales performance dashboard
-   - Presales performance metrics
-   - Pipeline analysis
-   - Aging dashboard
-   - Project summary with filtering
-
-6. **Document Management**
-   - File upload/download for quotations and cost sheets
-   - Document storage in database (BLOB)
-   - Excel export functionality
-
-7. **Product Catalog**
-   - Fire alarm products (Detectors, Manual Call Points)
-   - CCTV products
-   - Passive products
-
-### Database Structure
-The application uses SQLite with multiple tables including:
-- `users`: User authentication and roles
-- `projects`: Project and quotation data
-- `register_project`: Project pipeline tracking
-- `engineers`: Engineer registration and details
-- `rfq_requests`: RFQ tracking
-- `vendors`, `distributors`, `contractors`, `consultants`, `end_users`: CRM entities
-- `tasks`: Task management system
-
-### Directory Structure
-- `app.py`: Main Flask application (5066 lines)
-- `templates/`: HTML templates
-- `Static/` (symlinked as `static/`): Static assets (images, CSS, JS)
-- `uploads/`: User-uploaded files (cost sheets, documents)
-- `ProjectStatus.db`: SQLite database
-
-## Configuration
-
-### Development
-- Host: 0.0.0.0 (configurable via HOST environment variable)
-- Port: 5000 (configurable via PORT environment variable)
-- Debug mode: Controlled by FLASK_DEBUG environment variable (1=enabled, 0=disabled)
-
-### Deployment
-- Target: Autoscale (stateless)
-- Command: `python3 app.py`
-- The application respects Replit's PORT environment variable for proper deployment
+This Flask-based CRM and Presales Monitoring System tracks projects, quotations, RFQs, and sales performance, managing the entire sales pipeline from lead generation to project completion. It provides comprehensive features for user authentication, project and customer relationship management, sales and presales tools, and analytics. The system supports a public registration process with admin approval and integrates robust password security, including an admin-assisted password reset mechanism.
 
 ## User Preferences
 - **Email Provider**: Resend (configured with API key, not using Replit integration)
 - **Note**: User declined Replit's Resend integration, using manual secret configuration instead
 
-## Security Improvements
+## System Architecture
 
-✅ **The following security improvements have been implemented:**
+### UI/UX Decisions
+The system features a comprehensive admin access control UI at `/access_control` for managing granular page-level permissions. It also includes an admin OTP Dashboard at `/pending_otp_requests` for assisting with password resets without email. The UI provides real-time permission updates via AJAX and visual indicators for permission sources. Dynamic UI elements are supported through `user_has_permission()` in templates.
 
-1. **Secret Key Security** (FIXED):
-   - Changed from hard-coded 'your_secret_key' to environment-based configuration
-   - Implementation: `app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())`
-   - Uses random generation as fallback if SECRET_KEY environment variable not set
-   - For production deployment, set a strong SECRET_KEY environment variable
+### Technical Implementations
+- **Backend**: Flask (Python web framework)
+- **Database**: SQLite3
+- **Data Processing**: Pandas, openpyxl, xlsxwriter
+- **PDF Generation**: ReportLab
+- **Frontend**: HTML templates with Jinja2
+- **User Authentication & Authorization**: Role-based access control (e.g., General Manager, Technical Team Leader, Presale Engineer, Sales Engineer) with `werkzeug.security` for password hashing (scrypt:32768:8:1). Includes login/logout, session management, and a comprehensive page-level permission system. All routes are protected by `@login_required` or `@permission_required`.
+- **Password Management**: Implements secure password hashing with automatic migration for plaintext passwords. Supports two password reset methods: OTP via email (if domain verified) and an admin-assisted manual OTP distribution dashboard. An admin-only direct password reset feature is also available.
+- **Registration**: Public registration page with admin approval workflow.
+- **Project Management**: Features project registration, quotation submission, status updates, and tracking through multiple stages.
+- **CRM Features**: Manages customers, vendors, distributors, contractors, consultants, end-users, and technical support requests.
+- **Sales & Presales Tools**: RFQ management, quotation builder, solution builder (Fiber, Passive), and cost sheet management.
+- **Analytics & Reporting**: Sales and presales performance dashboards, pipeline analysis, and aging reports.
+- **Document Management**: File upload/download for quotations and cost sheets, with Excel export functionality.
+- **Product Catalog**: Includes fire alarm, CCTV, and passive products.
 
-2. **Password Hashing** (FIXED):
-   - Implemented werkzeug.security password hashing throughout the application
-   - New passwords are hashed using `generate_password_hash()` before storage
-   - Login verification uses `check_password_hash()` for secure comparison
-   - **Password Migration**: Automatic upgrade system for existing plaintext passwords
-     - Legacy plaintext passwords are detected and validated on login
-     - Upon successful login, plaintext passwords are automatically upgraded to hashed format
-     - Both users and engineers tables are updated simultaneously
-     - No user intervention required - migration happens transparently
+### Feature Specifications
+- **Granular Access Control**: A page-level permission system with three database tables (`permissions`, `role_permissions`, `user_permissions`) allows for role-based defaults and user-specific overrides (Allow, Deny, Inherit). Permissions are cached in sessions and refreshed upon changes.
+- **Admin-Assisted Password Reset**: A dashboard displays active OTP requests for administrators to manually provide OTPs to users, especially useful when email services are not fully configured. OTPs expire after 15 minutes and are single-use.
+- **Public Registration with Admin Approval**: New users can register and their accounts require approval from General Managers or Technical Team Leaders.
+- **User Management System**: An admin panel allows General Managers and Technical Team Leaders to add, edit, or delete user accounts, reset passwords, and assign roles.
 
-3. **Database Security** (PARTIAL):
-   - SQLite database file still not encrypted at rest
-   - **RECOMMENDED for Production**: Migrate to Replit PostgreSQL with proper access controls
-   - Contact information stored in database should be considered sensitive
+### System Design Choices
+- The application uses environment variables for configuration (e.g., `HOST`, `PORT`, `FLASK_DEBUG`, `SECRET_KEY`, email provider settings).
+- A robust security architecture with complete route protection ensures all sensitive data and functions require authentication and authorization.
+- Automatic password migration handles legacy plaintext passwords by upgrading them to hashed format upon first login.
+- Multi-source email lookup for password resets checks `users`, `registration_requests`, and `engineers` tables.
+- All 24 protected routes enforce server-side permissions.
 
-## Technical Notes
-- Static folder case sensitivity resolved with symbolic link (Static -> static)
-- All database tables properly initialized with complete schema
-- Password migration system handles legacy accounts automatically
-- LSP diagnostics about imports are cosmetic (all imports resolve correctly at runtime)
+## External Dependencies
+- **Email Service**: Resend API (used for OTP via email, manual configuration without Replit's built-in integration).
+- **Database**: SQLite3 (for application data).
