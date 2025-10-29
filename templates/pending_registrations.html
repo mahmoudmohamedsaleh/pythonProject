@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Pending Registrations{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 1200px;">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4><i class="fas fa-user-clock"></i> Pending Registration Requests</h4>
+        </div>
+        <div class="card-body">
+            {% if pending_requests %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> <strong>{{ pending_requests|length }}</strong> registration request(s) awaiting your approval
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-warning">
+                        <tr>
+                            <th style="width: 5%;">ID</th>
+                            <th style="width: 15%;">Full Name</th>
+                            <th style="width: 12%;">Username</th>
+                            <th style="width: 15%;">Email</th>
+                            <th style="width: 12%;">Requested Role</th>
+                            <th style="width: 18%;">Reason</th>
+                            <th style="width: 13%;">Requested At</th>
+                            <th style="width: 10%;" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in pending_requests %}
+                        <tr>
+                            <td>{{ req.id }}</td>
+                            <td><strong>{{ req.full_name or 'N/A' }}</strong></td>
+                            <td><code>{{ req.username }}</code></td>
+                            <td>{{ req.email or 'N/A' }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ req.requested_role }}</span>
+                            </td>
+                            <td>{{ req.reason or 'No reason provided' }}</td>
+                            <td><small>{{ req.requested_at }}</small></td>
+                            <td class="text-center">
+                                <form method="POST" action="{{ url_for('approve_registration', request_id=req.id) }}" 
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-success" 
+                                            onclick="return confirm('Approve account for {{ req.username }}?');">
+                                        <i class="fas fa-check"></i> Approve
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('reject_registration', request_id=req.id) }}" 
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                            onclick="return confirm('Reject registration for {{ req.username }}?');">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> No pending registration requests at this time.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Recently Reviewed Requests -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-history"></i> Recently Reviewed Requests (Last 10)</h5>
+        </div>
+        <div class="card-body">
+            {% if reviewed_requests %}
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Reviewed By</th>
+                            <th>Reviewed At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in reviewed_requests %}
+                        <tr>
+                            <td><code>{{ req.username }}</code></td>
+                            <td>{{ req.requested_role }}</td>
+                            <td>
+                                {% if req.status == 'approved' %}
+                                <span class="badge bg-success"><i class="fas fa-check"></i> Approved</span>
+                                {% else %}
+                                <span class="badge bg-danger"><i class="fas fa-times"></i> Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ req.reviewed_by }}</td>
+                            <td><small>{{ req.reviewed_at }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">No reviews yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

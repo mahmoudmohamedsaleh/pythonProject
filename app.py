@@ -5248,6 +5248,198 @@ def delete_user(user_id):
     return redirect(url_for('manage_users'))
 
 ##############################################
+# ============ PUBLIC REGISTRATION WITH ADMIN APPROVAL ============
+##############################################
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """
+    Public registration page - anyone can request an account
+    Requires admin approval before account is activated
+    """
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        requested_role = request.form['role']
+        email = request.form.get('email', '').strip()
+        full_name = request.form.get('full_name', '').strip()
+        reason = request.form.get('reason', '').strip()
+        
+        # Validation
+        if not username or not password:
+            flash('Username and password are required!', 'danger')
+            return redirect(url_for('register'))
+        
+        if password != confirm_password:
+            flash('Passwords do not match!', 'danger')
+            return redirect(url_for('register'))
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long!', 'danger')
+            return redirect(url_for('register'))
+        
+        # Encrypt password immediately
+        hashed_password = generate_password_hash(password)
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        try:
+            # Check if username already exists in users table
+            c.execute("SELECT username FROM users WHERE username = ?", (username,))
+            if c.fetchone():
+                flash(f'Username "{username}" is already taken!', 'danger')
+                return redirect(url_for('register'))
+            
+            # Check if registration request already exists
+            c.execute("SELECT username FROM registration_requests WHERE username = ? AND status = 'pending'", (username,))
+            if c.fetchone():
+                flash(f'A registration request for "{username}" is already pending approval!', 'info')
+                return redirect(url_for('register'))
+            
+            # Insert registration request with encrypted password
+            c.execute("""
+                INSERT INTO registration_requests 
+                (username, password_hash, requested_role, email, full_name, reason, status) 
+                VALUES (?, ?, ?, ?, ?, ?, 'pending')
+            """, (username, hashed_password, requested_role, email, full_name, reason))
+            
+            conn.commit()
+            flash(f'Registration request submitted successfully! Your account will be activated once approved by an administrator.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('register'))
+        finally:
+            conn.close()
+    
+    # Available roles for new users
+    roles = ['Presale Engineer', 'Sales Engineer', 'Project Coordinator', 'editor']
+    
+    return render_template('register.html', roles=roles)
+
+
+@app.route('/pending_registrations')
+@role_required('General Manager')
+def pending_registrations():
+    """
+    Admin page to view and manage pending registration requests
+    Only accessible by General Manager
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get all pending registration requests
+    c.execute("""
+        SELECT * FROM registration_requests 
+        WHERE status = 'pending' 
+        ORDER BY requested_at DESC
+    """)
+    pending_requests = c.fetchall()
+    
+    # Get recently reviewed requests (last 10)
+    c.execute("""
+        SELECT * FROM registration_requests 
+        WHERE status IN ('approved', 'rejected') 
+        ORDER BY reviewed_at DESC 
+        LIMIT 10
+    """)
+    reviewed_requests = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('pending_registrations.html', 
+                          pending_requests=pending_requests,
+                          reviewed_requests=reviewed_requests)
+
+
+@app.route('/approve_registration/<int:request_id>', methods=['POST'])
+@role_required('General Manager')
+def approve_registration(request_id):
+    """
+    Approve a registration request and create the user account
+    Only accessible by General Manager
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Get the registration request
+        c.execute("SELECT * FROM registration_requests WHERE id = ?", (request_id,))
+        request_data = c.fetchone()
+        
+        if not request_data:
+            flash('Registration request not found!', 'danger')
+            return redirect(url_for('pending_registrations'))
+        
+        if request_data['status'] != 'pending':
+            flash('This registration has already been processed!', 'warning')
+            return redirect(url_for('pending_registrations'))
+        
+        # Create the user account with the already-encrypted password
+        c.execute("""
+            INSERT INTO users (username, password, role) 
+            VALUES (?, ?, ?)
+        """, (request_data['username'], request_data['password_hash'], request_data['requested_role']))
+        
+        # Update the registration request status
+        c.execute("""
+            UPDATE registration_requests 
+            SET status = 'approved', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        """, (session['username'], request_id))
+        
+        conn.commit()
+        flash(f'User "{request_data["username"]}" has been approved and activated!', 'success')
+    except sqlite3.IntegrityError:
+        flash(f'Username "{request_data["username"]}" already exists!', 'danger')
+    except Exception as e:
+        flash(f'An error occurred: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('pending_registrations'))
+
+
+@app.route('/reject_registration/<int:request_id>', methods=['POST'])
+@role_required('General Manager')
+def reject_registration(request_id):
+    """
+    Reject a registration request
+    Only accessible by General Manager
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        # Get the registration request
+        c.execute("SELECT username FROM registration_requests WHERE id = ?", (request_id,))
+        request_data = c.fetchone()
+        
+        if not request_data:
+            flash('Registration request not found!', 'danger')
+            return redirect(url_for('pending_registrations'))
+        
+        # Update the registration request status
+        c.execute("""
+            UPDATE registration_requests 
+            SET status = 'rejected', reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        """, (session['username'], request_id))
+        
+        conn.commit()
+        flash(f'Registration request for "{request_data[0]}" has been rejected.', 'info')
+    except Exception as e:
+        flash(f'An error occurred: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('pending_registrations'))
+
+##############################################
 if __name__ == '__main__':
     init_db()
     host = os.getenv('HOST', '0.0.0.0')

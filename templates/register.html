@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Register New Account{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 700px; margin-top: 50px;">
+    <div class="card">
+        <div class="card-header text-center">
+            <h4><i class="fas fa-user-plus"></i> Request Account Access</h4>
+            <p class="mb-0 text-muted">Submit a registration request</p>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Your account will be activated after approval by an administrator. You'll be notified once your request is reviewed.
+            </div>
+            
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="form-group mb-3">
+                    <label for="full_name"><i class="fas fa-id-card"></i> Full Name</label>
+                    <input type="text" name="full_name" id="full_name" class="form-control" 
+                           placeholder="Enter your full name" required autofocus>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
+                    <input type="email" name="email" id="email" class="form-control" 
+                           placeholder="your.email@company.com" required>
+                    <small class="form-text text-muted">We'll use this to contact you about your registration</small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="username"><i class="fas fa-user"></i> Username *</label>
+                    <input type="text" name="username" id="username" class="form-control" 
+                           placeholder="Choose a username" required>
+                    <small class="form-text text-muted">Must be unique</small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="role"><i class="fas fa-user-tag"></i> Requested Role *</label>
+                    <select name="role" id="role" class="form-control" required>
+                        <option value="">-- Select Your Role --</option>
+                        {% for role in roles %}
+                        <option value="{{ role }}">{{ role }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="password"><i class="fas fa-lock"></i> Password *</label>
+                    <input type="password" name="password" id="password" class="form-control" 
+                           placeholder="Enter password (min 6 characters)" required minlength="6">
+                    <small class="form-text text-muted">Minimum 6 characters - will be encrypted</small>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="confirm_password"><i class="fas fa-lock"></i> Confirm Password *</label>
+                    <input type="password" name="confirm_password" id="confirm_password" class="form-control" 
+                           placeholder="Re-enter password" required minlength="6">
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="reason"><i class="fas fa-comment"></i> Reason for Access (Optional)</label>
+                    <textarea name="reason" id="reason" class="form-control" rows="3" 
+                              placeholder="Why do you need access to this system?"></textarea>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="showPasswords" onclick="togglePasswords()">
+                        <label class="form-check-label" for="showPasswords">
+                            <i class="fas fa-eye"></i> Show passwords
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="alert alert-success mb-3">
+                    <i class="fas fa-shield-alt"></i> <strong>Security:</strong> Your password is encrypted immediately and stored securely.
+                </div>
+                
+                <hr>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('login') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Login
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePasswords() {
+    var passwordField = document.getElementById('password');
+    var confirmPasswordField = document.getElementById('confirm_password');
+    var showPasswordsCheckbox = document.getElementById('showPasswords');
+    
+    if (showPasswordsCheckbox.checked) {
+        passwordField.type = 'text';
+        confirmPasswordField.type = 'text';
+    } else {
+        passwordField.type = 'password';
+        confirmPasswordField.type = 'password';
+    }
+}
+</script>
+{% endblock %}
