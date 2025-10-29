@@ -4,6 +4,22 @@
 This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
 
 ## Recent Changes
+- **2025-10-29**: Password Reset System with OTP via Email
+  - Complete password reset workflow using One-Time Password (OTP)
+  - Three-step process: Request Reset → Verify OTP → Set New Password
+  - OTP sent via email with 15-minute expiration
+  - Secure OTP generation using Python secrets module
+  - Email support for multiple providers (Gmail, SendGrid, Resend, generic SMTP)
+  - Configuration via environment variables (SMTP_HOST, SMTP_PORT, etc.)
+  - New database table: `password_reset_tokens` (stores OTP with expiration)
+  - New routes: `/forgot_password`, `/verify_otp`, `/reset_password_with_otp`, `/resend_otp`
+  - HTML email templates with professional design
+  - Fallback to console output if email not configured (for testing)
+  - Works with email addresses from registration_requests table
+  - Password immediately encrypted after reset
+  - Added "Forgot Password?" link to login page
+  - Resend OTP functionality if code expires or not received
+  
 - **2025-10-29**: Public Registration with Admin Approval System
   - Created public registration page at `/register` (no login required)
   - Users can request account access by filling out registration form

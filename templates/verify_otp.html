@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Verify OTP{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 500px; margin-top: 50px;">
+    <div class="card">
+        <div class="card-header text-center bg-success text-white">
+            <h4><i class="fas fa-shield-alt"></i> Verify OTP Code</h4>
+            <p class="mb-0 small">Enter the code sent to your email</p>
+        </div>
+        <div class="card-body p-4">
+            <div class="alert alert-success">
+                <i class="fas fa-envelope"></i> An OTP code has been sent to: <strong>{{ email }}</strong>
+            </div>
+            
+            <form method="POST" action="{{ url_for('verify_otp') }}">
+                <div class="form-group mb-4">
+                    <label for="otp_code"><i class="fas fa-lock"></i> OTP Code *</label>
+                    <input type="text" name="otp_code" id="otp_code" class="form-control form-control-lg text-center" 
+                           placeholder="Enter 6-digit code" required autofocus maxlength="6" 
+                           style="letter-spacing: 10px; font-size: 24px; font-weight: bold;">
+                    <small class="form-text text-muted">
+                        Check your email inbox for the 6-digit OTP code
+                    </small>
+                </div>
+                
+                <div class="alert alert-warning small">
+                    <strong><i class="fas fa-clock"></i> Expiration Notice:</strong> 
+                    The OTP code will expire in <strong>15 minutes</strong>. Do not share this code with anyone.
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2 mb-3">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check"></i> Verify OTP Code
+                    </button>
+                </div>
+                
+                <div class="text-center">
+                    <p class="mb-2">Didn't receive the code?</p>
+                    <form method="POST" action="{{ url_for('resend_otp') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-link">
+                            <i class="fas fa-redo"></i> Resend OTP Code
+                        </button>
+                    </form>
+                </div>
+            </form>
+            
+            <hr>
+            
+            <div class="text-center">
+                <a href="{{ url_for('forgot_password') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Start Over
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-format OTP input
+document.getElementById('otp_code').addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^0-9]/g, '');
+});
+</script>
+{% endblock %}
