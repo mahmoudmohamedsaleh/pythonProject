@@ -17,6 +17,114 @@ from io import BytesIO
 import pandas as pd
 from flask import send_file
 from werkzeug.security import generate_password_hash, check_password_hash
+import secrets
+import string
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import timedelta
+
+def generate_otp(length=6):
+    """Generate a random OTP code"""
+    return ''.join(secrets.choice(string.digits) for _ in range(length))
+
+def send_otp_email(recipient_email, otp_code, username):
+    """
+    Send OTP email to user for password reset
+    Supports multiple email providers through environment variables
+    
+    Required environment variables:
+    - EMAIL_PROVIDER: 'smtp' (default), 'sendgrid', 'resend'
+    - SMTP_HOST: SMTP server host (e.g., smtp.gmail.com)
+    - SMTP_PORT: SMTP port (usually 587 for TLS)
+    - SMTP_USERNAME: Your email/username
+    - SMTP_PASSWORD: Your email password or app password
+    - SENDER_EMAIL: Email address to send from
+    """
+    try:
+        # Email configuration from environment variables
+        email_provider = os.getenv('EMAIL_PROVIDER', 'smtp')
+        smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', 587))
+        smtp_username = os.getenv('SMTP_USERNAME')
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        sender_email = os.getenv('SENDER_EMAIL', smtp_username)
+        
+        if not all([smtp_username, smtp_password]):
+            print("WARNING: Email credentials not configured. OTP email not sent.")
+            print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
+            return False
+        
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Password Reset - OTP Code'
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        
+        # Email body
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px;">
+                    <h2 style="color: #333;">Password Reset Request</h2>
+                    <p>Hello <strong>{username}</strong>,</p>
+                    <p>You have requested to reset your password. Please use the following One-Time Password (OTP) to continue:</p>
+                    
+                    <div style="background-color: #007bff; color: white; padding: 15px; text-align: center; border-radius: 5px; margin: 20px 0;">
+                        <h1 style="margin: 0; font-size: 36px; letter-spacing: 5px;">{otp_code}</h1>
+                    </div>
+                    
+                    <p style="color: #dc3545;"><strong>⚠️ Security Notice:</strong></p>
+                    <ul style="color: #666;">
+                        <li>This OTP will expire in <strong>15 minutes</strong></li>
+                        <li>Do not share this code with anyone</li>
+                        <li>If you didn't request this, please ignore this email</li>
+                    </ul>
+                    
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                    <p style="color: #999; font-size: 12px;">
+                        This is an automated email from the CRM System. Please do not reply to this email.
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Password Reset Request
+        
+        Hello {username},
+        
+        You have requested to reset your password. Please use the following One-Time Password (OTP) to continue:
+        
+        OTP CODE: {otp_code}
+        
+        Security Notice:
+        - This OTP will expire in 15 minutes
+        - Do not share this code with anyone
+        - If you didn't request this, please ignore this email
+        
+        This is an automated email from the CRM System.
+        """
+        
+        part1 = MIMEText(text_body, 'plain')
+        part2 = MIMEText(html_body, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
+        
+        # Send email via SMTP
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+            server.send_message(msg)
+        
+        print(f"OTP email sent successfully to {recipient_email}")
+        return True
+        
+    except Exception as e:
+        print(f"Error sending OTP email: {e}")
+        print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
+        return False
 
 def role_required(*roles):
     def decorator(f):
@@ -98,6 +206,33 @@ def init_db():
             role TEXT,
             username TEXT UNIQUE,
             password TEXT
+        )''')
+    
+    # Registration requests table for public registration with admin approval
+    c.execute('''CREATE TABLE IF NOT EXISTS registration_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            requested_role TEXT NOT NULL,
+            email TEXT,
+            full_name TEXT,
+            reason TEXT,
+            status TEXT DEFAULT 'pending',
+            requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_by TEXT,
+            reviewed_at TIMESTAMP
+        )''')
+    
+    # Password reset tokens table for OTP-based password reset
+    c.execute('''CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            email TEXT NOT NULL,
+            otp_code TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            used INTEGER DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )''')
 
     conn.commit()
@@ -5438,6 +5573,244 @@ def reject_registration(request_id):
         conn.close()
     
     return redirect(url_for('pending_registrations'))
+
+##############################################
+# ============ PASSWORD RESET WITH OTP ============
+##############################################
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """
+    Step 1: Request password reset
+    User enters username/email, system sends OTP to registered email
+    """
+    if request.method == 'POST':
+        identifier = request.form['identifier'].strip()  # Can be username or email
+        
+        if not identifier:
+            flash('Please enter your username or email!', 'danger')
+            return redirect(url_for('forgot_password'))
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        try:
+            # Check if user needs to add email first
+            c.execute("SELECT id, username FROM users WHERE username = ?", (identifier,))
+            user = c.fetchone()
+            
+            if not user:
+                flash('User not found! Please check your username.', 'danger')
+                return redirect(url_for('forgot_password'))
+            
+            # Get email from registration_requests or ask admin
+            c.execute("SELECT email FROM registration_requests WHERE username = ? AND email IS NOT NULL", (user['username'],))
+            email_record = c.fetchone()
+            
+            if not email_record or not email_record['email']:
+                flash(f'No email address registered for user "{user["username"]}". Please contact administrator to add your email address.', 'warning')
+                return redirect(url_for('forgot_password'))
+            
+            recipient_email = email_record['email']
+            
+            # Generate OTP
+            otp_code = generate_otp(6)
+            
+            # Calculate expiration time (15 minutes from now)
+            expires_at = datetime.now() + timedelta(minutes=15)
+            
+            # Save OTP to database
+            c.execute("""
+                INSERT INTO password_reset_tokens (user_id, email, otp_code, expires_at)
+                VALUES (?, ?, ?, ?)
+            """, (user['id'], recipient_email, otp_code, expires_at))
+            conn.commit()
+            
+            # Send OTP email
+            email_sent = send_otp_email(recipient_email, otp_code, user['username'])
+            
+            if email_sent:
+                flash(f'OTP code has been sent to your email ({recipient_email}). Please check your inbox.', 'success')
+            else:
+                flash(f'Email service not configured. Please contact administrator. (Debug: Check console for OTP)', 'warning')
+            
+            # Store user_id in session for next step
+            session['reset_user_id'] = user['id']
+            session['reset_email'] = recipient_email
+            
+            return redirect(url_for('verify_otp'))
+            
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('forgot_password'))
+        finally:
+            conn.close()
+    
+    return render_template('forgot_password.html')
+
+
+@app.route('/verify_otp', methods=['GET', 'POST'])
+def verify_otp():
+    """
+    Step 2: Verify OTP code
+    User enters the OTP received via email
+    """
+    if 'reset_user_id' not in session:
+        flash('Please request a password reset first!', 'warning')
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == 'POST':
+        otp_code = request.form['otp_code'].strip()
+        
+        if not otp_code:
+            flash('Please enter the OTP code!', 'danger')
+            return redirect(url_for('verify_otp'))
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        try:
+            # Verify OTP
+            c.execute("""
+                SELECT * FROM password_reset_tokens
+                WHERE user_id = ? AND otp_code = ? AND used = 0
+                AND datetime(expires_at) > datetime('now')
+                ORDER BY created_at DESC
+                LIMIT 1
+            """, (session['reset_user_id'], otp_code))
+            
+            token = c.fetchone()
+            
+            if not token:
+                flash('Invalid or expired OTP code! Please request a new one.', 'danger')
+                return redirect(url_for('verify_otp'))
+            
+            # OTP is valid - proceed to password reset
+            session['reset_token_id'] = token['id']
+            flash('OTP verified successfully! Please set your new password.', 'success')
+            return redirect(url_for('reset_password_with_otp'))
+            
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('verify_otp'))
+        finally:
+            conn.close()
+    
+    return render_template('verify_otp.html', email=session.get('reset_email'))
+
+
+@app.route('/reset_password_with_otp', methods=['GET', 'POST'])
+def reset_password_with_otp():
+    """
+    Step 3: Set new password
+    After OTP verification, user sets a new password
+    """
+    if 'reset_token_id' not in session or 'reset_user_id' not in session:
+        flash('Please verify OTP first!', 'warning')
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == 'POST':
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+        
+        # Validation
+        if not new_password or not confirm_password:
+            flash('Both password fields are required!', 'danger')
+            return redirect(url_for('reset_password_with_otp'))
+        
+        if new_password != confirm_password:
+            flash('Passwords do not match!', 'danger')
+            return redirect(url_for('reset_password_with_otp'))
+        
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long!', 'danger')
+            return redirect(url_for('reset_password_with_otp'))
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        try:
+            # Hash the new password
+            hashed_password = generate_password_hash(new_password)
+            
+            # Update user password in both users and engineers tables
+            c.execute("UPDATE users SET password = ? WHERE id = ?", 
+                     (hashed_password, session['reset_user_id']))
+            
+            # Update engineers table if exists
+            c.execute("SELECT username FROM users WHERE id = ?", (session['reset_user_id'],))
+            username = c.fetchone()[0]
+            c.execute("UPDATE engineers SET password = ? WHERE username = ?", 
+                     (hashed_password, username))
+            
+            # Mark OTP as used
+            c.execute("UPDATE password_reset_tokens SET used = 1 WHERE id = ?", 
+                     (session['reset_token_id'],))
+            
+            conn.commit()
+            
+            # Clear session data
+            session.pop('reset_user_id', None)
+            session.pop('reset_email', None)
+            session.pop('reset_token_id', None)
+            
+            flash('Password reset successful! You can now login with your new password.', 'success')
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('reset_password_with_otp'))
+        finally:
+            conn.close()
+    
+    return render_template('reset_password.html')
+
+
+@app.route('/resend_otp', methods=['POST'])
+def resend_otp():
+    """
+    Resend OTP code if user didn't receive it or it expired
+    """
+    if 'reset_user_id' not in session or 'reset_email' not in session:
+        flash('Session expired! Please start over.', 'warning')
+        return redirect(url_for('forgot_password'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Get user info
+        c.execute("SELECT username FROM users WHERE id = ?", (session['reset_user_id'],))
+        user = c.fetchone()
+        
+        # Generate new OTP
+        otp_code = generate_otp(6)
+        expires_at = datetime.now() + timedelta(minutes=15)
+        
+        # Save new OTP
+        c.execute("""
+            INSERT INTO password_reset_tokens (user_id, email, otp_code, expires_at)
+            VALUES (?, ?, ?, ?)
+        """, (session['reset_user_id'], session['reset_email'], otp_code, expires_at))
+        conn.commit()
+        
+        # Send email
+        email_sent = send_otp_email(session['reset_email'], otp_code, user['username'])
+        
+        if email_sent:
+            flash('New OTP code sent to your email!', 'success')
+        else:
+            flash('Email service not configured. Check console for OTP.', 'warning')
+        
+    except Exception as e:
+        flash(f'Error resending OTP: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('verify_otp'))
 
 ##############################################
 if __name__ == '__main__':
