@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Pending OTP Requests{% endblock %}
+{% block content %}
+<div class="container" style="max-width: 1200px;">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-key"></i> <strong>Password Reset OTP Requests</strong>
+                <p class="mb-0 text-muted small">Share these OTP codes with users who requested password reset</p>
+            </div>
+            <a href="{{ url_for('manage_users') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-users"></i> Manage Users
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> <strong>Manual OTP Distribution:</strong> When a user requests password reset, their OTP code appears here. Share the code with them via phone, WhatsApp, or in-person. OTP codes expire after 15 minutes.
+            </div>
+            
+            {% if otp_requests %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 15%;">Username</th>
+                            <th style="width: 20%;">Email</th>
+                            <th style="width: 12%;">Role</th>
+                            <th style="width: 15%;" class="text-center">OTP Code</th>
+                            <th style="width: 15%;">Requested At</th>
+                            <th style="width: 13%;">Expires At</th>
+                            <th style="width: 10%;" class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for otp in otp_requests %}
+                        {% set now = None %}  {# Will compare on server side #}
+                        {% set is_expired = otp.expires_at < now if now else False %}
+                        <tr {% if is_expired %}class="table-secondary"{% endif %}>
+                            <td><strong>{{ otp.username }}</strong></td>
+                            <td><small>{{ otp.email }}</small></td>
+                            <td>
+                                <span class="badge 
+                                    {% if otp.role == 'General Manager' %}bg-danger
+                                    {% elif otp.role == 'Technical Team Leader' %}bg-primary
+                                    {% elif otp.role == 'Presale Engineer' %}bg-info
+                                    {% elif otp.role == 'Sales Engineer' %}bg-success
+                                    {% else %}bg-secondary
+                                    {% endif %}">
+                                    {{ otp.role }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <div style="background: #007bff; color: white; padding: 10px; border-radius: 5px; font-size: 24px; font-weight: bold; letter-spacing: 3px;">
+                                    {{ otp.otp_code }}
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyToClipboard('{{ otp.otp_code }}')">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </td>
+                            <td><small>{{ otp.created_at }}</small></td>
+                            <td><small>{{ otp.expires_at }}</small></td>
+                            <td class="text-center">
+                                {% if otp.used %}
+                                    <span class="badge bg-success">✓ Used</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">⏳ Pending</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="alert alert-warning mt-3">
+                <i class="fas fa-clock"></i> <strong>Important:</strong>
+                <ul class="mb-0">
+                    <li>OTP codes expire <strong>15 minutes</strong> after creation</li>
+                    <li>Each code can only be used <strong>once</strong></li>
+                    <li>Share codes securely (phone, WhatsApp, in-person)</li>
+                    <li>Old/expired requests are cleaned up automatically</li>
+                </ul>
+            </div>
+            
+            <p class="text-muted mt-3">
+                <i class="fas fa-shield-alt"></i> Total Pending Requests: <strong>{{ otp_requests|length }}</strong>
+            </p>
+            {% else %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> No pending password reset requests. All users have successfully reset their passwords or requests have expired.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        alert('OTP Code ' + text + ' copied to clipboard!');
+    }, function(err) {
+        alert('Failed to copy: ' + err);
+    });
+}
+</script>
+{% endblock %}

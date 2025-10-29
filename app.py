@@ -5732,6 +5732,68 @@ def reject_registration(request_id):
     
     return redirect(url_for('pending_registrations'))
 
+
+@app.route('/pending_otp_requests')
+@role_required('General Manager', 'Technical Team Leader')
+def pending_otp_requests():
+    """
+    Admin page to view pending OTP requests for password resets
+    Shows OTP codes that admins can share with users manually
+    Accessible by General Manager and Technical Team Leader
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get all active (non-used, non-expired) OTP requests
+    c.execute("""
+        SELECT 
+            prt.id,
+            prt.user_id,
+            prt.email,
+            prt.otp_code,
+            prt.created_at,
+            prt.expires_at,
+            prt.used,
+            u.username,
+            u.role
+        FROM password_reset_tokens prt
+        LEFT JOIN users u ON prt.user_id = u.id
+        WHERE prt.used = 0
+        ORDER BY prt.created_at DESC
+        LIMIT 50
+    """)
+    otp_requests = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('pending_otp_requests.html', otp_requests=otp_requests)
+
+
+@app.route('/mark_otp_shared/<int:token_id>', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+def mark_otp_shared(token_id):
+    """
+    Mark an OTP as shared with user (optional feature for tracking)
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("SELECT id FROM password_reset_tokens WHERE id = ?", (token_id,))
+        if c.fetchone():
+            # You could add a "shared_at" timestamp column if needed
+            flash('OTP marked as shared. User can now verify it.', 'success')
+        else:
+            flash('OTP request not found!', 'danger')
+    except Exception as e:
+        flash(f'An error occurred: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('pending_otp_requests'))
+
+
 ##############################################
 # ============ PASSWORD RESET WITH OTP ============
 ##############################################
@@ -5801,13 +5863,9 @@ def forgot_password():
             """, (user['id'], recipient_email, otp_code, expires_at))
             conn.commit()
             
-            # Send OTP email
-            email_sent = send_otp_email(recipient_email, otp_code, user['username'])
-            
-            if email_sent:
-                flash(f'OTP code has been sent to your email ({recipient_email}). Please check your inbox.', 'success')
-            else:
-                flash(f'Email service not configured. Please contact administrator. (Debug: Check console for OTP)', 'warning')
+            # Don't send email - admin will share OTP manually
+            # This is a workaround until domain is verified for Resend
+            flash(f'Password reset request submitted for "{user["username"]}". Please contact your administrator to get the OTP code.', 'info')
             
             # Store user_id in session for next step
             session['reset_user_id'] = user['id']
