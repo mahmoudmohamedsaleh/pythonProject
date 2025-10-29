@@ -322,6 +322,41 @@ def init_db():
             used INTEGER DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id)
         )''')
+    
+    # ============ PERMISSION SYSTEM TABLES ============
+    # Permissions: Master list of all available permissions/pages
+    c.execute('''CREATE TABLE IF NOT EXISTS permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            label TEXT NOT NULL,
+            category TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+    
+    # Role Permissions: Default permissions for each role
+    c.execute('''CREATE TABLE IF NOT EXISTS role_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT NOT NULL,
+            permission_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (permission_id) REFERENCES permissions(id),
+            UNIQUE(role, permission_id)
+        )''')
+    
+    # User Permissions: User-specific overrides
+    c.execute('''CREATE TABLE IF NOT EXISTS user_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            permission_id INTEGER NOT NULL,
+            grant_type TEXT DEFAULT 'allow' CHECK(grant_type IN ('allow', 'deny')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_by TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (permission_id) REFERENCES permissions(id),
+            UNIQUE(user_id, permission_id)
+        )''')
 
     conn.commit()
     conn.close()
@@ -329,6 +364,247 @@ def init_db():
     # Create uploads directory if it doesn't exist
     if not os.path.exists('uploads'):
         os.makedirs('uploads')
+
+
+def seed_permissions():
+    """Seed permissions table with all available pages/features"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Check if permissions already exist
+    c.execute("SELECT COUNT(*) FROM permissions")
+    if c.fetchone()[0] > 0:
+        conn.close()
+        return  # Already seeded
+    
+    # Define all permissions with categories
+    permissions = [
+        # Dashboard
+        ('view_dashboard', 'Dashboard', 'Dashboard', 'View main dashboard'),
+        
+        # CRM
+        ('view_projects', 'Projects & Pipeline', 'CRM', 'View projects and pipeline'),
+        ('view_pipeline_analysis', 'Pipeline Analysis', 'CRM', 'View pipeline analysis'),
+        ('view_sales_performance', 'Sales Performance', 'CRM', 'View sales performance'),
+        ('view_aging_dashboard', 'Aging Dashboard', 'CRM', 'View aging dashboard'),
+        ('view_end_users', 'End Users', 'CRM', 'View end users'),
+        ('view_contractors', 'Contractors', 'CRM', 'View contractors'),
+        ('view_consultants', 'Consultants', 'CRM', 'View consultants'),
+        
+        # Sales
+        ('view_presales', 'Presales Performance', 'Sales', 'View presales performance'),
+        ('view_rfq', 'RFQ', 'Sales', 'View and manage RFQs'),
+        ('view_rfts', 'RFTS', 'Sales', 'View technical support requests'),
+        ('view_reports', 'Reports', 'Sales', 'View reports'),
+        ('view_products', 'Products', 'Sales', 'View product catalog'),
+        ('view_solution_builder', 'Solution Builder', 'Sales', 'Access solution builder'),
+        ('view_quotation_builder', 'Quotation Builder', 'Sales', 'Access quotation builder'),
+        
+        # Purchasing
+        ('view_po_status', 'PO Status', 'Purchasing', 'View purchase order status'),
+        
+        # Task Management
+        ('view_tasks', 'Tasks', 'Task Management', 'View and manage tasks'),
+        
+        # SRM
+        ('view_vendors', 'Vendors', 'SRM', 'View and manage vendors'),
+        ('view_distributors', 'Distributors', 'SRM', 'View and manage distributors'),
+        
+        # Registration
+        ('view_registration_hub', 'Registration Hub', 'Registration', 'Access registration hub'),
+        
+        # Administration
+        ('manage_users', 'Manage Users', 'Administration', 'Add, edit, and delete users'),
+        ('view_pending_registrations', 'Pending Registrations', 'Administration', 'Review registration requests'),
+        ('view_password_reset_otps', 'Password Reset OTPs', 'Administration', 'View and manage OTP requests'),
+        ('manage_permissions', 'Access Control', 'Administration', 'Manage user permissions'),
+    ]
+    
+    for code, label, category, description in permissions:
+        c.execute("""
+            INSERT OR IGNORE INTO permissions (code, label, category, description)
+            VALUES (?, ?, ?, ?)
+        """, (code, label, category, description))
+    
+    conn.commit()
+    conn.close()
+
+
+def seed_default_role_permissions():
+    """Set up default permissions for each role"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Check if role permissions already exist
+    c.execute("SELECT COUNT(*) FROM role_permissions")
+    if c.fetchone()[0] > 0:
+        conn.close()
+        return  # Already seeded
+    
+    # Get all permission IDs
+    c.execute("SELECT id, code FROM permissions")
+    perms = {row['code']: row['id'] for row in c.fetchall()}
+    
+    # Define default permissions for each role
+    role_defaults = {
+        'General Manager': list(perms.values()),  # Full access to everything
+        'Technical Team Leader': list(perms.values()),  # Full access to everything
+        'Presale Engineer': [
+            perms['view_dashboard'],
+            perms['view_projects'],
+            perms['view_pipeline_analysis'],
+            perms['view_sales_performance'],
+            perms['view_aging_dashboard'],
+            perms['view_end_users'],
+            perms['view_contractors'],
+            perms['view_consultants'],
+            perms['view_presales'],
+            perms['view_rfq'],
+            perms['view_rfts'],
+            perms['view_reports'],
+            perms['view_products'],
+            perms['view_solution_builder'],
+            perms['view_quotation_builder'],
+            perms['view_tasks'],
+            perms['view_vendors'],
+            perms['view_distributors'],
+            perms['view_registration_hub'],
+        ],
+        'Sales Engineer': [
+            perms['view_dashboard'],
+            perms['view_projects'],
+            perms['view_pipeline_analysis'],
+            perms['view_sales_performance'],
+            perms['view_aging_dashboard'],
+            perms['view_end_users'],
+            perms['view_contractors'],
+            perms['view_consultants'],
+            perms['view_rfq'],
+            perms['view_products'],
+            perms['view_quotation_builder'],
+            perms['view_tasks'],
+            perms['view_vendors'],
+            perms['view_distributors'],
+            perms['view_registration_hub'],
+        ],
+    }
+    
+    # Insert role permissions
+    for role, permission_ids in role_defaults.items():
+        for perm_id in permission_ids:
+            c.execute("""
+                INSERT OR IGNORE INTO role_permissions (role, permission_id)
+                VALUES (?, ?)
+            """, (role, perm_id))
+    
+    conn.commit()
+    conn.close()
+
+
+def get_user_permissions(user_id, user_role):
+    """
+    Get all effective permissions for a user
+    Returns a set of permission codes
+    
+    Permission evaluation order:
+    1. Explicit deny in user_permissions (highest priority)
+    2. Explicit allow in user_permissions
+    3. Role default permissions
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    permissions_set = set()
+    denied_permissions = set()
+    
+    # Get explicit user permissions (allow and deny)
+    c.execute("""
+        SELECT p.code, up.grant_type
+        FROM user_permissions up
+        JOIN permissions p ON up.permission_id = p.id
+        WHERE up.user_id = ?
+    """, (user_id,))
+    
+    for row in c.fetchall():
+        if row['grant_type'] == 'deny':
+            denied_permissions.add(row['code'])
+        else:  # allow
+            permissions_set.add(row['code'])
+    
+    # Get role default permissions
+    c.execute("""
+        SELECT p.code
+        FROM role_permissions rp
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE rp.role = ?
+    """, (user_role,))
+    
+    for row in c.fetchall():
+        permissions_set.add(row['code'])
+    
+    # Remove denied permissions (explicit deny overrides everything)
+    permissions_set -= denied_permissions
+    
+    conn.close()
+    return permissions_set
+
+
+def user_has_permission(permission_code):
+    """Check if the current logged-in user has a specific permission"""
+    if 'user_id' not in session:
+        return False
+    
+    # Check session cache first
+    if 'permissions' not in session:
+        # Load permissions into session
+        permissions = get_user_permissions(session['user_id'], session['user_role'])
+        session['permissions'] = list(permissions)
+    
+    return permission_code in session['permissions']
+
+
+def refresh_user_permissions():
+    """Refresh permissions in session (call after permission changes)"""
+    if 'user_id' in session:
+        permissions = get_user_permissions(session['user_id'], session['user_role'])
+        session['permissions'] = list(permissions)
+
+
+def permission_required(*permission_codes):
+    """
+    Decorator to require specific permissions for a route
+    Usage: @permission_required('view_projects', 'manage_users')
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                flash('Please log in to access this page!', 'danger')
+                return redirect(url_for('login'))
+            
+            # Check if user has at least one of the required permissions
+            has_permission = False
+            for perm_code in permission_codes:
+                if user_has_permission(perm_code):
+                    has_permission = True
+                    break
+            
+            if not has_permission:
+                flash('You do not have permission to access this page!', 'danger')
+                return redirect(url_for('index'))
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+@app.context_processor
+def inject_permissions():
+    """Make user_has_permission available in all templates"""
+    return dict(user_has_permission=user_has_permission)
+
 
 @app.template_filter('b64encode')
 def b64encode_filter(data):
@@ -389,6 +665,9 @@ def login():
             session['user_id'] = user[0]
             session['username'] = user[1]
             session['user_role'] = user[3]  # Save user's role in the session
+            
+            # Load user permissions into session
+            refresh_user_permissions()
 
             flash('Login successful!', 'success')
             return redirect(url_for('index'))
@@ -6047,6 +6326,8 @@ def resend_otp():
 ##############################################
 if __name__ == '__main__':
     init_db()
+    seed_permissions()
+    seed_default_role_permissions()
     host = os.getenv('HOST', '0.0.0.0')
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'
