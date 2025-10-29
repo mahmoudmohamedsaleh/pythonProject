@@ -1059,6 +1059,7 @@ def project_summary():
 
 ##
 @app.route('/project_history/<project_name>', methods=['GET'])
+@login_required
 def show_project_history(project_name):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -1337,6 +1338,7 @@ def registered_quotations():
 
 
 @app.route('/download_quotations_excel')
+@login_required
 def download_quotations_excel():
     conn = sqlite3.connect('ProjectStatus.db')
 
@@ -1521,6 +1523,7 @@ def view_documents():
 ############3
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, make_response
 @app.route('/download/<doc_type>/<int:doc_id>', methods=['GET'])
+@login_required
 def download_file(doc_type, doc_id):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -1538,6 +1541,7 @@ def download_file(doc_type, doc_id):
         return redirect(url_for('view_documents'))
 ##############
 @app.route('/products')
+@login_required
 def products_page():
     return render_template('products_page.html')
 #############
@@ -2414,6 +2418,7 @@ def project_pipeline():
                            })
 #########################
 @app.route('/edit_project_pipeline/<int:project_id>', methods=['GET', 'POST'])
+@login_required
 def edit_project_pipeline(project_id):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -2476,6 +2481,7 @@ def edit_project_pipeline(project_id):
                            consultants=consultants, sales_engineers=sales_engineers)
 ###################3333
 @app.route('/update_project_stage', methods=['POST'])
+@login_required
 def update_project_stage():
     data = request.json
     project_name = data.get('project_name')
@@ -2823,6 +2829,7 @@ def show_comparison(ref):
 ##############################
 
 @app.route('/request_for_quotation', methods=['GET', 'POST'])
+@login_required
 def request_for_quotation():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3002,6 +3009,7 @@ def delete_rfq(rfq_id):
     return redirect(url_for('rfq_summary'))
 ####################################
 @app.route('/download_filtered_rfqs', methods=['GET'])
+@login_required
 def download_filtered_rfqs():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3191,6 +3199,7 @@ def update_rfq_status():
 from datetime import datetime
 
 @app.route('/request_technical_support', methods=['GET', 'POST'])
+@login_required
 def request_technical_support():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3245,6 +3254,7 @@ def request_technical_support():
                            sales_engineers=sales_engineers)
 ###########
 @app.route('/technical_support_summary', methods=['GET'])
+@login_required
 def technical_support_summary():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3358,6 +3368,7 @@ def download_filtered_technical_support():
     return send_file(output, download_name='filtered_technical_support_requests.xlsx', as_attachment=True)
 #########33
 @app.route('/edit_request', methods=['GET', 'POST'])
+@login_required
 def edit_request():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3518,6 +3529,7 @@ def edit_contractor(contractor_id):
     return render_template('edit_contractor.html', contractor=contractor)
 #########
 @app.route('/view_projects')
+@login_required
 def view_projects():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -4401,6 +4413,7 @@ from flask import send_file, flash, redirect, url_for
 import sqlite3
 
 @app.route('/download_invoice/<int:id>')
+@login_required
 def download_invoice(id):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -4416,6 +4429,7 @@ def download_invoice(id):
         return redirect(url_for('view_po_status'))
 
 @app.route('/download_delivery_note/<int:id>')
+@login_required
 def download_delivery_note(id):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -4431,6 +4445,7 @@ def download_delivery_note(id):
         return redirect(url_for('view_po_status'))
 ####################
 @app.route('/download_delivered_boq/<int:id>')
+@login_required
 def download_delivered_boq(id):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -4472,6 +4487,7 @@ def view_po_document(po_id, doc_type):
         return redirect(url_for('view_po_status'))
 #############3
 @app.route('/download_po_details_excel/<po_number>', methods=['GET'])
+@login_required
 def download_po_details_excel(po_number):
     conn = sqlite3.connect('ProjectStatus.db')
 
@@ -4524,6 +4540,7 @@ from flask import flash, redirect, request, render_template, url_for
 # Ensure you have other necessary imports like Flask, session, etc. at the top of your file.
 
 @app.route('/passive_solution_builder', methods=['GET', 'POST'])
+@login_required
 def passive_solution_builder():
     if request.method == 'POST':
         try:
@@ -4778,6 +4795,7 @@ def round_up_to_standard_cores(n):
 
 
 @app.route('/fiber_solution_builder', methods=['GET', 'POST'])
+@login_required
 def fiber_solution_builder():
     if request.method == 'POST':
         try:
@@ -4937,6 +4955,7 @@ def fiber_solution_builder():
     return render_template('fiber_solution_builder.html', results=None, inputs=None)
 #################
 @app.route('/view_passive_products')
+@login_required
 def view_passive_products():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -4947,6 +4966,7 @@ def view_passive_products():
 
 ###############################3
 @app.route('/register_passive_products', methods=['GET', 'POST'])
+@login_required
 def register_passive_products():
     if request.method == 'POST':
         if 'products_file' not in request.files:
