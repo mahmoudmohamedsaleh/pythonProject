@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% block title %}Access Control{% endblock %}
+{% block content %}
+<div class="container-fluid" style="max-width: 1400px;">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-shield-alt"></i> <strong>Access Control - Manage User Permissions</strong>
+                <p class="mb-0 text-muted small">Control which pages each user can access in the CRM system</p>
+            </div>
+            <a href="{{ url_for('manage_users') }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-users"></i> Manage Users
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- User Selection Panel -->
+                <div class="col-md-3">
+                    <h5><i class="fas fa-users"></i> Select User</h5>
+                    <div class="list-group" id="userList">
+                        {% for user in users %}
+                        <a href="#" class="list-group-item list-group-item-action user-item" data-user-id="{{ user.id }}" data-username="{{ user.username }}" data-role="{{ user.role }}">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ user.username }}</strong>
+                                    <br><small class="text-muted">{{ user.role }}</small>
+                                </div>
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Permissions Panel -->
+                <div class="col-md-9">
+                    <div id="permissionsPanel" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5><i class="fas fa-key"></i> Permissions for <span id="selectedUsername" class="text-primary"></span></h5>
+                            <div>
+                                <span class="badge bg-info">Role: <span id="selectedUserRole"></span></span>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <strong><i class="fas fa-info-circle"></i> Permission States:</strong>
+                            <ul class="mb-0">
+                                <li><span class="badge bg-success">✓ Allow</span> - User can access this page (explicit permission)</li>
+                                <li><span class="badge bg-danger">✗ Deny</span> - User cannot access this page (explicit block)</li>
+                                <li><span class="badge bg-secondary">⟳ Inherit</span> - Use role default permissions</li>
+                            </ul>
+                        </div>
+                        
+                        <div id="permissionsContent">
+                            {% for category, permissions in permissions_by_category.items() %}
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <strong><i class="fas fa-folder"></i> {{ category }}</strong>
+                                    <span class="text-muted small">({{ permissions|length }} permissions)</span>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 40%;">Permission</th>
+                                                <th style="width: 35%;">Description</th>
+                                                <th style="width: 25%;" class="text-center">Access Control</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for perm in permissions %}
+                                            <tr data-permission-id="{{ perm.id }}">
+                                                <td><strong>{{ perm.label }}</strong></td>
+                                                <td><small class="text-muted">{{ perm.description }}</small></td>
+                                                <td class="text-center">
+                                                    <div class="btn-group btn-group-sm permission-controls" role="group">
+                                                        <button type="button" class="btn btn-outline-success perm-allow" data-action="allow" title="Allow Access">
+                                                            <i class="fas fa-check"></i> Allow
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-danger perm-deny" data-action="deny" title="Deny Access">
+                                                            <i class="fas fa-times"></i> Deny
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-secondary perm-inherit" data-action="inherit" title="Use Role Default">
+                                                            <i class="fas fa-undo"></i> Inherit
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div id="noUserSelected" class="text-center text-muted py-5">
+                        <i class="fas fa-hand-pointer fa-3x mb-3"></i>
+                        <h5>Select a user from the list to manage their permissions</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentUserId = null;
+let currentUserPerms = {};
+
+// User selection handler
+document.querySelectorAll('.user-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Update active state
+        document.querySelectorAll('.user-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Get user data
+        currentUserId = this.dataset.userId;
+        const username = this.dataset.username;
+        const role = this.dataset.role;
+        
+        // Update UI
+        document.getElementById('selectedUsername').textContent = username;
+        document.getElementById('selectedUserRole').textContent = role;
+        document.getElementById('noUserSelected').style.display = 'none';
+        document.getElementById('permissionsPanel').style.display = 'block';
+        
+        // Load user permissions
+        loadUserPermissions(currentUserId);
+    });
+});
+
+// Load user permissions via AJAX
+function loadUserPermissions(userId) {
+    fetch(`/get_user_permissions/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            currentUserPerms = data.permissions;
+            updatePermissionButtons();
+        })
+        .catch(error => {
+            console.error('Error loading permissions:', error);
+            alert('Failed to load user permissions');
+        });
+}
+
+// Update permission button states
+function updatePermissionButtons() {
+    document.querySelectorAll('tr[data-permission-id]').forEach(row => {
+        const permId = row.dataset.permissionId;
+        const perm = currentUserPerms[permId];
+        
+        const allowBtn = row.querySelector('.perm-allow');
+        const denyBtn = row.querySelector('.perm-deny');
+        const inheritBtn = row.querySelector('.perm-inherit');
+        
+        // Reset all buttons
+        allowBtn.classList.remove('btn-success', 'active');
+        allowBtn.classList.add('btn-outline-success');
+        denyBtn.classList.remove('btn-danger', 'active');
+        denyBtn.classList.add('btn-outline-danger');
+        inheritBtn.classList.remove('btn-secondary', 'active');
+        inheritBtn.classList.add('btn-outline-secondary');
+        
+        if (perm) {
+            if (perm.source === 'user_override') {
+                if (perm.grant_type === 'allow') {
+                    allowBtn.classList.remove('btn-outline-success');
+                    allowBtn.classList.add('btn-success', 'active');
+                } else if (perm.grant_type === 'deny') {
+                    denyBtn.classList.remove('btn-outline-danger');
+                    denyBtn.classList.add('btn-danger', 'active');
+                }
+            } else {
+                // Role default - show inherit as active
+                inheritBtn.classList.remove('btn-outline-secondary');
+                inheritBtn.classList.add('btn-secondary', 'active');
+            }
+        } else {
+            // No permission - inherit is default
+            inheritBtn.classList.remove('btn-outline-secondary');
+            inheritBtn.classList.add('btn-secondary', 'active');
+        }
+    });
+}
+
+// Permission button click handlers
+document.querySelectorAll('.permission-controls button').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        if (!currentUserId) {
+            alert('Please select a user first');
+            return;
+        }
+        
+        const row = this.closest('tr[data-permission-id]');
+        const permissionId = row.dataset.permissionId;
+        const action = this.dataset.action;
+        
+        updatePermission(currentUserId, permissionId, action);
+    });
+});
+
+// Update permission via AJAX
+function updatePermission(userId, permissionId, action) {
+    fetch('/update_user_permission', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            user_id: userId,
+            permission_id: permissionId,
+            action: action
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload permissions to reflect changes
+            loadUserPermissions(userId);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to update permission'));
+        }
+    })
+    .catch(error => {
+        console.error('Error updating permission:', error);
+        alert('Failed to update permission');
+    });
+}
+</script>
+
+<style>
+.user-item {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.user-item:hover {
+    background-color: #f8f9fa;
+}
+
+.user-item.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.user-item.active .text-muted {
+    color: #e9ecef !important;
+}
+
+.permission-controls .btn {
+    font-size: 0.85rem;
+}
+
+.permission-controls .active {
+    font-weight: bold;
+}
+</style>
+{% endblock %}

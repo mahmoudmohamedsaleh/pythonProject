@@ -6073,6 +6073,135 @@ def mark_otp_shared(token_id):
     return redirect(url_for('pending_otp_requests'))
 
 
+@app.route('/access_control')
+@role_required('General Manager', 'Technical Team Leader')
+def access_control():
+    """
+    Admin page to manage user permissions
+    Allows assigning/revoking specific page access for each user
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get all users
+    c.execute("SELECT id, username, role FROM users ORDER BY username")
+    users = c.fetchall()
+    
+    # Get all permissions grouped by category
+    c.execute("SELECT * FROM permissions ORDER BY category, label")
+    all_permissions = c.fetchall()
+    
+    # Group permissions by category
+    permissions_by_category = {}
+    for perm in all_permissions:
+        category = perm['category'] or 'Other'
+        if category not in permissions_by_category:
+            permissions_by_category[category] = []
+        permissions_by_category[category].append(perm)
+    
+    conn.close()
+    
+    return render_template('access_control.html', 
+                          users=users, 
+                          permissions_by_category=permissions_by_category)
+
+
+@app.route('/get_user_permissions/<int:user_id>')
+@role_required('General Manager', 'Technical Team Leader')
+def get_user_permissions_api(user_id):
+    """
+    API endpoint to get user's effective permissions
+    Returns JSON with permission IDs and grant types
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get user info
+    c.execute("SELECT username, role FROM users WHERE id = ?", (user_id,))
+    user = c.fetchone()
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Get role default permissions
+    c.execute("""
+        SELECT p.id, p.code, p.label, 'role_default' as source
+        FROM role_permissions rp
+        JOIN permissions p ON rp.permission_id = p.id
+        WHERE rp.role = ?
+    """, (user['role'],))
+    role_perms = {row['id']: {'code': row['code'], 'label': row['label'], 'source': 'role_default', 'grant_type': 'allow'} 
+                  for row in c.fetchall()}
+    
+    # Get user-specific overrides
+    c.execute("""
+        SELECT p.id, p.code, p.label, up.grant_type
+        FROM user_permissions up
+        JOIN permissions p ON up.permission_id = p.id
+        WHERE up.user_id = ?
+    """, (user_id,))
+    
+    for row in c.fetchall():
+        role_perms[row['id']] = {
+            'code': row['code'],
+            'label': row['label'],
+            'source': 'user_override',
+            'grant_type': row['grant_type']
+        }
+    
+    conn.close()
+    
+    return jsonify({
+        'user': {'id': user_id, 'username': user['username'], 'role': user['role']},
+        'permissions': role_perms
+    })
+
+
+@app.route('/update_user_permission', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+def update_user_permission():
+    """
+    Update a specific user permission (allow/deny/inherit)
+    """
+    data = request.get_json()
+    user_id = data.get('user_id')
+    permission_id = data.get('permission_id')
+    action = data.get('action')  # 'allow', 'deny', or 'inherit'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        if action == 'inherit':
+            # Remove user-specific override (inherit from role)
+            c.execute("""
+                DELETE FROM user_permissions 
+                WHERE user_id = ? AND permission_id = ?
+            """, (user_id, permission_id))
+        else:
+            # Add or update user-specific permission
+            c.execute("""
+                INSERT INTO user_permissions (user_id, permission_id, grant_type, updated_by)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, permission_id) 
+                DO UPDATE SET grant_type = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ?
+            """, (user_id, permission_id, action, session['username'], action, session['username']))
+        
+        conn.commit()
+        
+        # Refresh permissions in session if updating current user
+        if user_id == session.get('user_id'):
+            refresh_user_permissions()
+        
+        return jsonify({'success': True, 'message': 'Permission updated successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
 ##############################################
 # ============ PASSWORD RESET WITH OTP ============
 ##############################################
