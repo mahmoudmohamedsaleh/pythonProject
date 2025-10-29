@@ -23,6 +23,68 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import timedelta
+import requests
+
+def send_email_via_resend(recipient_email, otp_code, username, api_key, sender_email):
+    """
+    Send OTP email via Resend API
+    """
+    try:
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px;">
+                    <h2 style="color: #333;">Password Reset Request</h2>
+                    <p>Hello <strong>{username}</strong>,</p>
+                    <p>You have requested to reset your password. Please use the following One-Time Password (OTP) to continue:</p>
+                    
+                    <div style="background-color: #007bff; color: white; padding: 15px; text-align: center; border-radius: 5px; margin: 20px 0;">
+                        <h1 style="margin: 0; font-size: 36px; letter-spacing: 5px;">{otp_code}</h1>
+                    </div>
+                    
+                    <p style="color: #dc3545;"><strong>⚠️ Security Notice:</strong></p>
+                    <ul style="color: #666;">
+                        <li>This OTP will expire in <strong>15 minutes</strong></li>
+                        <li>Do not share this code with anyone</li>
+                        <li>If you didn't request this, please ignore this email</li>
+                    </ul>
+                    
+                    <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                    <p style="color: #999; font-size: 12px;">
+                        This is an automated email from the CRM System. Please do not reply to this email.
+                    </p>
+                </div>
+            </body>
+        </html>
+        """
+        
+        data = {
+            "from": sender_email,
+            "to": [recipient_email],
+            "subject": "Password Reset - OTP Code",
+            "html": html_body
+        }
+        
+        response = requests.post(url, json=data, headers=headers)
+        
+        if response.status_code == 200:
+            print(f"✅ OTP email sent successfully via Resend to {recipient_email}")
+            return True
+        else:
+            print(f"❌ Resend API error: {response.status_code} - {response.text}")
+            print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
+            return False
+            
+    except Exception as e:
+        print(f"Error sending OTP email via Resend: {e}")
+        print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
+        return False
 
 def generate_otp(length=6):
     """Generate a random OTP code"""
@@ -34,26 +96,45 @@ def send_otp_email(recipient_email, otp_code, username):
     Supports multiple email providers through environment variables
     
     Required environment variables:
-    - EMAIL_PROVIDER: 'smtp' (default), 'sendgrid', 'resend'
+    For SMTP (Gmail, SendGrid, etc.):
+    - EMAIL_PROVIDER: 'smtp' (default)
     - SMTP_HOST: SMTP server host (e.g., smtp.gmail.com)
     - SMTP_PORT: SMTP port (usually 587 for TLS)
     - SMTP_USERNAME: Your email/username
     - SMTP_PASSWORD: Your email password or app password
     - SENDER_EMAIL: Email address to send from
+    
+    For Resend:
+    - EMAIL_PROVIDER: 'resend'
+    - RESEND_API_KEY: Your Resend API key
+    - SENDER_EMAIL: Email address to send from
     """
     try:
         # Email configuration from environment variables
-        email_provider = os.getenv('EMAIL_PROVIDER', 'smtp')
-        smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-        smtp_port = int(os.getenv('SMTP_PORT', 587))
-        smtp_username = os.getenv('SMTP_USERNAME')
-        smtp_password = os.getenv('SMTP_PASSWORD')
-        sender_email = os.getenv('SENDER_EMAIL', smtp_username)
+        email_provider = os.getenv('EMAIL_PROVIDER', 'smtp').lower()
+        sender_email = os.getenv('SENDER_EMAIL')
         
-        if not all([smtp_username, smtp_password]):
-            print("WARNING: Email credentials not configured. OTP email not sent.")
-            print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
-            return False
+        # Check configuration based on provider
+        if email_provider == 'resend':
+            resend_api_key = os.getenv('RESEND_API_KEY')
+            if not resend_api_key or not sender_email:
+                print("WARNING: Resend credentials not configured. OTP email not sent.")
+                print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
+                return False
+            
+            # Send email via Resend API
+            return send_email_via_resend(recipient_email, otp_code, username, resend_api_key, sender_email)
+        else:
+            # SMTP configuration
+            smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+            smtp_port = int(os.getenv('SMTP_PORT', 587))
+            smtp_username = os.getenv('SMTP_USERNAME')
+            smtp_password = os.getenv('SMTP_PASSWORD')
+            
+            if not all([smtp_username, smtp_password]):
+                print("WARNING: SMTP credentials not configured. OTP email not sent.")
+                print(f"Debug: OTP for {username} ({recipient_email}): {otp_code}")
+                return False
         
         # Create email message
         msg = MIMEMultipart('alternative')
