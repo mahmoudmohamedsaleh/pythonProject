@@ -4,6 +4,19 @@
 This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
 
 ## Recent Changes
+- **2025-10-29**: Public Registration with Admin Approval System
+  - Created public registration page at `/register` (no login required)
+  - Users can request account access by filling out registration form
+  - All passwords encrypted immediately upon registration
+  - Admin approval workflow: pending → approved/rejected
+  - General Manager can review, approve, or reject registration requests
+  - New database table: `registration_requests` (tracks all registration requests)
+  - Admin panel: `/pending_registrations` (shows pending and reviewed requests)
+  - Email and reason fields for better user tracking
+  - Automatic account activation upon approval
+  - Updated login page with "Request Account Access" link
+  - Added "Pending Registrations" to Administration menu
+  
 - **2025-10-28**: User Management System added with password encryption
   - Created admin panel for General Managers to manage user accounts
   - Add/Edit/Delete users with industry-standard password encryption (werkzeug.security)
