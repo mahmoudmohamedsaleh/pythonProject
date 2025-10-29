@@ -5,6 +5,15 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 
 ## Recent Updates (2025-10-29)
 
+### Database Merge ✅
+- Successfully imported 3 new records from production database
+- New contractor: Talha Gulf (ID 52)
+- New project: Al hammadi (ID 130) - ACT system, quotation sent
+- New registered project: Talha Gulf (ID 105) - Proposal prep stage, 50K deal value
+- All existing security features preserved (permissions, password tokens, comments)
+- Automatic backups created before merge
+- Total records: 52 contractors, 130 projects, 105 registered projects
+
 ### RFQ Comments System ✅
 - Complete comments/history functionality added to RFQ module (matching PO comments)
 - New database table: `rfq_comments` with full audit trail
