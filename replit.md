@@ -145,7 +145,8 @@ The application uses SQLite with multiple tables including:
 - The application respects Replit's PORT environment variable for proper deployment
 
 ## User Preferences
-(None specified yet)
+- **Email Provider**: Resend (configured with API key, not using Replit integration)
+- **Note**: User declined Replit's Resend integration, using manual secret configuration instead
 
 ## Security Improvements
 
