@@ -4,24 +4,36 @@
 This is a Flask-based CRM (Customer Relationship Management) and Presales Monitoring System designed for tracking projects, quotations, RFQs, and sales performance. The application provides comprehensive features for managing the entire sales pipeline from lead generation to project completion.
 
 ## Recent Changes
-- **2025-10-29**: Password Reset System with OTP via Email
+- **2025-10-29**: Password Reset System (Two Methods)
+  
+  **Method 1: OTP via Email** (requires domain verification)
   - Complete password reset workflow using One-Time Password (OTP)
   - Three-step process: Request Reset → Verify OTP → Set New Password
   - OTP sent via email with 15-minute expiration
   - Secure OTP generation using Python secrets module
   - Email support for multiple providers (Gmail, SendGrid, Resend, generic SMTP)
-  - Configuration via environment variables (SMTP_HOST, SMTP_PORT, etc.)
+  - Configuration via environment variables (EMAIL_PROVIDER, RESEND_API_KEY, SENDER_EMAIL)
   - New database table: `password_reset_tokens` (stores OTP with expiration)
   - New routes: `/forgot_password`, `/verify_otp`, `/reset_password_with_otp`, `/resend_otp`
   - HTML email templates with professional design
   - Fallback to console output if email not configured (for testing)
+  - Resend API integration with proper error handling
   - **Email Column Added to Users Table**: All users can now have email addresses
   - **Multi-source Email Lookup**: Checks users table, registration_requests, and engineers table
-  - **Admin Email Management**: Admins can add/edit email addresses for any user
-  - Password immediately encrypted after reset
-  - Added "Forgot Password?" link to login page
-  - Resend OTP functionality if code expires or not received
-  - **Support for Old Users**: Legacy users can reset passwords once admin adds their email
+  - **Note**: Resend requires domain verification to send to all users (test mode limited to verified email)
+  
+  **Method 2: Admin Password Reset** (no email required) ⭐ RECOMMENDED
+  - **New Feature (2025-10-29)**: Direct admin password reset without email
+  - Accessible by General Manager and Technical Team Leader roles
+  - New route: `/admin_reset_password/<user_id>`
+  - Admin can reset any user's password instantly
+  - No email verification required - perfect for users without email
+  - Password immediately encrypted using werkzeug.security
+  - Updates both users and engineers tables simultaneously
+  - Yellow "Reset Password" button (🔑 icon) in user management table
+  - Confirmation dialog before resetting password
+  - Flash message confirms successful password reset
+  - **Use this method until domain is verified for Resend!**
   
 - **2025-10-29**: Public Registration with Admin Approval System
   - Created public registration page at `/register` (no login required)
@@ -44,8 +56,10 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
   - Secure password hashing using `generate_password_hash()` and `check_password_hash()`
   - Role-based access control (General Manager and Technical Team Leader can access user management)
   - All passwords stored encrypted in database - never in plaintext
-  - New routes: `/manage_users`, `/add_user`, `/edit_user`, `/delete_user`
+  - New routes: `/manage_users`, `/add_user`, `/edit_user`, `/delete_user`, `/admin_reset_password/<user_id>`
   - Added "Administration" menu in sidebar (visible to General Manager and Technical Team Leader)
+  - **Admin Password Reset**: Three-button interface (Edit, Reset Password, Delete) for each user
+  - Email field added to Add/Edit user forms with password reset reminder
   
 - **2025-10-28**: Vendor routes fixed to work with production database schema
   - Fixed vendor management routes to use `vendors` table instead of `srm_vendors`
