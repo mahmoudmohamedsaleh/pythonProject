@@ -2317,6 +2317,7 @@ def register_project():
 
 ####################################
 @app.route('/project_pipeline')
+@permission_required('view_projects')
 def project_pipeline():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -3138,6 +3139,7 @@ def edit_rfq(rfq_id):
 
 ####
 @app.route('/rfq_pipeline')
+@permission_required('view_rfts')
 def rfq_pipeline():
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -3408,7 +3410,7 @@ def documents_page():
     return render_template('documents_page.html')
 ######333
 @app.route('/view_consultants')
-# @role_required('editor')
+@permission_required('view_consultants')
 def view_consultants():
     # Get the search query from the URL arguments
     search_query = request.args.get('search_query', '')
@@ -3431,7 +3433,7 @@ def view_consultants():
     return render_template('view_consultants.html', consultants=consultants, search_query=search_query)
 ##########33
 @app.route('/view_contractors')
-# @role_required('editor')
+@permission_required('view_contractors')
 def view_contractors():
     # Get the search query from the URL arguments, default to an empty string
     search_query = request.args.get('search_query', '')
@@ -3588,7 +3590,7 @@ def view_projects():
                            })
 ###############3
 @app.route('/view_end_users')
-# @role_required('editor')
+@permission_required('view_end_users')
 def view_end_users():
     # Get the search query from the URL arguments
     search_query = request.args.get('search_query', '')
@@ -3819,7 +3821,7 @@ def register_po():
     return render_template('register_po.html', projects=projects, presale_engineers=presale_engineers, project_managers=project_managers, distributors=distributors)
 #######################333
 @app.route('/view_po_status', methods=['GET', 'POST'])
-#@role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
+@permission_required('view_po_status')
 def view_po_status():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -5007,6 +5009,7 @@ def get_specific_solutions(solution_category):
 ###############################
 @app.route('/quotation_builder', methods=['GET'])
 @login_required
+@permission_required('view_quotation_builder')
 def quotation_builder():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
