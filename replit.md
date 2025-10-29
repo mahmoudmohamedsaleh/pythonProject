@@ -15,10 +15,13 @@ This is a Flask-based CRM (Customer Relationship Management) and Presales Monito
   - New routes: `/forgot_password`, `/verify_otp`, `/reset_password_with_otp`, `/resend_otp`
   - HTML email templates with professional design
   - Fallback to console output if email not configured (for testing)
-  - Works with email addresses from registration_requests table
+  - **Email Column Added to Users Table**: All users can now have email addresses
+  - **Multi-source Email Lookup**: Checks users table, registration_requests, and engineers table
+  - **Admin Email Management**: Admins can add/edit email addresses for any user
   - Password immediately encrypted after reset
   - Added "Forgot Password?" link to login page
   - Resend OTP functionality if code expires or not received
+  - **Support for Old Users**: Legacy users can reset passwords once admin adds their email
   
 - **2025-10-29**: Public Registration with Admin Approval System
   - Created public registration page at `/register` (no login required)
