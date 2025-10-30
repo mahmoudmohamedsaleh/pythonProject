@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Deal Values - AI Calculator</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        .feature-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .ai-badge {
+            background: #ffd700;
+            color: #333;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="feature-box text-center">
+            <h1><i class="fas fa-robot"></i> AI-Powered Deal Value Calculator</h1>
+            <p class="mb-0"><span class="ai-badge">🤖 AI METHODOLOGY</span></p>
+        </div>
+
+        <div class="card shadow">
+            <div class="card-body">
+                <h3 class="card-title">Automatic Deal Value Calculation</h3>
+                <p class="lead">This tool will automatically calculate and update deal values for all projects in your pipeline.</p>
+                
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle"></i> How It Works:</h5>
+                    <ul>
+                        <li><strong>Smart Revision Detection:</strong> Automatically detects quote revisions (R01, R02, R03, etc.)</li>
+                        <li><strong>Latest Only:</strong> Uses only the latest revision of each quote to avoid duplicates</li>
+                        <li><strong>System-Based Filtering:</strong> Prevents double-counting quotes for the same system</li>
+                        <li><strong>Automatic Calculation:</strong> Sums quotation selling prices from the Projects table</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Important Information:</h5>
+                    <ul class="mb-0">
+                        <li>Total projects to process: <strong>{{ total_projects }}</strong></li>
+                        <li>This will update the <code>deal_value</code> field in the Pipeline (register_project) table</li>
+                        <li>Existing manual values will be overwritten with calculated values</li>
+                        <li>You can review all changes before they are finalized</li>
+                    </ul>
+                </div>
+
+                <h5>Example of AI Logic:</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Quote Reference</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>QT-ACS-Sup-BEDROCK-18425-R01</td>
+                                <td>$90,000</td>
+                                <td><span class="badge badge-secondary">Older - Excluded</span></td>
+                            </tr>
+                            <tr class="table-success">
+                                <td>QT-ACS-Sup-BEDROCK-18425-R02</td>
+                                <td>$100,000</td>
+                                <td><span class="badge badge-success">Latest - Included ✓</span></td>
+                            </tr>
+                            <tr>
+                                <td>CS-EJT-LC-AHHOBP-13725-R05</td>
+                                <td>$140,000</td>
+                                <td><span class="badge badge-secondary">Older - Excluded</span></td>
+                            </tr>
+                            <tr class="table-success">
+                                <td>CS-EJT-LC-AHHOBP-13725-R07</td>
+                                <td>$150,000</td>
+                                <td><span class="badge badge-success">Latest - Included ✓</span></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-info">
+                                <th>Total Deal Value:</th>
+                                <th>$250,000</th>
+                                <th>Only Latest Revisions</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <form method="POST" action="{{ url_for('admin_update_deal_values') }}" onsubmit="return confirm('Are you sure you want to update all deal values? This will overwrite existing values.');">
+                    <div class="text-center mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg mr-3">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-calculator"></i> Calculate & Update Deal Values
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</body>
+</html>

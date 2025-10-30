@@ -3,9 +3,26 @@
 ## Overview
 This Flask-based CRM and Presales Monitoring System tracks projects, quotations, RFQs, and sales performance, managing the entire sales pipeline from lead generation to project completion. It provides comprehensive features for user authentication, project and customer relationship management, sales and presales tools, and analytics. The system supports a public registration process with admin approval and integrates robust password security, including an admin-assisted password reset mechanism.
 
-## Recent Updates (2025-10-29)
+## Recent Updates (2025-10-30)
 
-### Database Merge ✅
+### AI-Powered Deal Value Calculator ✅ 🤖
+- **Intelligent quote revision detection** using regex pattern matching
+- **Automatic deal value calculation** from quotation selling prices
+- **Smart duplicate prevention**: only counts latest revision of each quote
+- **System-based filtering**: prevents counting multiple quotes for same system
+- **Admin interface** at `/admin/update_deal_values` for bulk updates
+- **API endpoint** at `/api/calculate_deal_value/<project_name>` for programmatic access
+- **Real-world example**: Handles cases like QT-ACS-Sup-BEDROCK-18425-R02 vs R01
+- **Multi-layered AI logic**:
+  1. Parse quote references to extract base and revision number
+  2. Group quotes by base reference
+  3. Select highest revision number + most recent date
+  4. Filter duplicates by system type
+  5. Sum quotation_selling_price for accurate deal value
+- **Safety features**: Preview before commit, transaction-based updates, admin-only access
+- **Comprehensive documentation**: AI_DEAL_VALUE_CALCULATOR.md created
+
+### Database Merge ✅ (2025-10-29)
 - Successfully imported 3 new records from production database
 - New contractor: Talha Gulf (ID 52)
 - New project: Al hammadi (ID 130) - ACT system, quotation sent
