@@ -5,16 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}E-Tech Projects{% endblock %}</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         body {
             display: flex;
         }
         .main-content {
-            margin-left: 260px; /* Same as the sidebar width */
+            margin-left: 260px;
             padding: 30px;
             width: calc(100% - 260px);
             background-color: #f4f7f6;
             min-height: 100vh;
+        }
+        
+        /* Notification Bell Styles */
+        #notificationBell {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            z-index: 999;
+            color: #343a40;
+            font-size: 1.5rem;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        #notificationBell:hover {
+            color: #007bff;
+        }
+        
+        #notificationBadge {
+            position: absolute;
+            top: -8px;
+            right: -10px;
+            padding: 4px 7px;
+            font-size: 0.7rem;
+            border-radius: 10px;
+        }
+        
+        #notificationDropdown {
+            position: fixed;
+            right: 30px;
+            top: 60px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            width: 400px;
+            max-height: 500px;
+            overflow: hidden;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .notification-header {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .notification-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 0;
+        }
+        
+        .notification-item {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+        }
+        
+        .notification-item:hover {
+            background-color: #f8f9fa !important;
         }
     </style>
 </head>
@@ -22,6 +87,27 @@
     {% include 'sidebar.html' %}
 
     <div class="main-content">
+        <!-- Notification Bell (Top Right) -->
+        {% if session.get('user_id') %}
+        <div id="notificationBellContainer">
+            <a href="#" id="notificationBell">
+                <i class="fas fa-bell"></i>
+                <span id="notificationBadge" class="badge badge-danger" style="display: none;">0</span>
+            </a>
+            
+            <!-- Notification Dropdown -->
+            <div id="notificationDropdown">
+                <div class="notification-header">
+                    <h6 style="margin: 0; color: #343a40; font-weight: 600;">Notifications</h6>
+                    <button id="markAllRead" class="btn btn-sm btn-link" style="padding: 0; font-size: 0.85rem; color: #007bff;">Mark all read</button>
+                </div>
+                <div id="notificationList" class="notification-list">
+                    <div class="text-center text-muted" style="padding: 30px;">Loading notifications...</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -32,10 +118,14 @@
         {% block content %}{% endblock %}
     </div>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- Notification System JavaScript -->
+    {% if session.get('user_id') %}
+    <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+    {% endif %}
 
     {% block scripts %}{% endblock %}
 </body>
