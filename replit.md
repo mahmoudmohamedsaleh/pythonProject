@@ -5,20 +5,31 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 
 ## Recent Updates (2025-10-30)
 
+### UI/UX Improvements ✅
+- **Removed manual Deal Value field** from Register New Project and Edit Project forms
+- **Auto-calculated deal values**: System now automatically calculates from quotations via AI
+- **Added Delete Project button** in pipeline view (admin-only access)
+- **Admin-only delete**: Only General Managers and Technical Team Leaders can delete projects
+- **Confirmation prompt**: JavaScript confirmation before deletion to prevent accidents
+
 ### AI-Powered Deal Value Calculator ✅ 🤖
 - **Intelligent quote revision detection** using regex pattern matching
 - **Automatic deal value calculation** from quotation selling prices
 - **Smart duplicate prevention**: only counts latest revision of each quote
 - **System-based filtering**: prevents counting multiple quotes for same system
+- **ENHANCED: Intelligent quote-to-project matching** - Prioritizes quoted text in project names
+  - Example: "Qalam School 'Wadi'" now correctly includes only Wadi quotes, not Qalam quotes
+  - Uses 13 identifier mappings (SchlQlm→Qalam, SchlWadi→Wadi, etc.)
 - **Admin interface** at `/admin/update_deal_values` for bulk updates
 - **API endpoint** at `/api/calculate_deal_value/<project_name>` for programmatic access
-- **Real-world example**: Handles cases like QT-ACS-Sup-BEDROCK-18425-R02 vs R01
+- **Delete route**: `/delete_project/<project_id>` (POST, admin-only)
 - **Multi-layered AI logic**:
   1. Parse quote references to extract base and revision number
-  2. Group quotes by base reference
-  3. Select highest revision number + most recent date
-  4. Filter duplicates by system type
-  5. Sum quotation_selling_price for accurate deal value
+  2. Match quotes to projects using intelligent identifier detection
+  3. Group quotes by base reference
+  4. Select highest revision number + most recent date
+  5. Filter duplicates by system type
+  6. Sum quotation_selling_price for accurate deal value
 - **Safety features**: Preview before commit, transaction-based updates, admin-only access
 - **Comprehensive documentation**: AI_DEAL_VALUE_CALCULATOR.md created
 

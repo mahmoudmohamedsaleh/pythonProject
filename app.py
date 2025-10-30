@@ -2517,7 +2517,8 @@ def register_project():
         project_name = request.form['project_name']
         stage = request.form['stage']
         probability = request.form['probability']
-        deal_value = request.form['deal_value']
+        # Deal value removed from form - will be auto-calculated by AI
+        deal_value = 0.0
         expected_close_date = request.form['expected_close_date']
         sales_engineer_id = request.form.get('sales_engineer_id')
         end_user_id = request.form['end_user_id']
@@ -2680,7 +2681,8 @@ def edit_project_pipeline(project_id):
         project_name = request.form['project_name']
         stage = request.form['stage']
         probability = request.form['probability']
-        deal_value = request.form['deal_value']
+        # Deal value removed from form - will be auto-calculated by AI
+        deal_value = 0.0
         expected_close_date = request.form['expected_close_date']
         sales_engineer_id = request.form.get('sales_engineer_id')
         end_user_id = request.form['end_user_id']
@@ -2730,6 +2732,36 @@ def edit_project_pipeline(project_id):
     return render_template('edit_project_pipeline.html', project=project, stages=stages,
                            end_users=end_users, contractors=contractors,
                            consultants=consultants, sales_engineers=sales_engineers)
+
+@app.route('/delete_project/<int:project_id>', methods=['POST'])
+@login_required
+@role_required('General Manager', 'Technical Team Leader')
+def delete_project(project_id):
+    """
+    Delete a project from the pipeline (Admin only)
+    """
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        # Get project name for confirmation
+        c.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
+        project = c.fetchone()
+        
+        if not project:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Project not found'}), 404
+        
+        # Delete the project
+        c.execute("DELETE FROM register_project WHERE id = ?", (project_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': f'Project "{project[0]}" deleted successfully'})
+    
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 ###################3333
 @app.route('/update_project_stage', methods=['POST'])
 @login_required
