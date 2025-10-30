@@ -154,7 +154,7 @@
                             </a>
                             <a href="{{ url_for('edit_project_pipeline', project_id=project[0]) }}" class="btn btn-warning btn-sm" title="Edit Project"><i class="fas fa-edit"></i></a>
                             <a href="{{ url_for('request_for_quotation', project_name=project[1], sales_engineer=project[7]) }}" class="btn btn-info btn-sm" title="Request For Quotation"><i class="fas fa-file-alt"></i></a>
-                            {% if user_has_permission('General Manager') or user_has_permission('Technical Team Leader') %}
+                            {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
                             <button onclick="deleteProject({{ project[0] }}, '{{ project[1] }}')" class="btn btn-danger btn-sm" title="Delete Project"><i class="fas fa-trash"></i></button>
                             {% endif %}
                         </td>
