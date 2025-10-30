@@ -98,7 +98,7 @@
                         <h6>{{ project.name }}</h6>
                         <div>
                             <a href="{{ url_for('edit_project_pipeline', project_id=project.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit Project"><i class="fas fa-edit"></i></a>
-                            {% if user_has_permission('General Manager') or user_has_permission('Technical Team Leader') %}
+                            {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
                             <button onclick="deleteProject({{ project.id }}, '{{ project.name }}')" class="btn btn-sm btn-outline-danger ml-1" title="Delete Project"><i class="fas fa-trash"></i></button>
                             {% endif %}
                         </div>
