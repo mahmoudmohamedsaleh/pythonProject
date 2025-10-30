@@ -243,6 +243,169 @@ SALES_ENGINEERS = ["A.Manea", "m.fakhrany", "A.zain", "Isaac", "Jack"]
 # Global variable to store the last uploaded cost sheet path
 last_cost_sheet_path = ""
 
+# ======================================================================
+# AI-POWERED DEAL VALUE CALCULATOR
+# Automatically calculates deal_value from quotation_selling_price
+# Intelligently handles quote revisions to avoid duplication
+# ======================================================================
+
+def parse_quote_reference(quote_ref):
+    """
+    AI-based parser to extract base reference and revision number from quote
+    
+    Examples:
+    - QT-ACS-Sup-BEDROCK-18425-R02 -> (QT-ACS-Sup-BEDROCK-18425, 2)
+    - CS-EJT-LC-AHHOBP-13725-R07 -> (CS-EJT-LC-AHHOBP-13725, 7)
+    """
+    if not quote_ref:
+        return (None, 0)
+    
+    # Pattern 1: Standard format with -R## at the end
+    pattern1 = r'^(.+)-R(\d+)$'
+    match = re.match(pattern1, quote_ref.strip())
+    if match:
+        base_ref = match.group(1)
+        revision = int(match.group(2))
+        return (base_ref, revision)
+    
+    # Pattern 2: Alternative formats (R## without dash)
+    pattern2 = r'^(.+)R(\d+)$'
+    match = re.match(pattern2, quote_ref.strip())
+    if match:
+        base_ref = match.group(1)
+        revision = int(match.group(2))
+        return (base_ref, revision)
+    
+    # Pattern 3: No revision number - treat as revision 0 (original)
+    return (quote_ref.strip(), 0)
+
+def get_latest_quote_revisions(quotes):
+    """
+    AI logic: From a list of quotes, return only the latest revision of each base quote
+    
+    Args:
+        quotes: List of tuples (quote_ref, price, registered_date, system)
+    
+    Returns:
+        List of latest quote dictionaries
+    """
+    # Group quotes by base reference
+    quote_groups = defaultdict(list)
+    
+    for quote_ref, price, registered_date, system in quotes:
+        base_ref, revision = parse_quote_reference(quote_ref)
+        if base_ref:
+            quote_groups[base_ref].append({
+                'quote_ref': quote_ref,
+                'base_ref': base_ref,
+                'revision': revision,
+                'price': price or 0.0,
+                'registered_date': registered_date or '',
+                'system': system or ''
+            })
+    
+    # Select latest revision for each base reference
+    latest_quotes = []
+    for base_ref, quote_list in quote_groups.items():
+        # Sort by revision number (descending), then by date (descending)
+        sorted_quotes = sorted(
+            quote_list,
+            key=lambda x: (x['revision'], x['registered_date']),
+            reverse=True
+        )
+        latest_quotes.append(sorted_quotes[0])
+    
+    return latest_quotes
+
+def filter_duplicates_by_system(quotes):
+    """
+    Advanced AI logic: Detect and remove duplicate quotes for the same system
+    If multiple quotes exist for the same system, keep only the latest
+    """
+    system_groups = defaultdict(list)
+    
+    for quote in quotes:
+        system = quote.get('system', '').strip()
+        if system:
+            system_groups[system].append(quote)
+    
+    # For each system, keep only the latest quote
+    filtered_quotes = []
+    processed_systems = set()
+    
+    for quote in quotes:
+        system = quote.get('system', '').strip()
+        
+        # If no system specified, include it
+        if not system:
+            filtered_quotes.append(quote)
+            continue
+        
+        # If this system hasn't been processed yet
+        if system not in processed_systems:
+            # Find all quotes for this system
+            system_quotes = system_groups[system]
+            
+            # If multiple quotes for same system, take the one with highest revision
+            if len(system_quotes) > 1:
+                latest = max(system_quotes, key=lambda x: (x['revision'], x['registered_date']))
+                filtered_quotes.append(latest)
+            else:
+                filtered_quotes.append(quote)
+            
+            processed_systems.add(system)
+    
+    return filtered_quotes
+
+def calculate_deal_value_for_project(project_name, conn=None):
+    """
+    Calculate the deal value for a specific project from its quotations
+    Uses AI logic to handle revisions and avoid duplicates
+    
+    Args:
+        project_name: Name of the project
+        conn: Optional database connection (creates new one if None)
+    
+    Returns:
+        Tuple of (total_deal_value, list_of_included_quotes)
+    """
+    close_conn = False
+    if conn is None:
+        conn = sqlite3.connect('ProjectStatus.db')
+        close_conn = True
+    
+    cursor = conn.cursor()
+    
+    try:
+        # Fetch all quotations for this project
+        cursor.execute("""
+            SELECT quote_ref, quotation_selling_price, registered_date, system
+            FROM projects
+            WHERE project_name = ?
+            AND quotation_selling_price IS NOT NULL
+            AND quotation_selling_price > 0
+        """, (project_name,))
+        
+        quotes = cursor.fetchall()
+        
+        if not quotes:
+            return 0.0, []
+        
+        # Apply AI logic to get latest revisions only
+        latest_quotes = get_latest_quote_revisions(quotes)
+        
+        # Further filter by system to avoid duplicates
+        filtered_quotes = filter_duplicates_by_system(latest_quotes)
+        
+        # Calculate total deal value
+        total_deal_value = sum(q['price'] for q in filtered_quotes if q['price'])
+        
+        return total_deal_value, filtered_quotes
+        
+    finally:
+        if close_conn:
+            conn.close()
+
 def init_db():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -6543,6 +6706,104 @@ def resend_otp():
         conn.close()
     
     return redirect(url_for('verify_otp'))
+
+##############################################
+# AI DEAL VALUE MANAGEMENT ROUTES
+##############################################
+
+@app.route('/admin/update_deal_values', methods=['GET', 'POST'])
+@login_required
+@role_required('General Manager', 'Technical Team Leader')
+def admin_update_deal_values():
+    """
+    Admin route to update all deal values using AI logic
+    Handles quote revisions intelligently to avoid duplicates
+    """
+    if request.method == 'POST':
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        # Get all projects from register_project
+        cursor.execute("SELECT id, project_name, deal_value FROM register_project")
+        registered_projects = cursor.fetchall()
+        
+        updates_made = 0
+        total_value_changed = 0
+        update_details = []
+        
+        for project_id, project_name, current_deal_value in registered_projects:
+            # Calculate new deal value using AI logic
+            new_deal_value, included_quotes = calculate_deal_value_for_project(project_name, conn)
+            
+            # Check if update is needed
+            current_deal_value = current_deal_value or 0.0
+            
+            if abs(new_deal_value - current_deal_value) > 0.01:
+                # Update the database
+                cursor.execute("""
+                    UPDATE register_project
+                    SET deal_value = ?
+                    WHERE id = ?
+                """, (new_deal_value, project_id))
+                
+                updates_made += 1
+                total_value_changed += abs(new_deal_value - current_deal_value)
+                
+                update_details.append({
+                    'project_name': project_name,
+                    'old_value': current_deal_value,
+                    'new_value': new_deal_value,
+                    'change': new_deal_value - current_deal_value,
+                    'quotes': included_quotes
+                })
+        
+        conn.commit()
+        conn.close()
+        
+        if updates_made > 0:
+            flash(f'Successfully updated {updates_made} projects! Total value adjusted: ${total_value_changed:,.2f}', 'success')
+        else:
+            flash('All deal values are already up to date!', 'info')
+        
+        return render_template('admin_deal_value_results.html', 
+                             update_details=update_details,
+                             total_projects=len(registered_projects),
+                             updates_made=updates_made,
+                             total_value_changed=total_value_changed)
+    
+    # GET request - show confirmation page
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM register_project")
+    total_projects = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return render_template('admin_deal_value_update.html', total_projects=total_projects)
+
+@app.route('/api/calculate_deal_value/<project_name>', methods=['GET'])
+@login_required
+def api_calculate_deal_value(project_name):
+    """
+    API endpoint to calculate deal value for a specific project
+    Returns JSON with calculated value and included quotes
+    """
+    try:
+        deal_value, included_quotes = calculate_deal_value_for_project(project_name)
+        
+        return jsonify({
+            'success': True,
+            'deal_value': deal_value,
+            'quotes': [{
+                'quote_ref': q['quote_ref'],
+                'price': q['price'],
+                'system': q['system'],
+                'revision': q['revision']
+            } for q in included_quotes]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 ##############################################
 if __name__ == '__main__':

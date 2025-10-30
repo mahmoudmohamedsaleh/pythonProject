@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deal Values Updated</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <style>
+        .success-box {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .stats-card {
+            background: #f8f9fa;
+            border-left: 5px solid #007bff;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .quote-badge {
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            margin: 2px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        {% if updates_made > 0 %}
+        <div class="success-box text-center">
+            <h1><i class="fas fa-check-circle"></i> Deal Values Updated Successfully!</h1>
+            <h3>{{ updates_made }} projects updated</h3>
+        </div>
+        {% else %}
+        <div class="alert alert-info text-center">
+            <h1><i class="fas fa-info-circle"></i> All Up To Date!</h1>
+            <p>No updates were needed - all deal values are already correct.</p>
+        </div>
+        {% endif %}
+
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <h5>Total Projects</h5>
+                    <h2>{{ total_projects }}</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <h5>Projects Updated</h5>
+                    <h2>{{ updates_made }}</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <h5>Total Value Changed</h5>
+                    <h2>${{ "{:,.2f}".format(total_value_changed) }}</h2>
+                </div>
+            </div>
+        </div>
+
+        {% if update_details %}
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Update Details</h4>
+            </div>
+            <div class="card-body">
+                {% for detail in update_details %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5>{{ detail.project_name }}</h5>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Previous Deal Value:</strong><br>
+                                <span class="text-muted">${{ "{:,.2f}".format(detail.old_value) }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>New Deal Value:</strong><br>
+                                <span class="text-success font-weight-bold">${{ "{:,.2f}".format(detail.new_value) }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Change:</strong><br>
+                                {% if detail.change > 0 %}
+                                <span class="text-success">+${{ "{:,.2f}".format(detail.change) }}</span>
+                                {% elif detail.change < 0 %}
+                                <span class="text-danger">${{ "{:,.2f}".format(detail.change) }}</span>
+                                {% else %}
+                                <span class="text-muted">No change</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% if detail.quotes %}
+                        <div class="mt-3">
+                            <strong>Included Quotations (Latest Revisions Only):</strong><br>
+                            {% for quote in detail.quotes %}
+                            <div class="quote-badge">
+                                {{ quote.quote_ref }} ({{ quote.system }}) - ${{ "{:,.2f}".format(quote.price) }}
+                                <span class="badge badge-info">R{{ "{:02d}".format(quote.revision) }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="text-center mt-4">
+            <a href="{{ url_for('project_pipeline') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-chart-line"></i> View Pipeline
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-lg ml-2">
+                <i class="fas fa-home"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <script src="https://kit.fontawesome.com/a076d05399.js"></script>
+</body>
+</html>
