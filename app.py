@@ -406,6 +406,24 @@ def quote_matches_project(quote_ref, project_name):
     if not found_identifiers:
         return True
     
+    # ENHANCED AI LOGIC: Extract quoted portion from project name for priority matching
+    # Example: "Qalam School 'Wadi'" → prioritize matching 'Wadi'
+    import re
+    quoted_match = re.search(r"['\"]([^'\"]+)['\"]", project_name)
+    
+    if quoted_match:
+        # Project has quoted text - prioritize matching that
+        quoted_text = quoted_match.group(1).lower()
+        
+        # Check if any identifier matches the quoted portion
+        for quote_id, project_keyword in found_identifiers:
+            if project_keyword in quoted_text:
+                return True  # Match found in quoted portion
+        
+        # If we found identifiers but none match the quoted portion, exclude
+        return False
+    
+    # No quoted text - use standard matching
     # Check if any found identifier matches the project name
     for quote_id, project_keyword in found_identifiers:
         if project_keyword in project_lower:
