@@ -24,6 +24,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import timedelta
 import requests
+from notifications_service import notification_service
 
 def send_email_via_resend(recipient_email, otp_code, username, api_key, sender_email):
     """
@@ -2538,8 +2539,33 @@ def register_project():
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note,
                        stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date))
+            project_id = c.lastrowid
             conn.commit()
             flash('Project registered successfully!', 'success')
+            
+            # Send notifications to stakeholders
+            try:
+                actor_id = session.get('user_id')
+                actor_name = session.get('username', 'Unknown')
+                
+                # Get recipients: sales engineer + admins
+                recipients = notification_service.get_project_stakeholders(project_id)
+                
+                # Create notification
+                notification_service.notify_activity(
+                    event_code='project.created',
+                    recipient_ids=recipients,
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'project_name': project_name,
+                        'project_id': project_id,
+                        'stage': stage
+                    },
+                    url=url_for('edit_project_pipeline', project_id=project_id)
+                )
+            except Exception as e:
+                print(f"Notification error: {e}")
         except sqlite3.IntegrityError:
             flash(f'Error: A project with the name "{project_name}" already exists.', 'danger')
         except Exception as e:
@@ -2710,6 +2736,30 @@ def edit_project_pipeline(project_id):
         conn.commit()
         conn.close()
         flash('Project updated successfully!', 'success')
+        
+        # Send notifications to stakeholders
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Unknown')
+            
+            # Get recipients: sales engineer + admins
+            recipients = notification_service.get_project_stakeholders(project_id)
+            
+            # Create notification
+            notification_service.notify_activity(
+                event_code='project.updated',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'project_name': project_name,
+                    'project_id': project_id,
+                    'stage': stage
+                },
+                url=url_for('edit_project_pipeline', project_id=project_id)
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
         return redirect(url_for('project_pipeline'))
 
     # GET request logic remains the same
@@ -2752,12 +2802,37 @@ def delete_project(project_id):
             conn.close()
             return jsonify({'success': False, 'message': 'Project not found'}), 404
         
+        project_name = project[0]
+        
         # Delete the project
         c.execute("DELETE FROM register_project WHERE id = ?", (project_id,))
         conn.commit()
         conn.close()
         
-        return jsonify({'success': True, 'message': f'Project "{project[0]}" deleted successfully'})
+        # Send notifications to admins only
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Unknown')
+            
+            # Get admin recipients only
+            recipients = notification_service.get_admin_recipients()
+            
+            # Create notification
+            notification_service.notify_activity(
+                event_code='project.deleted',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'project_name': project_name,
+                    'project_id': project_id
+                },
+                url=url_for('project_pipeline')
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
+        
+        return jsonify({'success': True, 'message': f'Project "{project_name}" deleted successfully'})
     
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -3148,10 +3223,37 @@ def request_for_quotation():
                 WHERE project_name = ? AND stage = ?
             """, ('Proposal Prep', project_name, 'Qualification'))
 
+            rfq_id = c.lastrowid
             conn.commit()
             flash('RFQ created and project stage updated successfully!', 'success')
 
-            # (Your email sending logic would go here)
+            # Send notifications to presale engineer
+            try:
+                actor_id = session.get('user_id')
+                actor_name = session.get('username', 'Unknown')
+                
+                # Get presale engineer user ID
+                c2 = sqlite3.connect('ProjectStatus.db').cursor()
+                presale_user_id = notification_service.get_user_id_by_username(sales_engineer_presale)
+                recipients = [presale_user_id] if presale_user_id else []
+                recipients.extend(notification_service.get_admin_recipients())
+                recipients = list(set(recipients))
+                
+                notification_service.notify_activity(
+                    event_code='rfq.created',
+                    recipient_ids=recipients,
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'project_name': project_name,
+                        'rfq_ref': rfq_reference,
+                        'rfq_id': rfq_id
+                    },
+                    url=url_for('rfq_summary')
+                )
+                c2.close()
+            except Exception as e:
+                print(f"Notification error: {e}")
 
         except Exception as e:
             flash(f'Error creating RFQ: {str(e)}', 'danger')
@@ -4088,8 +4190,41 @@ def register_po():
                 quotation_data, po_document_data, po_number, total_amount, po_approval_status,
                 po_delivery_status, po_notes_vendor, po_notes_client
             ))
+            po_id = c.lastrowid
             conn.commit()
             flash('Purchase Order registered successfully!', 'success')
+            
+            # Send notifications to stakeholders
+            try:
+                actor_id = session.get('user_id')
+                actor_name = session.get('username', 'Unknown')
+                
+                # Notify presale engineer, project manager, and admins
+                recipients = []
+                presale_user_id = notification_service.get_user_id_by_username(presale_engineer)
+                pm_user_id = notification_service.get_user_id_by_username(project_manager)
+                if presale_user_id:
+                    recipients.append(presale_user_id)
+                if pm_user_id:
+                    recipients.append(pm_user_id)
+                recipients.extend(notification_service.get_admin_recipients())
+                recipients = list(set(recipients))
+                
+                notification_service.notify_activity(
+                    event_code='po.created',
+                    recipient_ids=recipients,
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'po_number': po_number,
+                        'project_name': project_name,
+                        'total_amount': total_amount
+                    },
+                    url=url_for('view_po_status')
+                )
+            except Exception as e:
+                print(f"Notification error: {e}")
+            
             return redirect(url_for('register_po'))  # Redirect to the view page for POs
         except sqlite3.IntegrityError as e:
             if 'UNIQUE constraint failed: purchase_orders.po_number' in str(e):
@@ -4465,6 +4600,38 @@ def edit_po(po_id):
                     po_notes_vendor, po_notes_client, po_id))
                 conn.commit()
                 flash('Purchase Order updated successfully!', 'success')
+                
+                # Send notifications to stakeholders
+                try:
+                    actor_id = session.get('user_id')
+                    actor_name = session.get('username', 'Unknown')
+                    
+                    # Notify presale engineer, project manager, and admins
+                    recipients = []
+                    presale_user_id = notification_service.get_user_id_by_username(presale_engineer)
+                    pm_user_id = notification_service.get_user_id_by_username(project_manager)
+                    if presale_user_id:
+                        recipients.append(presale_user_id)
+                    if pm_user_id:
+                        recipients.append(pm_user_id)
+                    recipients.extend(notification_service.get_admin_recipients())
+                    recipients = list(set(recipients))
+                    
+                    notification_service.notify_activity(
+                        event_code='po.updated',
+                        recipient_ids=recipients,
+                        actor_id=actor_id,
+                        context={
+                            'actor_name': actor_name,
+                            'po_number': po_number,
+                            'project_name': project_name,
+                            'total_amount': total_amount
+                        },
+                        url=url_for('view_po_status')
+                    )
+                except Exception as e:
+                    print(f"Notification error: {e}")
+                
                 return redirect(url_for('view_po_status'))
             except sqlite3.IntegrityError as e:
                 flash('Error updating Purchase Order: {}'.format(e), 'danger')
@@ -5477,6 +5644,29 @@ def save_quotation():
         conn.commit()
         conn.close()
         flash('Quotation saved successfully!', 'success')
+        
+        # Send notifications to stakeholders
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Unknown')
+            
+            # Notify admins and project stakeholders
+            recipients = notification_service.get_admin_recipients()
+            
+            notification_service.notify_activity(
+                event_code='quotation.submitted',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'project_name': project_name,
+                    'quotation_ref': quote_ref,
+                    'total_value': total_value
+                },
+                url=url_for('registered_quotations')
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
 
         # --- Step 2: Generate Excel File for Download ---
         df = pd.DataFrame(items)
@@ -6249,8 +6439,29 @@ def register():
                 VALUES (?, ?, ?, ?, ?, ?, 'pending')
             """, (username, hashed_password, requested_role, email, full_name, reason))
             
+            request_id = c.lastrowid
             conn.commit()
             flash(f'Registration request submitted successfully! Your account will be activated once approved by an administrator.', 'success')
+            
+            # Send notification to admins about new registration
+            try:
+                recipients = notification_service.get_admin_recipients()
+                notification_service.notify_activity(
+                    event_code='user.registered',
+                    recipient_ids=recipients,
+                    actor_id=None,
+                    context={
+                        'actor_name': 'System',
+                        'username': username,
+                        'full_name': full_name,
+                        'requested_role': requested_role,
+                        'email': email
+                    },
+                    url=url_for('pending_registrations')
+                )
+            except Exception as e:
+                print(f"Notification error: {e}")
+            
             return redirect(url_for('login'))
         except Exception as e:
             flash(f'An error occurred: {e}', 'danger')
@@ -6339,6 +6550,27 @@ def approve_registration(request_id):
         
         conn.commit()
         flash(f'User "{request_data["username"]}" has been approved and activated!', 'success')
+        
+        # Send notification to the approved user
+        try:
+            # Get the new user's ID
+            c.execute("SELECT id FROM users WHERE username = ?", (request_data['username'],))
+            new_user = c.fetchone()
+            
+            if new_user:
+                notification_service.notify_activity(
+                    event_code='user.approved',
+                    recipient_ids=[new_user['id']],
+                    actor_id=session.get('user_id'),
+                    context={
+                        'actor_name': session.get('username', 'Admin'),
+                        'username': request_data['username']
+                    },
+                    url=url_for('login')
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+            
     except sqlite3.IntegrityError:
         flash(f'Username "{request_data["username"]}" already exists!', 'danger')
     except Exception as e:
@@ -6924,6 +7156,81 @@ def api_calculate_deal_value(project_name):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+##############################################
+# ============ NOTIFICATION API ENDPOINTS ============
+##############################################
+
+@app.route('/api/notifications/feed', methods=['GET'])
+@login_required
+def api_notifications_feed():
+    """
+    Get notifications for the current user
+    Query params: limit (default 10), offset (default 0), unread_only (default false)
+    """
+    try:
+        user_id = session.get('user_id')
+        limit = int(request.args.get('limit', 10))
+        offset = int(request.args.get('offset', 0))
+        unread_only = request.args.get('unread_only', 'false').lower() == 'true'
+        
+        notifications = notification_service.get_notifications(
+            user_id=user_id,
+            unread_only=unread_only,
+            limit=limit,
+            offset=offset
+        )
+        
+        return jsonify({
+            'success': True,
+            'notifications': notifications
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/notifications/mark_read', methods=['POST'])
+@login_required
+def api_notifications_mark_read():
+    """
+    Mark notifications as read
+    Body: { "notification_ids": [1, 2, 3] } or { "all": true }
+    """
+    try:
+        user_id = session.get('user_id')
+        data = request.get_json()
+        
+        if data.get('all'):
+            success = notification_service.mark_all_as_read(user_id)
+        else:
+            notification_ids = data.get('notification_ids', [])
+            success = notification_service.mark_as_read(notification_ids, user_id)
+        
+        return jsonify({
+            'success': success,
+            'message': 'Notifications marked as read' if success else 'Failed to mark notifications as read'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/notifications/count', methods=['GET'])
+@login_required
+def api_notifications_count():
+    """
+    Get unread notification count for the current user
+    """
+    try:
+        user_id = session.get('user_id')
+        count = notification_service.get_unread_count(user_id)
+        
+        return jsonify({
+            'success': True,
+            'unread_count': count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 ##############################################
 if __name__ == '__main__':
