@@ -357,10 +357,70 @@ def filter_duplicates_by_system(quotes):
     
     return filtered_quotes
 
+def quote_matches_project(quote_ref, project_name):
+    """
+    AI-based intelligent matching: Determine if a quote belongs to a specific project
+    by analyzing identifiers in the quote reference
+    
+    Critical for cases where one project name contains multiple sub-projects
+    Example: "Qalam School 'Wadi'" should only include Wadi quotes, not Qalam quotes
+    
+    Args:
+        quote_ref: Quote reference string (e.g., QT-MF0380225,SchlWadi,H3C-R09)
+        project_name: Project name (e.g., "Qalam School 'Wadi'")
+    
+    Returns:
+        Boolean: True if quote belongs to this project, False otherwise
+    """
+    if not quote_ref or not project_name:
+        return True  # Default to include if missing data
+    
+    quote_lower = quote_ref.lower()
+    project_lower = project_name.lower()
+    
+    # Define school/location identifiers and their keywords
+    # Format: (identifier_in_quote, keyword_in_project_name)
+    identifier_mappings = [
+        ('schlqlm', 'qalam'),
+        ('schlwadi', 'wadi'),
+        ('schltawn', "ta'won"),
+        ('schltawon', "ta'won"),
+        ('tawon', "ta'won"),
+        ('tawn', "ta'won"),
+        ('almajd', 'majd'),
+        ('soh', 'soho'),
+        ('bedrock', 'bedrock'),
+        ('kfsh', 'faisal'),
+        ('kucct1', 'tender 1'),
+        ('kucct2', 'tender 2'),
+        ('nasr', 'nasr'),
+    ]
+    
+    # Check if quote contains any specific identifier
+    found_identifiers = []
+    for quote_id, project_keyword in identifier_mappings:
+        if quote_id in quote_lower:
+            found_identifiers.append((quote_id, project_keyword))
+    
+    # If no specific identifiers found, include the quote (default behavior)
+    if not found_identifiers:
+        return True
+    
+    # Check if any found identifier matches the project name
+    for quote_id, project_keyword in found_identifiers:
+        if project_keyword in project_lower:
+            return True
+    
+    # Identifier found in quote but doesn't match project name - exclude it
+    return False
+
 def calculate_deal_value_for_project(project_name, conn=None):
     """
     Calculate the deal value for a specific project from its quotations
     Uses AI logic to handle revisions and avoid duplicates
+    
+    ENHANCED: Now includes intelligent quote-to-project matching to handle
+    cases where multiple sub-projects share similar names
     
     Args:
         project_name: Name of the project
@@ -391,8 +451,18 @@ def calculate_deal_value_for_project(project_name, conn=None):
         if not quotes:
             return 0.0, []
         
+        # ENHANCED AI: Filter quotes to only include those that actually belong to this project
+        # This prevents mixing quotes from different sub-projects (e.g., Qalam vs Wadi)
+        matched_quotes = [
+            q for q in quotes 
+            if quote_matches_project(q[0], project_name)  # q[0] is quote_ref
+        ]
+        
+        if not matched_quotes:
+            return 0.0, []
+        
         # Apply AI logic to get latest revisions only
-        latest_quotes = get_latest_quote_revisions(quotes)
+        latest_quotes = get_latest_quote_revisions(matched_quotes)
         
         # Further filter by system to avoid duplicates
         filtered_quotes = filter_duplicates_by_system(latest_quotes)
