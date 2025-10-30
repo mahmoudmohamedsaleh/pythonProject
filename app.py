@@ -2871,9 +2871,9 @@ def update_project_stage():
         
         # Get current stage and project details before updating
         c.execute("""
-            SELECT rp.stage, rp.id, e.id as sales_engineer_id, e.username as sales_engineer_name
+            SELECT rp.stage, rp.id, rp.sales_engineer_id, e.username as sales_engineer_name
             FROM register_project rp
-            LEFT JOIN engineers e ON rp.sales_engineer = e.username
+            LEFT JOIN engineers e ON rp.sales_engineer_id = e.id
             WHERE rp.project_name = ?
         """, (project_name,))
         project_info = c.fetchone()
@@ -2907,8 +2907,8 @@ def update_project_stage():
             
             # Add sales engineer to recipients if exists
             recipients = admin_recipients.copy()
-            if sales_engineer_id:
-                # Get user_id for this sales engineer
+            if sales_engineer_id and sales_engineer_name:
+                # Get user_id for this sales engineer from users table
                 conn2 = sqlite3.connect('ProjectStatus.db')
                 c2 = conn2.cursor()
                 c2.execute("SELECT id FROM users WHERE username = ?", (sales_engineer_name,))
