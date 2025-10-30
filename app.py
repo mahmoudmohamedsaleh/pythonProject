@@ -2868,6 +2868,25 @@ def update_project_stage():
     try:
         conn = sqlite3.connect('ProjectStatus.db')
         c = conn.cursor()
+        
+        # Get current stage and project details before updating
+        c.execute("""
+            SELECT rp.stage, rp.id, e.id as sales_engineer_id, e.username as sales_engineer_name
+            FROM register_project rp
+            LEFT JOIN engineers e ON rp.sales_engineer = e.username
+            WHERE rp.project_name = ?
+        """, (project_name,))
+        project_info = c.fetchone()
+        
+        if not project_info:
+            conn.close()
+            return jsonify({'status': 'error', 'message': 'Project not found'}), 404
+        
+        old_stage = project_info[0]
+        project_id = project_info[1]
+        sales_engineer_id = project_info[2]
+        sales_engineer_name = project_info[3]
+        
         # Update the stage, probability, AND the updated_time
         c.execute("""
             UPDATE register_project 
@@ -2876,6 +2895,45 @@ def update_project_stage():
         """, (new_stage, new_probability, updated_time, project_name))
         conn.commit()
         conn.close()
+        
+        # Send notifications for stage change
+        try:
+            # Get actor information
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Unknown User')
+            
+            # Get admin recipients
+            admin_recipients = notification_service.get_admin_recipients()
+            
+            # Add sales engineer to recipients if exists
+            recipients = admin_recipients.copy()
+            if sales_engineer_id:
+                # Get user_id for this sales engineer
+                conn2 = sqlite3.connect('ProjectStatus.db')
+                c2 = conn2.cursor()
+                c2.execute("SELECT id FROM users WHERE username = ?", (sales_engineer_name,))
+                sales_user = c2.fetchone()
+                conn2.close()
+                
+                if sales_user and sales_user[0] not in recipients:
+                    recipients.append(sales_user[0])
+            
+            # Create notification for stage change
+            notification_service.notify_activity(
+                event_code='project.stage_changed',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'project_name': project_name,
+                    'old_stage': old_stage,
+                    'new_stage': new_stage,
+                    'sales_engineer': sales_engineer_name or 'Not assigned'
+                },
+                url=url_for('project_pipeline')
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
 
         return jsonify({'status': 'success', 'message': 'Project stage updated', 'newProbability': new_probability})
     except Exception as e:
