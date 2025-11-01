@@ -7,7 +7,9 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 
 ### Client Management System ✅ (2025-11-01)
 - **Client Status Tracking**: Added `is_client` boolean column to End Users, Contractors, and Consultants tables
-- **Sales Engineer Assignment**: Added `assigned_sales_engineer_id` column with foreign key to engineers table
+- **Engineer Assignment**: Added `assigned_sales_engineer_id` column with foreign key to engineers table
+  - **Expanded Role Support**: Can assign Sales Engineers, Project Managers, General Managers, and Technical Team Leaders
+  - **Role Display**: Dropdown shows engineer name with role in parentheses for clarity
 - **Dedicated Management Dashboard**: New `/manage_clients` route with comprehensive admin interface
   - **Summary Statistics**: Dashboard showing count of clients by type (End Users, Contractors, Consultants)
   - **Tabbed Interface**: Organized view of all entities in separate tabs
