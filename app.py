@@ -4462,6 +4462,22 @@ def approve_project(project_id):
     c = conn.cursor()
     
     try:
+        # Get project details before updating
+        c.execute("""
+            SELECT project_name, updated_by, sales_engineer_id
+            FROM register_project
+            WHERE id = ?
+        """, (project_id,))
+        project_data = c.fetchone()
+        
+        if not project_data:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+        
+        project_name = project_data[0]
+        registered_by_username = project_data[1]
+        sales_engineer_id = project_data[2]
+        
+        # Update project approval status
         c.execute("""
             UPDATE register_project 
             SET approval_status = 'Approved',
@@ -4473,6 +4489,48 @@ def approve_project(project_id):
         
         conn.commit()
         flash('Project approved successfully!', 'success')
+        
+        # Send notifications
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Admin')
+            
+            # Build recipient list: admins + registrar + sales engineer
+            recipients = notification_service.get_admin_recipients()
+            
+            # Add the user who registered the project
+            if registered_by_username:
+                registrar_user_id = notification_service.get_user_id_by_username(registered_by_username)
+                if registrar_user_id and registrar_user_id not in recipients:
+                    recipients.append(registrar_user_id)
+            
+            # Add the sales engineer
+            if sales_engineer_id:
+                # Get user_id from engineers table
+                c.execute("SELECT username FROM engineers WHERE id = ?", (sales_engineer_id,))
+                engineer_result = c.fetchone()
+                if engineer_result:
+                    engineer_username = engineer_result[0]
+                    engineer_user_id = notification_service.get_user_id_by_username(engineer_username)
+                    if engineer_user_id and engineer_user_id not in recipients:
+                        recipients.append(engineer_user_id)
+            
+            # Send notification
+            notification_service.notify_activity(
+                event_code='project.approved',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'project_name': project_name,
+                    'project_id': project_id,
+                    'approval_notes': approval_notes
+                },
+                url=url_for('edit_project_pipeline', project_id=project_id)
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
+        
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -4494,6 +4552,22 @@ def reject_project(project_id):
     c = conn.cursor()
     
     try:
+        # Get project details before updating
+        c.execute("""
+            SELECT project_name, updated_by, sales_engineer_id
+            FROM register_project
+            WHERE id = ?
+        """, (project_id,))
+        project_data = c.fetchone()
+        
+        if not project_data:
+            return jsonify({'success': False, 'error': 'Project not found'}), 404
+        
+        project_name = project_data[0]
+        registered_by_username = project_data[1]
+        sales_engineer_id = project_data[2]
+        
+        # Update project rejection status
         c.execute("""
             UPDATE register_project 
             SET approval_status = 'Rejected',
@@ -4505,6 +4579,48 @@ def reject_project(project_id):
         
         conn.commit()
         flash('Project rejected.', 'warning')
+        
+        # Send notifications
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Admin')
+            
+            # Build recipient list: admins + registrar + sales engineer
+            recipients = notification_service.get_admin_recipients()
+            
+            # Add the user who registered the project
+            if registered_by_username:
+                registrar_user_id = notification_service.get_user_id_by_username(registered_by_username)
+                if registrar_user_id and registrar_user_id not in recipients:
+                    recipients.append(registrar_user_id)
+            
+            # Add the sales engineer
+            if sales_engineer_id:
+                # Get user_id from engineers table
+                c.execute("SELECT username FROM engineers WHERE id = ?", (sales_engineer_id,))
+                engineer_result = c.fetchone()
+                if engineer_result:
+                    engineer_username = engineer_result[0]
+                    engineer_user_id = notification_service.get_user_id_by_username(engineer_username)
+                    if engineer_user_id and engineer_user_id not in recipients:
+                        recipients.append(engineer_user_id)
+            
+            # Send notification
+            notification_service.notify_activity(
+                event_code='project.rejected',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'project_name': project_name,
+                    'project_id': project_id,
+                    'rejection_reason': rejection_reason
+                },
+                url=url_for('pending_project_approvals')
+            )
+        except Exception as e:
+            print(f"Notification error: {e}")
+        
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
