@@ -4071,6 +4071,9 @@ def view_end_users():
         end_users_with_counts.append(end_user + (project_count,))
     
     conn.close()
+    
+    # Sort end users by project count (descending - most projects first)
+    end_users_with_counts.sort(key=lambda x: x[6], reverse=True)
 
     # Pass the list of end users (with project counts) and the search query to the template
     return render_template('view_end_users.html', end_users=end_users_with_counts, search_query=search_query)
