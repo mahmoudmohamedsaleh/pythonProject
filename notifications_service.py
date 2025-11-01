@@ -143,7 +143,18 @@ class NotificationService:
         
         # RFQ events
         elif event_code == 'rfq.created':
-            return f"{actor} created RFQ for project: {context.get('project_name', 'Unknown')}"
+            rfq_ref = context.get('rfq_reference', 'Unknown')
+            project_name = context.get('project_name', 'Unknown')
+            priority = context.get('priority', '')
+            rfq_status = context.get('rfq_status', '')
+            details = []
+            if priority:
+                details.append(f"Priority: {priority}")
+            if rfq_status:
+                details.append(f"Status: {rfq_status}")
+            detail_str = ", ".join(details) if details else ""
+            base_msg = f"{actor} created RFQ {rfq_ref} for {project_name}"
+            return f"{base_msg} - {detail_str}" if detail_str else base_msg
         elif event_code == 'rfq.updated':
             rfq_ref = context.get('rfq_reference', 'Unknown')
             project_name = context.get('project_name', 'Unknown')

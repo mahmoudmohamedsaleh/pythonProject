@@ -3298,31 +3298,50 @@ def request_for_quotation():
             conn.commit()
             flash('RFQ created and project stage updated successfully!', 'success')
 
-            # Send notifications to presale engineer
+            # Send notifications
             try:
                 actor_id = session.get('user_id')
                 actor_name = session.get('username', 'Unknown')
                 
-                # Get presale engineer user ID
-                c2 = sqlite3.connect('ProjectStatus.db').cursor()
-                presale_user_id = notification_service.get_user_id_by_username(sales_engineer_presale)
-                recipients = [presale_user_id] if presale_user_id else []
-                recipients.extend(notification_service.get_admin_recipients())
-                recipients = list(set(recipients))
+                # Build recipient list: all presales + admins + sales engineer
+                recipients = []
                 
-                notification_service.notify_activity(
-                    event_code='rfq.created',
-                    recipient_ids=recipients,
-                    actor_id=actor_id,
-                    context={
-                        'actor_name': actor_name,
-                        'project_name': project_name,
-                        'rfq_ref': rfq_reference,
-                        'rfq_id': rfq_id
-                    },
-                    url=url_for('rfq_summary')
-                )
-                c2.close()
+                # Add all Presale Engineers
+                recipients.extend(notification_service.get_presale_recipients())
+                
+                # Add General Managers and Technical Team Leaders
+                recipients.extend(notification_service.get_admin_recipients())
+                
+                # Add the Sales Engineer from the RFQ
+                if sales_engineer_sales:
+                    sales_eng_user_id = notification_service.get_user_id_by_username(sales_engineer_sales)
+                    if sales_eng_user_id and sales_eng_user_id not in recipients:
+                        recipients.append(sales_eng_user_id)
+                
+                # Remove duplicates and current user
+                recipients = list(set(recipients))
+                if actor_id in recipients:
+                    recipients.remove(actor_id)
+                
+                # Send notification with RFQ details
+                if recipients:
+                    notification_service.notify_activity(
+                        event_code='rfq.created',
+                        recipient_ids=recipients,
+                        actor_id=actor_id,
+                        context={
+                            'actor_name': actor_name,
+                            'project_name': project_name,
+                            'rfq_reference': rfq_reference,
+                            'priority': priority,
+                            'rfq_status': rfq_status,
+                            'quotation_status': quotation_status,
+                            'presale_engineer': sales_engineer_presale,
+                            'sales_engineer': sales_engineer_sales,
+                            'deadline': deadline
+                        },
+                        url=url_for('rfq_summary')
+                    )
             except Exception as e:
                 print(f"Notification error: {e}")
 
