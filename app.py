@@ -4259,7 +4259,7 @@ def end_user_projects(end_user_id):
         flash('End user not found.', 'danger')
         return redirect(url_for('view_end_users'))
     
-    # Get all projects for this end user
+    # Get all projects for this end user with additional details
     c.execute("""
         SELECT 
             rp.id,
@@ -4271,7 +4271,8 @@ def end_user_projects(end_user_id):
             rp.registered_date,
             e.username as sales_engineer,
             c.name as contractor,
-            con.name as consultant
+            con.name as consultant,
+            rp.scope_of_work
         FROM register_project rp
         LEFT JOIN engineers e ON rp.sales_engineer_id = e.id
         LEFT JOIN contractors c ON rp.contractor_id = c.id
@@ -4281,9 +4282,25 @@ def end_user_projects(end_user_id):
     """, (end_user_id,))
     
     projects = c.fetchall()
+    
+    # Calculate summary statistics
+    total_projects = len(projects)
+    total_value = sum(p[3] if p[3] else 0 for p in projects)
+    
+    # Count by stage
+    stage_counts = {}
+    for project in projects:
+        stage = project[2] if project[2] else 'Unknown'
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+    
     conn.close()
     
-    return render_template('end_user_projects.html', end_user=end_user, projects=projects)
+    return render_template('end_user_projects.html', 
+                         end_user=end_user, 
+                         projects=projects,
+                         total_projects=total_projects,
+                         total_value=total_value,
+                         stage_counts=stage_counts)
 
 ####################
 @app.route('/edit_end_user/<int:end_user_id>', methods=['GET', 'POST'])
