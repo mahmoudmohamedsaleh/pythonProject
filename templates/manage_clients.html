@@ -182,10 +182,10 @@
                                     <select class="form-control form-control-sm sales-engineer-assign" 
                                             data-entity-type="end_user" 
                                             data-entity-id="{{ eu[0] }}"
-                                            style="max-width: 150px;">
+                                            style="max-width: 200px;">
                                         <option value="">Assign Engineer...</option>
-                                        {% for se in sales_engineers %}
-                                        <option value="{{ se[0] }}" {{ 'selected' if eu[6] == se[0] else '' }}>{{ se[1] }}</option>
+                                        {% for eng in engineers %}
+                                        <option value="{{ eng[0] }}" {{ 'selected' if eu[6] == eng[0] else '' }}>{{ eng[1] }} ({{ eng[2] }})</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -254,10 +254,10 @@
                                     <select class="form-control form-control-sm sales-engineer-assign" 
                                             data-entity-type="contractor" 
                                             data-entity-id="{{ c[0] }}"
-                                            style="max-width: 150px;">
+                                            style="max-width: 200px;">
                                         <option value="">Assign Engineer...</option>
-                                        {% for se in sales_engineers %}
-                                        <option value="{{ se[0] }}" {{ 'selected' if c[6] == se[0] else '' }}>{{ se[1] }}</option>
+                                        {% for eng in engineers %}
+                                        <option value="{{ eng[0] }}" {{ 'selected' if c[6] == eng[0] else '' }}>{{ eng[1] }} ({{ eng[2] }})</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -326,10 +326,10 @@
                                     <select class="form-control form-control-sm sales-engineer-assign" 
                                             data-entity-type="consultant" 
                                             data-entity-id="{{ con[0] }}"
-                                            style="max-width: 150px;">
+                                            style="max-width: 200px;">
                                         <option value="">Assign Engineer...</option>
-                                        {% for se in sales_engineers %}
-                                        <option value="{{ se[0] }}" {{ 'selected' if con[6] == se[0] else '' }}>{{ se[1] }}</option>
+                                        {% for eng in engineers %}
+                                        <option value="{{ eng[0] }}" {{ 'selected' if con[6] == eng[0] else '' }}>{{ eng[1] }} ({{ eng[2] }})</option>
                                         {% endfor %}
                                     </select>
                                 </div>
