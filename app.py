@@ -3879,11 +3879,28 @@ def documents_page():
 @app.route('/view_consultants')
 @permission_required('view_consultants')
 def view_consultants():
-    # Get the search query from the URL arguments
+    """
+    View consultants page
+    Sales Engineers see only their assigned consultants
+    Admins (GM, TTL, Presale) see all consultants
+    """
     search_query = request.args.get('search_query', '')
 
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Get user role and engineer ID for filtering
+    c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+    user_role_result = c.fetchone()
+    user_role = user_role_result[0] if user_role_result else None
+    
+    # Get engineer ID if user is a Sales Engineer
+    engineer_id = None
+    if user_role == 'Sales Engineer':
+        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        engineer_id_result = c.fetchone()
+        if engineer_id_result:
+            engineer_id = engineer_id_result[0]
     
     # Get all sales engineers for assignment dropdown
     c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
@@ -3892,19 +3909,40 @@ def view_consultants():
     if search_query:
         # If a search query exists, filter the results by name or contact person
         query_param = f'%{search_query}%'
-        c.execute("""
-            SELECT con.*, e.username as assigned_engineer_name 
-            FROM consultants con
-            LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
-            WHERE con.name LIKE ? OR con.contact_person LIKE ?
-        """, (query_param, query_param))
+        if engineer_id:
+            # Sales Engineer: only their assigned consultants
+            c.execute("""
+                SELECT con.*, e.username as assigned_engineer_name 
+                FROM consultants con
+                LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+                WHERE con.assigned_sales_engineer_id = ?
+                AND (con.name LIKE ? OR con.contact_person LIKE ?)
+            """, (engineer_id, query_param, query_param))
+        else:
+            # Admin: all consultants
+            c.execute("""
+                SELECT con.*, e.username as assigned_engineer_name 
+                FROM consultants con
+                LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+                WHERE con.name LIKE ? OR con.contact_person LIKE ?
+            """, (query_param, query_param))
     else:
-        # If there is no search query, fetch all consultants
-        c.execute("""
-            SELECT con.*, e.username as assigned_engineer_name 
-            FROM consultants con
-            LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
-        """)
+        # If there is no search query, fetch consultants
+        if engineer_id:
+            # Sales Engineer: only their assigned consultants
+            c.execute("""
+                SELECT con.*, e.username as assigned_engineer_name 
+                FROM consultants con
+                LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+                WHERE con.assigned_sales_engineer_id = ?
+            """, (engineer_id,))
+        else:
+            # Admin: all consultants
+            c.execute("""
+                SELECT con.*, e.username as assigned_engineer_name 
+                FROM consultants con
+                LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+            """)
 
     consultants = c.fetchall()
     
@@ -4487,11 +4525,28 @@ def view_projects():
 @app.route('/view_end_users')
 @permission_required('view_end_users')
 def view_end_users():
-    # Get the search query from the URL arguments
+    """
+    View end users page
+    Sales Engineers see only their assigned end users
+    Admins (GM, TTL, Presale) see all end users
+    """
     search_query = request.args.get('search_query', '')
 
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Get user role and engineer ID for filtering
+    c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+    user_role_result = c.fetchone()
+    user_role = user_role_result[0] if user_role_result else None
+    
+    # Get engineer ID if user is a Sales Engineer
+    engineer_id = None
+    if user_role == 'Sales Engineer':
+        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        engineer_id_result = c.fetchone()
+        if engineer_id_result:
+            engineer_id = engineer_id_result[0]
     
     # Get all sales engineers for assignment dropdown
     c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
@@ -4500,19 +4555,40 @@ def view_end_users():
     if search_query:
         # If a search query exists, filter the results by name or contact person
         query_param = f'%{search_query}%'
-        c.execute("""
-            SELECT eu.*, e.username as assigned_engineer_name 
-            FROM end_users eu
-            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-            WHERE eu.name LIKE ? OR eu.contact_person LIKE ?
-        """, (query_param, query_param))
+        if engineer_id:
+            # Sales Engineer: only their assigned end users
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.assigned_sales_engineer_id = ?
+                AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
+            """, (engineer_id, query_param, query_param))
+        else:
+            # Admin: all end users
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.name LIKE ? OR eu.contact_person LIKE ?
+            """, (query_param, query_param))
     else:
-        # If there is no search query, fetch all end users
-        c.execute("""
-            SELECT eu.*, e.username as assigned_engineer_name 
-            FROM end_users eu
-            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-        """)
+        # If there is no search query, fetch end users
+        if engineer_id:
+            # Sales Engineer: only their assigned end users
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.assigned_sales_engineer_id = ?
+            """, (engineer_id,))
+        else:
+            # Admin: all end users
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+            """)
 
     end_users = c.fetchall()
     
