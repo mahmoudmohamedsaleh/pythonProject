@@ -4526,7 +4526,7 @@ def approve_project(project_id):
                     'project_id': project_id,
                     'approval_notes': approval_notes
                 },
-                url=url_for('edit_project_pipeline', project_id=project_id)
+                url=url_for('project_pipeline')
             )
         except Exception as e:
             print(f"Notification error: {e}")
