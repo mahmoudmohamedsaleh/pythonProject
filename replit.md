@@ -23,6 +23,13 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
   - Notification links directly to Pending Project Approvals page
   - Only admins (General Manager and Technical Team Leader) receive these notifications
   - New event code: `project.pending_approval` added to notification system
+- **Approval/Rejection Notifications**: Implemented notifications for approval decisions
+  - When admin approves a project, notifications sent to: admins, registrar, and assigned sales engineer
+  - When admin rejects a project, notifications sent to: admins, registrar, and assigned sales engineer
+  - Approval notification: "{Admin} approved your project: {Project Name}"
+  - Rejection notification: "{Admin} rejected your project: {Project Name}. Reason: {Reason}"
+  - New event codes: `project.approved` and `project.rejected` added to notification system
+  - Notifications link to project details page for approved projects
 
 ### Project Approval System ✅ (2025-11-01)
 - **Approval Workflow**: New projects require admin approval before entering the pipeline

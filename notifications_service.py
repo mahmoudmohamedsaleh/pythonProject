@@ -117,6 +117,11 @@ class NotificationService:
             return f"{actor} created a new project: {context.get('project_name', 'Unknown')}"
         elif event_code == 'project.pending_approval':
             return f"{actor} registered a new project that needs your approval: {context.get('project_name', 'Unknown')}"
+        elif event_code == 'project.approved':
+            return f"{actor} approved your project: {context.get('project_name', 'Unknown')}"
+        elif event_code == 'project.rejected':
+            reason = context.get('rejection_reason', 'No reason provided')
+            return f"{actor} rejected your project: {context.get('project_name', 'Unknown')}. Reason: {reason}"
         elif event_code == 'project.updated':
             return f"{actor} updated project: {context.get('project_name', 'Unknown')}"
         elif event_code == 'project.deleted':
