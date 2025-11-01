@@ -228,19 +228,42 @@ function setupNotificationEventHandlers() {
 }
 
 function formatTimeAgo(timestamp) {
-    const now = new Date();
-    const notifTime = new Date(timestamp);
-    const diffMs = now - notifTime;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return notifTime.toLocaleDateString();
+    try {
+        // Parse timestamp - handle both ISO format and SQL datetime format
+        const notifTime = new Date(timestamp.replace(' ', 'T') + (timestamp.includes('Z') ? '' : 'Z'));
+        const now = new Date();
+        
+        // Calculate difference in milliseconds
+        const diffMs = now - notifTime;
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        // Return human-readable relative time
+        if (diffSecs < 10) return 'Just now';
+        if (diffSecs < 60) return `${diffSecs} seconds ago`;
+        if (diffMins === 1) return '1 minute ago';
+        if (diffMins < 60) return `${diffMins} minutes ago`;
+        if (diffHours === 1) return '1 hour ago';
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        if (diffDays === 1) return '1 day ago';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+        if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+        
+        // For older notifications, show the actual date in user's timezone
+        return notifTime.toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (e) {
+        console.error('Error formatting time:', e, timestamp);
+        return 'Unknown time';
+    }
 }
 
 function escapeHtml(text) {

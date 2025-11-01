@@ -49,6 +49,7 @@ The system features a comprehensive admin access control UI at `/access_control`
 - Robust security architecture with complete route protection (100% of protected routes secured).
 - Automatic password migration for legacy plaintext passwords.
 - Multi-source email lookup for password resets.
+- **Timezone Handling**: Automatic timezone conversion for all timestamps using browser's local timezone. Users table includes timezone preference field (default: Asia/Riyadh). Notification timestamps display as relative time (e.g., "5 minutes ago") with automatic conversion to user's local time.
 
 ## External Dependencies
 - **Email Service**: Resend API (for OTP via email).
