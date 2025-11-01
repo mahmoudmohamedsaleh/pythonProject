@@ -40,6 +40,7 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **Smart Form Auto-Selection**: Project registration form automatically defaults to "Lead" stage and pre-selects the logged-in user as sales engineer for streamlined data entry.
 - **All Clients Dashboard**: Unified view displaying all entities marked as clients across End Users, Contractors, and Consultants in a searchable card-based interface with type badges and project counts.
 - **Role-Based Data Filtering**: Sales Engineers see only entities assigned to them in All Clients, End Users, Contractors, and Consultants pages, while General Managers, Technical Team Leaders, and Presale Engineers see all entities. Filtering applies to both search and normal view modes.
+- **RFQ Creation Notifications**: Automatic notifications sent to all Presale Engineers, Technical Team Leaders, General Managers, and the assigned Sales Engineer when a new RFQ is created. Notifications include: RFQ reference, project name, priority, and status.
 - **RFQ Edit Notifications**: Automatic notifications sent to all Presale Engineers, Technical Team Leaders, General Managers, and the assigned Sales Engineer when an RFQ is edited. Notifications include updated data: RFQ reference, project name, status, priority, and deadline.
 - **RFQ Chronological Ordering**: RFQs displayed from newest to oldest across all views (RFQ Summary, Pipeline, Excel exports) using requested_time descending order.
 
