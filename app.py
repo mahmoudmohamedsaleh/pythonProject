@@ -5580,12 +5580,56 @@ def add_rfq_comment(rfq_id):
     c = conn.cursor()
     
     try:
+        # Get RFQ details for notification
+        c.execute("SELECT rfq_reference, project_name FROM rfq_requests WHERE id = ?", (rfq_id,))
+        rfq_data = c.fetchone()
+        rfq_reference = rfq_data[0] if rfq_data else 'Unknown'
+        project_name = rfq_data[1] if rfq_data else 'Unknown'
+        
+        # Insert comment
         c.execute('''
             INSERT INTO rfq_comments (rfq_id, user_id, username, comment, created_at)
             VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
         ''', (rfq_id, session['user_id'], session['username'], comment_text))
         conn.commit()
         flash('Comment added successfully!', 'success')
+        
+        # Send notifications to all presale engineers and technical team leaders
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'User')
+            
+            # Build recipient list: all presales + technical team leaders
+            recipients = []
+            
+            # Add all Presale Engineers
+            recipients.extend(notification_service.get_presale_recipients())
+            
+            # Add all Technical Team Leaders and General Managers
+            recipients.extend(notification_service.get_admin_recipients())
+            
+            # Remove duplicates and current user
+            recipients = list(set(recipients))
+            if actor_id in recipients:
+                recipients.remove(actor_id)
+            
+            # Send notification
+            if recipients:
+                notification_service.notify_activity(
+                    event_code='rfq.comment_added',
+                    recipient_ids=recipients,
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'rfq_reference': rfq_reference,
+                        'project_name': project_name,
+                        'comment_preview': comment_text[:100]
+                    },
+                    url=url_for('rfq_summary')
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+            
     except Exception as e:
         flash(f'Error adding comment: {str(e)}', 'danger')
     finally:
