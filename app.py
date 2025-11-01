@@ -4323,6 +4323,80 @@ def assign_sales_engineer():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 ####################
+@app.route('/manage_clients')
+@login_required
+def manage_clients():
+    # Check if user is admin
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('index'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get all sales engineers for assignment dropdown
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    sales_engineers = c.fetchall()
+    
+    # Get ALL End Users with client status and assigned sales engineer
+    c.execute("""
+        SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.email, 
+               eu.is_client, eu.assigned_sales_engineer_id, e.username as assigned_engineer_name,
+               COUNT(DISTINCT rp.id) as project_count
+        FROM end_users eu
+        LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+        LEFT JOIN register_project rp ON eu.id = rp.end_user_id
+        GROUP BY eu.id, eu.name, eu.contact_person, eu.phone, eu.email, 
+                 eu.is_client, eu.assigned_sales_engineer_id, e.username
+        ORDER BY eu.is_client DESC, project_count DESC
+    """)
+    all_end_users = c.fetchall()
+    
+    # Get ALL Contractors with client status and assigned sales engineer
+    c.execute("""
+        SELECT c.id, c.name, c.contact_person, c.phone, c.email, 
+               c.is_client, c.assigned_sales_engineer_id, e.username as assigned_engineer_name,
+               COUNT(DISTINCT rp.id) as project_count
+        FROM contractors c
+        LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        LEFT JOIN register_project rp ON c.id = rp.contractor_id
+        GROUP BY c.id, c.name, c.contact_person, c.phone, c.email, 
+                 c.is_client, c.assigned_sales_engineer_id, e.username
+        ORDER BY c.is_client DESC, project_count DESC
+    """)
+    all_contractors = c.fetchall()
+    
+    # Get ALL Consultants with client status and assigned sales engineer
+    c.execute("""
+        SELECT con.id, con.name, con.contact_person, con.phone, con.email, 
+               con.is_client, con.assigned_sales_engineer_id, e.username as assigned_engineer_name,
+               COUNT(DISTINCT rp.id) as project_count
+        FROM consultants con
+        LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+        LEFT JOIN register_project rp ON con.id = rp.consultant_id
+        GROUP BY con.id, con.name, con.contact_person, con.phone, con.email, 
+                 con.is_client, con.assigned_sales_engineer_id, e.username
+        ORDER BY con.is_client DESC, project_count DESC
+    """)
+    all_consultants = c.fetchall()
+    
+    conn.close()
+    
+    # Count clients vs non-clients
+    client_end_users = [eu for eu in all_end_users if eu[5] == 1]
+    client_contractors = [c for c in all_contractors if c[5] == 1]
+    client_consultants = [con for con in all_consultants if con[5] == 1]
+    
+    return render_template('manage_clients.html',
+                         all_end_users=all_end_users,
+                         all_contractors=all_contractors,
+                         all_consultants=all_consultants,
+                         client_end_users=client_end_users,
+                         client_contractors=client_contractors,
+                         client_consultants=client_consultants,
+                         sales_engineers=sales_engineers)
+
+####################
 @app.route('/end_user_contractors/<int:end_user_id>')
 @login_required
 def end_user_contractors(end_user_id):
