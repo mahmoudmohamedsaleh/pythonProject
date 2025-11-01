@@ -2530,15 +2530,17 @@ def register_project():
 
         # Automatically generate the current timestamp
         registered_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Get the username of who is registering the project
+        updated_by = session.get('username', 'Unknown')
 
         try:
             # Updated INSERT statement with approval_status='Pending' for new projects
             c.execute('''INSERT INTO register_project 
                          (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note, 
-                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, approval_status)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, approval_status, updated_by)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note,
-                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending'))
+                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending', updated_by))
             project_id = c.lastrowid
             conn.commit()
             flash('Project registered successfully! It is pending admin approval before appearing in the pipeline.', 'info')
