@@ -3904,10 +3904,72 @@ def view_contractors():
         c.execute("SELECT * FROM contractors")
 
     contractors = c.fetchall()
+    
+    # Get project count for each contractor
+    contractors_with_counts = []
+    for contractor in contractors:
+        c.execute("SELECT COUNT(*) FROM register_project WHERE contractor_id = ?", (contractor[0],))
+        project_count = c.fetchone()[0]
+        contractors_with_counts.append(contractor + (project_count,))
+    
     conn.close()
+    
+    # Sort contractors by project count (descending - most projects first)
+    contractors_with_counts.sort(key=lambda x: x[6], reverse=True)
 
-    # Pass the list of contractors and the search query back to the template
-    return render_template('view_contractors.html', contractors=contractors, search_query=search_query)
+    # Pass the list of contractors (with project counts) and the search query back to the template
+    return render_template('view_contractors.html', contractors=contractors_with_counts, search_query=search_query)
+#############
+@app.route('/contractor_projects/<int:contractor_id>')
+@login_required
+def contractor_projects(contractor_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get contractor details
+    c.execute('SELECT id, name FROM contractors WHERE id = ?', (contractor_id,))
+    contractor = c.fetchone()
+    
+    if not contractor:
+        conn.close()
+        flash('Contractor not found.', 'danger')
+        return redirect(url_for('view_contractors'))
+    
+    # Get all projects for this contractor with additional details
+    c.execute("""
+        SELECT 
+            rp.id, rp.project_name, eu.name AS end_user, rp.stage,
+            rp.deal_value, rp.probability, rp.expected_close_date,
+            en.username AS sales_engineer, rp.registered_date,
+            rp.scope_of_work
+        FROM register_project rp
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN engineers en ON rp.sales_engineer_id = en.id
+        WHERE rp.contractor_id = ?
+        ORDER BY rp.registered_date DESC
+    """, (contractor_id,))
+    
+    projects = c.fetchall()
+    
+    # Calculate summary statistics
+    total_projects = len(projects)
+    total_value = sum(p[4] if p[4] else 0 for p in projects)
+    
+    # Count by stage
+    stage_counts = {}
+    for project in projects:
+        stage = project[3] if project[3] else 'Unknown'
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+    
+    conn.close()
+    
+    return render_template('contractor_projects.html', 
+                         contractor=contractor, 
+                         projects=projects,
+                         total_projects=total_projects,
+                         total_value=total_value,
+                         stage_counts=stage_counts)
+
 #############
 @app.route('/edit_consultant/<int:consultant_id>', methods=['GET', 'POST'])
 #@role_required('editor')
