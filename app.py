@@ -4034,8 +4034,8 @@ def view_all_clients():
             'phone': eu[3],
             'email': eu[4],
             'note': eu[5],
-            'assigned_engineer': eu[7] if len(eu) > 7 else None,
-            'assigned_engineer_id': eu[6],
+            'assigned_engineer': eu[8] if len(eu) > 8 else None,
+            'assigned_engineer_id': eu[7],
             'project_count': project_count,
             'contractor_count': contractor_count
         })
@@ -4071,8 +4071,8 @@ def view_all_clients():
             'phone': con[3],
             'email': con[4],
             'note': con[5],
-            'assigned_engineer': con[7] if len(con) > 7 else None,
-            'assigned_engineer_id': con[6],
+            'assigned_engineer': con[8] if len(con) > 8 else None,
+            'assigned_engineer_id': con[7],
             'project_count': project_count,
             'contractor_count': None
         })
@@ -4108,8 +4108,8 @@ def view_all_clients():
             'phone': cons[3],
             'email': cons[4],
             'note': cons[5],
-            'assigned_engineer': cons[7] if len(cons) > 7 else None,
-            'assigned_engineer_id': cons[6],
+            'assigned_engineer': cons[8] if len(cons) > 8 else None,
+            'assigned_engineer_id': cons[7],
             'project_count': project_count,
             'contractor_count': None
         })
