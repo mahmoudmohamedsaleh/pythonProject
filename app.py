@@ -3415,6 +3415,8 @@ def rfq_summary():
     if filters['quotation_status']: query += " AND r.quotation_status = ?"; params.append(filters['quotation_status'])
     if filters['start_date']: query += " AND date(r.requested_time) >= ?"; params.append(filters['start_date'])
     if filters['end_date']: query += " AND date(r.requested_time) <= ?"; params.append(filters['end_date'])
+    
+    query += " ORDER BY r.requested_time DESC"
 
     c.execute(query, params)
     rfqs = c.fetchall()
@@ -3510,6 +3512,8 @@ def download_filtered_rfqs():
     if filters['end_date']:
         query += " AND date(r.requested_time) <= ?"
         params.append(filters['end_date'])
+    
+    query += " ORDER BY r.requested_time DESC"
 
     c.execute(query, params)
     rfqs = c.fetchall()
@@ -3615,8 +3619,8 @@ def rfq_pipeline():
     # Initialize a dictionary to hold the structured pipeline data
     pipeline_data = {status: [] for status in status_ordered}
 
-    # Query to get all RFQs
-    c.execute("SELECT * FROM rfq_requests")
+    # Query to get all RFQs ordered by newest first
+    c.execute("SELECT * FROM rfq_requests ORDER BY requested_time DESC")
     rfqs = c.fetchall()
     conn.close()
 
