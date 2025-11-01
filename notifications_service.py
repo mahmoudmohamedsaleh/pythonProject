@@ -89,7 +89,7 @@ class NotificationService:
                 if not pref or pref['in_app_enabled']:
                     cursor.execute("""
                         INSERT INTO notifications 
-                        (recipient_id, actor_id, event_type, event_code, title, message, 
+                        (user_id, actor_id, event_type, event_code, title, message, 
                          context_data, priority, url, is_read, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
                     """, (recipient_id, actor_id, event_category, event_code, title, 
@@ -192,7 +192,7 @@ class NotificationService:
                 u.username as actor_name
             FROM notifications n
             LEFT JOIN users u ON n.actor_id = u.id
-            WHERE n.recipient_id = ?
+            WHERE n.user_id = ?
         """
         params = [user_id]
         
@@ -229,7 +229,7 @@ class NotificationService:
         cursor.execute("""
             SELECT COUNT(*) as count
             FROM notifications
-            WHERE recipient_id = ? AND is_read = 0
+            WHERE user_id = ? AND is_read = 0
         """, (user_id,))
         
         result = cursor.fetchone()
@@ -247,7 +247,7 @@ class NotificationService:
             cursor.execute(f"""
                 UPDATE notifications
                 SET is_read = 1, read_at = CURRENT_TIMESTAMP
-                WHERE id IN ({placeholders}) AND recipient_id = ?
+                WHERE id IN ({placeholders}) AND user_id = ?
             """, notification_ids + [user_id])
             
             conn.commit()
@@ -268,7 +268,7 @@ class NotificationService:
             cursor.execute("""
                 UPDATE notifications
                 SET is_read = 1, read_at = CURRENT_TIMESTAMP
-                WHERE recipient_id = ? AND is_read = 0
+                WHERE user_id = ? AND is_read = 0
             """, (user_id,))
             
             conn.commit()
