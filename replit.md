@@ -23,7 +23,7 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **Registration**: Public registration with admin approval workflow.
 - **Project Management**: Project registration, quotation submission, status updates, and tracking; includes admin approval workflow for new projects, client designation, and automated deal value calculation.
 - **CRM Features**: Manages customers, vendors, distributors, contractors, consultants, end-users, and technical support requests, including client status tracking and sales engineer assignment.
-- **Sales & Presales Tools**: RFQ management (with comments system), quotation builder, solution builder (Fiber, Passive), and cost sheet management.
+- **Sales & Presales Tools**: RFQ management (with comments system and edit notifications), quotation builder, solution builder (Fiber, Passive), and cost sheet management.
 - **Analytics & Reporting**: Sales and presales performance dashboards, pipeline analysis, and aging reports.
 - **Document Management**: File upload/download for quotations and cost sheets, with Excel export.
 - **Product Catalog**: Fire alarm, CCTV, and passive products.
@@ -40,6 +40,8 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **Smart Form Auto-Selection**: Project registration form automatically defaults to "Lead" stage and pre-selects the logged-in user as sales engineer for streamlined data entry.
 - **All Clients Dashboard**: Unified view displaying all entities marked as clients across End Users, Contractors, and Consultants in a searchable card-based interface with type badges and project counts.
 - **Role-Based Data Filtering**: Sales Engineers see only entities assigned to them in All Clients, End Users, Contractors, and Consultants pages, while General Managers, Technical Team Leaders, and Presale Engineers see all entities. Filtering applies to both search and normal view modes.
+- **RFQ Edit Notifications**: Automatic notifications sent to all Presale Engineers, Technical Team Leaders, General Managers, and the assigned Sales Engineer when an RFQ is edited. Notifications include updated data: RFQ reference, project name, status, priority, and deadline.
+- **RFQ Chronological Ordering**: RFQs displayed from newest to oldest across all views (RFQ Summary, Pipeline, Excel exports) using requested_time descending order.
 
 ### System Design Choices
 - Environment variables are used for configuration (e.g., `HOST`, `PORT`, `FLASK_DEBUG`, `SECRET_KEY`, email settings).
