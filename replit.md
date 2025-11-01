@@ -5,6 +5,27 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 
 ## Recent Updates
 
+### Project Approval System ✅ (2025-11-01)
+- **Approval Workflow**: New projects require admin approval before entering the pipeline
+- **Pending Status**: Projects registered with `approval_status='Pending'` by default
+- **Admin Dashboard**: New `/pending_project_approvals` route for reviewing pending projects
+  - **Comprehensive Details**: Shows all project information (end user, contractor, consultant, sales engineer, scope, deal value, etc.)
+  - **Approval Actions**: Approve or reject projects with optional notes/reasons
+  - **Real-time Updates**: AJAX-based approval/rejection with page reload
+- **Pipeline Filtering**: `/view_projects` now only displays approved projects
+- **Sidebar Notification**: Badge showing count of pending approvals (auto-refreshes every 30 seconds)
+- **API Endpoints**:
+  - `/approve_project/<project_id>` - Approve a pending project
+  - `/reject_project/<project_id>` - Reject a pending project with reason
+  - `/api/pending_approvals_count` - Get count of pending projects
+- **Audit Trail**: Tracks who approved/rejected, when, and with what notes
+- **Database Schema**: New columns in `register_project` table:
+  - `approval_status` (Pending/Approved/Rejected)
+  - `approved_by_id` (admin who took action)
+  - `approved_at` (timestamp of action)
+  - `approval_notes` (approval comments or rejection reason)
+- **User Feedback**: Flash messages inform users that projects are pending approval
+
 ### Client Management System ✅ (2025-11-01)
 - **Client Status Tracking**: Added `is_client` boolean column to End Users, Contractors, and Consultants tables
 - **Engineer Assignment**: Added `assigned_sales_engineer_id` column with foreign key to engineers table
