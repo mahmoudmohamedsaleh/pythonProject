@@ -33,7 +33,7 @@
     }
     .card-body {
         flex-grow: 1;
-        padding: 1.5rem; /* Added padding for better spacing */
+        padding: 1.5rem;
     }
     .card-body p {
         margin-bottom: 0.75rem;
@@ -52,6 +52,24 @@
         padding: 3rem;
         background-color: #ffffff;
         border-radius: 12px;
+    }
+    .client-badge {
+        position: absolute;
+        top: 10px;
+        right: 90px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    .admin-controls {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 10px;
     }
 </style>
 
@@ -79,7 +97,12 @@
     {% for consultant in consultants %}
         <div class="col-lg-4 col-md-6 mb-4">
             <div class="consultant-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header d-flex justify-content-between align-items-center" style="position: relative;">
+                    {% if consultant[6] == 1 %}
+                    <span class="client-badge">
+                        <i class="fas fa-star mr-1"></i>CLIENT
+                    </span>
+                    {% endif %}
                     <h5 class="mb-0 text-primary">
                         <i class="fas fa-user-tie mr-2"></i>{{ consultant[1] }}
                     </h5>
@@ -91,14 +114,43 @@
                     <p><i class="fas fa-user fa-fw"></i><strong>Contact:</strong> {{ consultant[2] if consultant[2] else 'N/A' }}</p>
                     <p><i class="fas fa-phone fa-fw"></i><strong>Phone:</strong> {{ consultant[3] if consultant[3] else 'N/A' }}</p>
                     <p><i class="fas fa-envelope fa-fw"></i><strong>Email:</strong> {{ consultant[4] if consultant[4] else 'N/A' }}</p>
+                    
+                    {% if consultant[8] %}
+                    <p><i class="fas fa-user-tie fa-fw text-success"></i><strong>Sales Engineer:</strong> {{ consultant[8] }}</p>
+                    {% endif %}
+                    
                     <hr>
                     <p class="mb-2"><i class="fas fa-sticky-note fa-fw"></i><strong>Note:</strong></p>
                     <p class="text-muted pl-4">{{ consultant[5] if consultant[5] else 'No notes available.' }}</p>
+                    
+                    {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
+                    <div class="admin-controls">
+                        <small class="text-muted d-block mb-2"><i class="fas fa-crown mr-1"></i>Admin Controls</small>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input client-toggle" 
+                                   data-entity-type="consultant" 
+                                   data-entity-id="{{ consultant[0] }}"
+                                   {{ 'checked' if consultant[6] == 1 else '' }}>
+                            <label class="form-check-label">
+                                <strong>Mark as Client</strong>
+                            </label>
+                        </div>
+                        <select class="form-control form-control-sm sales-engineer-assign" 
+                                data-entity-type="consultant" 
+                                data-entity-id="{{ consultant[0] }}">
+                            <option value="">Assign Sales Engineer...</option>
+                            {% for se in sales_engineers %}
+                            <option value="{{ se[0] }}" {{ 'selected' if consultant[7] == se[0] else '' }}>{{ se[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
                     <hr>
                     <div class="text-center">
                         <a href="{{ url_for('consultant_projects', consultant_id=consultant[0]) }}" class="btn btn-info btn-sm btn-block">
                             <i class="fas fa-project-diagram mr-2"></i>View Projects 
-                            <span class="badge badge-light ml-2">{{ consultant[6] }}</span>
+                            <span class="badge badge-light ml-2">{{ consultant[9] }}</span>
                         </a>
                     </div>
                 </div>
@@ -117,4 +169,47 @@
         </div>
     {% endfor %}
 </div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('.client-toggle').change(function() {
+        const entityType = $(this).data('entity-type');
+        const entityId = $(this).data('entity-id');
+        const isClient = $(this).is(':checked') ? 1 : 0;
+        
+        $.post('/toggle_client_status', {
+            entity_type: entityType,
+            entity_id: entityId,
+            is_client: isClient
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Error updating client status');
+            }
+        });
+    });
+    
+    $('.sales-engineer-assign').change(function() {
+        const entityType = $(this).data('entity-type');
+        const entityId = $(this).data('entity-id');
+        const salesEngineerId = $(this).val();
+        
+        if (salesEngineerId) {
+            $.post('/assign_sales_engineer', {
+                entity_type: entityType,
+                entity_id: entityId,
+                sales_engineer_id: salesEngineerId
+            }, function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error assigning sales engineer');
+                }
+            });
+        }
+    });
+});
+</script>
 {% endblock %}
