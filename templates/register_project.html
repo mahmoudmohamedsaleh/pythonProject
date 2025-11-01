@@ -85,9 +85,8 @@
                     <div class="form-group col-md-6">
                         <label for="stage-select">Stage</label>
                         <select class="form-control" id="stage-select" name="stage" required>
-                            <option value="" disabled selected>Select a stage...</option>
                             {% for stage in stages %}
-                                <option value="{{ stage }}">{{ stage }}</option>
+                                <option value="{{ stage }}" {% if stage == 'Lead' %}selected{% endif %}>{{ stage }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -114,9 +113,11 @@
                     <div class="form-group col-md-6">
                         <label for="sales_engineer_id">Sales Engineer</label>
                         <select class="form-control" id="sales_engineer_id" name="sales_engineer_id" required>
+                            {% if not current_user_engineer_id %}
                             <option value="" disabled selected>Select a Sales Engineer...</option>
+                            {% endif %}
                             {% for engineer in sales_engineers %}
-                                <option value="{{ engineer[0] }}">{{ engineer[1] }}</option>
+                                <option value="{{ engineer[0] }}" {% if current_user_engineer_id and engineer[0] == current_user_engineer_id %}selected{% endif %}>{{ engineer[1] }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -211,6 +212,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const stageProbabilityMap = {
+            'Lead': 0.01,
             'Prospecting': 0.01,
             'Qualification': 1.00,
             'Proposal Prep': 1.00,
@@ -226,15 +228,22 @@
         const stageSelect = document.getElementById('stage-select');
         const probabilityInput = document.getElementById('probability-input');
 
-        stageSelect.addEventListener('change', function() {
-            const selectedStage = this.value;
+        // Function to update probability based on stage
+        function updateProbability() {
+            const selectedStage = stageSelect.value;
             const probability = stageProbabilityMap[selectedStage];
             if (probability !== undefined) {
                 probabilityInput.value = probability.toFixed(2);
             } else {
                 probabilityInput.value = '';
             }
-        });
+        }
+
+        // Set initial probability on page load (for pre-selected "Lead")
+        updateProbability();
+
+        // Update probability when stage changes
+        stageSelect.addEventListener('change', updateProbability);
     });
 </script>
 {% endblock %}

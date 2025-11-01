@@ -2591,6 +2591,15 @@ def register_project():
     c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
     sales_engineers = c.fetchall()
 
+    # Get current logged-in user's engineer ID (if they are a sales engineer)
+    current_username = session.get('username')
+    current_user_engineer_id = None
+    if current_username:
+        c.execute("SELECT id FROM engineers WHERE username = ?", (current_username,))
+        result = c.fetchone()
+        if result:
+            current_user_engineer_id = result[0]
+
     conn.close()
 
     # Get the current date to display on the form
@@ -2598,7 +2607,7 @@ def register_project():
 
     return render_template('register_project.html', end_users=end_users, contractors=contractors,
                            consultants=consultants, stages=stages, sales_engineers=sales_engineers,
-                           current_date=current_date)
+                           current_date=current_date, current_user_engineer_id=current_user_engineer_id)
 
 ####################################
 @app.route('/project_pipeline')

@@ -36,6 +36,8 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **AI-Powered Deal Value Calculation**: Automatically calculates deal values from quotations using intelligent quote revision detection, matching, and duplicate prevention logic.
 - **Project Approval System**: New projects require admin approval before entering the main pipeline, with notifications for approval/rejection.
 - **Client Management System**: Dedicated admin interface to manage client status and assign sales engineers to end-users, contractors, and consultants.
+- **Client Designation in Projects**: Projects can designate which entity (End User, Contractor, or Consultant) is the primary client, displayed with purple gradient badges throughout the system.
+- **Smart Form Auto-Selection**: Project registration form automatically defaults to "Lead" stage and pre-selects the logged-in user as sales engineer for streamlined data entry.
 
 ### System Design Choices
 - Environment variables are used for configuration (e.g., `HOST`, `PORT`, `FLASK_DEBUG`, `SECRET_KEY`, email settings).
