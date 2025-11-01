@@ -46,6 +46,14 @@
     .action-buttons a, .action-buttons button {
         margin: 0 2px;
     }
+    .client-badge {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        color: white;
+        padding: 0.4em 0.7em;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
 </style>
 
 <div class="page-header d-flex justify-content-between align-items-center flex-wrap">
@@ -98,6 +106,7 @@
                         <th>Project Name</th>
                         <th>End User</th>
                         <th>Sales Engineer</th>
+                        <th>Client</th>
                         <th>Stage</th>
                         <th>Deal Value</th>
                         <th>Probability</th>
@@ -118,6 +127,13 @@
                         </td>
                         <td>{{ project[2] if project[2] else 'N/A' }}</td>
                         <td>{{ project[7] if project[7] else 'N/A' }}</td>
+                        <td>
+                            {% if project[13] %}
+                            <span class="client-badge"><i class="fas fa-star mr-1"></i>{{ project[13] }}</span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% set stage = project[3] %}
                             {% if stage == 'Prospecting' %}<span class="badge badge-light">{{ stage }}</span>
@@ -160,7 +176,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="11" class="text-center text-muted py-5">No projects found.</td></tr>
+                    <tr><td colspan="12" class="text-center text-muted py-5">No projects found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
