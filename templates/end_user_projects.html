@@ -7,7 +7,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h1><i class="fas fa-building text-primary mr-3"></i>{{ end_user[1] }}</h1>
-                <p class="text-muted mb-0">Showing all projects for this end user</p>
+                <p class="text-muted mb-0">All projects assigned to this end user</p>
             </div>
             <a href="{{ url_for('view_end_users') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left mr-2"></i>Back to End Users
@@ -16,106 +16,109 @@
     </div>
 
     {% if projects %}
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="fas fa-project-diagram mr-2"></i>Projects in Pipeline ({{ projects|length }})</h5>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>Project Name</th>
-                            <th>Stage</th>
-                            <th>Deal Value</th>
-                            <th>Probability</th>
-                            <th>Sales Engineer</th>
-                            <th>Contractor</th>
-                            <th>Consultant</th>
-                            <th>Expected Close</th>
-                            <th>Registered</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for project in projects %}
-                        <tr>
-                            <td><strong>{{ project[1] }}</strong></td>
-                            <td>
-                                {% if project[2] == 'Closed Won' %}
-                                    <span class="badge badge-success">{{ project[2] }}</span>
-                                {% elif project[2] == 'Closed Lost' %}
-                                    <span class="badge badge-danger">{{ project[2] }}</span>
-                                {% elif project[2] == 'Negotiation' %}
-                                    <span class="badge badge-warning">{{ project[2] }}</span>
-                                {% else %}
-                                    <span class="badge badge-info">{{ project[2] }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if project[3] %}
-                                    ${{ '{:,.2f}'.format(project[3]) }}
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ project[4] }}%</td>
-                            <td>{{ project[7] if project[7] else '<span class="text-muted">Not assigned</span>' }}</td>
-                            <td>{{ project[8] if project[8] else '<span class="text-muted">N/A</span>' }}</td>
-                            <td>{{ project[9] if project[9] else '<span class="text-muted">N/A</span>' }}</td>
-                            <td>{{ project[5] if project[5] else '<span class="text-muted">N/A</span>' }}</td>
-                            <td>{{ project[6] if project[6] else 'N/A' }}</td>
-                            <td>
-                                <a href="{{ url_for('edit_project_pipeline', project_id=project[0]) }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="text-primary mb-2">{{ total_projects }}</h3>
+                    <p class="text-muted mb-0">Total Projects</p>
+                </div>
             </div>
         </div>
-        <div class="card-footer bg-light">
-            <div class="row">
-                <div class="col-md-4">
-                    <strong>Total Projects:</strong> {{ projects|length }}
+        <div class="col-md-4">
+            <div class="card border-success shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="text-success mb-2">{{ '{:,.0f}'.format(total_value) }} SAR</h3>
+                    <p class="text-muted mb-0">Total Deal Value</p>
                 </div>
-                <div class="col-md-4">
-                    <strong>Total Deal Value:</strong> 
-                    {% set total_value = namespace(sum=0) %}
-                    {% for project in projects %}
-                        {% if project[3] %}
-                            {% set total_value.sum = total_value.sum + project[3] %}
-                        {% endif %}
-                    {% endfor %}
-                    ${{ '{:,.2f}'.format(total_value.sum) }}
-                </div>
-                <div class="col-md-4">
-                    <strong>Average Probability:</strong> 
-                    {% set prob_total = namespace(sum=0) %}
-                    {% for project in projects %}
-                        {% if project[4] %}
-                            {% set prob_total.sum = prob_total.sum + project[4] %}
-                        {% endif %}
-                    {% endfor %}
-                    {% if projects|length > 0 %}
-                        {{ '{:.1f}'.format(prob_total.sum / projects|length) }}%
-                    {% else %}
-                        0%
-                    {% endif %}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-info shadow-sm">
+                <div class="card-body text-center">
+                    <h3 class="text-info mb-2">{{ stage_counts|length }}</h3>
+                    <p class="text-muted mb-0">Active Stages</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-pie mr-2"></i>Projects by Stage</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for stage, count in stage_counts.items() %}
+                <div class="col-md-3 mb-3">
+                    <div class="alert alert-info mb-0">
+                        <strong>{{ stage }}</strong>
+                        <span class="badge badge-primary float-right">{{ count }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Project Name</th>
+                    <th>Stage</th>
+                    <th>Deal Value</th>
+                    <th>Probability</th>
+                    <th>Expected Close</th>
+                    <th>Sales Engineer</th>
+                    <th>Contractor</th>
+                    <th>Consultant</th>
+                    <th>Registered Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <tr>
+                    <td>
+                        <strong>{{ project[1] }}</strong>
+                        {% if project[10] %}
+                        <br><small class="text-muted">{{ project[10][:100] }}{{ '...' if project[10]|length > 100 else '' }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if project[2] == 'Quotation Submitted' %}
+                        <span class="badge badge-primary">{{ project[2] }}</span>
+                        {% elif project[2] == 'Proposal Sent' %}
+                        <span class="badge badge-info">{{ project[2] }}</span>
+                        {% elif project[2] == 'Closed Won' %}
+                        <span class="badge badge-success">{{ project[2] }}</span>
+                        {% elif project[2] == 'Closed Lost' %}
+                        <span class="badge badge-danger">{{ project[2] }}</span>
+                        {% elif project[2] == 'Won' %}
+                        <span class="badge badge-success">{{ project[2] }}</span>
+                        {% elif project[2] == 'Lost' %}
+                        <span class="badge badge-danger">{{ project[2] }}</span>
+                        {% else %}
+                        <span class="badge badge-secondary">{{ project[2] if project[2] else 'N/A' }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ '{:,.0f}'.format(project[3]) if project[3] else 'N/A' }} SAR</td>
+                    <td>{{ project[4] if project[4] else 'N/A' }}%</td>
+                    <td>{{ project[5] if project[5] else 'N/A' }}</td>
+                    <td>{{ project[7] if project[7] else 'N/A' }}</td>
+                    <td>{{ project[8] if project[8] else 'N/A' }}</td>
+                    <td>{{ project[9] if project[9] else 'N/A' }}</td>
+                    <td>{{ project[6] if project[6] else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <div class="alert alert-info text-center" role="alert">
-        <i class="fas fa-info-circle fa-2x mb-3"></i>
+    <div class="alert alert-warning text-center" role="alert">
+        <i class="fas fa-project-diagram fa-2x mb-3"></i>
         <h5>No Projects Found</h5>
-        <p class="mb-0">This end user doesn't have any projects in the pipeline yet.</p>
-        <a href="{{ url_for('register_project') }}" class="btn btn-primary mt-3">
-            <i class="fas fa-plus mr-2"></i>Register New Project
-        </a>
+        <p class="mb-0">This end user doesn't have any projects assigned yet.</p>
     </div>
     {% endif %}
 </div>
@@ -125,12 +128,16 @@
         padding-bottom: 1rem;
         border-bottom: 2px solid #e9ecef;
     }
-    .table td, .table th {
+    .table th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+    .table td {
         vertical-align: middle;
     }
-    .badge {
-        font-size: 0.85rem;
-        padding: 0.4em 0.8em;
+    .card {
+        border-radius: 12px;
     }
 </style>
 {% endblock %}
