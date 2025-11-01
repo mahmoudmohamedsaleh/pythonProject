@@ -4887,6 +4887,9 @@ def approve_project(project_id):
         
         return jsonify({'success': True})
     except Exception as e:
+        import traceback
+        print(f"ERROR in approve_project: {e}")
+        print(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
@@ -4978,6 +4981,9 @@ def reject_project(project_id):
         
         return jsonify({'success': True})
     except Exception as e:
+        import traceback
+        print(f"ERROR in reject_project: {e}")
+        print(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
