@@ -2532,16 +2532,16 @@ def register_project():
         registered_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         try:
-            # Updated INSERT statement with the new registered_date column
+            # Updated INSERT statement with approval_status='Pending' for new projects
             c.execute('''INSERT INTO register_project 
                          (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note, 
-                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, approval_status)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note,
-                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date))
+                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending'))
             project_id = c.lastrowid
             conn.commit()
-            flash('Project registered successfully!', 'success')
+            flash('Project registered successfully! It is pending admin approval before appearing in the pipeline.', 'info')
             
             # Send notifications to stakeholders
             try:
@@ -4144,7 +4144,7 @@ def view_projects():
     c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
     sales_engineers = c.fetchall()
 
-    # Base query updated to fetch contractor and consultant names
+    # Base query updated to fetch contractor and consultant names - only show approved projects
     query = '''
         SELECT 
             rp.id, rp.project_name, eu.name AS end_user, rp.stage,
@@ -4157,7 +4157,7 @@ def view_projects():
         LEFT JOIN contractors co ON rp.contractor_id = co.id
         LEFT JOIN consultants cn ON rp.consultant_id = cn.id
         LEFT JOIN engineers en ON rp.sales_engineer_id = en.id
-        WHERE 1=1
+        WHERE rp.approval_status = 'Approved'
     '''
     params = []
     user_role = None
@@ -4395,6 +4395,133 @@ def manage_clients():
                          client_contractors=client_contractors,
                          client_consultants=client_consultants,
                          engineers=engineers)
+
+####################
+# PROJECT APPROVAL SYSTEM
+####################
+@app.route('/pending_project_approvals')
+@login_required
+def pending_project_approvals():
+    # Check if user is admin
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        flash('Access denied. Admin privileges required.', 'danger')
+        return redirect(url_for('index'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get all pending projects with full details
+    c.execute("""
+        SELECT 
+            rp.id,
+            rp.project_name,
+            rp.stage,
+            rp.deal_value,
+            rp.probability,
+            rp.expected_close_date,
+            rp.scope_of_work,
+            rp.note,
+            rp.registered_date,
+            eu.name as end_user_name,
+            c.name as contractor_name,
+            con.name as consultant_name,
+            e.username as sales_engineer_name,
+            reg_user.username as registered_by
+        FROM register_project rp
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors c ON rp.contractor_id = c.id
+        LEFT JOIN consultants con ON rp.consultant_id = con.id
+        LEFT JOIN engineers e ON rp.sales_engineer_id = e.id
+        LEFT JOIN users reg_user ON rp.updated_by = reg_user.username
+        WHERE rp.approval_status = 'Pending'
+        ORDER BY rp.registered_date DESC
+    """)
+    pending_projects = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('pending_project_approvals.html', pending_projects=pending_projects)
+
+@app.route('/approve_project/<int:project_id>', methods=['POST'])
+@login_required
+def approve_project(project_id):
+    # Check if user is admin
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    approval_notes = request.form.get('approval_notes', '')
+    approved_by_id = session.get('user_id')
+    approved_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("""
+            UPDATE register_project 
+            SET approval_status = 'Approved',
+                approved_by_id = ?,
+                approved_at = ?,
+                approval_notes = ?
+            WHERE id = ?
+        """, (approved_by_id, approved_at, approval_notes, project_id))
+        
+        conn.commit()
+        flash('Project approved successfully!', 'success')
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/reject_project/<int:project_id>', methods=['POST'])
+@login_required
+def reject_project(project_id):
+    # Check if user is admin
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    rejection_reason = request.form.get('rejection_reason', 'No reason provided')
+    approved_by_id = session.get('user_id')
+    approved_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("""
+            UPDATE register_project 
+            SET approval_status = 'Rejected',
+                approved_by_id = ?,
+                approved_at = ?,
+                approval_notes = ?
+            WHERE id = ?
+        """, (approved_by_id, approved_at, rejection_reason, project_id))
+        
+        conn.commit()
+        flash('Project rejected.', 'warning')
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/pending_approvals_count')
+@login_required
+def pending_approvals_count():
+    # Only admins can check pending count
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        return jsonify({'count': 0})
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT COUNT(*) FROM register_project WHERE approval_status = 'Pending'")
+    count = c.fetchone()[0]
+    
+    conn.close()
+    
+    return jsonify({'count': count})
 
 ####################
 @app.route('/end_user_contractors/<int:end_user_id>')

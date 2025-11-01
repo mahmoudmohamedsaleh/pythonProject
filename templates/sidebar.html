@@ -154,6 +154,12 @@
             
             {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
             <li class="menu-header">Administration</li>
+            <li class="nav-item">
+                <a href="{{ url_for('pending_project_approvals') }}" class="{{ 'active' if 'pending_project_approvals' in request.endpoint else '' }}">
+                    <i class="fas fa-clock"></i> Pending Approvals
+                    <span id="pending-approvals-badge" class="badge badge-warning ml-2"></span>
+                </a>
+            </li>
             <li class="nav-item"><a href="{{ url_for('manage_clients') }}" class="{{ 'active' if 'manage_clients' in request.endpoint else '' }}"><i class="fas fa-star"></i> Manage Clients</a></li>
             <li class="nav-item"><a href="{{ url_for('manage_users') }}" class="{{ 'active' if 'manage_users' in request.endpoint or 'edit_user' in request.endpoint or 'add_user' in request.endpoint else '' }}"><i class="fas fa-users-cog"></i> Manage Users</a></li>
             <li class="nav-item"><a href="{{ url_for('access_control') }}" class="{{ 'active' if 'access_control' in request.endpoint else '' }}"><i class="fas fa-shield-alt"></i> Access Control</a></li>
@@ -184,4 +190,29 @@
         </div>
     </nav>
 </body>
-</html>
+</html>    
+    <script>
+        // Fetch pending approvals count for admins
+        {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
+        function updatePendingApprovalsCount() {
+            fetch('/api/pending_approvals_count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('pending-approvals-badge');
+                    if (badge && data.count > 0) {
+                        badge.textContent = data.count;
+                        badge.style.display = 'inline';
+                    } else if (badge) {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(error => console.error('Error fetching pending approvals count:', error));
+        }
+        
+        // Update count on page load
+        updatePendingApprovalsCount();
+        
+        // Refresh count every 30 seconds
+        setInterval(updatePendingApprovalsCount, 30000);
+        {% endif %}
+    </script>
