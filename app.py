@@ -3983,11 +3983,26 @@ def consultant_projects(consultant_id):
 def view_all_clients():
     """
     View all entities marked as clients (End Users, Contractors, Consultants)
+    Sales Engineers see only their assigned clients
+    Admins (GM, TTL, Presale) see all clients
     """
     search_query = request.args.get('search_query', '')
     
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Get user role and engineer ID for filtering
+    c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+    user_role_result = c.fetchone()
+    user_role = user_role_result[0] if user_role_result else None
+    
+    # Get engineer ID if user is a Sales Engineer
+    engineer_id = None
+    if user_role == 'Sales Engineer':
+        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        engineer_id_result = c.fetchone()
+        if engineer_id_result:
+            engineer_id = engineer_id_result[0]
     
     # Get all sales engineers for assignment dropdown
     c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
@@ -3998,19 +4013,41 @@ def view_all_clients():
     # Fetch End Users marked as clients
     if search_query:
         query_param = f'%{search_query}%'
-        c.execute("""
-            SELECT eu.*, e.username as assigned_engineer_name 
-            FROM end_users eu
-            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-            WHERE eu.is_client = 1 AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
-        """, (query_param, query_param))
+        if engineer_id:
+            # Sales Engineer: only their assigned clients
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.is_client = 1 
+                AND eu.assigned_sales_engineer_id = ?
+                AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
+            """, (engineer_id, query_param, query_param))
+        else:
+            # Admin: all clients
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.is_client = 1 AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
+            """, (query_param, query_param))
     else:
-        c.execute("""
-            SELECT eu.*, e.username as assigned_engineer_name 
-            FROM end_users eu
-            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-            WHERE eu.is_client = 1
-        """)
+        if engineer_id:
+            # Sales Engineer: only their assigned clients
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.is_client = 1 AND eu.assigned_sales_engineer_id = ?
+            """, (engineer_id,))
+        else:
+            # Admin: all clients
+            c.execute("""
+                SELECT eu.*, e.username as assigned_engineer_name 
+                FROM end_users eu
+                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+                WHERE eu.is_client = 1
+            """)
     
     end_users = c.fetchall()
     for eu in end_users:
@@ -4043,19 +4080,41 @@ def view_all_clients():
     # Fetch Contractors marked as clients
     if search_query:
         query_param = f'%{search_query}%'
-        c.execute("""
-            SELECT c.*, e.username as assigned_engineer_name 
-            FROM contractors c
-            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-            WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
-        """, (query_param, query_param))
+        if engineer_id:
+            # Sales Engineer: only their assigned clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM contractors c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1 
+                AND c.assigned_sales_engineer_id = ?
+                AND (c.name LIKE ? OR c.contact_person LIKE ?)
+            """, (engineer_id, query_param, query_param))
+        else:
+            # Admin: all clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM contractors c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
+            """, (query_param, query_param))
     else:
-        c.execute("""
-            SELECT c.*, e.username as assigned_engineer_name 
-            FROM contractors c
-            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-            WHERE c.is_client = 1
-        """)
+        if engineer_id:
+            # Sales Engineer: only their assigned clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM contractors c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1 AND c.assigned_sales_engineer_id = ?
+            """, (engineer_id,))
+        else:
+            # Admin: all clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM contractors c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1
+            """)
     
     contractors = c.fetchall()
     for con in contractors:
@@ -4080,19 +4139,41 @@ def view_all_clients():
     # Fetch Consultants marked as clients
     if search_query:
         query_param = f'%{search_query}%'
-        c.execute("""
-            SELECT c.*, e.username as assigned_engineer_name 
-            FROM consultants c
-            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-            WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
-        """, (query_param, query_param))
+        if engineer_id:
+            # Sales Engineer: only their assigned clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM consultants c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1 
+                AND c.assigned_sales_engineer_id = ?
+                AND (c.name LIKE ? OR c.contact_person LIKE ?)
+            """, (engineer_id, query_param, query_param))
+        else:
+            # Admin: all clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM consultants c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
+            """, (query_param, query_param))
     else:
-        c.execute("""
-            SELECT c.*, e.username as assigned_engineer_name 
-            FROM consultants c
-            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-            WHERE c.is_client = 1
-        """)
+        if engineer_id:
+            # Sales Engineer: only their assigned clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM consultants c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1 AND c.assigned_sales_engineer_id = ?
+            """, (engineer_id,))
+        else:
+            # Admin: all clients
+            c.execute("""
+                SELECT c.*, e.username as assigned_engineer_name 
+                FROM consultants c
+                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+                WHERE c.is_client = 1
+            """)
     
     consultants = c.fetchall()
     for cons in consultants:
