@@ -8362,6 +8362,54 @@ def api_calculate_deal_value(project_name):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 ##############################################
+# ============ USER PROFILE API ENDPOINTS ============
+##############################################
+
+@app.route('/api/user/timezone', methods=['GET', 'POST'])
+@login_required
+def api_user_timezone():
+    """
+    Get or update user's timezone preference
+    GET: Returns user's current timezone
+    POST: Updates user's timezone (Body: { "timezone": "Asia/Riyadh" })
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    user_id = session.get('user_id')
+    
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            timezone = data.get('timezone')
+            
+            if not timezone:
+                return jsonify({'success': False, 'error': 'Timezone is required'}), 400
+            
+            c.execute("UPDATE users SET timezone = ? WHERE id = ?", (timezone, user_id))
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Timezone updated successfully',
+                'timezone': timezone
+            })
+        else:
+            # GET request
+            c.execute("SELECT timezone FROM users WHERE id = ?", (user_id,))
+            result = c.fetchone()
+            timezone = result[0] if result and result[0] else 'UTC'
+            
+            return jsonify({
+                'success': True,
+                'timezone': timezone
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+##############################################
 # ============ NOTIFICATION API ENDPOINTS ============
 ##############################################
 
