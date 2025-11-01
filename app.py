@@ -2545,17 +2545,17 @@ def register_project():
             conn.commit()
             flash('Project registered successfully! It is pending admin approval before appearing in the pipeline.', 'info')
             
-            # Send notifications to stakeholders
+            # Send notifications to admins only (project needs approval)
             try:
                 actor_id = session.get('user_id')
                 actor_name = session.get('username', 'Unknown')
                 
-                # Get recipients: sales engineer + admins
-                recipients = notification_service.get_project_stakeholders(project_id)
+                # Get admin recipients only (General Manager and Technical Team Leader)
+                recipients = notification_service.get_admin_recipients()
                 
-                # Create notification
+                # Create notification for pending approval
                 notification_service.notify_activity(
-                    event_code='project.created',
+                    event_code='project.pending_approval',
                     recipient_ids=recipients,
                     actor_id=actor_id,
                     context={
@@ -2564,7 +2564,7 @@ def register_project():
                         'project_id': project_id,
                         'stage': stage
                     },
-                    url=url_for('edit_project_pipeline', project_id=project_id)
+                    url=url_for('pending_project_approvals')
                 )
             except Exception as e:
                 print(f"Notification error: {e}")
