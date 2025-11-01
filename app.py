@@ -4063,12 +4063,22 @@ def view_end_users():
 
     end_users = c.fetchall()
     
-    # Get project count for each end user
+    # Get project count and contractor count for each end user
     end_users_with_counts = []
     for end_user in end_users:
+        # Count projects
         c.execute("SELECT COUNT(*) FROM register_project WHERE end_user_id = ?", (end_user[0],))
         project_count = c.fetchone()[0]
-        end_users_with_counts.append(end_user + (project_count,))
+        
+        # Count unique contractors associated with this end user's projects
+        c.execute("""
+            SELECT COUNT(DISTINCT contractor_id) 
+            FROM register_project 
+            WHERE end_user_id = ? AND contractor_id IS NOT NULL
+        """, (end_user[0],))
+        contractor_count = c.fetchone()[0]
+        
+        end_users_with_counts.append(end_user + (project_count, contractor_count))
     
     conn.close()
     
@@ -4077,6 +4087,38 @@ def view_end_users():
 
     # Pass the list of end users (with project counts) and the search query to the template
     return render_template('view_end_users.html', end_users=end_users_with_counts, search_query=search_query)
+####################
+@app.route('/end_user_contractors/<int:end_user_id>')
+@login_required
+def end_user_contractors(end_user_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get end user details
+    c.execute('SELECT id, name FROM end_users WHERE id = ?', (end_user_id,))
+    end_user = c.fetchone()
+    
+    if not end_user:
+        conn.close()
+        flash('End user not found.', 'danger')
+        return redirect(url_for('view_end_users'))
+    
+    # Get all unique contractors for this end user's projects
+    c.execute("""
+        SELECT DISTINCT c.id, c.name, c.contact_person, c.phone, c.email, c.note,
+               COUNT(rp.id) as project_count
+        FROM contractors c
+        INNER JOIN register_project rp ON c.id = rp.contractor_id
+        WHERE rp.end_user_id = ?
+        GROUP BY c.id, c.name, c.contact_person, c.phone, c.email, c.note
+        ORDER BY project_count DESC
+    """, (end_user_id,))
+    
+    contractors = c.fetchall()
+    conn.close()
+    
+    return render_template('end_user_contractors.html', end_user=end_user, contractors=contractors)
+
 ####################
 @app.route('/end_user_projects/<int:end_user_id>')
 @login_required
