@@ -30,7 +30,13 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
   - Rejection notification: "{Admin} rejected your project: {Project Name}. Reason: {Reason}"
   - New event codes: `project.approved` and `project.rejected` added to notification system
   - Approval notifications link to Projects & Pipeline page
-  - Rejection notifications link to Pending Approvals page
+  - Rejection notifications link to Rejection Details page
+- **Rejection Handling & Pipeline Integration**: Enhanced rejected project workflow
+  - Rejected projects automatically appear in pipeline with "Cancelled" stage
+  - New `/view_rejection_details/<project_id>` route shows comprehensive rejection information
+  - Rejection details page displays: project info, rejection reason, who rejected, when rejected
+  - Users can view rejection details by clicking notification or accessing cancelled projects in pipeline
+  - Provides clear guidance on what happens after rejection
 
 ### Project Approval System ✅ (2025-11-01)
 - **Approval Workflow**: New projects require admin approval before entering the pipeline
