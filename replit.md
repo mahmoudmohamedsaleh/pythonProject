@@ -5,6 +5,21 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 
 ## Recent Updates
 
+### Client Designation in Project Registration ✅ (2025-11-01)
+- **Client Selection**: Added ability to designate which entity is the client during project registration
+  - New radio button interface with three options: End User, Contractor, or Consultant
+  - Required field - user must select one entity as the primary client
+  - Visual styling with purple gradient badge highlighting the client designation
+- **Database Schema**: Added `client_type` column to `register_project` table
+- **Display Integration**: Client designation shown across all project views:
+  - **Pending Approvals**: Purple "CLIENT" badge in project header
+  - **Projects & Pipeline**: Dedicated "Client" column with styled badge
+  - **Rejection Details**: Client information preserved in rejection view
+- **Form Enhancement**: Beautiful radio button UI with icon indicators and hover effects
+  - Icons: 🏢 Building (End User), 🪖 Hard Hat (Contractor), 👔 Tie (Consultant)
+  - Purple highlight when selected, smooth transitions
+- **Backend Integration**: Client type saved during project registration and displayed in all relevant views
+
 ### Project Pipeline Fixes ✅ (2025-11-01)
 - **Delete Button Fix**: Added missing `deleteProject()` JavaScript function to view_projects.html
   - Function uses fetch API to send DELETE request to `/delete_project/<project_id>`
