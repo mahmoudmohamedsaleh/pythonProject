@@ -8,11 +8,19 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 ### Client Management System ✅ (2025-11-01)
 - **Client Status Tracking**: Added `is_client` boolean column to End Users, Contractors, and Consultants tables
 - **Sales Engineer Assignment**: Added `assigned_sales_engineer_id` column with foreign key to engineers table
+- **Dedicated Management Dashboard**: New `/manage_clients` route with comprehensive admin interface
+  - **Summary Statistics**: Dashboard showing count of clients by type (End Users, Contractors, Consultants)
+  - **Tabbed Interface**: Organized view of all entities in separate tabs
+  - **Filter Options**: "Show All", "Clients Only", "Non-Clients Only" for each entity type
+  - **Inline Actions**: Toggle client status and assign sales engineers directly from table rows
+  - **Visual Indicators**: Purple "CLIENT" badge for clients, gray badge for non-clients
+  - **Project Counts**: Display number of projects associated with each entity
 - **Visual Client Badge**: Purple gradient "CLIENT" badge displayed on entity cards for marked clients
 - **Admin-Only Controls**: Inline admin controls (checkbox + dropdown) visible only to General Managers and Technical Team Leaders
 - **AJAX-Based Updates**: Real-time client status toggle and sales engineer assignment without page reload
 - **Consistent Design**: Client management UI implemented uniformly across all three entity types
 - **Security**: Both API routes (`/toggle_client_status`, `/assign_sales_engineer`) protected with admin role checks
+- **Sidebar Menu**: "Manage Clients" added to Administration section in sidebar (admin-only)
 - **Database Schema**: All three tables (end_users, contractors, consultants) include new client management fields
 - **Enhanced Display**: Assigned sales engineer name shown on entity cards with green icon
 - **Array Index Update**: Templates correctly reference new column positions after schema expansion
