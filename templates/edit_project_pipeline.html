@@ -9,6 +9,55 @@
     .form-control:read-only { background-color: #e9ecef; cursor: not-allowed; }
     .btn-submit { font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 8px; }
     .form-text a { font-size: 0.9rem; }
+
+    /* Client Type Selection Styling */
+    .client-type-options {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .client-option {
+        flex: 1;
+        min-width: 180px;
+        padding: 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background-color: #fafafa;
+        position: relative;
+    }
+    .client-option:hover {
+        border-color: #9f7aea;
+        background-color: #f5f3ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+    }
+    .client-option.selected {
+        border-color: #7c3aed;
+        background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+    }
+    .client-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+    }
+    .client-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .client-icon {
+        font-size: 2rem;
+    }
+    .client-text {
+        font-weight: 600;
+        color: #374151;
+    }
+    .client-option.selected .client-text {
+        color: #7c3aed;
+    }
 </style>
 
 <div class="container" style="max-width: 900px;">
@@ -92,6 +141,41 @@
                         </small>
                     </div>
                 </div>
+
+                <hr class="my-4">
+
+                <!-- Client Designation Section -->
+                <div class="form-group">
+                    <label class="d-block mb-3" style="font-weight: 600; color: #495057;">
+                        <i class="fas fa-star" style="color: #7c3aed;"></i> Who is the Client? <span class="text-danger">*</span>
+                    </label>
+                    <div class="client-type-options">
+                        <label class="client-option {% if project['client_type'] == 'End User' %}selected{% endif %}">
+                            <input type="radio" name="client_type" value="End User" {% if project['client_type'] == 'End User' %}checked{% endif %} required>
+                            <span class="client-label">
+                                <span class="client-icon">🏢</span>
+                                <span class="client-text">End User</span>
+                            </span>
+                        </label>
+                        <label class="client-option {% if project['client_type'] == 'Contractor' %}selected{% endif %}">
+                            <input type="radio" name="client_type" value="Contractor" {% if project['client_type'] == 'Contractor' %}checked{% endif %} required>
+                            <span class="client-label">
+                                <span class="client-icon">🪖</span>
+                                <span class="client-text">Contractor</span>
+                            </span>
+                        </label>
+                        <label class="client-option {% if project['client_type'] == 'Consultant' %}selected{% endif %}">
+                            <input type="radio" name="client_type" value="Consultant" {% if project['client_type'] == 'Consultant' %}checked{% endif %} required>
+                            <span class="client-label">
+                                <span class="client-icon">👔</span>
+                                <span class="client-text">Consultant</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
                 <div class="form-group">
                     <label for="scope_of_work">Scope of Work</label>
                     <textarea class="form-control" id="scope_of_work" name="scope_of_work" rows="3" required>{{ project['scope_of_work'] }}</textarea>
@@ -142,6 +226,19 @@
 
         // Run once on page load to set the initial value
         updateProbability();
+
+        // Client type selection handling
+        const clientOptions = document.querySelectorAll('.client-option');
+        clientOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove 'selected' class from all options
+                clientOptions.forEach(opt => opt.classList.remove('selected'));
+                // Add 'selected' class to clicked option
+                this.classList.add('selected');
+                // Check the radio button
+                this.querySelector('input[type="radio"]').checked = true;
+            });
+        });
     });
 </script>
 {% endblock %}

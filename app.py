@@ -2726,6 +2726,7 @@ def edit_project_pipeline(project_id):
         end_user_id = request.form['end_user_id']
         contractor_id = request.form.get('contractor_id')
         consultant_id = request.form.get('consultant_id')
+        client_type = request.form.get('client_type')
         scope_of_work = request.form['scope_of_work']
         note = request.form['note']
 
@@ -2738,11 +2739,11 @@ def edit_project_pipeline(project_id):
             UPDATE register_project SET
             project_name = ?, stage = ?, probability = ?, deal_value = ?,
             expected_close_date = ?, end_user_id = ?, contractor_id = ?,
-            consultant_id = ?, scope_of_work = ?, note = ?, sales_engineer_id = ?,
+            consultant_id = ?, client_type = ?, scope_of_work = ?, note = ?, sales_engineer_id = ?,
             updated_time = ?, updated_by = ?
             WHERE id = ?
         ''', (project_name, stage, probability, deal_value, expected_close_date,
-              end_user_id, contractor_id, consultant_id, scope_of_work, note,
+              end_user_id, contractor_id, consultant_id, client_type, scope_of_work, note,
               sales_engineer_id, updated_time, updated_by, project_id))
 
         conn.commit()
