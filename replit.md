@@ -3,9 +3,21 @@
 ## Overview
 This Flask-based CRM and Presales Monitoring System tracks projects, quotations, RFQs, and sales performance, managing the entire sales pipeline from lead generation to project completion. It provides comprehensive features for user authentication, project and customer relationship management, sales and presales tools, and analytics. The system supports a public registration process with admin approval and integrates robust password security, including an admin-assisted password reset mechanism.
 
-## Recent Updates (2025-10-30)
+## Recent Updates
 
-### UI/UX Improvements ✅
+### Client Management System ✅ (2025-11-01)
+- **Client Status Tracking**: Added `is_client` boolean column to End Users, Contractors, and Consultants tables
+- **Sales Engineer Assignment**: Added `assigned_sales_engineer_id` column with foreign key to engineers table
+- **Visual Client Badge**: Purple gradient "CLIENT" badge displayed on entity cards for marked clients
+- **Admin-Only Controls**: Inline admin controls (checkbox + dropdown) visible only to General Managers and Technical Team Leaders
+- **AJAX-Based Updates**: Real-time client status toggle and sales engineer assignment without page reload
+- **Consistent Design**: Client management UI implemented uniformly across all three entity types
+- **Security**: Both API routes (`/toggle_client_status`, `/assign_sales_engineer`) protected with admin role checks
+- **Database Schema**: All three tables (end_users, contractors, consultants) include new client management fields
+- **Enhanced Display**: Assigned sales engineer name shown on entity cards with green icon
+- **Array Index Update**: Templates correctly reference new column positions after schema expansion
+
+### UI/UX Improvements ✅ (2025-10-30)
 - **Removed manual Deal Value field** from Register New Project and Edit Project forms
 - **Auto-calculated deal values**: System now automatically calculates from quotations via AI
 - **Added Delete Project button** in pipeline view (admin-only access)
