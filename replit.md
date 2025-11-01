@@ -5,6 +5,16 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 
 ## Recent Updates
 
+### Project Pipeline Fixes ✅ (2025-11-01)
+- **Delete Button Fix**: Added missing `deleteProject()` JavaScript function to view_projects.html
+  - Function uses fetch API to send DELETE request to `/delete_project/<project_id>`
+  - Includes confirmation dialog before deletion
+  - Shows success/error messages and reloads page after deletion
+  - Admin-only feature (General Manager and Technical Team Leader roles)
+- **Project Ordering**: Updated `/view_projects` route to display projects newest-to-oldest (DESC by registered_date)
+  - Changed ORDER BY from ASC (oldest first) to DESC (newest first)
+  - Improves user experience by showing most recent projects at top of list
+
 ### Project Approval System ✅ (2025-11-01)
 - **Approval Workflow**: New projects require admin approval before entering the pipeline
 - **Pending Status**: Projects registered with `approval_status='Pending'` by default
