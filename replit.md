@@ -14,6 +14,15 @@ This Flask-based CRM and Presales Monitoring System tracks projects, quotations,
 - **Project Ordering**: Updated `/view_projects` route to display projects newest-to-oldest (DESC by registered_date)
   - Changed ORDER BY from ASC (oldest first) to DESC (newest first)
   - Improves user experience by showing most recent projects at top of list
+- **Registered By Tracking**: Fixed "Unknown" registrar issue
+  - Now captures `updated_by` username when projects are registered
+  - All new projects automatically show who created them
+- **Admin Approval Notifications**: Implemented real-time notifications for pending project approvals
+  - When user registers a project, admins receive high-priority notification
+  - Notification message: "{User} registered a new project that needs your approval: {Project Name}"
+  - Notification links directly to Pending Project Approvals page
+  - Only admins (General Manager and Technical Team Leader) receive these notifications
+  - New event code: `project.pending_approval` added to notification system
 
 ### Project Approval System ✅ (2025-11-01)
 - **Approval Workflow**: New projects require admin approval before entering the pipeline
