@@ -171,7 +171,15 @@ class NotificationService:
             detail_str = ", ".join(details) if details else "updated"
             return f"{actor} updated RFQ {rfq_ref} for {project_name} - {detail_str}"
         elif event_code == 'rfq.comment_added':
-            return f"{actor} added a comment to RFQ: {context.get('rfq_ref', 'Unknown')}"
+            rfq_ref = context.get('rfq_reference', 'Unknown')
+            project_name = context.get('project_name', 'Unknown')
+            comment_preview = context.get('comment_preview', '')
+            if comment_preview and len(comment_preview) > 50:
+                comment_preview = comment_preview[:50] + '...'
+            base_msg = f"{actor} commented on RFQ {rfq_ref} for {project_name}"
+            if comment_preview:
+                return f"{base_msg}: \"{comment_preview}\""
+            return base_msg
         
         # User events
         elif event_code == 'user.registered':
