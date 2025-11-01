@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Project Approvals{% endblock %}
+
+{% block content %}
+<head>
+    <style>
+        .approval-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .approval-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .project-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .pending-badge {
+            background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .project-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .detail-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .detail-label {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            font-size: 1rem;
+            color: #333;
+            font-weight: 500;
+        }
+        .approval-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-clock text-warning mr-2"></i>Pending Project Approvals</h2>
+            <p class="text-muted">Review and approve projects before they enter the pipeline</p>
+        </div>
+        <div>
+            <span class="badge badge-warning badge-lg" style="font-size: 1.2rem; padding: 10px 20px;">
+                {{ pending_projects|length }} Pending
+            </span>
+        </div>
+    </div>
+
+    {% if pending_projects %}
+        {% for project in pending_projects %}
+        <div class="approval-card">
+            <div class="project-header">
+                <h3 class="project-title">{{ project[1] }}</h3>
+                <span class="pending-badge"><i class="fas fa-clock mr-1"></i>PENDING APPROVAL</span>
+            </div>
+
+            <div class="project-details">
+                <div class="detail-item">
+                    <div class="detail-label">End User</div>
+                    <div class="detail-value">
+                        <i class="fas fa-building text-primary mr-1"></i>{{ project[9] or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Contractor</div>
+                    <div class="detail-value">
+                        <i class="fas fa-hard-hat text-success mr-1"></i>{{ project[10] or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Consultant</div>
+                    <div class="detail-value">
+                        <i class="fas fa-user-tie text-info mr-1"></i>{{ project[11] or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Sales Engineer</div>
+                    <div class="detail-value">
+                        <i class="fas fa-user text-secondary mr-1"></i>{{ project[12] or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Stage</div>
+                    <div class="detail-value">
+                        <i class="fas fa-flag text-warning mr-1"></i>{{ project[2] }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Deal Value</div>
+                    <div class="detail-value">
+                        <i class="fas fa-dollar-sign text-success mr-1"></i>${{ "{:,.2f}".format(project[3]) if project[3] else '0.00' }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Probability</div>
+                    <div class="detail-value">
+                        <i class="fas fa-percentage text-info mr-1"></i>{{ project[4] }}%
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Expected Close Date</div>
+                    <div class="detail-value">
+                        <i class="fas fa-calendar text-primary mr-1"></i>{{ project[5] or 'N/A' }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Registered Date</div>
+                    <div class="detail-value">
+                        <i class="fas fa-clock text-secondary mr-1"></i>{{ project[8] }}
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <div class="detail-label">Registered By</div>
+                    <div class="detail-value">
+                        <i class="fas fa-user-circle text-secondary mr-1"></i>{{ project[13] or 'Unknown' }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-item" style="grid-column: 1 / -1;">
+                <div class="detail-label">Scope of Work</div>
+                <div class="detail-value">{{ project[6] or 'N/A' }}</div>
+            </div>
+
+            {% if project[7] %}
+            <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
+                <div class="detail-label">Notes</div>
+                <div class="detail-value">{{ project[7] }}</div>
+            </div>
+            {% endif %}
+
+            <div class="approval-actions">
+                <button class="btn btn-success btn-lg approve-btn" 
+                        data-project-id="{{ project[0] }}"
+                        data-project-name="{{ project[1] }}">
+                    <i class="fas fa-check-circle mr-2"></i>Approve Project
+                </button>
+                <button class="btn btn-danger btn-lg reject-btn" 
+                        data-project-id="{{ project[0] }}"
+                        data-project-name="{{ project[1] }}">
+                    <i class="fas fa-times-circle mr-2"></i>Reject Project
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            <h3>No Pending Approvals</h3>
+            <p class="text-muted">All projects have been reviewed. Great job!</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Approval Modal -->
+<div class="modal fade" id="approvalModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle mr-2"></i>Approve Project</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to approve <strong id="approveProjectName"></strong>?</p>
+                <p class="text-muted">This project will be added to the active pipeline.</p>
+                <div class="form-group">
+                    <label for="approvalNotes">Approval Notes (Optional)</label>
+                    <textarea class="form-control" id="approvalNotes" rows="3" placeholder="Add any comments..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmApprove">
+                    <i class="fas fa-check mr-1"></i>Approve
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Modal -->
+<div class="modal fade" id="rejectionModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject Project</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reject <strong id="rejectProjectName"></strong>?</p>
+                <div class="form-group">
+                    <label for="rejectionReason">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="rejectionReason" rows="3" 
+                              placeholder="Please provide a reason for rejection..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmReject">
+                    <i class="fas fa-times mr-1"></i>Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+$(document).ready(function() {
+    let selectedProjectId = null;
+
+    // Approve button click
+    $('.approve-btn').click(function() {
+        selectedProjectId = $(this).data('project-id');
+        const projectName = $(this).data('project-name');
+        $('#approveProjectName').text(projectName);
+        $('#approvalModal').modal('show');
+    });
+
+    // Reject button click
+    $('.reject-btn').click(function() {
+        selectedProjectId = $(this).data('project-id');
+        const projectName = $(this).data('project-name');
+        $('#rejectProjectName').text(projectName);
+        $('#rejectionModal').modal('show');
+    });
+
+    // Confirm approval
+    $('#confirmApprove').click(function() {
+        const notes = $('#approvalNotes').val();
+        
+        $.post(`/approve_project/${selectedProjectId}`, {
+            approval_notes: notes
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Error approving project: ' + response.error);
+            }
+        });
+    });
+
+    // Confirm rejection
+    $('#confirmReject').click(function() {
+        const reason = $('#rejectionReason').val();
+        
+        if (!reason.trim()) {
+            alert('Please provide a rejection reason');
+            return;
+        }
+        
+        $.post(`/reject_project/${selectedProjectId}`, {
+            rejection_reason: reason
+        }, function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Error rejecting project: ' + response.error);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
