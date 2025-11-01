@@ -36,6 +36,37 @@
     .form-text a {
         font-size: 0.9rem;
     }
+    .client-designation-buttons {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+    .client-radio .custom-control-label {
+        cursor: pointer;
+        padding: 12px 24px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        background: #f8f9fa;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+    .client-radio .custom-control-input:checked ~ .custom-control-label {
+        background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
+        color: white;
+        border-color: #7C3AED;
+    }
+    .client-radio .custom-control-label:hover {
+        border-color: #7C3AED;
+        background: #f3e8ff;
+    }
+    .client-radio .custom-control-input:checked ~ .custom-control-label:hover {
+        background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
+    }
+    .client-radio .custom-control-input {
+        position: absolute;
+        opacity: 0;
+    }
 </style>
 
 <div class="container" style="max-width: 900px;">
@@ -129,6 +160,35 @@
                         </small>
                     </div>
                 </div>
+
+                <hr class="my-4">
+
+                <div class="form-group">
+                    <label class="d-block mb-3"><i class="fas fa-star text-warning mr-2"></i>Designate Client</label>
+                    <p class="text-muted small mb-3">Select which entity is the primary client for this project</p>
+                    <div class="client-designation-buttons">
+                        <div class="custom-control custom-radio custom-control-inline client-radio">
+                            <input type="radio" id="client_end_user" name="client_type" value="End User" class="custom-control-input" required>
+                            <label class="custom-control-label" for="client_end_user">
+                                <i class="fas fa-building mr-2"></i>End User
+                            </label>
+                        </div>
+                        <div class="custom-control custom-radio custom-control-inline client-radio">
+                            <input type="radio" id="client_contractor" name="client_type" value="Contractor" class="custom-control-input">
+                            <label class="custom-control-label" for="client_contractor">
+                                <i class="fas fa-hard-hat mr-2"></i>Contractor
+                            </label>
+                        </div>
+                        <div class="custom-control custom-radio custom-control-inline client-radio">
+                            <input type="radio" id="client_consultant" name="client_type" value="Consultant" class="custom-control-input">
+                            <label class="custom-control-label" for="client_consultant">
+                                <i class="fas fa-user-tie mr-2"></i>Consultant
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
 
                 <div class="form-group">
                     <label for="scope_of_work">Scope of Work</label>

@@ -2527,6 +2527,7 @@ def register_project():
         consultant_id = request.form.get('consultant_id')
         scope_of_work = request.form['scope_of_work']
         note = request.form['note']
+        client_type = request.form.get('client_type')
 
         # Automatically generate the current timestamp
         registered_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -2537,10 +2538,10 @@ def register_project():
             # Updated INSERT statement with approval_status='Pending' for new projects
             c.execute('''INSERT INTO register_project 
                          (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note, 
-                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, approval_status, updated_by)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, approval_status, updated_by, client_type)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note,
-                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending', updated_by))
+                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending', updated_by, client_type))
             project_id = c.lastrowid
             conn.commit()
             flash('Project registered successfully! It is pending admin approval before appearing in the pipeline.', 'info')
@@ -4153,7 +4154,7 @@ def view_projects():
             rp.deal_value, rp.probability, rp.expected_close_date,
             en.username AS sales_engineer, rp.registered_date,
             rp.scope_of_work, rp.note,
-            co.name as contractor, cn.name as consultant
+            co.name as contractor, cn.name as consultant, rp.client_type
         FROM register_project rp
         LEFT JOIN end_users eu ON rp.end_user_id = eu.id
         LEFT JOIN contractors co ON rp.contractor_id = co.id
@@ -4431,7 +4432,8 @@ def pending_project_approvals():
             c.name as contractor_name,
             con.name as consultant_name,
             e.username as sales_engineer_name,
-            reg_user.username as registered_by
+            reg_user.username as registered_by,
+            rp.client_type
         FROM register_project rp
         LEFT JOIN end_users eu ON rp.end_user_id = eu.id
         LEFT JOIN contractors c ON rp.contractor_id = c.id
