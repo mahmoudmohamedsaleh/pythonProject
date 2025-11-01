@@ -4334,9 +4334,9 @@ def manage_clients():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     
-    # Get all sales engineers for assignment dropdown
-    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
-    sales_engineers = c.fetchall()
+    # Get all engineers for assignment dropdown (Sales Engineer, Project Manager, General Manager, Technical Team Leader)
+    c.execute("SELECT id, username, role FROM engineers WHERE role IN ('Sales Engineer', 'Project Manager', 'General Manager', 'Technical Team Leader') ORDER BY role, username")
+    engineers = c.fetchall()
     
     # Get ALL End Users with client status and assigned sales engineer
     c.execute("""
@@ -4394,7 +4394,7 @@ def manage_clients():
                          client_end_users=client_end_users,
                          client_contractors=client_contractors,
                          client_consultants=client_consultants,
-                         sales_engineers=sales_engineers)
+                         engineers=engineers)
 
 ####################
 @app.route('/end_user_contractors/<int:end_user_id>')
