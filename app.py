@@ -3871,14 +3871,27 @@ def view_consultants():
 
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Get all sales engineers for assignment dropdown
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    sales_engineers = c.fetchall()
 
     if search_query:
         # If a search query exists, filter the results by name or contact person
         query_param = f'%{search_query}%'
-        c.execute("SELECT * FROM consultants WHERE name LIKE ? OR contact_person LIKE ?", (query_param, query_param))
+        c.execute("""
+            SELECT con.*, e.username as assigned_engineer_name 
+            FROM consultants con
+            LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+            WHERE con.name LIKE ? OR con.contact_person LIKE ?
+        """, (query_param, query_param))
     else:
         # If there is no search query, fetch all consultants
-        c.execute("SELECT * FROM consultants")
+        c.execute("""
+            SELECT con.*, e.username as assigned_engineer_name 
+            FROM consultants con
+            LEFT JOIN engineers e ON con.assigned_sales_engineer_id = e.id
+        """)
 
     consultants = c.fetchall()
     
@@ -3892,10 +3905,13 @@ def view_consultants():
     conn.close()
     
     # Sort consultants by project count (descending - most projects first)
-    consultants_with_counts.sort(key=lambda x: x[6], reverse=True)
+    consultants_with_counts.sort(key=lambda x: x[8], reverse=True)
 
-    # Pass the list of consultants (with project counts) and the search query to the template
-    return render_template('view_consultants.html', consultants=consultants_with_counts, search_query=search_query)
+    # Pass the list of consultants (with project counts), sales engineers, and the search query to the template
+    return render_template('view_consultants.html', 
+                         consultants=consultants_with_counts, 
+                         sales_engineers=sales_engineers,
+                         search_query=search_query)
 ##########33
 @app.route('/consultant_projects/<int:consultant_id>')
 @login_required
@@ -3956,14 +3972,27 @@ def view_contractors():
 
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Get all sales engineers for assignment dropdown
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    sales_engineers = c.fetchall()
 
     if search_query:
         # If a search query exists, filter the results
         query_param = f'%{search_query}%'
-        c.execute("SELECT * FROM contractors WHERE name LIKE ? OR contact_person LIKE ?", (query_param, query_param))
+        c.execute("""
+            SELECT c.*, e.username as assigned_engineer_name 
+            FROM contractors c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.name LIKE ? OR c.contact_person LIKE ?
+        """, (query_param, query_param))
     else:
         # If there is no search query, fetch all contractors
-        c.execute("SELECT * FROM contractors")
+        c.execute("""
+            SELECT c.*, e.username as assigned_engineer_name 
+            FROM contractors c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        """)
 
     contractors = c.fetchall()
     
@@ -3977,10 +4006,13 @@ def view_contractors():
     conn.close()
     
     # Sort contractors by project count (descending - most projects first)
-    contractors_with_counts.sort(key=lambda x: x[6], reverse=True)
+    contractors_with_counts.sort(key=lambda x: x[8], reverse=True)
 
-    # Pass the list of contractors (with project counts) and the search query back to the template
-    return render_template('view_contractors.html', contractors=contractors_with_counts, search_query=search_query)
+    # Pass the list of contractors (with project counts), sales engineers, and the search query back to the template
+    return render_template('view_contractors.html', 
+                         contractors=contractors_with_counts, 
+                         sales_engineers=sales_engineers,
+                         search_query=search_query)
 #############
 @app.route('/contractor_projects/<int:contractor_id>')
 @login_required
@@ -4176,14 +4208,27 @@ def view_end_users():
 
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Get all sales engineers for assignment dropdown
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    sales_engineers = c.fetchall()
 
     if search_query:
         # If a search query exists, filter the results by name or contact person
         query_param = f'%{search_query}%'
-        c.execute("SELECT * FROM end_users WHERE name LIKE ? OR contact_person LIKE ?", (query_param, query_param))
+        c.execute("""
+            SELECT eu.*, e.username as assigned_engineer_name 
+            FROM end_users eu
+            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+            WHERE eu.name LIKE ? OR eu.contact_person LIKE ?
+        """, (query_param, query_param))
     else:
         # If there is no search query, fetch all end users
-        c.execute("SELECT * FROM end_users")
+        c.execute("""
+            SELECT eu.*, e.username as assigned_engineer_name 
+            FROM end_users eu
+            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+        """)
 
     end_users = c.fetchall()
     
@@ -4207,10 +4252,73 @@ def view_end_users():
     conn.close()
     
     # Sort end users by project count (descending - most projects first)
-    end_users_with_counts.sort(key=lambda x: x[6], reverse=True)
+    end_users_with_counts.sort(key=lambda x: x[8], reverse=True)
 
-    # Pass the list of end users (with project counts) and the search query to the template
-    return render_template('view_end_users.html', end_users=end_users_with_counts, search_query=search_query)
+    # Pass the list of end users (with project counts), sales engineers, and the search query to the template
+    return render_template('view_end_users.html', 
+                         end_users=end_users_with_counts, 
+                         sales_engineers=sales_engineers,
+                         search_query=search_query)
+####################
+@app.route('/toggle_client_status', methods=['POST'])
+@login_required
+def toggle_client_status():
+    # Check if user is admin
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    entity_type = request.form.get('entity_type')  # 'end_user', 'contractor', 'consultant'
+    entity_id = request.form.get('entity_id')
+    is_client = request.form.get('is_client')  # '1' or '0'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        if entity_type == 'end_user':
+            c.execute("UPDATE end_users SET is_client = ? WHERE id = ?", (is_client, entity_id))
+        elif entity_type == 'contractor':
+            c.execute("UPDATE contractors SET is_client = ? WHERE id = ?", (is_client, entity_id))
+        elif entity_type == 'consultant':
+            c.execute("UPDATE consultants SET is_client = ? WHERE id = ?", (is_client, entity_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+####################
+@app.route('/assign_sales_engineer', methods=['POST'])
+@login_required
+def assign_sales_engineer():
+    # Check if user is admin
+    if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    entity_type = request.form.get('entity_type')
+    entity_id = request.form.get('entity_id')
+    sales_engineer_id = request.form.get('sales_engineer_id')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        if entity_type == 'end_user':
+            c.execute("UPDATE end_users SET assigned_sales_engineer_id = ? WHERE id = ?", (sales_engineer_id, entity_id))
+        elif entity_type == 'contractor':
+            c.execute("UPDATE contractors SET assigned_sales_engineer_id = ? WHERE id = ?", (sales_engineer_id, entity_id))
+        elif entity_type == 'consultant':
+            c.execute("UPDATE consultants SET assigned_sales_engineer_id = ? WHERE id = ?", (sales_engineer_id, entity_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 ####################
 @app.route('/end_user_contractors/<int:end_user_id>')
 @login_required
