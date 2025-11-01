@@ -108,6 +108,13 @@
                             <hr>
                             <p class="mb-2"><i class="fas fa-sticky-note fa-fw"></i><strong>Note:</strong></p>
                             <p class="text-muted pl-4">{{ end_user[5] if end_user[5] else 'No notes available.' }}</p>
+                            <hr>
+                            <div class="text-center">
+                                <a href="{{ url_for('end_user_projects', end_user_id=end_user[0]) }}" class="btn btn-info btn-sm btn-block">
+                                    <i class="fas fa-project-diagram mr-2"></i>View Projects 
+                                    <span class="badge badge-light ml-2">{{ end_user[6] }}</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

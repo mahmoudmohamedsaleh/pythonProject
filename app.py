@@ -4062,10 +4062,60 @@ def view_end_users():
         c.execute("SELECT * FROM end_users")
 
     end_users = c.fetchall()
+    
+    # Get project count for each end user
+    end_users_with_counts = []
+    for end_user in end_users:
+        c.execute("SELECT COUNT(*) FROM register_project WHERE end_user_id = ?", (end_user[0],))
+        project_count = c.fetchone()[0]
+        end_users_with_counts.append(end_user + (project_count,))
+    
     conn.close()
 
-    # Pass the list of end users and the search query to the template
-    return render_template('view_end_users.html', end_users=end_users, search_query=search_query)
+    # Pass the list of end users (with project counts) and the search query to the template
+    return render_template('view_end_users.html', end_users=end_users_with_counts, search_query=search_query)
+####################
+@app.route('/end_user_projects/<int:end_user_id>')
+@login_required
+def end_user_projects(end_user_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get end user details
+    c.execute('SELECT id, name FROM end_users WHERE id = ?', (end_user_id,))
+    end_user = c.fetchone()
+    
+    if not end_user:
+        conn.close()
+        flash('End user not found.', 'danger')
+        return redirect(url_for('view_end_users'))
+    
+    # Get all projects for this end user
+    c.execute("""
+        SELECT 
+            rp.id,
+            rp.project_name,
+            rp.stage,
+            rp.deal_value,
+            rp.probability,
+            rp.expected_close_date,
+            rp.registered_date,
+            e.username as sales_engineer,
+            c.name as contractor,
+            con.name as consultant
+        FROM register_project rp
+        LEFT JOIN engineers e ON rp.sales_engineer_id = e.id
+        LEFT JOIN contractors c ON rp.contractor_id = c.id
+        LEFT JOIN consultants con ON rp.consultant_id = con.id
+        WHERE rp.end_user_id = ?
+        ORDER BY rp.registered_date DESC
+    """, (end_user_id,))
+    
+    projects = c.fetchall()
+    conn.close()
+    
+    return render_template('end_user_projects.html', end_user=end_user, projects=projects)
+
 ####################
 @app.route('/edit_end_user/<int:end_user_id>', methods=['GET', 'POST'])
 #@role_required('editor')
