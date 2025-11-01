@@ -39,6 +39,7 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **Client Designation in Projects**: Projects can designate which entity (End User, Contractor, or Consultant) is the primary client, displayed with purple gradient badges throughout the system.
 - **Smart Form Auto-Selection**: Project registration form automatically defaults to "Lead" stage and pre-selects the logged-in user as sales engineer for streamlined data entry.
 - **All Clients Dashboard**: Unified view displaying all entities marked as clients across End Users, Contractors, and Consultants in a searchable card-based interface with type badges and project counts.
+- **Role-Based Data Filtering**: Sales Engineers see only entities assigned to them in All Clients, End Users, Contractors, and Consultants pages, while General Managers, Technical Team Leaders, and Presale Engineers see all entities. Filtering applies to both search and normal view modes.
 
 ### System Design Choices
 - Environment variables are used for configuration (e.g., `HOST`, `PORT`, `FLASK_DEBUG`, `SECRET_KEY`, email settings).
