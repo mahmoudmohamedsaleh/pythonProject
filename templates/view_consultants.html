@@ -94,6 +94,13 @@
                     <hr>
                     <p class="mb-2"><i class="fas fa-sticky-note fa-fw"></i><strong>Note:</strong></p>
                     <p class="text-muted pl-4">{{ consultant[5] if consultant[5] else 'No notes available.' }}</p>
+                    <hr>
+                    <div class="text-center">
+                        <a href="{{ url_for('consultant_projects', consultant_id=consultant[0]) }}" class="btn btn-info btn-sm btn-block">
+                            <i class="fas fa-project-diagram mr-2"></i>View Projects 
+                            <span class="badge badge-light ml-2">{{ consultant[6] }}</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
