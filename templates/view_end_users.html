@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Project Pipeline{% endblock %}
+{% block title %}Registered End Users{% endblock %}
 
 {% block content %}
 <head>
@@ -64,6 +64,24 @@
             background-color: #ffffff;
             border-radius: 12px;
         }
+        .client-badge {
+            position: absolute;
+            top: 10px;
+            right: 90px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        .admin-controls {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -93,7 +111,12 @@
             {% for end_user in end_users %}
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="enduser-card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="card-header d-flex justify-content-between align-items-center" style="position: relative;">
+                            {% if end_user[6] == 1 %}
+                            <span class="client-badge">
+                                <i class="fas fa-star mr-1"></i>CLIENT
+                            </span>
+                            {% endif %}
                             <h5 class="mb-0 text-primary">
                                 <i class="fas fa-building mr-2"></i>{{ end_user[1] }}
                             </h5>
@@ -105,18 +128,47 @@
                             <p><i class="fas fa-user fa-fw"></i><strong>Contact:</strong> {{ end_user[2] if end_user[2] else 'N/A' }}</p>
                             <p><i class="fas fa-phone fa-fw"></i><strong>Phone:</strong> {{ end_user[3] if end_user[3] else 'N/A' }}</p>
                             <p><i class="fas fa-envelope fa-fw"></i><strong>Email:</strong> {{ end_user[4] if end_user[4] else 'N/A' }}</p>
+                            
+                            {% if end_user[8] %}
+                            <p><i class="fas fa-user-tie fa-fw text-success"></i><strong>Sales Engineer:</strong> {{ end_user[8] }}</p>
+                            {% endif %}
+                            
                             <hr>
                             <p class="mb-2"><i class="fas fa-sticky-note fa-fw"></i><strong>Note:</strong></p>
                             <p class="text-muted pl-4">{{ end_user[5] if end_user[5] else 'No notes available.' }}</p>
+                            
+                            {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
+                            <div class="admin-controls">
+                                <small class="text-muted d-block mb-2"><i class="fas fa-crown mr-1"></i>Admin Controls</small>
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" class="form-check-input client-toggle" 
+                                           data-entity-type="end_user" 
+                                           data-entity-id="{{ end_user[0] }}"
+                                           {{ 'checked' if end_user[6] == 1 else '' }}>
+                                    <label class="form-check-label">
+                                        <strong>Mark as Client</strong>
+                                    </label>
+                                </div>
+                                <select class="form-control form-control-sm sales-engineer-assign" 
+                                        data-entity-type="end_user" 
+                                        data-entity-id="{{ end_user[0] }}">
+                                    <option value="">Assign Sales Engineer...</option>
+                                    {% for se in sales_engineers %}
+                                    <option value="{{ se[0] }}" {{ 'selected' if end_user[7] == se[0] else '' }}>{{ se[1] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endif %}
+                            
                             <hr>
                             <div class="text-center">
                                 <a href="{{ url_for('end_user_projects', end_user_id=end_user[0]) }}" class="btn btn-info btn-sm btn-block mb-2">
                                     <i class="fas fa-project-diagram mr-2"></i>View Projects 
-                                    <span class="badge badge-light ml-2">{{ end_user[6] }}</span>
+                                    <span class="badge badge-light ml-2">{{ end_user[9] }}</span>
                                 </a>
                                 <a href="{{ url_for('end_user_contractors', end_user_id=end_user[0]) }}" class="btn btn-warning btn-sm btn-block">
                                     <i class="fas fa-hard-hat mr-2"></i>View Contractors 
-                                    <span class="badge badge-light ml-2">{{ end_user[7] }}</span>
+                                    <span class="badge badge-light ml-2">{{ end_user[10] }}</span>
                                 </a>
                             </div>
                         </div>
@@ -129,7 +181,7 @@
                         {% if search_query %}
                             <p>Your search for "{{ search_query }}" did not match any records.</p>
                         {% else %}
-                            <p>Click the "Register New End User" button to add your first one.</p>
+                            <p>Click the "Register End User" button to add your first one.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -137,8 +189,51 @@
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        // Toggle client status
+        $('.client-toggle').change(function() {
+            const entityType = $(this).data('entity-type');
+            const entityId = $(this).data('entity-id');
+            const isClient = $(this).is(':checked') ? 1 : 0;
+            
+            $.post('/toggle_client_status', {
+                entity_type: entityType,
+                entity_id: entityId,
+                is_client: isClient
+            }, function(response) {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Error updating client status');
+                }
+            });
+        });
+        
+        // Assign sales engineer
+        $('.sales-engineer-assign').change(function() {
+            const entityType = $(this).data('entity-type');
+            const entityId = $(this).data('entity-id');
+            const salesEngineerId = $(this).val();
+            
+            if (salesEngineerId) {
+                $.post('/assign_sales_engineer', {
+                    entity_type: entityType,
+                    entity_id: entityId,
+                    sales_engineer_id: salesEngineerId
+                }, function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('Error assigning sales engineer');
+                    }
+                });
+            }
+        });
+    });
+    </script>
 </body>
 {% endblock %}
