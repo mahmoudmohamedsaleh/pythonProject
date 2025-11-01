@@ -4188,6 +4188,9 @@ def view_projects():
         query += " AND date(rp.registered_date) <= ?"
         params.append(end_date_filter)
 
+    # Order by registered date - newest first
+    query += " ORDER BY rp.registered_date DESC"
+    
     c.execute(query, params)
     projects = c.fetchall()
     conn.close()
