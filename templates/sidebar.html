@@ -119,6 +119,7 @@
             <li class="nav-item"><a href="{{ url_for('project_pipeline') }}" class="{{ 'active' if request.path == url_for('project_pipeline') else '' }}"><i class="fas fa-chart-line"></i> Pipeline Analysis</a></li>
             <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="{{ 'active' if request.endpoint == 'sales_performance' else '' }}"><i class="fas fa-trophy"></i> Sales Performance</a></li>
             <li class="nav-item"><a href="{{ url_for('aging_dashboard') }}" class="{{ 'active' if request.endpoint == 'aging_dashboard' else '' }}"><i class="fas fa-history"></i> Aging Dashboard</a></li>
+            <li class="nav-item"><a href="{{ url_for('view_all_clients') }}" class="{{ 'active' if request.endpoint == 'view_all_clients' else '' }}"><i class="fas fa-star"></i> All Clients</a></li>
             <li class="nav-item"><a href="{{ url_for('view_end_users') }}" class="{{ 'active' if 'end_user' in request.endpoint else '' }}"><i class="fas fa-building"></i> End Users</a></li>
             <li class="nav-item"><a href="{{ url_for('view_contractors') }}" class="{{ 'active' if 'contractor' in request.endpoint else '' }}"><i class="fas fa-hard-hat"></i> Contractors</a></li>
             <li class="nav-item"><a href="{{ url_for('view_consultants') }}" class="{{ 'active' if 'consultant' in request.endpoint else '' }}"><i class="fas fa-user-tie"></i> Consultants</a></li>
