@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Project Rejection Details{% endblock %}
+
+{% block content %}
+<head>
+    <style>
+        .rejection-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .project-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .rejected-badge {
+            background: linear-gradient(135deg, #EF5350 0%, #E53935 100%);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .project-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .detail-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .detail-label {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .detail-value {
+            font-size: 1rem;
+            color: #333;
+            font-weight: 500;
+        }
+        .rejection-reason-box {
+            background: #fff3cd;
+            border-left: 4px solid #ff9800;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 25px 0;
+        }
+        .rejection-reason-label {
+            font-size: 0.875rem;
+            color: #856404;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .rejection-reason-text {
+            font-size: 1.1rem;
+            color: #333;
+            line-height: 1.6;
+        }
+        .back-button {
+            background: linear-gradient(135deg, #42A5F5 0%, #1E88E5 100%);
+            color: white;
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        .back-button:hover {
+            background: linear-gradient(135deg, #1E88E5 0%, #1565C0 100%);
+            color: white;
+            text-decoration: none;
+        }
+        .rejection-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .rejection-meta {
+            font-size: 0.875rem;
+            color: #666;
+        }
+    </style>
+</head>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-times-circle text-danger"></i> Project Rejection Details</h2>
+        <a href="{{ url_for('project_pipeline') }}" class="back-button">
+            <i class="fas fa-arrow-left"></i> Back to Pipeline
+        </a>
+    </div>
+
+    <div class="rejection-card">
+        <div class="project-header">
+            <h3 class="project-title">{{ project[1] }}</h3>
+            <span class="rejected-badge">❌ CANCELLED</span>
+        </div>
+
+        <div class="project-details">
+            <div class="detail-item">
+                <div class="detail-label">📍 End User</div>
+                <div class="detail-value">{{ project[6] or 'N/A' }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">🏗️ Contractor</div>
+                <div class="detail-value">{{ project[7] or 'No Contractor' }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">🎯 Consultant</div>
+                <div class="detail-value">{{ project[8] or 'No Consultant' }}</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">👨‍💼 Sales Engineer</div>
+                <div class="detail-value">{{ project[9] or 'N/A' }}</div>
+            </div>
+        </div>
+
+        <div class="rejection-reason-box">
+            <div class="rejection-reason-label">
+                <i class="fas fa-exclamation-triangle"></i> Rejection Reason
+            </div>
+            <div class="rejection-reason-text">
+                {{ project[3] or 'No reason provided' }}
+            </div>
+        </div>
+
+        <div class="rejection-info">
+            <div class="rejection-meta">
+                <strong>Rejected by:</strong> {{ project[5] or 'Unknown' }}
+            </div>
+            <div class="rejection-meta">
+                <strong>Rejected on:</strong> {{ project[4] or 'Unknown' }}
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <p class="text-muted mb-2"><i class="fas fa-info-circle"></i> <strong>What happens now?</strong></p>
+            <ul class="text-muted">
+                <li>This project has been moved to the <strong>Cancelled</strong> stage in the pipeline</li>
+                <li>You can still view it in the Projects & Pipeline page</li>
+                <li>If you believe this was rejected in error, please contact your manager</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

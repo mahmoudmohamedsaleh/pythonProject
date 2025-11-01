@@ -4567,10 +4567,11 @@ def reject_project(project_id):
         registered_by_username = project_data[1]
         sales_engineer_id = project_data[2]
         
-        # Update project rejection status
+        # Update project rejection status - set to Approved with Cancelled stage so it appears in pipeline
         c.execute("""
             UPDATE register_project 
-            SET approval_status = 'Rejected',
+            SET approval_status = 'Approved',
+                stage = 'Cancelled',
                 approved_by_id = ?,
                 approved_at = ?,
                 approval_notes = ?
@@ -4578,7 +4579,7 @@ def reject_project(project_id):
         """, (approved_by_id, approved_at, rejection_reason, project_id))
         
         conn.commit()
-        flash('Project rejected.', 'warning')
+        flash('Project rejected and moved to Cancelled stage in pipeline.', 'warning')
         
         # Send notifications
         try:
@@ -4616,7 +4617,7 @@ def reject_project(project_id):
                     'project_id': project_id,
                     'rejection_reason': rejection_reason
                 },
-                url=url_for('pending_project_approvals')
+                url=url_for('view_rejection_details', project_id=project_id)
             )
         except Exception as e:
             print(f"Notification error: {e}")
@@ -4626,6 +4627,46 @@ def reject_project(project_id):
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
+
+@app.route('/view_rejection_details/<int:project_id>')
+@login_required
+def view_rejection_details(project_id):
+    """
+    Show rejection details for a project
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get project details including rejection reason
+    c.execute("""
+        SELECT 
+            rp.id,
+            rp.project_name,
+            rp.stage,
+            rp.approval_notes as rejection_reason,
+            rp.approved_at as rejected_at,
+            u.username as rejected_by,
+            eu.name as end_user_name,
+            cont.name as contractor_name,
+            cons.name as consultant_name,
+            e.username as sales_engineer_name
+        FROM register_project rp
+        LEFT JOIN users u ON rp.approved_by_id = u.id
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors cont ON rp.contractor_id = cont.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        LEFT JOIN engineers e ON rp.sales_engineer_id = e.id
+        WHERE rp.id = ? AND rp.stage = 'Cancelled'
+    """, (project_id,))
+    
+    project = c.fetchone()
+    conn.close()
+    
+    if not project:
+        flash('Project not found or not rejected.', 'danger')
+        return redirect(url_for('project_pipeline'))
+    
+    return render_template('rejection_details.html', project=project)
 
 @app.route('/api/pending_approvals_count')
 @login_required
