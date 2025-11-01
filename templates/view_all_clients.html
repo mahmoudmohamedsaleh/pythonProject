@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% block title %}All Clients{% endblock %}
+
+{% block content %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Clients</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container-fluid {
+            padding: 30px;
+        }
+        .page-header {
+            margin-bottom: 2rem;
+        }
+        .page-header h1 {
+            font-weight: 700;
+        }
+        .client-card {
+            background-color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .client-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+        .card-body {
+            flex-grow: 1;
+        }
+        .card-body p {
+            margin-bottom: 0.75rem;
+            color: #6c757d;
+        }
+        .card-body p i {
+            width: 20px;
+            margin-right: 10px;
+            color: #007bff;
+        }
+        .card-body p strong {
+            color: #343a40;
+        }
+        .no-clients {
+            text-align: center;
+            padding: 3rem;
+            background-color: #ffffff;
+            border-radius: 12px;
+        }
+        .client-badge {
+            position: absolute;
+            top: 10px;
+            right: 90px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        .type-badge {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .type-enduser {
+            background-color: #007bff;
+            color: white;
+        }
+        .type-contractor {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .type-consultant {
+            background-color: #28a745;
+            color: white;
+        }
+        .btn-view-projects {
+            background-color: #17a2b8;
+            color: white;
+            font-weight: 600;
+        }
+        .btn-view-projects:hover {
+            background-color: #138496;
+            color: white;
+        }
+        .btn-view-contractors {
+            background-color: #ffc107;
+            color: #333;
+            font-weight: 600;
+        }
+        .btn-view-contractors:hover {
+            background-color: #e0a800;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container-fluid">
+        <div class="page-header d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1>All Clients</h1>
+                <p class="text-muted mb-0">View all entities marked as clients across End Users, Contractors, and Consultants.</p>
+            </div>
+            <div class="d-flex align-items-center mt-3 mt-md-0">
+                <form method="GET" action="{{ url_for('view_all_clients') }}" class="form-inline">
+                    <div class="input-group">
+                        <input type="text" name="search_query" class="form-control" placeholder="Search by name..." value="{{ search_query or '' }}">
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="row">
+            {% for client in clients %}
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="client-card">
+                        <div class="card-header d-flex justify-content-between align-items-center" style="position: relative;">
+                            <span class="client-badge">
+                                <i class="fas fa-star mr-1"></i>CLIENT
+                            </span>
+                            <span class="type-badge 
+                                {% if client.type == 'End User' %}type-enduser
+                                {% elif client.type == 'Contractor' %}type-contractor
+                                {% else %}type-consultant{% endif %}">
+                                {% if client.type == 'End User' %}🏢
+                                {% elif client.type == 'Contractor' %}🪖
+                                {% else %}👔{% endif %}
+                                {{ client.type }}
+                            </span>
+                            <h5 class="mb-0 text-primary ml-auto">
+                                <i class="fas fa-building mr-2"></i>{{ client.name }}
+                            </h5>
+                            {% if client.type == 'End User' %}
+                            <a href="{{ url_for('edit_end_user', end_user_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
+                            {% elif client.type == 'Contractor' %}
+                            <a href="{{ url_for('edit_contractor', contractor_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('edit_consultant', consultant_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <p><i class="fas fa-user"></i><strong>Contact:</strong> {{ client.contact_person }}</p>
+                            <p><i class="fas fa-phone"></i><strong>Phone:</strong> {{ client.phone if client.phone else 'N/A' }}</p>
+                            <p><i class="fas fa-envelope"></i><strong>Email:</strong> {{ client.email if client.email else 'N/A' }}</p>
+                            <p><i class="fas fa-user-tie"></i><strong>Sales Engineer:</strong> {{ client.assigned_engineer if client.assigned_engineer else 'Not Assigned' }}</p>
+                            
+                            {% if client.note %}
+                            <p><i class="fas fa-sticky-note"></i><strong>Note:</strong></p>
+                            <p class="ml-4">{{ client.note }}</p>
+                            {% else %}
+                            <p><i class="fas fa-sticky-note"></i><strong>Note:</strong></p>
+                            <p class="ml-4 text-muted">No notes available.</p>
+                            {% endif %}
+                            
+                            <div class="mt-3">
+                                {% if client.type == 'End User' %}
+                                <a href="{{ url_for('end_user_projects', end_user_id=client.id) }}" class="btn btn-view-projects btn-sm btn-block">
+                                    <i class="fas fa-tasks mr-1"></i>View Projects
+                                    <span class="badge badge-light ml-1">{{ client.project_count }}</span>
+                                </a>
+                                <a href="{{ url_for('end_user_contractors', end_user_id=client.id) }}" class="btn btn-view-contractors btn-sm btn-block">
+                                    <i class="fas fa-hard-hat mr-1"></i>View Contractors
+                                    <span class="badge badge-light ml-1">{{ client.contractor_count }}</span>
+                                </a>
+                                {% elif client.type == 'Contractor' %}
+                                <a href="{{ url_for('contractor_projects', contractor_id=client.id) }}" class="btn btn-view-projects btn-sm btn-block">
+                                    <i class="fas fa-tasks mr-1"></i>View Projects
+                                    <span class="badge badge-light ml-1">{{ client.project_count }}</span>
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('consultant_projects', consultant_id=client.id) }}" class="btn btn-view-projects btn-sm btn-block">
+                                    <i class="fas fa-tasks mr-1"></i>View Projects
+                                    <span class="badge badge-light ml-1">{{ client.project_count }}</span>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <div class="no-clients">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Clients Found</h4>
+                        <p class="text-muted">No entities are currently marked as clients.</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</body>
+{% endblock %}

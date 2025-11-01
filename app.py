@@ -3978,6 +3978,153 @@ def consultant_projects(consultant_id):
                          stage_counts=stage_counts)
 
 ##########33
+@app.route('/view_all_clients')
+@login_required
+def view_all_clients():
+    """
+    View all entities marked as clients (End Users, Contractors, Consultants)
+    """
+    search_query = request.args.get('search_query', '')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get all sales engineers for assignment dropdown
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    sales_engineers = c.fetchall()
+    
+    all_clients = []
+    
+    # Fetch End Users marked as clients
+    if search_query:
+        query_param = f'%{search_query}%'
+        c.execute("""
+            SELECT eu.*, e.username as assigned_engineer_name 
+            FROM end_users eu
+            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+            WHERE eu.is_client = 1 AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
+        """, (query_param, query_param))
+    else:
+        c.execute("""
+            SELECT eu.*, e.username as assigned_engineer_name 
+            FROM end_users eu
+            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+            WHERE eu.is_client = 1
+        """)
+    
+    end_users = c.fetchall()
+    for eu in end_users:
+        # Count projects
+        c.execute("SELECT COUNT(*) FROM register_project WHERE end_user_id = ?", (eu[0],))
+        project_count = c.fetchone()[0]
+        
+        # Count contractors
+        c.execute("""
+            SELECT COUNT(DISTINCT contractor_id) 
+            FROM register_project 
+            WHERE end_user_id = ? AND contractor_id IS NOT NULL
+        """, (eu[0],))
+        contractor_count = c.fetchone()[0]
+        
+        all_clients.append({
+            'id': eu[0],
+            'name': eu[1],
+            'type': 'End User',
+            'contact_person': eu[2],
+            'phone': eu[3],
+            'email': eu[4],
+            'note': eu[5],
+            'assigned_engineer': eu[7] if len(eu) > 7 else None,
+            'assigned_engineer_id': eu[6],
+            'project_count': project_count,
+            'contractor_count': contractor_count
+        })
+    
+    # Fetch Contractors marked as clients
+    if search_query:
+        query_param = f'%{search_query}%'
+        c.execute("""
+            SELECT c.*, e.username as assigned_engineer_name 
+            FROM contractors c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
+        """, (query_param, query_param))
+    else:
+        c.execute("""
+            SELECT c.*, e.username as assigned_engineer_name 
+            FROM contractors c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.is_client = 1
+        """)
+    
+    contractors = c.fetchall()
+    for con in contractors:
+        # Count projects
+        c.execute("SELECT COUNT(*) FROM register_project WHERE contractor_id = ?", (con[0],))
+        project_count = c.fetchone()[0]
+        
+        all_clients.append({
+            'id': con[0],
+            'name': con[1],
+            'type': 'Contractor',
+            'contact_person': con[2],
+            'phone': con[3],
+            'email': con[4],
+            'note': con[5],
+            'assigned_engineer': con[7] if len(con) > 7 else None,
+            'assigned_engineer_id': con[6],
+            'project_count': project_count,
+            'contractor_count': None
+        })
+    
+    # Fetch Consultants marked as clients
+    if search_query:
+        query_param = f'%{search_query}%'
+        c.execute("""
+            SELECT c.*, e.username as assigned_engineer_name 
+            FROM consultants c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
+        """, (query_param, query_param))
+    else:
+        c.execute("""
+            SELECT c.*, e.username as assigned_engineer_name 
+            FROM consultants c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.is_client = 1
+        """)
+    
+    consultants = c.fetchall()
+    for cons in consultants:
+        # Count projects
+        c.execute("SELECT COUNT(*) FROM register_project WHERE consultant_id = ?", (cons[0],))
+        project_count = c.fetchone()[0]
+        
+        all_clients.append({
+            'id': cons[0],
+            'name': cons[1],
+            'type': 'Consultant',
+            'contact_person': cons[2],
+            'phone': cons[3],
+            'email': cons[4],
+            'note': cons[5],
+            'assigned_engineer': cons[7] if len(cons) > 7 else None,
+            'assigned_engineer_id': cons[6],
+            'project_count': project_count,
+            'contractor_count': None
+        })
+    
+    conn.close()
+    
+    # Sort by name
+    all_clients.sort(key=lambda x: x['name'])
+    
+    return render_template('view_all_clients.html',
+                           clients=all_clients,
+                           sales_engineers=sales_engineers,
+                           search_query=search_query)
+
+##########33
 @app.route('/view_contractors')
 @permission_required('view_contractors')
 def view_contractors():
