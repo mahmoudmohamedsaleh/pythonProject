@@ -144,6 +144,21 @@ class NotificationService:
         # RFQ events
         elif event_code == 'rfq.created':
             return f"{actor} created RFQ for project: {context.get('project_name', 'Unknown')}"
+        elif event_code == 'rfq.updated':
+            rfq_ref = context.get('rfq_reference', 'Unknown')
+            project_name = context.get('project_name', 'Unknown')
+            rfq_status = context.get('rfq_status', '')
+            quotation_status = context.get('quotation_status', '')
+            priority = context.get('priority', '')
+            details = []
+            if rfq_status:
+                details.append(f"RFQ Status: {rfq_status}")
+            if quotation_status:
+                details.append(f"Quotation: {quotation_status}")
+            if priority:
+                details.append(f"Priority: {priority}")
+            detail_str = ", ".join(details) if details else "updated"
+            return f"{actor} updated RFQ {rfq_ref} for {project_name} - {detail_str}"
         elif event_code == 'rfq.comment_added':
             return f"{actor} added a comment to RFQ: {context.get('rfq_ref', 'Unknown')}"
         
@@ -318,6 +333,22 @@ class NotificationService:
             SELECT id
             FROM users
             WHERE role IN ('General Manager', 'Technical Team Leader')
+        """)
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return [row['id'] for row in rows]
+    
+    def get_presale_recipients(self) -> List[int]:
+        """Get all presale engineer user IDs"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id
+            FROM users
+            WHERE role = 'Presale Engineer'
         """)
         
         rows = cursor.fetchall()

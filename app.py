@@ -3540,6 +3540,11 @@ def edit_rfq(rfq_id):
     c = conn.cursor()
 
     if request.method == 'POST':
+        # Get RFQ reference before updating
+        c.execute("SELECT rfq_reference FROM rfq_requests WHERE id = ?", (rfq_id,))
+        rfq_ref_result = c.fetchone()
+        rfq_reference = rfq_ref_result['rfq_reference'] if rfq_ref_result else 'Unknown'
+        
         # Get all updated data from the form
         project_name = request.form['project_name']
         project_status = request.form['project_status']
@@ -3562,6 +3567,54 @@ def edit_rfq(rfq_id):
                   sales_engineer_sales, rfq_status, quotation_status, deadline, note, rfq_id))
             conn.commit()
             flash('RFQ updated successfully!', 'success')
+            
+            # Send notifications
+            try:
+                actor_id = session.get('user_id')
+                actor_name = session.get('username', 'User')
+                
+                # Build recipient list: admins + presales + sales engineer
+                recipients = []
+                
+                # Add General Managers and Technical Team Leaders
+                recipients.extend(notification_service.get_admin_recipients())
+                
+                # Add all Presale Engineers
+                recipients.extend(notification_service.get_presale_recipients())
+                
+                # Add the Sales Engineer from the RFQ
+                if sales_engineer_sales:
+                    sales_eng_user_id = notification_service.get_user_id_by_username(sales_engineer_sales)
+                    if sales_eng_user_id and sales_eng_user_id not in recipients:
+                        recipients.append(sales_eng_user_id)
+                
+                # Remove duplicates and current user
+                recipients = list(set(recipients))
+                if actor_id in recipients:
+                    recipients.remove(actor_id)
+                
+                # Send notification with updated data
+                if recipients:
+                    notification_service.notify_activity(
+                        event_code='rfq.updated',
+                        recipient_ids=recipients,
+                        actor_id=actor_id,
+                        context={
+                            'actor_name': actor_name,
+                            'rfq_reference': rfq_reference,
+                            'project_name': project_name,
+                            'priority': priority,
+                            'rfq_status': rfq_status,
+                            'quotation_status': quotation_status,
+                            'presale_engineer': sales_engineer_presale,
+                            'sales_engineer': sales_engineer_sales,
+                            'deadline': deadline
+                        },
+                        url=url_for('rfq_summary')
+                    )
+            except Exception as e:
+                print(f"Notification error: {e}")
+                
         except Exception as e:
             flash(f'An error occurred: {e}', 'danger')
         finally:
