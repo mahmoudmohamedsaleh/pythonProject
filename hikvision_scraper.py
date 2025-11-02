@@ -1,6 +1,14 @@
 """
-Hikvision Product Selector Scraper
-Fetches and parses product data from https://www.hikvision.com/en/products/product-selector/
+Hikvision Product Selector - Data Import System
+Imports and syncs Hikvision product data from Excel files.
+
+NOTE: Hikvision's product selector website uses JavaScript rendering without a public API,
+making direct web scraping unreliable. This system uses Excel imports instead:
+- Import HIKVISION Excel files with product specifications
+- Parse and structure data according to Hikvision filter categories  
+- Sync to database for use in the product selector interface
+
+For updates: Download latest product list from Hikvision and re-import the Excel file.
 """
 
 import requests
