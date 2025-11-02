@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.wizard-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.product-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.product-card:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transform: translateY(-5px);
+}
+
+.filter-section {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.price-badge {
+    background: #28a745;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.feature-tag {
+    background: #007bff;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    margin-right: 5px;
+    display: inline-block;
+    margin-bottom: 5px;
+}
+
+.resolution-badge {
+    background: #ff6b6b;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.camera-type-badge {
+    background: #4ecdc4;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 8px;
+    margin-right: 10px;
+}
+
+.compare-checkbox {
+    transform: scale(1.5);
+    margin-right: 10px;
+}
+
+#compareBtn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1000;
+    display: none;
+}
+</style>
+
+<div class="container-fluid mt-4">
+    <!-- AI Wizard Section -->
+    <div class="wizard-card">
+        <h2><i class="fas fa-robot"></i> AI-Powered CCTV Product Selector</h2>
+        <p class="lead">Find the perfect camera for your needs with intelligent recommendations</p>
+        
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="fas fa-search fa-3x mb-2"></i>
+                    <h5>{{ total_products }} Products</h5>
+                    <p>HIKVISION Cameras</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="fas fa-filter fa-3x mb-2"></i>
+                    <h5>Smart Filtering</h5>
+                    <p>Resolution, Type, Budget</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="fas fa-chart-bar fa-3x mb-2"></i>
+                    <h5>Compare</h5>
+                    <p>Side-by-Side Comparison</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Wizard -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <button type="button" class="btn btn-light btn-lg mr-2" onclick="quickFilter('indoor')">
+                    <i class="fas fa-home"></i> Indoor Cameras
+                </button>
+                <button type="button" class="btn btn-light btn-lg mr-2" onclick="quickFilter('outdoor')">
+                    <i class="fas fa-video"></i> Outdoor Cameras
+                </button>
+                <button type="button" class="btn btn-light btn-lg mr-2" onclick="quickFilter('budget')">
+                    <i class="fas fa-dollar-sign"></i> Budget Friendly
+                </button>
+                <button type="button" class="btn btn-light btn-lg" onclick="quickFilter('premium')">
+                    <i class="fas fa-star"></i> Premium 4K
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="filter-section">
+        <h4><i class="fas fa-sliders-h"></i> Advanced Filters</h4>
+        <form method="GET" action="{{ url_for('cctv_smart_selector') }}" id="filterForm">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Resolution</label>
+                        <select name="resolution" class="form-control" onchange="this.form.submit()">
+                            <option value="all">All Resolutions</option>
+                            {% for res in resolutions %}
+                            <option value="{{ res }}" {% if selected_resolution == res %}selected{% endif %}>{{ res }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Camera Type</label>
+                        <select name="camera_type" class="form-control" onchange="this.form.submit()">
+                            <option value="all">All Types</option>
+                            {% for ct in camera_types %}
+                            <option value="{{ ct }}" {% if selected_camera_type == ct %}selected{% endif %}>{{ ct }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Min Price (SAR)</label>
+                        <input type="number" name="min_price" class="form-control" value="{{ min_price or '' }}" placeholder="0">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>Max Price (SAR)</label>
+                        <input type="number" name="max_price" class="form-control" value="{{ max_price or '' }}" placeholder="5000">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-filter"></i> Apply
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>Search</label>
+                        <input type="text" name="search" class="form-control" value="{{ search_query or '' }}" placeholder="Search by name, code, or category...">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Features</label>
+                        <select name="features" class="form-control">
+                            <option value="">All Features</option>
+                            <option value="ColorVu" {% if selected_features == 'ColorVu' %}selected{% endif %}>ColorVu</option>
+                            <option value="Night Vision" {% if selected_features == 'Night Vision' %}selected{% endif %}>Night Vision</option>
+                            <option value="Outdoor" {% if selected_features == 'Outdoor' %}selected{% endif %}>Outdoor</option>
+                            <option value="Indoor" {% if selected_features == 'Indoor' %}selected{% endif %}>Indoor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <a href="{{ url_for('cctv_smart_selector') }}" class="btn btn-secondary btn-block">
+                            <i class="fas fa-redo"></i> Clear Filters
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Section -->
+    <div class="row">
+        <div class="col-md-12">
+            <h4>
+                <i class="fas fa-camera"></i> 
+                Showing {{ products|length }} Product{% if products|length != 1 %}s{% endif %}
+                {% if selected_resolution or selected_camera_type or search_query %}
+                (Filtered)
+                {% endif %}
+            </h4>
+            <hr>
+        </div>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="row">
+        {% if products|length == 0 %}
+        <div class="col-md-12">
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle fa-3x mb-3"></i>
+                <h4>No products found matching your criteria</h4>
+                <p>Try adjusting your filters or search terms</p>
+                <a href="{{ url_for('cctv_smart_selector') }}" class="btn btn-primary">Clear Filters</a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% for product in products %}
+        <div class="col-md-6 col-lg-4">
+            <div class="product-card">
+                <div class="float-right">
+                    <input type="checkbox" class="compare-checkbox" value="{{ product[0] }}" onchange="updateCompare()">
+                    <small class="text-muted">Compare</small>
+                </div>
+                
+                <h5 class="text-primary">{{ product[2] }}</h5>
+                <p class="text-muted" style="font-size: 0.9em;">{{ product[3][:80] }}{% if product[3]|length > 80 %}...{% endif %}</p>
+                
+                <div class="mb-3">
+                    <span class="resolution-badge">{{ product[5] }}</span>
+                    <span class="camera-type-badge">{{ product[6] }}</span>
+                </div>
+
+                {% if product[7] and product[7] != 'Standard' %}
+                <div class="mb-3">
+                    {% for feature in product[7].split(', ') %}
+                    <span class="feature-tag">{{ feature }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="price-badge">SAR {{ "%.2f"|format(product[4]) }}</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewDetails({{ product[0] }})">
+                        <i class="fas fa-info-circle"></i> Details
+                    </button>
+                </div>
+
+                <div class="mt-2">
+                    <small class="text-muted">{{ product[1] }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Compare Button -->
+    <button id="compareBtn" class="btn btn-success btn-lg shadow" onclick="compareProducts()">
+        <i class="fas fa-chart-bar"></i> Compare Selected (<span id="compareCount">0</span>)
+    </button>
+</div>
+
+<!-- Product Details Modal -->
+<div class="modal fade" id="productDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Product Details</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" id="productDetailsBody">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Modal -->
+<div class="modal fade" id="comparisonModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-chart-bar"></i> Product Comparison</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" id="comparisonBody">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedProducts = [];
+
+function updateCompare() {
+    selectedProducts = [];
+    document.querySelectorAll('.compare-checkbox:checked').forEach(cb => {
+        selectedProducts.push(parseInt(cb.value));
+    });
+    
+    const count = selectedProducts.length;
+    document.getElementById('compareCount').textContent = count;
+    document.getElementById('compareBtn').style.display = count > 0 ? 'block' : 'none';
+}
+
+function compareProducts() {
+    if (selectedProducts.length === 0) {
+        alert('Please select at least one product to compare');
+        return;
+    }
+    
+    if (selectedProducts.length > 4) {
+        alert('Maximum 4 products can be compared at once');
+        return;
+    }
+    
+    fetch('/api/cctv/compare', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({product_ids: selectedProducts})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showComparison(data.products);
+        }
+    });
+}
+
+function showComparison(products) {
+    let html = '<div class="table-responsive"><table class="table table-bordered">';
+    html += '<thead class="thead-light"><tr><th>Feature</th>';
+    products.forEach(p => {
+        html += `<th class="text-center">${p.code}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    // Name row
+    html += '<tr><td><strong>Product Name</strong></td>';
+    products.forEach(p => html += `<td>${p.name}</td>`);
+    html += '</tr>';
+    
+    // Price row
+    html += '<tr><td><strong>Price</strong></td>';
+    products.forEach(p => html += `<td><span class="badge badge-success">SAR ${p.price.toFixed(2)}</span></td>`);
+    html += '</tr>';
+    
+    // Resolution row
+    html += '<tr><td><strong>Resolution</strong></td>';
+    products.forEach(p => html += `<td><span class="badge badge-danger">${p.resolution}</span></td>`);
+    html += '</tr>';
+    
+    // Type row
+    html += '<tr><td><strong>Camera Type</strong></td>';
+    products.forEach(p => html += `<td><span class="badge badge-info">${p.type}</span></td>`);
+    html += '</tr>';
+    
+    // Features row
+    html += '<tr><td><strong>Features</strong></td>';
+    products.forEach(p => html += `<td>${p.features}</td>`);
+    html += '</tr>';
+    
+    // Category row
+    html += '<tr><td><strong>Category</strong></td>';
+    products.forEach(p => html += `<td><small class="text-muted">${p.category}</small></td>`);
+    html += '</tr>';
+    
+    html += '</tbody></table></div>';
+    
+    document.getElementById('comparisonBody').innerHTML = html;
+    $('#comparisonModal').modal('show');
+}
+
+function quickFilter(type) {
+    const form = document.getElementById('filterForm');
+    
+    if (type === 'indoor') {
+        form.querySelector('[name="features"]').value = 'Indoor';
+    } else if (type === 'outdoor') {
+        form.querySelector('[name="features"]').value = 'Outdoor';
+    } else if (type === 'budget') {
+        form.querySelector('[name="max_price"]').value = '200';
+    } else if (type === 'premium') {
+        form.querySelector('[name="resolution"]').value = '8MP (4K)';
+    }
+    
+    form.submit();
+}
+
+function viewDetails(productId) {
+    // For now, show a simple alert
+    // You could implement a detailed view modal here
+    alert('Product details feature coming soon! Product ID: ' + productId);
+}
+</script>
+
+{% endblock %}

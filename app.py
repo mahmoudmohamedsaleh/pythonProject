@@ -8406,6 +8406,210 @@ def api_calculate_deal_value(project_name):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 ##############################################
+# ============ SMART CCTV PRODUCT SELECTOR ============
+##############################################
+
+@app.route('/cctv_smart_selector', methods=['GET'])
+@login_required
+def cctv_smart_selector():
+    """
+    AI-Powered CCTV Product Selection Tool
+    Helps users find the perfect camera based on their requirements
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get filter parameters
+    resolution_filter = request.args.get('resolution')
+    camera_type_filter = request.args.get('camera_type')
+    min_price = request.args.get('min_price')
+    max_price = request.args.get('max_price')
+    features_filter = request.args.get('features')
+    search_query = request.args.get('search')
+    
+    # Build query
+    query = """
+        SELECT id, category, item_code, item_name, price, resolution, camera_type, features
+        FROM cctv_products
+        WHERE 1=1
+    """
+    params = []
+    
+    if resolution_filter and resolution_filter != 'all':
+        query += " AND resolution = ?"
+        params.append(resolution_filter)
+    
+    if camera_type_filter and camera_type_filter != 'all':
+        query += " AND camera_type = ?"
+        params.append(camera_type_filter)
+    
+    if min_price:
+        query += " AND price >= ?"
+        params.append(float(min_price))
+    
+    if max_price:
+        query += " AND price <= ?"
+        params.append(float(max_price))
+    
+    if features_filter:
+        query += " AND features LIKE ?"
+        params.append(f"%{features_filter}%")
+    
+    if search_query:
+        query += " AND (item_name LIKE ? OR item_code LIKE ? OR category LIKE ?)"
+        search_param = f"%{search_query}%"
+        params.extend([search_param, search_param, search_param])
+    
+    query += " ORDER BY price ASC"
+    
+    c.execute(query, params)
+    products = c.fetchall()
+    
+    # Get filter options
+    c.execute("SELECT DISTINCT resolution FROM cctv_products ORDER BY resolution")
+    resolutions = [r[0] for r in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT camera_type FROM cctv_products ORDER BY camera_type")
+    camera_types = [ct[0] for ct in c.fetchall()]
+    
+    c.execute("SELECT MIN(price), MAX(price) FROM cctv_products")
+    price_range = c.fetchone()
+    
+    # Get statistics
+    c.execute("SELECT COUNT(*) FROM cctv_products")
+    total_products = c.fetchone()[0]
+    
+    conn.close()
+    
+    return render_template('cctv_smart_selector.html',
+                         products=products,
+                         resolutions=resolutions,
+                         camera_types=camera_types,
+                         price_range=price_range,
+                         total_products=total_products,
+                         selected_resolution=resolution_filter,
+                         selected_camera_type=camera_type_filter,
+                         min_price=min_price,
+                         max_price=max_price,
+                         selected_features=features_filter,
+                         search_query=search_query)
+
+
+@app.route('/api/cctv/recommend', methods=['POST'])
+@login_required
+def api_cctv_recommend():
+    """
+    AI-powered recommendation API
+    Returns recommended products based on user requirements
+    """
+    data = request.get_json()
+    
+    budget = data.get('budget', 1000)
+    purpose = data.get('purpose', 'general')  # indoor, outdoor, general
+    priority = data.get('priority', 'balanced')  # price, quality, features
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Build recommendation query based on purpose
+    if purpose == 'indoor':
+        query = """
+            SELECT * FROM cctv_products 
+            WHERE (features LIKE '%Indoor%' OR camera_type = 'Dome/Turret')
+            AND price <= ?
+            ORDER BY price ASC
+            LIMIT 10
+        """
+    elif purpose == 'outdoor':
+        query = """
+            SELECT * FROM cctv_products 
+            WHERE (features LIKE '%Outdoor%' OR features LIKE '%Night Vision%')
+            AND price <= ?
+            ORDER BY price DESC
+            LIMIT 10
+        """
+    else:
+        if priority == 'price':
+            query = "SELECT * FROM cctv_products WHERE price <= ? ORDER BY price ASC LIMIT 10"
+        elif priority == 'quality':
+            query = """
+                SELECT * FROM cctv_products 
+                WHERE price <= ?
+                ORDER BY 
+                    CASE 
+                        WHEN resolution = '8MP (4K)' THEN 1
+                        WHEN resolution = '6MP' THEN 2
+                        WHEN resolution = '5MP' THEN 3
+                        ELSE 4
+                    END,
+                    price DESC
+                LIMIT 10
+            """
+        else:
+            query = "SELECT * FROM cctv_products WHERE price <= ? ORDER BY price ASC LIMIT 10"
+    
+    c.execute(query, (budget,))
+    products = c.fetchall()
+    conn.close()
+    
+    recommendations = []
+    for p in products:
+        recommendations.append({
+            'id': p[0],
+            'name': p[3],
+            'code': p[2],
+            'price': p[4],
+            'resolution': p[5],
+            'type': p[6],
+            'features': p[7]
+        })
+    
+    return jsonify({'success': True, 'recommendations': recommendations})
+
+
+@app.route('/api/cctv/compare', methods=['POST'])
+@login_required
+def api_cctv_compare():
+    """
+    Product comparison API
+    Compare up to 4 products side-by-side
+    """
+    data = request.get_json()
+    product_ids = data.get('product_ids', [])
+    
+    if len(product_ids) == 0:
+        return jsonify({'success': False, 'error': 'No products selected'}), 400
+    
+    if len(product_ids) > 4:
+        return jsonify({'success': False, 'error': 'Maximum 4 products can be compared'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    placeholders = ','.join('?' * len(product_ids))
+    query = f"SELECT * FROM cctv_products WHERE id IN ({placeholders})"
+    
+    c.execute(query, product_ids)
+    products = c.fetchall()
+    conn.close()
+    
+    comparison = []
+    for p in products:
+        comparison.append({
+            'id': p[0],
+            'category': p[1],
+            'code': p[2],
+            'name': p[3],
+            'price': p[4],
+            'resolution': p[5],
+            'type': p[6],
+            'features': p[7]
+        })
+    
+    return jsonify({'success': True, 'products': comparison})
+
+
+##############################################
 # ============ USER PROFILE API ENDPOINTS ============
 ##############################################
 
