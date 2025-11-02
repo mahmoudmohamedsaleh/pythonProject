@@ -27,6 +27,7 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **Analytics & Reporting**: Sales and presales performance dashboards, pipeline analysis, and aging reports.
 - **Document Management**: File upload/download for quotations and cost sheets, with Excel export.
 - **Product Catalog**: Fire alarm, CCTV, and passive products.
+- **AI-Powered CCTV Smart Selector**: Intelligent product selection wizard for HIKVISION cameras with AI recommendations, advanced filtering, budget optimization, and side-by-side product comparison (separate database table: `cctv_hikvision_products`).
 
 ### Feature Specifications
 - **Granular Access Control**: Page-level permission system using `permissions`, `role_permissions`, and `user_permissions` tables for role-based defaults and user-specific overrides.
@@ -44,6 +45,7 @@ The system features a comprehensive admin access control UI at `/access_control`
 - **RFQ Edit Notifications**: Automatic notifications sent to all Presale Engineers, Technical Team Leaders, General Managers, and the assigned Sales Engineer when an RFQ is edited. Notifications include updated data: RFQ reference, project name, status, priority, and deadline.
 - **RFQ Comment Notifications**: Automatic notifications sent to all Presale Engineers, Technical Team Leaders, and General Managers when a comment is added to an RFQ. Notifications include: RFQ reference, project name, and comment preview (first 50 characters).
 - **RFQ Chronological Ordering**: RFQs displayed from newest to oldest across all views (RFQ Summary, Pipeline, Excel exports) using requested_time descending order.
+- **AI-Powered CCTV Product Selector**: Advanced intelligent selection system for HIKVISION cameras (312 products) featuring: (1) Smart wizard with one-click quick filters (Indoor/Outdoor/Budget/Premium), (2) AI-powered recommendation engine with budget-based, purpose-driven (Indoor/Outdoor/General), and priority optimization (Price/Quality/Features), (3) Advanced multi-parameter filtering (resolution, camera type, price range, features, full-text search), (4) Side-by-side product comparison tool (compare up to 4 products), (5) Modern responsive card-based UI with badges, hover effects, and feature tags. Separate database table `cctv_hikvision_products` maintains compatibility with existing `cctv_products` table. Routes: `/cctv_smart_selector`, `/api/cctv/recommend`, `/api/cctv/compare`.
 
 ### System Design Choices
 - Environment variables are used for configuration (e.g., `HOST`, `PORT`, `FLASK_DEBUG`, `SECRET_KEY`, email settings).
