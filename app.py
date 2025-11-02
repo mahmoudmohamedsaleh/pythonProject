@@ -2011,19 +2011,11 @@ def edit_distributor(distributor_id):
 @app.route('/fetch_cctv_products', methods=['GET'])
 #@role_required('editor')  # Adjust if necessary
 def fetch_cctv_products():
-    # Connect to the SQLite database
-    conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
-
-    # Query to fetch all products
-    c.execute('SELECT vendor_name, model_number, camera_image FROM cctv_products')
-    products = c.fetchall()
-    conn.close()
-
-    # Format products for JSON response
-    formatted_products = [{'vendor_name': product[0], 'model_number': product[1], 'camera_image': product[2]} for product in products]
-
-    return jsonify({'products': formatted_products})
+    # Redirect API calls to new system
+    return jsonify({
+        'message': 'This API has been deprecated. Please use /cctv_smart_selector for product browsing.',
+        'redirect': '/cctv_smart_selector'
+    })
 
 ##########
 import base64
@@ -2034,117 +2026,9 @@ import sqlite3
 @app.route('/cctv_products', methods=['GET', 'POST'])
 #@role_required('editor')  # Adjust if necessary
 def cctv_products():
-    conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
-
-    # Fetch distinct values for dropdowns
-    c.execute("SELECT DISTINCT vendor_name FROM cctv_products")
-    vendors = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT model_number FROM cctv_products")
-    models = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT image_sensor FROM cctv_products")
-    image_sensors = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT max_resolution FROM cctv_products")
-    max_resolutions = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT min_illumination FROM cctv_products")
-    min_illuminations = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT wdr FROM cctv_products")
-    wdr_options = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT built_in_mic FROM cctv_products")
-    built_in_mic_options = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT supplement_light_range FROM cctv_products")
-    supplement_light_ranges = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT lens_type FROM cctv_products")
-    lens_types = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT focal_length FROM cctv_products")
-    focal_lengths = [row[0] for row in c.fetchall()]
-
-    c.execute("SELECT DISTINCT camera_type FROM cctv_products")
-    camera_types = [row[0] for row in c.fetchall()]  # Fetch distinct camera types
-
-    # Initialize filter parameters
-    vendor_name_filter = request.args.get('vendor_name', default=None)
-    model_number_filter = request.args.get('model_number', default=None)
-    image_sensor_filter = request.args.get('image_sensor', default=None)
-    max_resolution_filter = request.args.get('max_resolution', default=None)
-    min_illumination_filter = request.args.get('min_illumination', default=None)
-    wdr_filter = request.args.get('wdr', default=None)
-    built_in_mic_filter = request.args.get('built_in_mic', default=None)
-    supplement_light_range_filter = request.args.get('supplement_light_range', default=None)
-    lens_type_filter = request.args.get('lens_type', default=None)
-    focal_length_filter = request.args.get('focal_length', default=None)
-    camera_type_filter = request.args.get('camera_type', default=None)  # New filter
-
-    # Build the query based on filter parameters
-    query = "SELECT vendor_name, model_number, camera_image, price FROM cctv_products WHERE 1=1"
-    params = []  # List to hold parameters for the query
-
-    # Append conditions for filters if they are provided
-    if vendor_name_filter:
-        query += " AND vendor_name = ?"
-        params.append(vendor_name_filter)
-    if model_number_filter:
-        query += " AND model_number = ?"
-        params.append(model_number_filter)
-    if image_sensor_filter:
-        query += " AND image_sensor = ?"
-        params.append(image_sensor_filter)
-    if max_resolution_filter:
-        query += " AND max_resolution = ?"
-        params.append(max_resolution_filter)
-    if min_illumination_filter:
-        query += " AND min_illumination = ?"
-        params.append(min_illuminations)
-    if wdr_filter:
-        query += " AND wdr = ?"
-        params.append(wdr_filter)
-    if built_in_mic_filter:
-        query += " AND built_in_mic = ?"
-        params.append(built_in_mic_filter)
-    if supplement_light_range_filter:
-        query += " AND supplement_light_range = ?"
-        params.append(supplement_light_range_filter)
-    if lens_type_filter:
-        query += " AND lens_type = ?"
-        params.append(lens_type_filter)
-    if focal_length_filter:
-        query += " AND focal_length = ?"
-        params.append(focal_length_filter)
-    if camera_type_filter:  # Add the new filter to the query
-        query += " AND camera_type = ?"
-        params.append(camera_type_filter)
-
-    # Execute the constructed query
-    c.execute(query, params)
-    products = c.fetchall()
-    conn.close()
-
-    # Encode camera images to Base64 and format the product list
-    formatted_products = []
-    for product in products:
-        vendor_name = product[0]
-        model_number = product[1]
-        camera_image_data = base64.b64encode(product[2]).decode('utf-8')  # Encode the image
-        price = product[3]  # Get the price
-        formatted_products.append((vendor_name, model_number, camera_image_data, price))
-
-    return render_template('cctv_products.html', products=formatted_products,
-                           vendors=vendors, models=models,
-                           image_sensors=image_sensors, max_resolutions=max_resolutions,
-                           min_illuminations=min_illuminations,
-                           wdr_options=wdr_options,
-                           built_in_mic_options=built_in_mic_options,
-                           supplement_light_ranges=supplement_light_ranges,
-                           lens_types=lens_types, focal_lengths=focal_lengths,camera_types=camera_types)
+    # Redirect to the new AI-powered smart selector
+    flash('The CCTV products page has been upgraded! You are now using the new AI-Powered Smart Selector.', 'info')
+    return redirect(url_for('cctv_smart_selector'))
 ########
 @app.route('/register_product', methods=['GET', 'POST'])
 #@role_required('editor')  # Adjust if necessary
@@ -8430,7 +8314,7 @@ def cctv_smart_selector():
     # Build query
     query = """
         SELECT id, category, item_code, item_name, price, resolution, camera_type, features
-        FROM cctv_products
+        FROM cctv_hikvision_products
         WHERE 1=1
     """
     params = []
@@ -8466,17 +8350,17 @@ def cctv_smart_selector():
     products = c.fetchall()
     
     # Get filter options
-    c.execute("SELECT DISTINCT resolution FROM cctv_products ORDER BY resolution")
+    c.execute("SELECT DISTINCT resolution FROM cctv_hikvision_products ORDER BY resolution")
     resolutions = [r[0] for r in c.fetchall()]
     
-    c.execute("SELECT DISTINCT camera_type FROM cctv_products ORDER BY camera_type")
+    c.execute("SELECT DISTINCT camera_type FROM cctv_hikvision_products ORDER BY camera_type")
     camera_types = [ct[0] for ct in c.fetchall()]
     
-    c.execute("SELECT MIN(price), MAX(price) FROM cctv_products")
+    c.execute("SELECT MIN(price), MAX(price) FROM cctv_hikvision_products")
     price_range = c.fetchone()
     
     # Get statistics
-    c.execute("SELECT COUNT(*) FROM cctv_products")
+    c.execute("SELECT COUNT(*) FROM cctv_hikvision_products")
     total_products = c.fetchone()[0]
     
     conn.close()
@@ -8514,7 +8398,7 @@ def api_cctv_recommend():
     # Build recommendation query based on purpose
     if purpose == 'indoor':
         query = """
-            SELECT * FROM cctv_products 
+            SELECT * FROM cctv_hikvision_products 
             WHERE (features LIKE '%Indoor%' OR camera_type = 'Dome/Turret')
             AND price <= ?
             ORDER BY price ASC
@@ -8522,7 +8406,7 @@ def api_cctv_recommend():
         """
     elif purpose == 'outdoor':
         query = """
-            SELECT * FROM cctv_products 
+            SELECT * FROM cctv_hikvision_products 
             WHERE (features LIKE '%Outdoor%' OR features LIKE '%Night Vision%')
             AND price <= ?
             ORDER BY price DESC
@@ -8530,10 +8414,10 @@ def api_cctv_recommend():
         """
     else:
         if priority == 'price':
-            query = "SELECT * FROM cctv_products WHERE price <= ? ORDER BY price ASC LIMIT 10"
+            query = "SELECT * FROM cctv_hikvision_products WHERE price <= ? ORDER BY price ASC LIMIT 10"
         elif priority == 'quality':
             query = """
-                SELECT * FROM cctv_products 
+                SELECT * FROM cctv_hikvision_products 
                 WHERE price <= ?
                 ORDER BY 
                     CASE 
@@ -8546,7 +8430,7 @@ def api_cctv_recommend():
                 LIMIT 10
             """
         else:
-            query = "SELECT * FROM cctv_products WHERE price <= ? ORDER BY price ASC LIMIT 10"
+            query = "SELECT * FROM cctv_hikvision_products WHERE price <= ? ORDER BY price ASC LIMIT 10"
     
     c.execute(query, (budget,))
     products = c.fetchall()
@@ -8587,7 +8471,7 @@ def api_cctv_compare():
     c = conn.cursor()
     
     placeholders = ','.join('?' * len(product_ids))
-    query = f"SELECT * FROM cctv_products WHERE id IN ({placeholders})"
+    query = f"SELECT * FROM cctv_hikvision_products WHERE id IN ({placeholders})"
     
     c.execute(query, product_ids)
     products = c.fetchall()
