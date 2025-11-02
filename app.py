@@ -2024,11 +2024,129 @@ import sqlite3
 
 
 @app.route('/cctv_products', methods=['GET', 'POST'])
-#@role_required('editor')  # Adjust if necessary
+@login_required
 def cctv_products():
-    # Redirect to the new AI-powered smart selector
-    flash('The CCTV products page has been upgraded! You are now using the new AI-Powered Smart Selector.', 'info')
-    return redirect(url_for('cctv_smart_selector'))
+    """CCTV Products Page with Advanced Filtering"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get filter parameters from request
+    vendor_name_filter = request.args.get('vendor_name')
+    model_number_filter = request.args.get('model_number')
+    camera_type_filter = request.args.get('camera_type')
+    image_sensor_filter = request.args.get('image_sensor')
+    max_resolution_filter = request.args.get('max_resolution')
+    min_illumination_filter = request.args.get('min_illumination')
+    wdr_filter = request.args.get('wdr')
+    built_in_mic_filter = request.args.get('built_in_Mic')
+    supplement_light_range_filter = request.args.get('supplement_light_range')
+    lens_type_filter = request.args.get('lens_type')
+    focal_length_filter = request.args.get('focal_length')
+    
+    # Build query with filters
+    query = """
+        SELECT vendor_name, model_number, camera_image, price
+        FROM cctv_products
+        WHERE 1=1
+    """
+    params = []
+    
+    if vendor_name_filter:
+        query += " AND vendor_name = ?"
+        params.append(vendor_name_filter)
+    if model_number_filter:
+        query += " AND model_number = ?"
+        params.append(model_number_filter)
+    if camera_type_filter:
+        query += " AND camera_type = ?"
+        params.append(camera_type_filter)
+    if image_sensor_filter:
+        query += " AND image_sensor = ?"
+        params.append(image_sensor_filter)
+    if max_resolution_filter:
+        query += " AND max_resolution = ?"
+        params.append(max_resolution_filter)
+    if min_illumination_filter:
+        query += " AND min_illumination = ?"
+        params.append(min_illumination_filter)
+    if wdr_filter:
+        query += " AND wdr = ?"
+        params.append(wdr_filter)
+    if built_in_mic_filter:
+        query += " AND built_in_mic = ?"
+        params.append(built_in_mic_filter)
+    if supplement_light_range_filter:
+        query += " AND supplement_light_range = ?"
+        params.append(supplement_light_range_filter)
+    if lens_type_filter:
+        query += " AND lens_type = ?"
+        params.append(lens_type_filter)
+    if focal_length_filter:
+        query += " AND focal_length = ?"
+        params.append(focal_length_filter)
+    
+    query += " ORDER BY vendor_name, model_number"
+    
+    c.execute(query, params)
+    products_raw = c.fetchall()
+    
+    # Convert images to base64
+    products = []
+    for product in products_raw:
+        product_list = list(product)
+        if product_list[2]:  # If camera_image exists
+            product_list[2] = base64.b64encode(product_list[2]).decode('utf-8')
+        products.append(product_list)
+    
+    # Get distinct values for filter dropdowns
+    c.execute('SELECT DISTINCT vendor_name FROM cctv_products WHERE vendor_name IS NOT NULL ORDER BY vendor_name')
+    vendors = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT model_number FROM cctv_products WHERE model_number IS NOT NULL ORDER BY model_number')
+    models = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT camera_type FROM cctv_products WHERE camera_type IS NOT NULL ORDER BY camera_type')
+    camera_types = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT image_sensor FROM cctv_products WHERE image_sensor IS NOT NULL ORDER BY image_sensor')
+    image_sensors = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT max_resolution FROM cctv_products WHERE max_resolution IS NOT NULL ORDER BY max_resolution')
+    max_resolutions = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT min_illumination FROM cctv_products WHERE min_illumination IS NOT NULL ORDER BY min_illumination')
+    min_illuminations = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT wdr FROM cctv_products WHERE wdr IS NOT NULL ORDER BY wdr')
+    wdr_options = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT built_in_mic FROM cctv_products WHERE built_in_mic IS NOT NULL ORDER BY built_in_mic')
+    built_in_mic_options = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT supplement_light_range FROM cctv_products WHERE supplement_light_range IS NOT NULL ORDER BY supplement_light_range')
+    supplement_light_ranges = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT lens_type FROM cctv_products WHERE lens_type IS NOT NULL ORDER BY lens_type')
+    lens_types = [row[0] for row in c.fetchall()]
+    
+    c.execute('SELECT DISTINCT focal_length FROM cctv_products WHERE focal_length IS NOT NULL ORDER BY focal_length')
+    focal_lengths = [row[0] for row in c.fetchall()]
+    
+    conn.close()
+    
+    return render_template('cctv_products.html',
+                         products=products,
+                         vendors=vendors,
+                         models=models,
+                         camera_types=camera_types,
+                         image_sensors=image_sensors,
+                         max_resolutions=max_resolutions,
+                         min_illuminations=min_illuminations,
+                         wdr_options=wdr_options,
+                         built_in_mic_options=built_in_mic_options,
+                         supplement_light_ranges=supplement_light_ranges,
+                         lens_types=lens_types,
+                         focal_lengths=focal_lengths)
 ########
 @app.route('/register_product', methods=['GET', 'POST'])
 #@role_required('editor')  # Adjust if necessary
@@ -8616,215 +8734,6 @@ def api_notifications_count():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-##############################################
-# HIKVISION PRODUCT SELECTOR ROUTES
-##############################################
-
-@app.route('/hikvision_selector', methods=['GET'])
-@login_required
-def hikvision_selector():
-    """
-    Hikvision Product Selector - Replica of official Hikvision interface
-    https://www.hikvision.com/en/products/product-selector/
-    """
-    conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
-    
-    # Get filter parameters
-    case_type_filter = request.args.get('case_type')
-    resolution_filter = request.args.get('resolution')
-    lens_type_filter = request.args.get('lens_type')
-    ai_features_filter = request.args.get('ai_features')
-    environmental_filter = request.args.get('environmental_protection')
-    illumination_filter = request.args.get('illumination_distance')
-    low_light_filter = request.args.get('low_light_imaging')
-    power_supply_filter = request.args.get('power_supply')
-    storage_type_filter = request.args.get('storage_type')
-    supplemental_light_filter = request.args.get('supplemental_light')
-    wdr_filter = request.args.get('wdr')
-    wireless_filter = request.args.get('wireless_network')
-    search_query = request.args.get('search')
-    
-    # Build query
-    query = """
-        SELECT id, model_number, name, description, case_type, resolution, lens_type,
-               ai_features, environmental_protection, illumination_distance,
-               low_light_imaging, power_supply, storage_type, supplemental_light,
-               wdr, wireless_network, price, url, image_url
-        FROM hikvision_products
-        WHERE 1=1
-    """
-    params = []
-    
-    if case_type_filter and case_type_filter != 'all':
-        query += " AND case_type = ?"
-        params.append(case_type_filter)
-    if resolution_filter and resolution_filter != 'all':
-        query += " AND resolution = ?"
-        params.append(resolution_filter)
-    if lens_type_filter and lens_type_filter != 'all':
-        query += " AND lens_type = ?"
-        params.append(lens_type_filter)
-    if ai_features_filter and ai_features_filter != 'all':
-        query += " AND ai_features LIKE ?"
-        params.append(f"%{ai_features_filter}%")
-    if environmental_filter and environmental_filter != 'all':
-        query += " AND environmental_protection LIKE ?"
-        params.append(f"%{environmental_filter}%")
-    if illumination_filter and illumination_filter != 'all':
-        query += " AND illumination_distance = ?"
-        params.append(illumination_filter)
-    if low_light_filter and low_light_filter != 'all':
-        query += " AND low_light_imaging = ?"
-        params.append(low_light_filter)
-    if power_supply_filter and power_supply_filter != 'all':
-        query += " AND power_supply LIKE ?"
-        params.append(f"%{power_supply_filter}%")
-    if storage_type_filter and storage_type_filter != 'all':
-        query += " AND storage_type = ?"
-        params.append(storage_type_filter)
-    if supplemental_light_filter and supplemental_light_filter != 'all':
-        query += " AND supplemental_light = ?"
-        params.append(supplemental_light_filter)
-    if wdr_filter and wdr_filter != 'all':
-        query += " AND wdr = ?"
-        params.append(wdr_filter)
-    if wireless_filter and wireless_filter != 'all':
-        query += " AND wireless_network = ?"
-        params.append(wireless_filter)
-    if search_query:
-        query += " AND (model_number LIKE ? OR name LIKE ? OR description LIKE ?)"
-        search_term = f"%{search_query}%"
-        params.extend([search_term, search_term, search_term])
-    
-    query += " ORDER BY model_number ASC"
-    
-    c.execute(query, params)
-    products = c.fetchall()
-    
-    # Get filter options for dropdowns
-    c.execute("SELECT DISTINCT case_type FROM hikvision_products WHERE case_type != 'N/A' ORDER BY case_type")
-    case_types = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT resolution FROM hikvision_products WHERE resolution != 'N/A' ORDER BY resolution")
-    resolutions = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT lens_type FROM hikvision_products WHERE lens_type != 'N/A' ORDER BY lens_type")
-    lens_types = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT low_light_imaging FROM hikvision_products WHERE low_light_imaging != 'N/A' ORDER BY low_light_imaging")
-    low_light_options = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT power_supply FROM hikvision_products WHERE power_supply != 'N/A' ORDER BY power_supply")
-    power_supplies = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT supplemental_light FROM hikvision_products WHERE supplemental_light != 'N/A' ORDER BY supplemental_light")
-    supplemental_lights = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT wdr FROM hikvision_products WHERE wdr != 'N/A' ORDER BY wdr")
-    wdr_options = [r[0] for r in c.fetchall()]
-    
-    c.execute("SELECT DISTINCT wireless_network FROM hikvision_products WHERE wireless_network != 'N/A' ORDER BY wireless_network")
-    wireless_options = [r[0] for r in c.fetchall()]
-    
-    # Get total count
-    c.execute("SELECT COUNT(*) FROM hikvision_products")
-    total_products = c.fetchone()[0]
-    
-    # Get last sync time
-    c.execute("SELECT MAX(updated_at) FROM hikvision_products")
-    last_sync = c.fetchone()[0]
-    
-    conn.close()
-    
-    return render_template('hikvision_selector.html',
-                         products=products,
-                         case_types=case_types,
-                         resolutions=resolutions,
-                         lens_types=lens_types,
-                         low_light_options=low_light_options,
-                         power_supplies=power_supplies,
-                         supplemental_lights=supplemental_lights,
-                         wdr_options=wdr_options,
-                         wireless_options=wireless_options,
-                         total_products=total_products,
-                         filtered_count=len(products),
-                         last_sync=last_sync)
-
-
-@app.route('/api/hikvision/sync', methods=['POST'])
-@login_required
-def api_hikvision_sync():
-    """Manual sync products from Hikvision website"""
-    try:
-        from hikvision_scraper import HikvisionScraper
-        
-        user_role = session.get('user_role')
-        if user_role not in ['General Manager', 'Technical Team Leader']:
-            return jsonify({
-                'success': False,
-                'error': 'Only General Managers and Technical Team Leaders can sync products'
-            }), 403
-        
-        scraper = HikvisionScraper()
-        products = scraper.fetch_products(limit=200)
-        
-        if products:
-            synced_count = scraper.sync_to_database(products)
-            return jsonify({
-                'success': True,
-                'synced_count': synced_count,
-                'message': f'Successfully synced {synced_count} products from Hikvision'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'No products fetched from Hikvision. Please check your internet connection.'
-            })
-    
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@app.route('/api/hikvision/stats', methods=['GET'])
-@login_required
-def api_hikvision_stats():
-    """Get Hikvision product statistics"""
-    try:
-        conn = sqlite3.connect('ProjectStatus.db')
-        c = conn.cursor()
-        
-        # Get stats
-        c.execute("SELECT COUNT(*) FROM hikvision_products")
-        total_count = c.fetchone()[0]
-        
-        c.execute("SELECT case_type, COUNT(*) FROM hikvision_products WHERE case_type != 'N/A' GROUP BY case_type ORDER BY COUNT(*) DESC")
-        case_type_stats = [{'type': r[0], 'count': r[1]} for r in c.fetchall()]
-        
-        c.execute("SELECT resolution, COUNT(*) FROM hikvision_products WHERE resolution != 'N/A' GROUP BY resolution ORDER BY resolution")
-        resolution_stats = [{'resolution': r[0], 'count': r[1]} for r in c.fetchall()]
-        
-        c.execute("SELECT MAX(updated_at) FROM hikvision_products")
-        last_sync = c.fetchone()[0]
-        
-        conn.close()
-        
-        return jsonify({
-            'success': True,
-            'total_products': total_count,
-            'case_type_distribution': case_type_stats,
-            'resolution_distribution': resolution_stats,
-            'last_sync': last_sync
-        })
-    
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-##############################################
 if __name__ == '__main__':
     init_db()
     seed_permissions()

@@ -5,150 +5,353 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CCTV Products</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
-        .sidebar {
-            padding: 15px;
-            background-color: #f8f9fa; /* Light background for sidebar */
-            border-right: 1px solid #dee2e6; /* Right border for separation */
-            height: 100vh; /* Full height for the sidebar */
-        }
-        .main-content {
-            padding: 15px; /* Padding for main content */
-        }
         body {
-            margin: 0; /* Remove default margin */
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f6f8;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+        
+        .sidebar {
+            padding: 1.5rem;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        
+        .sidebar h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #2d3748;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.75rem;
+        }
+        
+        .sidebar .form-group {
+            margin-bottom: 1.25rem;
+        }
+        
+        .sidebar label {
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+        }
+        
+        .sidebar select.form-control {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .sidebar select.form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            outline: none;
+        }
+        
+        .filter-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            font-weight: 500;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .filter-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .reset-btn {
+            background-color: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            font-weight: 500;
+            width: 100%;
+            margin-top: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        
+        .reset-btn:hover {
+            background-color: #cbd5e0;
+        }
+        
+        .main-content {
+            padding: 0 1.5rem;
+        }
+        
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        
+        .product-card .card-img-top {
+            height: 220px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .product-card .card-body {
+            padding: 1.25rem;
+        }
+        
+        .product-card .vendor-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .product-card .model-number {
+            font-size: 1rem;
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 0.75rem;
+            min-height: 2.5rem;
+        }
+        
+        .product-card .price {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #48bb78;
+            margin: 0;
+        }
+        
+        .product-card .price-label {
+            font-size: 0.75rem;
+            color: #718096;
+            font-weight: 400;
+        }
+        
+        .register-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 500;
+            color: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .register-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+            color: white;
+        }
+        
+        .no-products {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #718096;
+        }
+        
+        .no-products i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #cbd5e0;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: static;
+                margin-bottom: 2rem;
+            }
         }
     </style>
 </head>
 <body>
     {% include 'navbar.html' %}
-    <div class="container-fluid mt-5">
-        <h1>CCTV Products</h1>
-         <a href="{{ url_for('register_product') }}" class="btn btn-primary mb-3">Register New Product</a>
+    
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-video"></i> CCTV Products</h1>
+                </div>
+                <div class="col-md-4 text-right">
+                    <a href="{{ url_for('register_product') }}" class="btn register-btn">
+                        <i class="fas fa-plus-circle"></i> Register New Product
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
         <div class="row">
             <!-- Sidebar for filtering -->
-            <div class="col-md-3 sidebar">
-                <h3>Filter Products</h3>
-                <form method="GET" action="{{ url_for('cctv_products') }}">
-                    <div class="form-group">
-                        <label for="vendor_name">Vendor Name:</label>
-                        <select name="vendor_name" id="vendor_name" class="form-control">
-                            <option value="">Select Vendor</option>
-                            {% for vendor in vendors %}
-                                <option value="{{ vendor }}">{{ vendor }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="model_number">Model Number:</label>
-                        <select name="model_number" id="model_number" class="form-control">
-                            <option value="">Select Model</option>
-                            {% for model in models %}
-                                <option value="{{ model }}">{{ model }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="camera_type">camera_type:</label>
-                        <select name="camera_type" id="camera_type" class="form-control">
-                            <option value="">Select camera_type</option>
-                            {% for camera_type in camera_types %}
-                                <option value="{{ camera_type }}">{{ camera_type }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="image_sensor">Image Sensor:</label>
-                        <select name="image_sensor" id="image_sensor" class="form-control">
-                            <option value="">Select Image Sensor</option>
-                            {% for sensor in image_sensors %}
-                                <option value="{{ sensor }}">{{ sensor }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="max_resolution">Max Resolution:</label>
-                        <select name="max_resolution" id="max_resolution" class="form-control">
-                            <option value="">Select Max Resolution</option>
-                            {% for resolution in max_resolutions %}
-                                <option value="{{ resolution }}">{{ resolution }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="min_illumination">Min Illumination:</label>
-                        <select name="min_illumination" id="min_illumination" class="form-control">
-                            <option value="">Select Min Illumination</option>
-                            {% for illumination in min_illuminations %}
-                                <option value="{{ illumination }}">{{ illumination }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="wdr">WDR:</label>
-                        <select name="wdr" id="wdr" class="form-control">
-                            <option value="">Select WDR</option>
-                            {% for wdr in wdr_options %}
-                                <option value="{{ wdr }}">{{ wdr }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="built_in_Mic">built_in_Mic:</label>
-                        <select name="built_in_Mic" id="built_in_Mic" class="form-control">
-                            <option value="">Select built_in_Mic</option>
-                            {% for built_in_Mic in built_in_mic_options %}
-                                <option value="{{ built_in_Mic }}">{{ built_in_Mic }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="supplement_light_range">Supplement Light Range:</label>
-                        <select name="supplement_light_range" id="supplement_light_range" class="form-control">
-                            <option value="">Select Supplement Light Range</option>
-                            {% for range in supplement_light_ranges %}
-                                <option value="{{ range }}">{{ range }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="lens_type">Lens Type:</label>
-                        <select name="lens_type" id="lens_type" class="form-control">
-                            <option value="">Select Lens Type</option>
-                            {% for lens in lens_types %}
-                                <option value="{{ lens }}">{{ lens }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="focal_length">Focal Length:</label>
-                        <select name="focal_length" id="focal_length" class="form-control">
-                            <option value="">Select Focal Length</option>
-                            {% for length in focal_lengths %}
-                                <option value="{{ length }}">{{ length }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Filter</button>
-                </form>
+            <div class="col-lg-3 col-md-4">
+                <div class="sidebar">
+                    <h3><i class="fas fa-filter"></i> Filter Products</h3>
+                    <form method="GET" action="{{ url_for('cctv_products') }}">
+                        <div class="form-group">
+                            <label for="vendor_name">Vendor Name</label>
+                            <select name="vendor_name" id="vendor_name" class="form-control">
+                                <option value="">Select Vendor</option>
+                                {% for vendor in vendors %}
+                                    <option value="{{ vendor }}" {% if request.args.get('vendor_name') == vendor %}selected{% endif %}>{{ vendor }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="model_number">Model Number</label>
+                            <select name="model_number" id="model_number" class="form-control">
+                                <option value="">Select Model</option>
+                                {% for model in models %}
+                                    <option value="{{ model }}" {% if request.args.get('model_number') == model %}selected{% endif %}>{{ model }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="camera_type">Camera Type</label>
+                            <select name="camera_type" id="camera_type" class="form-control">
+                                <option value="">Select Camera Type</option>
+                                {% for camera_type in camera_types %}
+                                    <option value="{{ camera_type }}" {% if request.args.get('camera_type') == camera_type %}selected{% endif %}>{{ camera_type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="image_sensor">Image Sensor</label>
+                            <select name="image_sensor" id="image_sensor" class="form-control">
+                                <option value="">Select Image Sensor</option>
+                                {% for sensor in image_sensors %}
+                                    <option value="{{ sensor }}" {% if request.args.get('image_sensor') == sensor %}selected{% endif %}>{{ sensor }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="max_resolution">Max Resolution</label>
+                            <select name="max_resolution" id="max_resolution" class="form-control">
+                                <option value="">Select Max Resolution</option>
+                                {% for resolution in max_resolutions %}
+                                    <option value="{{ resolution }}" {% if request.args.get('max_resolution') == resolution %}selected{% endif %}>{{ resolution }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="min_illumination">Min Illumination</label>
+                            <select name="min_illumination" id="min_illumination" class="form-control">
+                                <option value="">Select Min Illumination</option>
+                                {% for illumination in min_illuminations %}
+                                    <option value="{{ illumination }}" {% if request.args.get('min_illumination') == illumination %}selected{% endif %}>{{ illumination }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="wdr">WDR</label>
+                            <select name="wdr" id="wdr" class="form-control">
+                                <option value="">Select WDR</option>
+                                {% for wdr in wdr_options %}
+                                    <option value="{{ wdr }}" {% if request.args.get('wdr') == wdr %}selected{% endif %}>{{ wdr }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="built_in_Mic">Built-in Mic</label>
+                            <select name="built_in_Mic" id="built_in_Mic" class="form-control">
+                                <option value="">Select Built-in Mic</option>
+                                {% for built_in_Mic in built_in_mic_options %}
+                                    <option value="{{ built_in_Mic }}" {% if request.args.get('built_in_Mic') == built_in_Mic %}selected{% endif %}>{{ built_in_Mic }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supplement_light_range">Supplement Light Range</label>
+                            <select name="supplement_light_range" id="supplement_light_range" class="form-control">
+                                <option value="">Select Supplement Light Range</option>
+                                {% for range in supplement_light_ranges %}
+                                    <option value="{{ range }}" {% if request.args.get('supplement_light_range') == range %}selected{% endif %}>{{ range }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary filter-btn">
+                            <i class="fas fa-search"></i> Apply Filters
+                        </button>
+                        <a href="{{ url_for('cctv_products') }}" class="btn reset-btn">
+                            <i class="fas fa-redo"></i> Reset Filters
+                        </a>
+                    </form>
+                </div>
             </div>
 
             <!-- Main content area for products -->
-            <div class="col-md-9 main-content">
-                <div class="row">
-                    {% for product in products %}
-                    <div class="col-md-4 mb-4">
-                        <div class="card">
-                            <img src="data:image/jpeg;base64,{{ product[2] }}" class="card-img-top" alt="Camera Image">
-                            <div class="card-body">
-                                <h5 class="card-title">{{ product[0] }}</h5> <!-- Vendor Name -->
-                                <p class="card-text">{{ product[1] }}</p> <!-- Model Number -->
-                                <p>Price: {{ product[3] }}</p> <!-- Price -->
+            <div class="col-lg-9 col-md-8 main-content">
+                {% if products %}
+                    <div class="mb-3">
+                        <p class="text-muted"><i class="fas fa-box-open"></i> Showing {{ products|length }} product(s)</p>
+                    </div>
+                    <div class="row">
+                        {% for product in products %}
+                        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 mb-4">
+                            <div class="product-card card">
+                                <img src="data:image/jpeg;base64,{{ product[2] }}" class="card-img-top" alt="Camera Image" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27%3E%3Crect fill=%27%23f0f0f0%27 width=%27100%27 height=%27100%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ENo Image%3C/text%3E%3C/svg%3E'">
+                                <div class="card-body">
+                                    <div class="vendor-name">{{ product[0] }}</div>
+                                    <div class="model-number">{{ product[1] }}</div>
+                                    <p class="price">
+                                        <span class="price-label">Price: </span>{{ product[3] if product[3] else 'N/A' }}
+                                    </p>
+                                </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
-                </div>
+                {% else %}
+                    <div class="no-products">
+                        <i class="fas fa-search"></i>
+                        <h4>No products found</h4>
+                        <p>Try adjusting your filters or add new products to the catalog.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
