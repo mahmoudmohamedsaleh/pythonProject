@@ -2045,7 +2045,7 @@ def cctv_products():
     
     # Build query with filters
     query = """
-        SELECT vendor_name, model_number, camera_image, price
+        SELECT vendor_name, model_number, camera_image, price, datasheet_url
         FROM cctv_products
         WHERE 1=1
     """
@@ -2182,6 +2182,7 @@ def register_product():
         wdr = request.form.get('wdr')
         price = request.form.get('price')  # New Price field
         camera_type = request.form.get('camera_type')  # New Camera Type field
+        datasheet_url = request.form.get('datasheet_url')  # New Datasheet URL field
 
         # Insert the data into the database
         conn = sqlite3.connect('ProjectStatus.db')
@@ -2190,14 +2191,14 @@ def register_product():
             INSERT INTO cctv_products (
                 vendor_name, model_number, image_sensor, max_resolution, min_illumination,
                 lens_type, focal_length, iris_type, supplement_light_type,
-                supplement_light_range, built_in_mic, wdr, camera_image, price, camera_type
+                supplement_light_range, built_in_mic, wdr, camera_image, price, camera_type, datasheet_url
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             vendor_name, model_number, image_sensor, max_resolution, min_illumination,
             lens_type, focal_length, iris_type, supplement_light_type,
             supplement_light_range, built_in_mic, wdr, camera_image_data,
-            price, camera_type
+            price, camera_type, datasheet_url
         ))
 
         conn.commit()
