@@ -2548,6 +2548,66 @@ def delete_product(product_id):
     return redirect(url_for('cctv_products'))
 
 
+@app.route('/compare_products', methods=['GET'])
+@login_required
+def compare_products():
+    """Compare selected CCTV products side-by-side"""
+    product_ids = request.args.get('ids', '')
+    
+    if not product_ids:
+        flash('No products selected for comparison', 'warning')
+        return redirect(url_for('cctv_products'))
+    
+    # Parse product IDs from comma-separated string
+    try:
+        ids = [int(id.strip()) for id in product_ids.split(',')]
+    except ValueError:
+        flash('Invalid product IDs', 'danger')
+        return redirect(url_for('cctv_products'))
+    
+    if len(ids) < 2:
+        flash('Please select at least 2 products to compare', 'warning')
+        return redirect(url_for('cctv_products'))
+    
+    if len(ids) > 4:
+        flash('You can compare up to 4 products at a time', 'warning')
+        return redirect(url_for('cctv_products'))
+    
+    # Fetch products from database
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    placeholders = ','.join(['?' for _ in ids])
+    query = f"""
+        SELECT id, vendor_name, model_number, camera_type, image_sensor, max_resolution, 
+               min_illumination, lens_type, focal_length, iris_type, supplement_light_type,
+               supplement_light_range, built_in_mic, wdr, camera_image, price, datasheet_url
+        FROM cctv_products
+        WHERE id IN ({placeholders})
+    """
+    
+    cursor.execute(query, ids)
+    products_raw = cursor.fetchall()
+    conn.close()
+    
+    if not products_raw:
+        flash('No products found for comparison', 'warning')
+        return redirect(url_for('cctv_products'))
+    
+    # Convert images to base64
+    products = []
+    for product in products_raw:
+        product_list = list(product)
+        if product_list[14]:  # camera_image
+            # Handle both bytes and pre-encoded strings
+            image_data = product_list[14]
+            if isinstance(image_data, bytes):
+                product_list[14] = base64.b64encode(image_data).decode('utf-8')
+        products.append(product_list)
+    
+    return render_template('compare_products.html', products=products)
+
+
 #####33
 
 @app.route('/fire_alarm_products', methods=['GET'])
