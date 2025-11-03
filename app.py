@@ -2045,7 +2045,7 @@ def cctv_products():
     
     # Build query with filters
     query = """
-        SELECT vendor_name, model_number, camera_image, price, datasheet_url
+        SELECT id, vendor_name, model_number, camera_image, price, datasheet_url
         FROM cctv_products
         WHERE 1=1
     """
@@ -2208,6 +2208,249 @@ def register_product():
         return redirect(url_for('cctv_products'))
 
     return render_template('register_product.html')
+
+
+@app.route('/import_products_excel', methods=['POST'])
+@login_required
+def import_products_excel():
+    """Bulk import CCTV products from Excel file"""
+    import pandas as pd
+    
+    if 'excel_file' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(url_for('cctv_products'))
+    
+    excel_file = request.files['excel_file']
+    
+    if excel_file.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(url_for('cctv_products'))
+    
+    if not excel_file.filename.endswith(('.xlsx', '.xls')):
+        flash('Please upload an Excel file (.xlsx or .xls)', 'danger')
+        return redirect(url_for('cctv_products'))
+    
+    try:
+        # Read Excel file
+        df = pd.read_excel(excel_file)
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        imported_count = 0
+        skipped_count = 0
+        
+        for idx, row in df.iterrows():
+            try:
+                vendor_name = row.get('vendor_name', '')
+                model_number = row.get('model_number', '')
+                camera_type = row.get('camera_type', '')
+                image_sensor = row.get('image_sensor', '')
+                max_resolution = row.get('max_resolution', '')
+                
+                # Combine color and B/W illumination if separate columns exist
+                min_illum_color = row.get('min_illumination_color', '')
+                min_illum_bw = row.get('min_illumination_bw', '')
+                min_illumination = row.get('min_illumination', '')
+                
+                if not min_illumination and (min_illum_color or min_illum_bw):
+                    min_illumination = f"{min_illum_color} / {min_illum_bw}" if min_illum_color and min_illum_bw else (min_illum_color or min_illum_bw)
+                
+                lens_type = row.get('lens_type', '')
+                focal_length = row.get('focal_length', '')
+                iris_type = row.get('iris_type', '')
+                supplement_light_type = row.get('illumination_type', row.get('supplement_light_type', ''))
+                supplement_light_range = row.get('illumination_range', row.get('supplement_light_range', ''))
+                built_in_mic = row.get('built_in_mic', '')
+                wdr = row.get('wdr', '')
+                price = row.get('price') if pd.notna(row.get('price')) else None
+                datasheet_url = row.get('Data sheet', row.get('datasheet_url', ''))
+                
+                # Check if product already exists
+                cursor.execute("SELECT id FROM cctv_products WHERE model_number = ?", (model_number,))
+                existing = cursor.fetchone()
+                
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # Insert into database (no image for now)
+                cursor.execute('''
+                    INSERT INTO cctv_products (
+                        vendor_name, model_number, image_sensor, max_resolution, min_illumination,
+                        lens_type, focal_length, iris_type, supplement_light_type,
+                        supplement_light_range, built_in_mic, wdr, camera_image, price, camera_type, datasheet_url
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    vendor_name, model_number, image_sensor, max_resolution, min_illumination,
+                    lens_type, focal_length, iris_type, supplement_light_type,
+                    supplement_light_range, built_in_mic, wdr, None,
+                    price, camera_type, datasheet_url
+                ))
+                
+                imported_count += 1
+                
+            except Exception as e:
+                print(f"Error importing row {idx}: {e}")
+                continue
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Successfully imported {imported_count} products! ({skipped_count} duplicates skipped)', 'success')
+        
+    except Exception as e:
+        flash(f'Error processing Excel file: {str(e)}', 'danger')
+    
+    return redirect(url_for('cctv_products'))
+
+
+@app.route('/view_product_details/<int:product_id>')
+@login_required
+def view_product_details(product_id):
+    """View detailed specifications of a CCTV product"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, vendor_name, model_number, camera_type, image_sensor, max_resolution,
+               min_illumination, lens_type, focal_length, iris_type, supplement_light_type,
+               supplement_light_range, built_in_mic, wdr, camera_image, price, datasheet_url
+        FROM cctv_products
+        WHERE id = ?
+    ''', (product_id,))
+    
+    product = cursor.fetchone()
+    conn.close()
+    
+    if not product:
+        flash('Product not found', 'danger')
+        return redirect(url_for('cctv_products'))
+    
+    # Convert image to base64 if exists
+    product_data = {
+        'id': product[0],
+        'vendor_name': product[1],
+        'model_number': product[2],
+        'camera_type': product[3],
+        'image_sensor': product[4],
+        'max_resolution': product[5],
+        'min_illumination': product[6],
+        'lens_type': product[7],
+        'focal_length': product[8],
+        'iris_type': product[9],
+        'supplement_light_type': product[10],
+        'supplement_light_range': product[11],
+        'built_in_mic': product[12],
+        'wdr': product[13],
+        'camera_image': base64.b64encode(product[14]).decode('utf-8') if product[14] else None,
+        'price': product[15],
+        'datasheet_url': product[16]
+    }
+    
+    return render_template('view_product_details.html', product=product_data)
+
+
+@app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
+@login_required
+def edit_product(product_id):
+    """Edit CCTV product specifications"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        # Get form data
+        vendor_name = request.form.get('vendor_name')
+        model_number = request.form.get('model_number')
+        image_sensor = request.form.get('image_sensor')
+        max_resolution = request.form.get('max_resolution')
+        min_illumination = request.form.get('min_illumination')
+        lens_type = request.form.get('lens_type')
+        focal_length = request.form.get('focal_length')
+        iris_type = request.form.get('iris_type')
+        supplement_light_type = request.form.get('supplement_light_type')
+        supplement_light_range = request.form.get('supplement_light_range')
+        built_in_mic = request.form.get('built_in_mic')
+        wdr = request.form.get('wdr')
+        price = request.form.get('price')
+        camera_type = request.form.get('camera_type')
+        datasheet_url = request.form.get('datasheet_url')
+        
+        # Check if new image uploaded
+        camera_image_data = None
+        if 'camera_image' in request.files and request.files['camera_image'].filename != '':
+            camera_image = request.files['camera_image']
+            camera_image_data = camera_image.read()
+        
+        # Update database
+        if camera_image_data:
+            cursor.execute('''
+                UPDATE cctv_products
+                SET vendor_name=?, model_number=?, image_sensor=?, max_resolution=?, min_illumination=?,
+                    lens_type=?, focal_length=?, iris_type=?, supplement_light_type=?,
+                    supplement_light_range=?, built_in_mic=?, wdr=?, camera_image=?, price=?, camera_type=?, datasheet_url=?
+                WHERE id=?
+            ''', (vendor_name, model_number, image_sensor, max_resolution, min_illumination,
+                  lens_type, focal_length, iris_type, supplement_light_type,
+                  supplement_light_range, built_in_mic, wdr, camera_image_data, price, camera_type, datasheet_url, product_id))
+        else:
+            cursor.execute('''
+                UPDATE cctv_products
+                SET vendor_name=?, model_number=?, image_sensor=?, max_resolution=?, min_illumination=?,
+                    lens_type=?, focal_length=?, iris_type=?, supplement_light_type=?,
+                    supplement_light_range=?, built_in_mic=?, wdr=?, price=?, camera_type=?, datasheet_url=?
+                WHERE id=?
+            ''', (vendor_name, model_number, image_sensor, max_resolution, min_illumination,
+                  lens_type, focal_length, iris_type, supplement_light_type,
+                  supplement_light_range, built_in_mic, wdr, price, camera_type, datasheet_url, product_id))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Product updated successfully!', 'success')
+        return redirect(url_for('cctv_products'))
+    
+    # GET request - fetch product data
+    cursor.execute('''
+        SELECT id, vendor_name, model_number, camera_type, image_sensor, max_resolution,
+               min_illumination, lens_type, focal_length, iris_type, supplement_light_type,
+               supplement_light_range, built_in_mic, wdr, camera_image, price, datasheet_url
+        FROM cctv_products
+        WHERE id = ?
+    ''', (product_id,))
+    
+    product = cursor.fetchone()
+    conn.close()
+    
+    if not product:
+        flash('Product not found', 'danger')
+        return redirect(url_for('cctv_products'))
+    
+    # Convert image to base64 if exists
+    product_data = {
+        'id': product[0],
+        'vendor_name': product[1],
+        'model_number': product[2],
+        'camera_type': product[3],
+        'image_sensor': product[4],
+        'max_resolution': product[5],
+        'min_illumination': product[6],
+        'lens_type': product[7],
+        'focal_length': product[8],
+        'iris_type': product[9],
+        'supplement_light_type': product[10],
+        'supplement_light_range': product[11],
+        'built_in_mic': product[12],
+        'wdr': product[13],
+        'camera_image': base64.b64encode(product[14]).decode('utf-8') if product[14] else None,
+        'price': product[15],
+        'datasheet_url': product[16]
+    }
+    
+    return render_template('edit_product.html', product=product_data)
+
+
 #####33
 
 @app.route('/fire_alarm_products', methods=['GET'])

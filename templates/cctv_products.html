@@ -514,7 +514,11 @@
                             </ol>
                         </nav>
                     </div>
-                    <div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="document.getElementById('excelUploadModal').style.display='block'" class="register-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; cursor: pointer;">
+                            <i class="fas fa-file-excel"></i>
+                            Import from Excel
+                        </button>
                         <a href="{{ url_for('register_product') }}" class="register-btn">
                             <i class="fas fa-plus-circle"></i>
                             Register New Product
@@ -530,20 +534,26 @@
                 <div class="products-grid">
                     {% for product in products %}
                     <div class="product-card">
-                        <img src="data:image/jpeg;base64,{{ product[2] }}" alt="{{ product[1] }}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27%3E%3Crect fill=%27%23f0f0f0%27 width=%27100%27 height=%27100%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ENo Image%3C/text%3E%3C/svg%3E'">
+                        <img src="data:image/jpeg;base64,{{ product[3] }}" alt="{{ product[2] }}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27100%27 height=%27100%27%3E%3Crect fill=%27%23f0f0f0%27 width=%27100%27 height=%27100%27/%3E%3Ctext fill=%27%23999%27 x=%2750%25%27 y=%2750%25%27 text-anchor=%27middle%27 dy=%27.3em%27%3ENo Image%3C/text%3E%3C/svg%3E'">
                         <div class="product-info">
-                            <div class="vendor-badge">{{ product[0] }}</div>
-                            <div class="product-model">{{ product[1] }}</div>
+                            <div class="vendor-badge">{{ product[1] }}</div>
+                            <div class="product-model">{{ product[2] }}</div>
                             <div class="product-price">
-                                <span class="price-label">Price: </span>{{ product[3] if product[3] else 'N/A' }}
+                                <span class="price-label">Price: </span>{{ product[4] if product[4] else 'N/A' }}
                             </div>
-                            {% if product[4] %}
-                            <div style="margin-top: 10px;">
-                                <a href="{{ product[4] }}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 12px; padding: 4px 12px; text-decoration: none; border-radius: 4px;">
+                            <div style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+                                {% if product[5] %}
+                                <a href="{{ product[5] }}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 11px; padding: 4px 10px; text-decoration: none; border-radius: 4px;">
                                     <i class="fas fa-file-pdf"></i> Datasheet
                                 </a>
+                                {% endif %}
+                                <a href="{{ url_for('view_product_details', product_id=product[0]) }}" class="btn btn-sm btn-outline-info" style="font-size: 11px; padding: 4px 10px; text-decoration: none; border-radius: 4px;">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                                <a href="{{ url_for('edit_product', product_id=product[0]) }}" class="btn btn-sm btn-outline-warning" style="font-size: 11px; padding: 4px 10px; text-decoration: none; border-radius: 4px;">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
                             </div>
-                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -555,6 +565,45 @@
                     <p>Try adjusting your filters or add new products to the catalog.</p>
                 </div>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Excel Upload Modal -->
+    <div id="excelUploadModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5);">
+        <div style="background-color: #fefefe; margin: 10% auto; padding: 30px; border-radius: 10px; width: 500px; max-width: 90%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #333;">
+                    <i class="fas fa-file-excel" style="color: #667eea;"></i> Import Products from Excel
+                </h3>
+                <span onclick="document.getElementById('excelUploadModal').style.display='none'" style="cursor: pointer; font-size: 28px; font-weight: bold; color: #aaa;">&times;</span>
+            </div>
+            
+            <form action="{{ url_for('import_products_excel') }}" method="POST" enctype="multipart/form-data">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #555;">
+                        Select Excel File (.xlsx)
+                    </label>
+                    <input type="file" name="excel_file" accept=".xlsx,.xls" required style="width: 100%; padding: 10px; border: 2px dashed #667eea; border-radius: 5px; background: #f8f9ff;">
+                </div>
+                
+                <div style="background: #f0f4ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; font-size: 13px; color: #555;">
+                    <strong>📝 Excel Format Requirements:</strong>
+                    <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                        <li>Column headers: vendor_name, model_number, camera_type, image_sensor, max_resolution, etc.</li>
+                        <li>Include "Data sheet" column for datasheet URLs</li>
+                        <li>One product per row</li>
+                    </ul>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                        <i class="fas fa-upload"></i> Upload & Import
+                    </button>
+                    <button type="button" onclick="document.getElementById('excelUploadModal').style.display='none'" style="flex: 1; padding: 12px; background: #e0e0e0; color: #555; border: none; border-radius: 5px; cursor: pointer; font-weight: 500;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
