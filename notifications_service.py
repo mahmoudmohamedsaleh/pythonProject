@@ -195,6 +195,25 @@ class NotificationService:
         elif event_code == 'comment.added':
             return f"{actor} added a comment"
         
+        # Product events
+        elif event_code == 'product.edited':
+            vendor = context.get('product_vendor', '')
+            model = context.get('product_model', '')
+            product_id = context.get('product_id', '')
+            if vendor and model:
+                return f"{actor} edited product: {vendor} {model}"
+            elif product_id:
+                return f"{actor} edited product ID: {product_id}"
+            else:
+                return f"{actor} edited a CCTV product"
+        elif event_code == 'product.deleted':
+            vendor = context.get('product_vendor', '')
+            model = context.get('product_model', '')
+            if vendor and model:
+                return f"{actor} deleted product: {vendor} {model}"
+            else:
+                return f"{actor} deleted a CCTV product"
+        
         # Default
         return f"{actor} performed an action"
     
