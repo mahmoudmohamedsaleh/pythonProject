@@ -2468,6 +2468,32 @@ def edit_product(product_id):
     return render_template('edit_product.html', product=product_data)
 
 
+@app.route('/delete_product/<int:product_id>', methods=['POST'])
+@login_required
+@role_required('General Manager', 'Technical Team Leader')
+def delete_product(product_id):
+    """Delete a CCTV product (Admin only)"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    # First, get the product details for confirmation message
+    cursor.execute('SELECT vendor_name, model_number FROM cctv_products WHERE id = ?', (product_id,))
+    product = cursor.fetchone()
+    
+    if not product:
+        flash('Product not found', 'danger')
+        conn.close()
+        return redirect(url_for('cctv_products'))
+    
+    # Delete the product
+    cursor.execute('DELETE FROM cctv_products WHERE id = ?', (product_id,))
+    conn.commit()
+    conn.close()
+    
+    flash(f'Product "{product[0]} {product[1]}" has been successfully deleted!', 'success')
+    return redirect(url_for('cctv_products'))
+
+
 #####33
 
 @app.route('/fire_alarm_products', methods=['GET'])
