@@ -2094,10 +2094,10 @@ def cctv_products():
     products = []
     for product in products_raw:
         product_list = list(product)
-        if product_list[2]:  # If camera_image exists
+        if product_list[3]:  # If camera_image exists (index 3)
             # Check if it's already a string (base64 encoded) or bytes
-            if isinstance(product_list[2], bytes):
-                product_list[2] = base64.b64encode(product_list[2]).decode('utf-8')
+            if isinstance(product_list[3], bytes):
+                product_list[3] = base64.b64encode(product_list[3]).decode('utf-8')
             # If it's already a string, leave it as is
         products.append(product_list)
     
