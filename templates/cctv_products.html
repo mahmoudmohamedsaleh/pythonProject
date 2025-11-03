@@ -630,6 +630,29 @@
                         <div class="product-info">
                             <div class="vendor-badge">{{ product[1] }}</div>
                             <div class="product-model">{{ product[2] }}</div>
+                            
+                            <!-- Product Specifications -->
+                            <div style="margin: 12px 0; padding: 10px; background: #f8f9ff; border-radius: 6px; font-size: 12px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <div>
+                                        <span style="color: #667eea; font-weight: 600;">📷 Type:</span>
+                                        <span style="color: #555;">{{ product[6] if product[6] else 'N/A' }}</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #667eea; font-weight: 600;">🔍 Lens:</span>
+                                        <span style="color: #555;">{{ product[7] if product[7] else 'N/A' }}</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #667eea; font-weight: 600;">📐 Resolution:</span>
+                                        <span style="color: #555;">{{ product[8] if product[8] else 'N/A' }}</span>
+                                    </div>
+                                    <div>
+                                        <span style="color: #667eea; font-weight: 600;">💾 Sensor:</span>
+                                        <span style="color: #555;">{{ product[9] if product[9] else 'N/A' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="product-price">
                                 <span class="price-label">Price: </span>{{ product[4] if product[4] else 'N/A' }}
                             </div>
