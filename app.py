@@ -2418,6 +2418,31 @@ def edit_product(product_id):
         conn.commit()
         conn.close()
         
+        # Send notification to admins
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Unknown User')
+            
+            # Get admin recipients
+            recipients = notification_service.get_admin_recipients()
+            
+            # Create notification for product edit
+            if recipients:
+                notification_service.notify_activity(
+                    event_code='product.edited',
+                    recipient_ids=recipients,
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'product_vendor': vendor_name,
+                        'product_model': model_number,
+                        'product_id': product_id
+                    },
+                    url=url_for('view_product_details', product_id=product_id)
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+        
         flash('Product updated successfully!', 'success')
         return redirect(url_for('cctv_products'))
     
@@ -2485,12 +2510,41 @@ def delete_product(product_id):
         conn.close()
         return redirect(url_for('cctv_products'))
     
+    # Store product details before deletion
+    vendor_name = product[0]
+    model_number = product[1]
+    
     # Delete the product
     cursor.execute('DELETE FROM cctv_products WHERE id = ?', (product_id,))
     conn.commit()
     conn.close()
     
-    flash(f'Product "{product[0]} {product[1]}" has been successfully deleted!', 'success')
+    # Send notification to admins
+    try:
+        actor_id = session.get('user_id')
+        actor_name = session.get('username', 'Unknown User')
+        
+        # Get admin recipients
+        recipients = notification_service.get_admin_recipients()
+        
+        # Create notification for product deletion
+        if recipients:
+            notification_service.notify_activity(
+                event_code='product.deleted',
+                recipient_ids=recipients,
+                actor_id=actor_id,
+                context={
+                    'actor_name': actor_name,
+                    'product_vendor': vendor_name,
+                    'product_model': model_number,
+                    'product_id': product_id
+                },
+                url=url_for('cctv_products')
+            )
+    except Exception as e:
+        print(f"Notification error: {e}")
+    
+    flash(f'Product "{vendor_name} {model_number}" has been successfully deleted!', 'success')
     return redirect(url_for('cctv_products'))
 
 
