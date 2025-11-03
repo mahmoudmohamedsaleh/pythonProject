@@ -2095,7 +2095,10 @@ def cctv_products():
     for product in products_raw:
         product_list = list(product)
         if product_list[2]:  # If camera_image exists
-            product_list[2] = base64.b64encode(product_list[2]).decode('utf-8')
+            # Check if it's already a string (base64 encoded) or bytes
+            if isinstance(product_list[2], bytes):
+                product_list[2] = base64.b64encode(product_list[2]).decode('utf-8')
+            # If it's already a string, leave it as is
         products.append(product_list)
     
     # Get distinct values for filter dropdowns
@@ -2329,6 +2332,13 @@ def view_product_details(product_id):
         return redirect(url_for('cctv_products'))
     
     # Convert image to base64 if exists
+    camera_image_encoded = None
+    if product[14]:
+        if isinstance(product[14], bytes):
+            camera_image_encoded = base64.b64encode(product[14]).decode('utf-8')
+        else:
+            camera_image_encoded = product[14]  # Already encoded
+    
     product_data = {
         'id': product[0],
         'vendor_name': product[1],
@@ -2344,7 +2354,7 @@ def view_product_details(product_id):
         'supplement_light_range': product[11],
         'built_in_mic': product[12],
         'wdr': product[13],
-        'camera_image': base64.b64encode(product[14]).decode('utf-8') if product[14] else None,
+        'camera_image': camera_image_encoded,
         'price': product[15],
         'datasheet_url': product[16]
     }
@@ -2428,6 +2438,13 @@ def edit_product(product_id):
         return redirect(url_for('cctv_products'))
     
     # Convert image to base64 if exists
+    camera_image_encoded = None
+    if product[14]:
+        if isinstance(product[14], bytes):
+            camera_image_encoded = base64.b64encode(product[14]).decode('utf-8')
+        else:
+            camera_image_encoded = product[14]  # Already encoded
+    
     product_data = {
         'id': product[0],
         'vendor_name': product[1],
@@ -2443,7 +2460,7 @@ def edit_product(product_id):
         'supplement_light_range': product[11],
         'built_in_mic': product[12],
         'wdr': product[13],
-        'camera_image': base64.b64encode(product[14]).decode('utf-8') if product[14] else None,
+        'camera_image': camera_image_encoded,
         'price': product[15],
         'datasheet_url': product[16]
     }
