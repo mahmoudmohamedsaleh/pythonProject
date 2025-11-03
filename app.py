@@ -2045,7 +2045,8 @@ def cctv_products():
     
     # Build query with filters
     query = """
-        SELECT id, vendor_name, model_number, camera_image, price, datasheet_url
+        SELECT id, vendor_name, model_number, camera_image, price, datasheet_url,
+               camera_type, lens_type, max_resolution, image_sensor
         FROM cctv_products
         WHERE 1=1
     """
