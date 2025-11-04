@@ -8146,47 +8146,82 @@ def show_vendors():
     conn.close()
     return render_template('vendors.html', vendors_data=vendors_data, search_query=search_query)
 ############################################
+# SRM-ENABLED EDIT VENDOR ROUTE
 @app.route('/edit_vendor/<int:vendor_id>', methods=['GET', 'POST'])
 @login_required
 def edit_vendor(vendor_id):
+    """Edit vendor basic information with SRM compatibility"""
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    cursor = conn.cursor()
 
     if request.method == 'POST':
         name = request.form['name']
         address = request.form['address']
-        # Map form fields to production DB columns
         contact_person = request.form.get('contact_person', '')
         phone = request.form.get('main_phone', '')
         email = request.form.get('main_email', '')
+        status = request.form.get('status', 'active')
+        category = request.form.get('category', '')
+        website = request.form.get('website', '')
 
         try:
-            # Use production vendors table schema
-            c.execute("""
+            # Update vendors table with SRM fields
+            cursor.execute("""
                 UPDATE vendors SET
-                name = ?, address = ?, contact_person = ?, phone = ?, email = ?
+                name = ?, address = ?, contact_person = ?, phone = ?, email = ?,
+                status = ?, category = ?, website = ?
                 WHERE id = ?
-            """, (name, address, contact_person, phone, email, vendor_id))
+            """, (name, address, contact_person, phone, email, status, category, website, vendor_id))
+            
+            # Log activity in SRM activity log
+            cursor.execute("""
+                INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+                VALUES ('vendor', ?, 'vendor_updated', ?, ?)
+            """, (vendor_id, f'Updated vendor details', session.get('user_id')))
+            
             conn.commit()
             flash('Vendor details updated successfully!', 'success')
+            
+            # Redirect to vendor detail page to see all SRM features
+            return redirect(url_for('vendor_detail', vendor_id=vendor_id))
+            
         except Exception as e:
             flash(f'An error occurred: {e}', 'danger')
+            conn.rollback()
         finally:
             conn.close()
 
         return redirect(url_for('show_vendors'))
 
-    # For GET request, fetch the vendor (no contacts table in production)
-    c.execute("SELECT * FROM vendors WHERE id = ?", (vendor_id,))
-    vendor = c.fetchone()
-    conn.close()
-
+    # For GET request, fetch the vendor with all users for account manager dropdown
+    cursor.execute("SELECT * FROM vendors WHERE id = ?", (vendor_id,))
+    vendor = cursor.fetchone()
+    
     if not vendor:
         flash('Vendor not found.', 'danger')
+        conn.close()
         return redirect(url_for('show_vendors'))
+    
+    # Get all users for account manager assignment
+    cursor.execute("SELECT id, username, role FROM users ORDER BY username")
+    all_users = cursor.fetchall()
+    
+    # Get current account manager
+    cursor.execute("""
+        SELECT user_id FROM account_manager_assignments
+        WHERE entity_type = 'vendor' AND entity_id = ?
+        LIMIT 1
+    """, (vendor_id,))
+    account_manager_row = cursor.fetchone()
+    current_account_manager = account_manager_row['user_id'] if account_manager_row else None
+    
+    conn.close()
 
-    return render_template('edit_vendor.html', vendor=vendor, contacts=[])
+    return render_template('edit_vendor.html', 
+                         vendor=vendor, 
+                         all_users=all_users,
+                         current_account_manager=current_account_manager)
 
 
 ####################
