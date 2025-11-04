@@ -1874,33 +1874,49 @@ def register_distributor():
     unique_vendors = list({vendor[1]: vendor for vendor in vendors}.values())
     return render_template('register_distributor.html', vendors=unique_vendors)
 ###################3
+# NEW SRM-ENABLED DISTRIBUTORS ROUTE
 @app.route('/distributors')
+@login_required
 @permission_required('view_distributors')
 def show_distributors():
+    """Display all distributors with SRM enhancements (associated vendors)"""
     conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
-    # Fetch all distributors
-    c.execute("SELECT * FROM distributors")
-    distributors = c.fetchall()
+    search_query = request.args.get('search_query', '')
 
-    # Create a dictionary to hold distributor and their vendors
-    distributor_data = []
+    # Query distributors with optional search
+    query = "SELECT * FROM distributors"
+    params = []
+    if search_query:
+        query += " WHERE name LIKE ?"
+        params.append(f'%{search_query}%')
+    query += " ORDER BY name"
 
+    cursor.execute(query, params)
+    distributors = cursor.fetchall()
+
+    # Enrich with associated vendors
+    distributors_data = []
     for distributor in distributors:
-        # For each distributor, fetch associated vendors
-        c.execute('''
-            SELECT vendors.id, vendors.name, vendors.address, vendors.contact_person, vendors.phone, vendors.email
-            FROM vendors
-            JOIN vendor_distributor ON vendors.id = vendor_distributor.vendor_id
-            WHERE vendor_distributor.distributor_id = ?
-        ''', (distributor[0],))
-        vendors = c.fetchall()  # Fetch all vendors for the current distributor
-        distributor_data.append((distributor, vendors))  # Append distributor and their vendors
+        # Get associated vendors for this distributor
+        cursor.execute("""
+            SELECT v.* 
+            FROM vendors v
+            JOIN vendor_distributor vd ON v.id = vd.vendor_id
+            WHERE vd.distributor_id = ?
+            ORDER BY v.name
+        """, (distributor['id'],))
+        vendors = cursor.fetchall()
+        
+        distributors_data.append({
+            'distributor': distributor,
+            'vendors': vendors
+        })
 
     conn.close()
-
-    return render_template('distributors.html', distributor_data=distributor_data)
+    return render_template('distributors.html', distributors_data=distributors_data, search_query=search_query)
 
 ##########
 # Add this new route anywhere in your app.py file
@@ -8067,33 +8083,61 @@ def register_srm_vendor():
 #     return redirect(url_for('show_vendors'))
 
 ##########################
+# NEW SRM-ENABLED VENDORS ROUTE
 @app.route('/vendors')
 @login_required
 @permission_required('view_vendors')
 def show_vendors():
+    """Display all vendors with SRM enhancements (contacts, account managers)"""
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    cursor = conn.cursor()
 
     search_query = request.args.get('search_query', '')
 
-    # Query the actual vendors table (no contacts join since contacts table doesn't exist)
+    # Query vendors with optional search
     query = "SELECT * FROM vendors"
     params = []
     if search_query:
         query += " WHERE name LIKE ?"
         params.append(f'%{search_query}%')
+    query += " ORDER BY name"
 
-    c.execute(query, params)
-    vendors = c.fetchall()
+    cursor.execute(query, params)
+    vendors = cursor.fetchall()
 
-    # Format for template compatibility - no contacts in production DB
-    vendors_with_contacts = []
+    # Enrich with SRM data (contacts and account manager)
+    vendors_data = []
     for vendor in vendors:
-        vendors_with_contacts.append({'vendor': vendor, 'contacts': []})
+        # Get contacts for this vendor
+        cursor.execute("""
+            SELECT * FROM vendor_contacts 
+            WHERE vendor_id = ? 
+            ORDER BY is_primary DESC, contact_name
+        """, (vendor['id'],))
+        contacts = cursor.fetchall()
+        
+        # Get account manager name
+        cursor.execute("""
+            SELECT u.name as manager_name
+            FROM account_manager_assignments ama
+            JOIN users u ON ama.user_id = u.id
+            WHERE ama.entity_type = 'vendor' AND ama.entity_id = ?
+            LIMIT 1
+        """, (vendor['id'],))
+        manager = cursor.fetchone()
+        
+        # Create enriched vendor dict
+        vendor_dict = dict(vendor)
+        vendor_dict['account_manager_name'] = manager['manager_name'] if manager else None
+        
+        vendors_data.append({
+            'vendor': vendor_dict,
+            'contacts': contacts
+        })
 
     conn.close()
-    return render_template('vendors.html', vendors_data=vendors_with_contacts, search_query=search_query)
+    return render_template('vendors.html', vendors_data=vendors_data, search_query=search_query)
 ############################################
 @app.route('/edit_vendor/<int:vendor_id>', methods=['GET', 'POST'])
 @login_required
