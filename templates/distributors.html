@@ -1,101 +1,132 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Distributors</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        body {
-            margin: 0;
-            padding: 20px;
-        }
-        .distributor-card {
-            margin-bottom: 20px;
-        }
-        .register-button {
-            width: 100%;
-        }
-        .sidebar {
-            position: sticky;
-            top: 20px; /* Keep sidebar fixed when scrolling */
-        }
-    </style>
-</head>
-<body>
-    {% include 'navbar.html' %}
+{% extends 'base.html' %}
 
-    <div class="container-fluid">
-        <h1 class="my-4">Distributor List</h1>
+{% block title %}Distributors{% endblock %}
 
-        <div class="row">
-            <div class="col-md-3 sidebar">
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">Filter by Distributor or Vendor Name</h5>
-                        <input type="text" id="filter-input" class="form-control" placeholder="Enter distributor or vendor name">
-                        <button class="btn btn-primary mt-2" onclick="filterDistributors()">Filter</button>
-                    </div>
+{% block content %}
+<style>
+.distributor-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-left: 4px solid #f093fb;
+}
+.distributor-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+.page-header {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+.no-distributors {
+    text-align: center;
+    padding: 60px 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h1><i class="fas fa-truck mr-3"></i>Distributor List</h1>
+            <p class="mb-0 mt-2">Manage your distributor relationships.</p>
+        </div>
+        <div class="mt-3 mt-md-0">
+            <a href="{{ url_for('register_distributor') }}" class="btn btn-light btn-lg">
+                <i class="fas fa-plus mr-2"></i>Register New Distributor
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Search Bar -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('show_distributors') }}" class="form-inline">
+            <div class="input-group w-100">
+                <div class="input-group-prepend">
+                    <span class="input-group-text"><i class="fas fa-filter"></i></span>
                 </div>
-
-                <!-- Button to Register a New Distributor -->
-                <a href="{{ url_for('register_distributor') }}" class="btn btn-success register-button">Register New Distributor</a>
+                <input type="text" name="search_query" class="form-control" 
+                       placeholder="Enter distributor or vendor name..." value="{{ search_query or '' }}">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit"><i class="fas fa-search mr-2"></i>Filter</button>
+                </div>
             </div>
+        </form>
+    </div>
+</div>
 
-            <div class="col-md-9">
-                <div class="row" id="distributor-list">
-                    {% for distributor, vendors in distributor_data %}
-                        <div class="col-sm-6 col-md-4">
-                            <div class="card distributor-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">{{ distributor[1] }}</h5> <!-- Distributor Name -->
-                                    <p class="card-text"><strong>Address:</strong> {{ distributor[2] }}</p> <!-- Address -->
-                                    <p class="card-text"><strong>Contact Person:</strong> {{ distributor[3] }}</p> <!-- Contact Person -->
-                                    <p class="card-text"><strong>Phone:</strong> {{ distributor[4] }}</p> <!-- Phone -->
-                                    <p class="card-text"><strong>Email:</strong> {{ distributor[5] }}</p> <!-- Email -->
-
-                                    <h6>Associated Vendors:</h6>
-                                    <div>
-                                        {% if vendors %}
-                                            {% for vendor in vendors %}
-                                                <p><strong>{{ vendor[1] }}</strong> ({{ vendor[4] }}) - {{ vendor[3] }}</p> <!-- Vendor Name, Phone, Address -->
-                                            {% endfor %}
-                                        {% else %}
-                                            <p>No associated vendors.</p>
-                                        {% endif %}
-                                         <a href="/edit_distributor/{{ distributor[0] }}" class="btn btn-warning mt-2">Edit</a>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<!-- Distributor Cards -->
+<div class="row">
+    {% for data in distributors_data %}
+    <div class="col-lg-6 col-xl-4 mb-4">
+        <div class="card distributor-card h-100">
+            <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <h5 class="mb-0">
+                    <i class="fas fa-truck mr-2"></i>{{ data.distributor.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <strong>Address:</strong> {{ data.distributor.address or 'KSA' }}
+                </p>
+                <p class="mb-2">
+                    <strong>Contact Person:</strong> {{ data.distributor.contact_person or 'N/A' }}
+                </p>
+                <p class="mb-2">
+                    <strong>Phone:</strong> {{ data.distributor.phone or 'N/A' }}
+                </p>
+                {% if data.distributor.email %}
+                <p class="mb-2">
+                    <strong>Email:</strong><br>
+                    <a href="mailto:{{ data.distributor.email }}">{{ data.distributor.email }}</a>
+                </p>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Associated Vendors -->
+                <h6><i class="fas fa-link text-primary mr-2"></i>Associated Vendors:</h6>
+                {% if data.vendors %}
+                <ul class="mb-0">
+                    {% for vendor in data.vendors %}
+                    <li><strong>{{ vendor.name }}</strong> ({{ vendor.phone }})</li>
                     {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted mb-0">No associated vendors found.</p>
+                {% endif %}
+                
+                <hr>
+                
+                <!-- Action Buttons -->
+                <div class="btn-group d-flex" role="group">
+                    <a href="{{ url_for('distributor_detail', distributor_id=data.distributor.id) }}" class="btn btn-primary w-50" title="View Details">
+                        <i class="fas fa-building"></i> Details
+                    </a>
+                    <a href="{{ url_for('edit_distributor', distributor_id=data.distributor.id) }}" class="btn btn-warning w-50" title="Edit">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+    {% else %}
+    <div class="col-12">
+        <div class="card no-distributors">
+            <h4 class="text-muted"><i class="fas fa-inbox fa-3x mb-3"></i></h4>
+            <h4 class="text-muted">No distributors found.</h4>
+            {% if search_query %}
+                <p>Your search for "{{ search_query }}" did not match any records.</p>
+            {% else %}
+                <p>Click the "Register New Distributor" button to add your first one.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
 
-    <script>
-        function filterDistributors() {
-            const filterInput = document.getElementById('filter-input').value.toLowerCase();
-            const distributorCards = document.querySelectorAll('.distributor-card');
-
-            distributorCards.forEach(card => {
-                const distributorName = card.querySelector('.card-title').textContent.toLowerCase();
-                const vendorTexts = Array.from(card.querySelectorAll('h6 + div p')).map(vendor => vendor.textContent.toLowerCase());
-                const associatedVendors = vendorTexts.join(' ');
-
-                if (distributorName.includes(filterInput) || associatedVendors.includes(filterInput)) {
-                    card.parentElement.style.display = ''; // Show the column
-                } else {
-                    card.parentElement.style.display = 'none'; // Hide the column
-                }
-            });
-        }
-    </script>
-
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+{% endblock %}
