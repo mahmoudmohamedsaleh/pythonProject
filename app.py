@@ -8058,12 +8058,13 @@ def register_srm_vendor():
     return render_template('register_vendor.html')
 
 
-@app.route('/add_vendor_contact/<int:vendor_id>', methods=['GET', 'POST'])
-@login_required
-def add_vendor_contact(vendor_id):
-    # Contacts feature not available in production database
-    flash('Vendor contacts feature is not available. Use the contact_person field in vendor details instead.', 'info')
-    return redirect(url_for('show_vendors'))
+# OLD ROUTE - REMOVED - Using new SRM route at line ~2150
+# @app.route('/add_vendor_contact/<int:vendor_id>', methods=['GET', 'POST'])
+# @login_required
+# def add_vendor_contact(vendor_id):
+#     # Contacts feature not available in production database
+#     flash('Vendor contacts feature is not available. Use the contact_person field in vendor details instead.', 'info')
+#     return redirect(url_for('show_vendors'))
 
 ##########################
 @app.route('/vendors')
@@ -8138,20 +8139,21 @@ def edit_vendor(vendor_id):
 
 
 ####################
-@app.route('/edit_vendor_contact/<int:contact_id>', methods=['GET', 'POST'])
-@login_required
-def edit_vendor_contact(contact_id):
-    # Contacts feature not available in production database
-    flash('Vendor contacts feature is not available. Use the contact_person field in vendor details instead.', 'info')
-    return redirect(url_for('show_vendors'))
+# OLD ROUTES - REMOVED - Using new SRM routes at line ~2200+
+# @app.route('/edit_vendor_contact/<int:contact_id>', methods=['GET', 'POST'])
+# @login_required
+# def edit_vendor_contact(contact_id):
+#     # Contacts feature not available in production database
+#     flash('Vendor contacts feature is not available. Use the contact_person field in vendor details instead.', 'info')
+#     return redirect(url_for('show_vendors'))
 
 
-@app.route('/delete_vendor_contact/<int:contact_id>', methods=['POST'])
-@login_required
-def delete_vendor_contact(contact_id):
-    # Contacts feature not available in production database
-    flash('Vendor contacts feature is not available.', 'info')
-    return redirect(url_for('show_vendors'))
+# @app.route('/delete_vendor_contact/<int:contact_id>', methods=['POST'])
+# @login_required
+# def delete_vendor_contact(contact_id):
+#     # Contacts feature not available in production database
+#     flash('Vendor contacts feature is not available.', 'info')
+#     return redirect(url_for('show_vendors'))
 ###########################################
 
 # =================================================================
