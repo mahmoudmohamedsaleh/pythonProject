@@ -2602,6 +2602,35 @@ def srm_analytics():
                          recent_activities=recent_activities)
 
 
+# Secure Document Download Route
+@app.route('/download_srm_document/<int:document_id>')
+@login_required
+def download_srm_document(document_id):
+    """Secure document download with authorization"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get document info
+    cursor.execute("SELECT * FROM srm_documents WHERE id = ?", (document_id,))
+    document = cursor.fetchone()
+    conn.close()
+    
+    if not document:
+        flash('Document not found', 'danger')
+        return redirect(url_for('index'))
+    
+    # Check if file exists
+    if not os.path.exists(document['file_path']):
+        flash('Document file not found on server', 'danger')
+        return redirect(request.referrer or url_for('index'))
+    
+    # Send file
+    return send_file(document['file_path'], 
+                     as_attachment=True,
+                     download_name=document['document_name'])
+
+
 # =================================================================
 # =================== END OF ENHANCED SRM ROUTES ==================
 # =================================================================
