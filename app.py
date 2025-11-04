@@ -2083,21 +2083,28 @@ def vendor_detail(vendor_id):
     """, (vendor_id,))
     documents = cursor.fetchall()
     
-    # Get purchase orders
+    # Get purchase orders through distributors that work with this vendor
     cursor.execute("""
-        SELECT * FROM purchase_orders 
-        WHERE vendor_name = ?
-        ORDER BY created_at DESC
+        SELECT DISTINCT po.* 
+        FROM purchase_orders po
+        JOIN vendor_distributor vd ON po.distributor = (
+            SELECT name FROM distributors WHERE id = vd.distributor_id
+        )
+        WHERE vd.vendor_id = ?
+        ORDER BY po.created_at DESC
         LIMIT 10
-    """, (vendor['name'],))
+    """, (vendor_id,))
     purchase_orders = cursor.fetchall()
     
-    # Calculate total spending
+    # Calculate total spending through associated distributors
     cursor.execute("""
-        SELECT SUM(CAST(total_price AS REAL)) as total_spending
-        FROM purchase_orders 
-        WHERE vendor_name = ?
-    """, (vendor['name'],))
+        SELECT SUM(CAST(po.total_amount AS REAL)) as total_spending
+        FROM purchase_orders po
+        JOIN vendor_distributor vd ON po.distributor = (
+            SELECT name FROM distributors WHERE id = vd.distributor_id
+        )
+        WHERE vd.vendor_id = ?
+    """, (vendor_id,))
     spending_result = cursor.fetchone()
     total_spending = spending_result['total_spending'] if spending_result['total_spending'] else 0
     
