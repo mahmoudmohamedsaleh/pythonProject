@@ -8113,13 +8113,13 @@ def show_vendors():
         cursor.execute("""
             SELECT * FROM vendor_contacts 
             WHERE vendor_id = ? 
-            ORDER BY is_primary DESC, contact_name
+            ORDER BY is_primary DESC, name
         """, (vendor['id'],))
         contacts = cursor.fetchall()
         
         # Get account manager name
         cursor.execute("""
-            SELECT u.name as manager_name
+            SELECT u.username as manager_name
             FROM account_manager_assignments ama
             JOIN users u ON ama.user_id = u.id
             WHERE ama.entity_type = 'vendor' AND ama.entity_id = ?
