@@ -1,0 +1,525 @@
+{% extends "base.html" %}
+
+{% block title %}{{ vendor['name'] }} - Vendor Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header with Vendor Name -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('show_vendors') }}">Vendors</a></li>
+                    <li class="breadcrumb-item active">{{ vendor['name'] }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-building"></i> {{ vendor['name'] }}
+                    {% if vendor['status'] == 'active' %}
+                    <span class="badge badge-success">Active</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Inactive</span>
+                    {% endif %}
+                </h2>
+                <div>
+                    <a href="{{ url_for('edit_vendor', vendor_id=vendor['id']) }}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit Vendor
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #667eea;">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Spending</h6>
+                    <h3 class="mb-0">${{ "%.2f"|format(total_spending) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #28a745;">
+                <div class="card-body">
+                    <h6 class="text-muted">Purchase Orders</h6>
+                    <h3 class="mb-0">{{ purchase_orders|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #ffc107;">
+                <div class="card-body">
+                    <h6 class="text-muted">Contacts</h6>
+                    <h3 class="mb-0">{{ contacts|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #dc3545;">
+                <div class="card-body">
+                    <h6 class="text-muted">Performance Rating</h6>
+                    <h3 class="mb-0">
+                        {% if performance %}
+                        {{ "%.1f"|format(performance['overall_rating']) }}/10
+                        {% else %}
+                        N/A
+                        {% endif %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Address:</strong><br>{{ vendor['address'] or 'N/A' }}</p>
+                            <p><strong>Contact Person:</strong><br>{{ vendor['contact_person'] or 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Phone:</strong><br>{{ vendor['phone'] or 'N/A' }}</p>
+                            <p><strong>Email:</strong><br>
+                                {% if vendor['email'] %}
+                                <a href="mailto:{{ vendor['email'] }}">{{ vendor['email'] }}</a>
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if vendor['website'] %}
+                    <p><strong>Website:</strong> <a href="{{ vendor['website'] }}" target="_blank">{{ vendor['website'] }}</a></p>
+                    {% endif %}
+                    {% if vendor['category'] %}
+                    <p><strong>Category:</strong> <span class="badge badge-info">{{ vendor['category'] }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contacts Section -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-users"></i> Contacts ({{ contacts|length }})</h5>
+                    <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#addContactModal">
+                        <i class="fas fa-plus"></i> Add Contact
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if contacts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contact in contacts %}
+                                <tr>
+                                    <td>
+                                        {{ contact['name'] }}
+                                        {% if contact['is_primary'] %}
+                                        <span class="badge badge-success">Primary</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ contact['role'] or '-' }}</td>
+                                    <td>{{ contact['phone'] or '-' }}</td>
+                                    <td>
+                                        {% if contact['email'] %}
+                                        <a href="mailto:{{ contact['email'] }}">{{ contact['email'] }}</a>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form action="{{ url_for('delete_contact', entity_type='vendor', contact_id=contact['id']) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this contact?')">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No contacts added yet. Click "Add Contact" to add one.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Purchase Orders -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> Recent Purchase Orders</h5>
+                </div>
+                <div class="card-body">
+                    {% if purchase_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Date</th>
+                                    <th>Total Price</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in purchase_orders %}
+                                <tr>
+                                    <td>{{ po['po_number'] }}</td>
+                                    <td>{{ po['created_at'][:10] if po['created_at'] else '-' }}</td>
+                                    <td>${{ po['total_price'] }}</td>
+                                    <td><span class="badge badge-info">{{ po['status'] or 'Pending' }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No purchase orders found for this vendor.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Documents -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-folder"></i> Documents ({{ documents|length }})</h5>
+                    <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#uploadDocumentModal">
+                        <i class="fas fa-upload"></i> Upload Document
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if documents %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Document Name</th>
+                                    <th>Type</th>
+                                    <th>Expiry Date</th>
+                                    <th>Uploaded By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents %}
+                                <tr>
+                                    <td>{{ doc['document_name'] }}</td>
+                                    <td><span class="badge badge-secondary">{{ doc['document_type'] or 'General' }}</span></td>
+                                    <td>
+                                        {% if doc['expiry_date'] %}
+                                        {{ doc['expiry_date'] }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ doc['uploaded_by_name'] or 'System' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('download_srm_document', document_id=doc['id']) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <form action="{{ url_for('delete_srm_document', document_id=doc['id']) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this document?')">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No documents uploaded yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Account Manager -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-user-tie"></i> Account Manager</h5>
+                </div>
+                <div class="card-body">
+                    {% if account_manager %}
+                    <p><strong>Name:</strong> {{ account_manager['username'] }}</p>
+                    <p><strong>Email:</strong> <a href="mailto:{{ account_manager['user_email'] }}">{{ account_manager['user_email'] }}</a></p>
+                    <p><strong>Assigned:</strong> {{ account_manager['assigned_date'][:10] if account_manager['assigned_date'] else '-' }}</p>
+                    <button class="btn btn-sm btn-warning w-100" data-toggle="modal" data-target="#assignManagerModal">
+                        <i class="fas fa-exchange-alt"></i> Change Manager
+                    </button>
+                    {% else %}
+                    <p class="text-muted">No account manager assigned yet.</p>
+                    <button class="btn btn-sm btn-primary w-100" data-toggle="modal" data-target="#assignManagerModal">
+                        <i class="fas fa-user-plus"></i> Assign Manager
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Performance</h5>
+                </div>
+                <div class="card-body">
+                    {% if performance %}
+                    <div class="mb-3">
+                        <label>Delivery Score:</label>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ performance['delivery_score'] * 10 }}%">
+                                {{ performance['delivery_score'] }}/10
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>Quality Score:</label>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" style="width: {{ performance['quality_score'] * 10 }}%">
+                                {{ performance['quality_score'] }}/10
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>Response Score:</label>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {{ performance['response_score'] * 10 }}%">
+                                {{ performance['response_score'] }}/10
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <h4>Overall: {{ "%.1f"|format(performance['overall_rating']) }}/10</h4>
+                    </div>
+                    {% if performance['notes'] %}
+                    <p class="mt-2"><small><strong>Notes:</strong> {{ performance['notes'] }}</small></p>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted">No performance metrics yet.</p>
+                    {% endif %}
+                    <button class="btn btn-sm btn-primary w-100 mt-2" data-toggle="modal" data-target="#updatePerformanceModal">
+                        <i class="fas fa-edit"></i> Update Performance
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header" style="background: #f8f9fa;">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if activities %}
+                    {% for activity in activities %}
+                    <div class="mb-3 pb-2 border-bottom">
+                        <p class="mb-1"><strong>{{ activity['activity_type'].replace('_', ' ').title() }}</strong></p>
+                        <p class="mb-1 text-muted small">{{ activity['description'] }}</p>
+                        <p class="mb-0 text-muted small">
+                            <i class="fas fa-user"></i> {{ activity['username'] or 'System' }} | 
+                            <i class="fas fa-clock"></i> {{ activity['created_at'][:16] if activity['created_at'] else '-' }}
+                        </p>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center">No activity recorded yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="modal fade" id="addContactModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Contact</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form action="{{ url_for('add_vendor_contact_new', vendor_id=vendor['id']) }}" method="POST">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Name *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select name="role" class="form-control">
+                            <option value="">Select Role</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Technical">Technical</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Management">Management</option>
+                            <option value="Support">Support</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" name="phone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="is_primary" class="form-check-input" id="isPrimary">
+                        <label class="form-check-label" for="isPrimary">Set as Primary Contact</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Manager Modal -->
+<div class="modal fade" id="assignManagerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Account Manager</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form action="{{ url_for('assign_account_manager') }}" method="POST">
+                <input type="hidden" name="entity_type" value="vendor">
+                <input type="hidden" name="entity_id" value="{{ vendor['id'] }}">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Select User *</label>
+                        <select name="user_id" class="form-control" required>
+                            <option value="">Choose user...</option>
+                            {% for user in all_users %}
+                            <option value="{{ user['id'] }}">{{ user['username'] }} ({{ user['role'] }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Update Performance Modal -->
+<div class="modal fade" id="updatePerformanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Performance Metrics</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form action="{{ url_for('update_performance') }}" method="POST">
+                <input type="hidden" name="entity_type" value="vendor">
+                <input type="hidden" name="entity_id" value="{{ vendor['id'] }}">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Delivery Score (1-10)</label>
+                        <input type="number" name="delivery_score" class="form-control" min="1" max="10" value="{{ performance['delivery_score'] if performance else 5 }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Quality Score (1-10)</label>
+                        <input type="number" name="quality_score" class="form-control" min="1" max="10" value="{{ performance['quality_score'] if performance else 5 }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Response Score (1-10)</label>
+                        <input type="number" name="response_score" class="form-control" min="1" max="10" value="{{ performance['response_score'] if performance else 5 }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ performance['notes'] if performance else '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Document Modal -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Document</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form action="{{ url_for('upload_srm_document') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="entity_type" value="vendor">
+                <input type="hidden" name="entity_id" value="{{ vendor['id'] }}">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Document Type</label>
+                        <select name="document_type" class="form-control">
+                            <option value="Contract">Contract</option>
+                            <option value="Certificate">Certificate</option>
+                            <option value="NDA">NDA</option>
+                            <option value="Invoice">Invoice</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>File *</label>
+                        <input type="file" name="document_file" class="form-control-file" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry Date (optional)</label>
+                        <input type="date" name="expiry_date" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
