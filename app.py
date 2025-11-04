@@ -2006,6 +2006,606 @@ def edit_distributor(distributor_id):
         flash('Distributor not found!', 'danger')
         return redirect(url_for('distributors'))
 
+
+# =================================================================
+# ================ ENHANCED SRM ROUTES (OPTION B) =================
+# =================================================================
+
+# Vendor Detail Page with All Information
+@app.route('/vendor_detail/<int:vendor_id>')
+@login_required
+@permission_required('view_vendors')
+def vendor_detail(vendor_id):
+    """Comprehensive vendor detail page with contacts, performance, documents, POs"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get vendor basic info
+    cursor.execute("SELECT * FROM vendors WHERE id = ?", (vendor_id,))
+    vendor = cursor.fetchone()
+    
+    if not vendor:
+        flash('Vendor not found', 'danger')
+        return redirect(url_for('show_vendors'))
+    
+    # Get contacts
+    cursor.execute("""
+        SELECT * FROM vendor_contacts 
+        WHERE vendor_id = ? 
+        ORDER BY is_primary DESC, name
+    """, (vendor_id,))
+    contacts = cursor.fetchall()
+    
+    # Get account manager
+    cursor.execute("""
+        SELECT ama.*, u.username, u.email as user_email
+        FROM account_manager_assignments ama
+        JOIN users u ON ama.user_id = u.id
+        WHERE ama.entity_type = 'vendor' AND ama.entity_id = ?
+        ORDER BY ama.assigned_date DESC
+        LIMIT 1
+    """, (vendor_id,))
+    account_manager = cursor.fetchone()
+    
+    # Get performance metrics
+    cursor.execute("""
+        SELECT * FROM performance_metrics 
+        WHERE entity_type = 'vendor' AND entity_id = ?
+        ORDER BY updated_at DESC
+        LIMIT 1
+    """, (vendor_id,))
+    performance = cursor.fetchone()
+    
+    # Get documents
+    cursor.execute("""
+        SELECT sd.*, u.username as uploaded_by_name
+        FROM srm_documents sd
+        LEFT JOIN users u ON sd.uploaded_by = u.id
+        WHERE sd.entity_type = 'vendor' AND sd.entity_id = ?
+        ORDER BY sd.uploaded_at DESC
+    """, (vendor_id,))
+    documents = cursor.fetchall()
+    
+    # Get purchase orders
+    cursor.execute("""
+        SELECT * FROM purchase_orders 
+        WHERE vendor_name = ?
+        ORDER BY created_at DESC
+        LIMIT 10
+    """, (vendor['name'],))
+    purchase_orders = cursor.fetchall()
+    
+    # Calculate total spending
+    cursor.execute("""
+        SELECT SUM(CAST(total_price AS REAL)) as total_spending
+        FROM purchase_orders 
+        WHERE vendor_name = ?
+    """, (vendor['name'],))
+    spending_result = cursor.fetchone()
+    total_spending = spending_result['total_spending'] if spending_result['total_spending'] else 0
+    
+    # Get recent activity
+    cursor.execute("""
+        SELECT sal.*, u.username
+        FROM srm_activity_log sal
+        LEFT JOIN users u ON sal.user_id = u.id
+        WHERE sal.entity_type = 'vendor' AND sal.entity_id = ?
+        ORDER BY sal.created_at DESC
+        LIMIT 10
+    """, (vendor_id,))
+    activities = cursor.fetchall()
+    
+    # Get all users for account manager dropdown
+    cursor.execute("SELECT id, username, role FROM users ORDER BY username")
+    all_users = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template('vendor_detail.html',
+                         vendor=vendor,
+                         contacts=contacts,
+                         account_manager=account_manager,
+                         performance=performance,
+                         documents=documents,
+                         purchase_orders=purchase_orders,
+                         total_spending=total_spending,
+                         activities=activities,
+                         all_users=all_users)
+
+
+# Distributor Detail Page
+@app.route('/distributor_detail/<int:distributor_id>')
+@login_required
+@permission_required('view_distributors')
+def distributor_detail(distributor_id):
+    """Comprehensive distributor detail page"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get distributor basic info
+    cursor.execute("SELECT * FROM distributors WHERE id = ?", (distributor_id,))
+    distributor = cursor.fetchone()
+    
+    if not distributor:
+        flash('Distributor not found', 'danger')
+        return redirect(url_for('show_distributors'))
+    
+    # Get contacts
+    cursor.execute("""
+        SELECT * FROM distributor_contacts 
+        WHERE distributor_id = ? 
+        ORDER BY is_primary DESC, name
+    """, (distributor_id,))
+    contacts = cursor.fetchall()
+    
+    # Get account manager
+    cursor.execute("""
+        SELECT ama.*, u.username, u.email as user_email
+        FROM account_manager_assignments ama
+        JOIN users u ON ama.user_id = u.id
+        WHERE ama.entity_type = 'distributor' AND ama.entity_id = ?
+        ORDER BY ama.assigned_date DESC
+        LIMIT 1
+    """, (distributor_id,))
+    account_manager = cursor.fetchone()
+    
+    # Get performance metrics
+    cursor.execute("""
+        SELECT * FROM performance_metrics 
+        WHERE entity_type = 'distributor' AND entity_id = ?
+        ORDER BY updated_at DESC
+        LIMIT 1
+    """, (distributor_id,))
+    performance = cursor.fetchone()
+    
+    # Get documents
+    cursor.execute("""
+        SELECT sd.*, u.username as uploaded_by_name
+        FROM srm_documents sd
+        LEFT JOIN users u ON sd.uploaded_by = u.id
+        WHERE sd.entity_type = 'distributor' AND sd.entity_id = ?
+        ORDER BY sd.uploaded_at DESC
+    """, (distributor_id,))
+    documents = cursor.fetchall()
+    
+    # Get associated vendors
+    cursor.execute("""
+        SELECT v.*
+        FROM vendors v
+        JOIN vendor_distributor vd ON v.id = vd.vendor_id
+        WHERE vd.distributor_id = ?
+    """, (distributor_id,))
+    vendors = cursor.fetchall()
+    
+    # Get recent activity
+    cursor.execute("""
+        SELECT sal.*, u.username
+        FROM srm_activity_log sal
+        LEFT JOIN users u ON sal.user_id = u.id
+        WHERE sal.entity_type = 'distributor' AND sal.entity_id = ?
+        ORDER BY sal.created_at DESC
+        LIMIT 10
+    """, (distributor_id,))
+    activities = cursor.fetchall()
+    
+    # Get all users for account manager dropdown
+    cursor.execute("SELECT id, username, role FROM users ORDER BY username")
+    all_users = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template('distributor_detail.html',
+                         distributor=distributor,
+                         contacts=contacts,
+                         account_manager=account_manager,
+                         performance=performance,
+                         documents=documents,
+                         vendors=vendors,
+                         activities=activities,
+                         all_users=all_users)
+
+
+# Add Contact (Vendor)
+@app.route('/add_vendor_contact/<int:vendor_id>', methods=['POST'])
+@login_required
+def add_vendor_contact_new(vendor_id):
+    """Add new contact to vendor"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    name = request.form.get('name')
+    role = request.form.get('role')
+    phone = request.form.get('phone')
+    email = request.form.get('email')
+    notes = request.form.get('notes')
+    is_primary = 1 if request.form.get('is_primary') else 0
+    
+    # If setting as primary, unset others
+    if is_primary:
+        cursor.execute("UPDATE vendor_contacts SET is_primary = 0 WHERE vendor_id = ?", (vendor_id,))
+    
+    cursor.execute("""
+        INSERT INTO vendor_contacts (vendor_id, name, role, phone, email, is_primary, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (vendor_id, name, role, phone, email, is_primary, notes))
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+        VALUES ('vendor', ?, 'contact_added', ?, ?)
+    """, (vendor_id, f"Added contact: {name} ({role})", session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Contact {name} added successfully!', 'success')
+    return redirect(url_for('vendor_detail', vendor_id=vendor_id))
+
+
+# Add Contact (Distributor)
+@app.route('/add_distributor_contact/<int:distributor_id>', methods=['POST'])
+@login_required
+def add_distributor_contact_new(distributor_id):
+    """Add new contact to distributor"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    name = request.form.get('name')
+    role = request.form.get('role')
+    phone = request.form.get('phone')
+    email = request.form.get('email')
+    notes = request.form.get('notes')
+    is_primary = 1 if request.form.get('is_primary') else 0
+    
+    # If setting as primary, unset others
+    if is_primary:
+        cursor.execute("UPDATE distributor_contacts SET is_primary = 0 WHERE distributor_id = ?", (distributor_id,))
+    
+    cursor.execute("""
+        INSERT INTO distributor_contacts (distributor_id, name, role, phone, email, is_primary, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (distributor_id, name, role, phone, email, is_primary, notes))
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+        VALUES ('distributor', ?, 'contact_added', ?, ?)
+    """, (distributor_id, f"Added contact: {name} ({role})", session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Contact {name} added successfully!', 'success')
+    return redirect(url_for('distributor_detail', distributor_id=distributor_id))
+
+
+# Delete Contact
+@app.route('/delete_contact/<entity_type>/<int:contact_id>', methods=['POST'])
+@login_required
+def delete_contact(entity_type, contact_id):
+    """Delete a contact"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    if entity_type == 'vendor':
+        cursor.execute("SELECT vendor_id, name FROM vendor_contacts WHERE id = ?", (contact_id,))
+        result = cursor.fetchone()
+        if result:
+            entity_id, name = result
+            cursor.execute("DELETE FROM vendor_contacts WHERE id = ?", (contact_id,))
+            cursor.execute("""
+                INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+                VALUES ('vendor', ?, 'contact_deleted', ?, ?)
+            """, (entity_id, f"Deleted contact: {name}", session.get('user_id')))
+    else:
+        cursor.execute("SELECT distributor_id, name FROM distributor_contacts WHERE id = ?", (contact_id,))
+        result = cursor.fetchone()
+        if result:
+            entity_id, name = result
+            cursor.execute("DELETE FROM distributor_contacts WHERE id = ?", (contact_id,))
+            cursor.execute("""
+                INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+                VALUES ('distributor', ?, 'contact_deleted', ?, ?)
+            """, (entity_id, f"Deleted contact: {name}", session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Contact deleted successfully!', 'success')
+    return redirect(request.referrer or url_for('show_vendors'))
+
+
+# Assign Account Manager
+@app.route('/assign_account_manager', methods=['POST'])
+@login_required
+def assign_account_manager():
+    """Assign account manager to vendor or distributor"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    entity_type = request.form.get('entity_type')
+    entity_id = int(request.form.get('entity_id'))
+    user_id = int(request.form.get('user_id'))
+    notes = request.form.get('notes', '')
+    
+    # Check if already assigned
+    cursor.execute("""
+        DELETE FROM account_manager_assignments 
+        WHERE entity_type = ? AND entity_id = ?
+    """, (entity_type, entity_id))
+    
+    # Create new assignment
+    cursor.execute("""
+        INSERT INTO account_manager_assignments (entity_type, entity_id, user_id, notes)
+        VALUES (?, ?, ?, ?)
+    """, (entity_type, entity_id, user_id, notes))
+    
+    # Get username for log
+    cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+    username = cursor.fetchone()[0]
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+        VALUES (?, ?, 'account_manager_assigned', ?, ?)
+    """, (entity_type, entity_id, f"Assigned account manager: {username}", session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Account manager assigned successfully!', 'success')
+    return redirect(request.referrer)
+
+
+# Update Performance
+@app.route('/update_performance', methods=['POST'])
+@login_required
+def update_performance():
+    """Update performance metrics"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    entity_type = request.form.get('entity_type')
+    entity_id = int(request.form.get('entity_id'))
+    delivery_score = int(request.form.get('delivery_score', 0))
+    quality_score = int(request.form.get('quality_score', 0))
+    response_score = int(request.form.get('response_score', 0))
+    notes = request.form.get('notes', '')
+    
+    # Calculate overall rating
+    overall_rating = (delivery_score + quality_score + response_score) / 3
+    
+    # Check if performance record exists
+    cursor.execute("""
+        SELECT id FROM performance_metrics 
+        WHERE entity_type = ? AND entity_id = ?
+    """, (entity_type, entity_id))
+    existing = cursor.fetchone()
+    
+    if existing:
+        cursor.execute("""
+            UPDATE performance_metrics 
+            SET delivery_score = ?, quality_score = ?, response_score = ?, 
+                overall_rating = ?, notes = ?, updated_at = CURRENT_TIMESTAMP,
+                updated_by = ?
+            WHERE entity_type = ? AND entity_id = ?
+        """, (delivery_score, quality_score, response_score, overall_rating, notes,
+              session.get('user_id'), entity_type, entity_id))
+    else:
+        cursor.execute("""
+            INSERT INTO performance_metrics 
+            (entity_type, entity_id, delivery_score, quality_score, response_score, 
+             overall_rating, notes, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (entity_type, entity_id, delivery_score, quality_score, response_score,
+              overall_rating, notes, session.get('user_id')))
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+        VALUES (?, ?, 'performance_updated', ?, ?)
+    """, (entity_type, entity_id, f"Updated performance: {overall_rating:.1f}/10", session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Performance metrics updated successfully!', 'success')
+    return redirect(request.referrer)
+
+
+# Upload Document
+@app.route('/upload_srm_document', methods=['POST'])
+@login_required
+def upload_srm_document():
+    """Upload document for vendor/distributor"""
+    from werkzeug.utils import secure_filename
+    
+    entity_type = request.form.get('entity_type')
+    entity_id = int(request.form.get('entity_id'))
+    document_type = request.form.get('document_type')
+    expiry_date = request.form.get('expiry_date')
+    notes = request.form.get('notes', '')
+    
+    if 'document_file' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(request.referrer)
+    
+    file = request.files['document_file']
+    if file.filename == '':
+        flash('No file selected', 'danger')
+        return redirect(request.referrer)
+    
+    # Create uploads directory if not exists
+    upload_dir = 'static/srm_documents'
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Save file
+    filename = secure_filename(file.filename)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{entity_type}_{entity_id}_{timestamp}_{filename}"
+    file_path = os.path.join(upload_dir, filename)
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+    
+    # Save to database
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO srm_documents 
+        (entity_type, entity_id, document_name, document_type, file_path, 
+         file_size, expiry_date, uploaded_by, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (entity_type, entity_id, file.filename, document_type, file_path,
+          file_size, expiry_date, session.get('user_id'), notes))
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+        VALUES (?, ?, 'document_uploaded', ?, ?)
+    """, (entity_type, entity_id, f"Uploaded document: {file.filename}", session.get('user_id')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Document uploaded successfully!', 'success')
+    return redirect(request.referrer)
+
+
+# Delete Document
+@app.route('/delete_srm_document/<int:document_id>', methods=['POST'])
+@login_required
+def delete_srm_document(document_id):
+    """Delete a document"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT entity_type, entity_id, file_path, document_name FROM srm_documents WHERE id = ?", (document_id,))
+    result = cursor.fetchone()
+    
+    if result:
+        entity_type, entity_id, file_path, doc_name = result
+        
+        # Delete file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        # Delete from database
+        cursor.execute("DELETE FROM srm_documents WHERE id = ?", (document_id,))
+        
+        # Log activity
+        cursor.execute("""
+            INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+            VALUES (?, ?, 'document_deleted', ?, ?)
+        """, (entity_type, entity_id, f"Deleted document: {doc_name}", session.get('user_id')))
+        
+        conn.commit()
+        flash('Document deleted successfully!', 'success')
+    else:
+        flash('Document not found', 'danger')
+    
+    conn.close()
+    return redirect(request.referrer)
+
+
+# SRM Analytics Dashboard
+@app.route('/srm_analytics')
+@login_required
+@role_required('General Manager', 'Technical Team Leader', 'Presale Engineer')
+def srm_analytics():
+    """SRM Analytics Dashboard with charts and metrics"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get total counts
+    cursor.execute("SELECT COUNT(*) as count FROM vendors WHERE status = 'active'")
+    active_vendors = cursor.fetchone()['count']
+    
+    cursor.execute("SELECT COUNT(*) as count FROM distributors WHERE status = 'active'")
+    active_distributors = cursor.fetchone()['count']
+    
+    # Get vendors with account managers
+    cursor.execute("""
+        SELECT COUNT(DISTINCT entity_id) as count
+        FROM account_manager_assignments 
+        WHERE entity_type = 'vendor'
+    """)
+    vendors_with_managers = cursor.fetchone()['count']
+    
+    # Get total spending
+    cursor.execute("SELECT SUM(CAST(total_price AS REAL)) as total FROM purchase_orders")
+    total_spending_result = cursor.fetchone()
+    total_spending = total_spending_result['total'] if total_spending_result['total'] else 0
+    
+    # Top performing vendors
+    cursor.execute("""
+        SELECT v.name, pm.overall_rating, pm.delivery_score, pm.quality_score
+        FROM vendors v
+        JOIN performance_metrics pm ON v.id = pm.entity_id AND pm.entity_type = 'vendor'
+        ORDER BY pm.overall_rating DESC
+        LIMIT 10
+    """)
+    top_vendors = cursor.fetchall()
+    
+    # Spending by vendor
+    cursor.execute("""
+        SELECT vendor_name, SUM(CAST(total_price AS REAL)) as total_spent
+        FROM purchase_orders
+        GROUP BY vendor_name
+        ORDER BY total_spent DESC
+        LIMIT 10
+    """)
+    spending_by_vendor = cursor.fetchall()
+    
+    # Documents expiring soon (next 30 days)
+    cursor.execute("""
+        SELECT sd.*, v.name as entity_name
+        FROM srm_documents sd
+        LEFT JOIN vendors v ON sd.entity_id = v.id AND sd.entity_type = 'vendor'
+        LEFT JOIN distributors d ON sd.entity_id = d.id AND sd.entity_type = 'distributor'
+        WHERE sd.expiry_date IS NOT NULL 
+        AND sd.expiry_date BETWEEN date('now') AND date('now', '+30 days')
+        AND sd.status = 'active'
+        ORDER BY sd.expiry_date
+    """)
+    expiring_documents = cursor.fetchall()
+    
+    # Recent activities
+    cursor.execute("""
+        SELECT sal.*, u.username, 
+               CASE 
+                   WHEN sal.entity_type = 'vendor' THEN v.name
+                   WHEN sal.entity_type = 'distributor' THEN d.name
+               END as entity_name
+        FROM srm_activity_log sal
+        LEFT JOIN users u ON sal.user_id = u.id
+        LEFT JOIN vendors v ON sal.entity_id = v.id AND sal.entity_type = 'vendor'
+        LEFT JOIN distributors d ON sal.entity_id = d.id AND sal.entity_type = 'distributor'
+        ORDER BY sal.created_at DESC
+        LIMIT 20
+    """)
+    recent_activities = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template('srm_analytics.html',
+                         active_vendors=active_vendors,
+                         active_distributors=active_distributors,
+                         vendors_with_managers=vendors_with_managers,
+                         total_spending=total_spending,
+                         top_vendors=top_vendors,
+                         spending_by_vendor=spending_by_vendor,
+                         expiring_documents=expiring_documents,
+                         recent_activities=recent_activities)
+
+
+# =================================================================
+# =================== END OF ENHANCED SRM ROUTES ==================
+# =================================================================
+
 # ... [rest of your existing routes and code] ...
 ###########
 @app.route('/fetch_cctv_products', methods=['GET'])
