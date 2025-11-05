@@ -8224,6 +8224,50 @@ def edit_vendor(vendor_id):
                          current_account_manager=current_account_manager)
 
 
+# DELETE VENDOR ROUTE
+@app.route('/delete_vendor/<int:vendor_id>', methods=['POST'])
+@login_required
+@role_required('General Manager', 'Technical Team Leader')
+def delete_vendor(vendor_id):
+    """Delete a vendor (Admin only) with SRM activity logging"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    try:
+        # Get vendor details before deletion
+        cursor.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+        vendor = cursor.fetchone()
+        
+        if not vendor:
+            flash('Vendor not found.', 'danger')
+            return redirect(url_for('show_vendors'))
+        
+        vendor_name = vendor['name']
+        
+        # Delete related records first (cascade delete)
+        cursor.execute("DELETE FROM vendor_contacts WHERE vendor_id = ?", (vendor_id,))
+        cursor.execute("DELETE FROM vendor_distributor WHERE vendor_id = ?", (vendor_id,))
+        cursor.execute("DELETE FROM account_manager_assignments WHERE entity_type = 'vendor' AND entity_id = ?", (vendor_id,))
+        cursor.execute("DELETE FROM performance_metrics WHERE entity_type = 'vendor' AND entity_id = ?", (vendor_id,))
+        cursor.execute("DELETE FROM srm_documents WHERE entity_type = 'vendor' AND entity_id = ?", (vendor_id,))
+        cursor.execute("DELETE FROM srm_activity_log WHERE entity_type = 'vendor' AND entity_id = ?", (vendor_id,))
+        
+        # Finally delete the vendor
+        cursor.execute("DELETE FROM vendors WHERE id = ?", (vendor_id,))
+        
+        conn.commit()
+        flash(f'Vendor "{vendor_name}" has been successfully deleted!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting vendor: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('show_vendors'))
+
+
 ####################
 # OLD ROUTES - REMOVED - Using new SRM routes at line ~2200+
 # @app.route('/edit_vendor_contact/<int:contact_id>', methods=['GET', 'POST'])
