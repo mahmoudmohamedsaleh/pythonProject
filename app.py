@@ -8055,25 +8055,50 @@ def download_generated_quotation():
 @app.route('/register_srm_vendor', methods=['GET', 'POST'])
 @login_required
 def register_srm_vendor():
+    """Register a new vendor with full SRM support"""
     if request.method == 'POST':
         name = request.form['name']
-        address = request.form['address']
-        # Map new form fields to production DB columns
-        contact_person = request.form.get('main_contact', '')  # Optional contact person
+        address = request.form.get('address', '')
+        contact_person = request.form.get('contact_person', '')
         phone = request.form.get('main_phone', '')
         email = request.form.get('main_email', '')
+        status = request.form.get('status', 'active')
+        category = request.form.get('category', '')
+        website = request.form.get('website', '')
+        notes = request.form.get('notes', '')
 
         conn = sqlite3.connect('ProjectStatus.db')
-        c = conn.cursor()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
         try:
-            # Use production vendors table schema
-            c.execute("INSERT INTO vendors (name, address, contact_person, phone, email) VALUES (?, ?, ?, ?, ?)",
-                      (name, address, contact_person, phone, email))
+            # Insert vendor with all SRM fields
+            cursor.execute("""
+                INSERT INTO vendors 
+                (name, address, contact_person, phone, email, status, category, website, notes) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (name, address, contact_person, phone, email, status, category, website, notes))
+            
+            vendor_id = cursor.lastrowid
+            
+            # Log activity in SRM activity log
+            cursor.execute("""
+                INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+                VALUES ('vendor', ?, 'vendor_created', ?, ?)
+            """, (vendor_id, f'Created new vendor: {name}', session.get('user_id')))
+            
             conn.commit()
-            flash('Vendor registered successfully!', 'success')
-            return redirect(url_for('show_vendors'))
+            flash(f'Vendor "{name}" registered successfully!', 'success')
+            
+            # Redirect to vendor detail page to add contacts, documents, etc.
+            return redirect(url_for('vendor_detail', vendor_id=vendor_id))
+            
         except sqlite3.IntegrityError:
             flash('A vendor with this name already exists.', 'danger')
+            return redirect(url_for('register_srm_vendor'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'An error occurred: {e}', 'danger')
             return redirect(url_for('register_srm_vendor'))
         finally:
             conn.close()
