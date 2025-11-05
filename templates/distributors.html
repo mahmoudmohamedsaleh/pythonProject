@@ -103,13 +103,22 @@
                 <hr>
                 
                 <!-- Action Buttons -->
-                <div class="btn-group d-flex" role="group">
-                    <a href="{{ url_for('distributor_detail', distributor_id=data.distributor.id) }}" class="btn btn-primary w-50" title="View Details">
-                        <i class="fas fa-building"></i> Details
-                    </a>
-                    <a href="{{ url_for('edit_distributor', distributor_id=data.distributor.id) }}" class="btn btn-warning w-50" title="Edit">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
+                <div class="d-flex flex-column gap-2">
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('distributor_detail', distributor_id=data.distributor.id) }}" class="btn btn-primary w-50" title="View Details">
+                            <i class="fas fa-building"></i> Details
+                        </a>
+                        <a href="{{ url_for('edit_distributor', distributor_id=data.distributor.id) }}" class="btn btn-warning w-50" title="Edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                    <form method="POST" action="{{ url_for('delete_distributor', distributor_id=data.distributor.id) }}" 
+                          onsubmit="return confirm('Are you sure you want to delete {{ data.distributor.name }}? This action cannot be undone.');" 
+                          class="w-100">
+                        <button type="submit" class="btn btn-danger btn-block w-100" title="Delete Distributor">
+                            <i class="fas fa-trash-alt"></i> Delete Distributor
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
