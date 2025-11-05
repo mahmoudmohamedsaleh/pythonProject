@@ -1825,54 +1825,80 @@ def register_vendor():
 
 ############################3333
 @app.route('/register_distributor', methods=['GET', 'POST'])
-#@role_required('editor')
+@login_required
 def register_distributor():
+    """Register a new distributor with full SRM support"""
     conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
     if request.method == 'POST':
         name = request.form['name']
-        address = request.form['address']
-        contact_person = request.form['contact_person']
-        phone = request.form['phone']
-        email = request.form['email']
-        selected_vendors = request.form.getlist('vendors')  # Get selected vendor IDs
-        custom_vendor = request.form.get('custom_vendor')  # Get custom vendor name
+        address = request.form.get('address', '')
+        contact_person = request.form.get('contact_person', '')
+        phone = request.form.get('phone', '')
+        email = request.form.get('email', '')
+        status = request.form.get('status', 'active')
+        category = request.form.get('category', '')
+        website = request.form.get('website', '')
+        notes = request.form.get('notes', '')
+        selected_vendors = request.form.getlist('vendors')
+        custom_vendor = request.form.get('custom_vendor')
 
-        # Insert the distributor into the database
         try:
-            c.execute('''INSERT INTO distributors (name, address, contact_person, phone, email)
-                         VALUES (?, ?, ?, ?, ?)''', (name, address, contact_person, phone, email))
-            distributor_id = c.lastrowid  # Get the last inserted distributor ID
+            # Insert distributor with all SRM fields
+            cursor.execute('''
+                INSERT INTO distributors 
+                (name, address, contact_person, phone, email, status, category, website, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (name, address, contact_person, phone, email, status, category, website, notes))
+            
+            distributor_id = cursor.lastrowid
 
-            # Link the distributor to the selected vendors
+            # Link to selected vendors
             for vendor_id in selected_vendors:
-                c.execute('''INSERT INTO vendor_distributor (vendor_id, distributor_id)
-                             VALUES (?, ?)''', (vendor_id, distributor_id))
+                cursor.execute('''
+                    INSERT INTO vendor_distributor (vendor_id, distributor_id)
+                    VALUES (?, ?)
+                ''', (vendor_id, distributor_id))
 
-            # If a custom vendor name is provided, insert it into the vendors table
+            # Create custom vendor if provided
             if custom_vendor:
-                c.execute('''INSERT OR IGNORE INTO vendors (name) VALUES (?)''', (custom_vendor,))
-                c.execute('SELECT id FROM vendors WHERE name = ?', (custom_vendor,))
-                custom_vendor_id = c.fetchone()[0]
-                c.execute('''INSERT INTO vendor_distributor (vendor_id, distributor_id)
-                             VALUES (?, ?)''', (custom_vendor_id, distributor_id))
+                cursor.execute('INSERT OR IGNORE INTO vendors (name) VALUES (?)', (custom_vendor,))
+                cursor.execute('SELECT id FROM vendors WHERE name = ?', (custom_vendor,))
+                custom_vendor_id = cursor.fetchone()[0]
+                cursor.execute('''
+                    INSERT INTO vendor_distributor (vendor_id, distributor_id)
+                    VALUES (?, ?)
+                ''', (custom_vendor_id, distributor_id))
+
+            # Log activity in SRM activity log
+            cursor.execute("""
+                INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+                VALUES ('distributor', ?, 'distributor_created', ?, ?)
+            """, (distributor_id, f'Created new distributor: {name}', session.get('user_id')))
 
             conn.commit()
-            flash('Distributor registered successfully!', 'success')
+            flash(f'Distributor "{name}" registered successfully!', 'success')
+            
+            # Redirect to distributor detail page
+            return redirect(url_for('distributor_detail', distributor_id=distributor_id))
+            
         except sqlite3.IntegrityError:
             flash('Error: Distributor name must be unique!', 'danger')
+            return redirect(url_for('register_distributor'))
+        except Exception as e:
+            conn.rollback()
+            flash(f'An error occurred: {e}', 'danger')
+            return redirect(url_for('register_distributor'))
         finally:
             conn.close()
 
-        return redirect(url_for('register_distributor'))
-
-    # Fetch all vendors to display in the form
-    c.execute("SELECT id, name FROM vendors")
-    vendors = c.fetchall()
+    # Fetch all vendors for the form
+    cursor.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = cursor.fetchall()
     conn.close()
-    unique_vendors = list({vendor[1]: vendor for vendor in vendors}.values())
-    return render_template('register_distributor.html', vendors=unique_vendors)
+    return render_template('register_distributor.html', vendors=vendors)
 ###################3
 # NEW SRM-ENABLED DISTRIBUTORS ROUTE
 @app.route('/distributors')
@@ -1991,36 +2017,107 @@ import sqlite3
 # ... [rest of your existing imports and code] ...
 
 @app.route('/edit_distributor/<int:distributor_id>', methods=['GET', 'POST'])
-#@role_required('editor')
+@login_required
 def edit_distributor(distributor_id):
+    """Edit distributor with full SRM support"""
     conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
 
     if request.method == 'POST':
-        # Get updated data from the form
         name = request.form['name']
-        address = request.form['address']
-        contact_person = request.form['contact_person']
-        phone = request.form['phone']
-        email = request.form['email']
+        address = request.form.get('address', '')
+        contact_person = request.form.get('contact_person', '')
+        phone = request.form.get('phone', '')
+        email = request.form.get('email', '')
+        status = request.form.get('status', 'active')
+        category = request.form.get('category', '')
+        website = request.form.get('website', '')
+        notes = request.form.get('notes', '')
 
-        # Update the distributor in the database
-        c.execute('''UPDATE distributors SET name=?, address=?, contact_person=?, phone=?, email=? WHERE id=?''',
-                  (name, address, contact_person, phone, email, distributor_id))
-        conn.commit()
-        flash('Distributor updated successfully!', 'success')
-        return redirect(url_for('show_distributors'))  # Redirect to the distributor list page
+        try:
+            # Update distributor with all SRM fields
+            cursor.execute('''
+                UPDATE distributors SET
+                name = ?, address = ?, contact_person = ?, phone = ?, email = ?,
+                status = ?, category = ?, website = ?, notes = ?
+                WHERE id = ?
+            ''', (name, address, contact_person, phone, email, status, category, website, notes, distributor_id))
+            
+            # Log activity in SRM activity log
+            cursor.execute("""
+                INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+                VALUES ('distributor', ?, 'distributor_updated', ?, ?)
+            """, (distributor_id, f'Updated distributor details', session.get('user_id')))
+            
+            conn.commit()
+            flash('Distributor updated successfully!', 'success')
+            
+            # Redirect to distributor detail page
+            return redirect(url_for('distributor_detail', distributor_id=distributor_id))
+            
+        except Exception as e:
+            flash(f'An error occurred: {e}', 'danger')
+            conn.rollback()
+        finally:
+            conn.close()
 
-    # Fetch the current distributor details
-    c.execute('SELECT * FROM distributors WHERE id=?', (distributor_id,))
-    distributor = c.fetchone()
+        return redirect(url_for('show_distributors'))
+
+    # Fetch the distributor for GET request
+    cursor.execute('SELECT * FROM distributors WHERE id = ?', (distributor_id,))
+    distributor = cursor.fetchone()
     conn.close()
 
     if distributor:
         return render_template('edit_distributor.html', distributor=distributor)
     else:
         flash('Distributor not found!', 'danger')
-        return redirect(url_for('distributors'))
+        return redirect(url_for('show_distributors'))
+
+
+# DELETE DISTRIBUTOR ROUTE
+@app.route('/delete_distributor/<int:distributor_id>', methods=['POST'])
+@login_required
+@role_required('General Manager', 'Technical Team Leader')
+def delete_distributor(distributor_id):
+    """Delete a distributor (Admin only) with SRM activity logging"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    try:
+        # Get distributor details before deletion
+        cursor.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+        distributor = cursor.fetchone()
+        
+        if not distributor:
+            flash('Distributor not found.', 'danger')
+            return redirect(url_for('show_distributors'))
+        
+        distributor_name = distributor['name']
+        
+        # Delete related records first (cascade delete)
+        cursor.execute("DELETE FROM distributor_contacts WHERE distributor_id = ?", (distributor_id,))
+        cursor.execute("DELETE FROM vendor_distributor WHERE distributor_id = ?", (distributor_id,))
+        cursor.execute("DELETE FROM account_manager_assignments WHERE entity_type = 'distributor' AND entity_id = ?", (distributor_id,))
+        cursor.execute("DELETE FROM performance_metrics WHERE entity_type = 'distributor' AND entity_id = ?", (distributor_id,))
+        cursor.execute("DELETE FROM srm_documents WHERE entity_type = 'distributor' AND entity_id = ?", (distributor_id,))
+        cursor.execute("DELETE FROM srm_activity_log WHERE entity_type = 'distributor' AND entity_id = ?", (distributor_id,))
+        
+        # Finally delete the distributor
+        cursor.execute("DELETE FROM distributors WHERE id = ?", (distributor_id,))
+        
+        conn.commit()
+        flash(f'Distributor "{distributor_name}" has been successfully deleted!', 'success')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting distributor: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('show_distributors'))
 
 
 # =================================================================
