@@ -1843,7 +1843,6 @@ def register_distributor():
         website = request.form.get('website', '')
         notes = request.form.get('notes', '')
         selected_vendors = request.form.getlist('vendors')
-        custom_vendor = request.form.get('custom_vendor')
 
         try:
             # Insert distributor with all SRM fields
@@ -1861,16 +1860,6 @@ def register_distributor():
                     INSERT INTO vendor_distributor (vendor_id, distributor_id)
                     VALUES (?, ?)
                 ''', (vendor_id, distributor_id))
-
-            # Create custom vendor if provided
-            if custom_vendor:
-                cursor.execute('INSERT OR IGNORE INTO vendors (name) VALUES (?)', (custom_vendor,))
-                cursor.execute('SELECT id FROM vendors WHERE name = ?', (custom_vendor,))
-                custom_vendor_id = cursor.fetchone()[0]
-                cursor.execute('''
-                    INSERT INTO vendor_distributor (vendor_id, distributor_id)
-                    VALUES (?, ?)
-                ''', (custom_vendor_id, distributor_id))
 
             # Log activity in SRM activity log
             cursor.execute("""

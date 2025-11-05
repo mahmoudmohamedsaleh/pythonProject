@@ -133,10 +133,11 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="custom_vendor">Or Add New Vendor</label>
-                    <input type="text" class="form-control" id="custom_vendor" name="custom_vendor" 
-                           placeholder="Enter new vendor name">
-                    <small class="form-text text-muted">This will create a new vendor and link it to this distributor</small>
+                    <label>Need to Add a New Vendor?</label>
+                    <a href="{{ url_for('register_srm_vendor') }}" class="btn btn-outline-primary btn-block" target="_blank">
+                        <i class="fas fa-plus-circle mr-2"></i>Add New Vendor
+                    </a>
+                    <small class="form-text text-muted">This will open the vendor registration page in a new tab</small>
                 </div>
                 
                 <!-- Action Buttons -->
