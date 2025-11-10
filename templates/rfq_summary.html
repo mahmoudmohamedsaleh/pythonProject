@@ -123,7 +123,7 @@
                         <td>{{ rfq[9] }}</td><td>{{ rfq[11] }}</td>
                         <td class="action-buttons">
                             <a href="{{ url_for('edit_rfq', rfq_id=rfq[0]) }}" class="btn btn-warning btn-sm" title="Edit RFQ"><i class="fas fa-edit"></i></a>
-                            <a href="{{ url_for('upload', rfq_ref=rfq[1], project_name=rfq[2], presale_engineer=rfq[5], sales_engineer=rfq[6]) }}" class="btn btn-primary btn-sm" title="Submit Quotation"><i class="fas fa-file-invoice-dollar"></i></a>
+                            <a href="{{ url_for('quotation_builder') }}?project_name={{ rfq[2] }}&rfq_ref={{ rfq[1] }}" class="btn btn-primary btn-sm" title="Submit Quote"><i class="fas fa-file-invoice-dollar"></i></a>
                             <button class="btn btn-info btn-sm" title="Comments" onclick="openCommentModal({{ rfq[0] }}, '{{ rfq[1] }}')">
                                 <i class="fas fa-comments"></i>
                             </button>
