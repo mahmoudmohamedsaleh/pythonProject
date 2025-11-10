@@ -40,7 +40,20 @@
                 <div class="card-body">
                     <div class="form-row">
                         <div class="form-group col-md-6"><label for="po_request_number">PO Request Number (Zoho Ref)</label><input type="text" class="form-control" id="po_request_number" name="po_request_number" required></div>
-                        <div class="form-group col-md-6"><label for="project_name">Project Name</label><select class="form-control" id="project_name" name="project_name" required>{% for project in projects %}<option value="{{ project[0] }}">{{ project[1] }}</option>{% endfor %}</select></div>
+                        <div class="form-group col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="project_name" class="mb-0">Project Name</label>
+                                <a href="{{ url_for('register_project') }}" class="btn btn-sm btn-outline-success" target="_blank" title="Opens in new tab">
+                                    <i class="fas fa-plus-circle mr-1"></i>Add New Project
+                                </a>
+                            </div>
+                            <select class="form-control" id="project_name" name="project_name" required>
+                                <option value="" disabled selected>-- Select a Project --</option>
+                                {% for project in projects %}
+                                    <option value="{{ project[0] }}">{{ project[1] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group"><label for="system">System / Scope</label><input type="text" class="form-control" id="system" name="system" required></div>
                 </div>
