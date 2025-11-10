@@ -2192,28 +2192,24 @@ def vendor_detail(vendor_id):
     
     # Get purchase orders through distributors that work with this vendor
     cursor.execute("""
-        SELECT DISTINCT po.* 
+        SELECT DISTINCT po.*, d.name as distributor_name
         FROM purchase_orders po
-        JOIN vendor_distributor vd ON po.distributor = (
-            SELECT name FROM distributors WHERE id = vd.distributor_id
-        )
+        JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
+        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
         WHERE vd.vendor_id = ?
         ORDER BY po.created_at DESC
-        LIMIT 10
     """, (vendor_id,))
     purchase_orders = cursor.fetchall()
     
     # Calculate total spending through associated distributors
     cursor.execute("""
-        SELECT SUM(CAST(po.total_amount AS REAL)) as total_spending
+        SELECT COALESCE(SUM(total_amount), 0) as total_spending
         FROM purchase_orders po
-        JOIN vendor_distributor vd ON po.distributor = (
-            SELECT name FROM distributors WHERE id = vd.distributor_id
-        )
+        JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
         WHERE vd.vendor_id = ?
     """, (vendor_id,))
     spending_result = cursor.fetchone()
-    total_spending = spending_result['total_spending'] if spending_result['total_spending'] else 0
+    total_spending = spending_result['total_spending']
     
     # Get recent activity
     cursor.execute("""
@@ -2309,6 +2305,22 @@ def distributor_detail(distributor_id):
     """, (distributor_id,))
     vendors = cursor.fetchall()
     
+    # Get purchase orders for this distributor
+    cursor.execute("""
+        SELECT * FROM purchase_orders 
+        WHERE CAST(distributor AS TEXT) = CAST(? AS TEXT)
+        ORDER BY created_at DESC
+    """, (distributor_id,))
+    purchase_orders = cursor.fetchall()
+    
+    # Calculate total spending from POs
+    cursor.execute("""
+        SELECT COALESCE(SUM(total_amount), 0) as total_spending
+        FROM purchase_orders 
+        WHERE CAST(distributor AS TEXT) = CAST(? AS TEXT)
+    """, (distributor_id,))
+    total_spending = cursor.fetchone()['total_spending']
+    
     # Get recent activity
     cursor.execute("""
         SELECT sal.*, u.username
@@ -2333,6 +2345,8 @@ def distributor_detail(distributor_id):
                          performance=performance,
                          documents=documents,
                          vendors=vendors,
+                         purchase_orders=purchase_orders,
+                         total_spending=total_spending,
                          activities=activities,
                          all_users=all_users)
 
@@ -6959,6 +6973,136 @@ def download_filtered_po_excel():
 
     # Send the file to the user
     return send_file(output, download_name='filtered_purchase_orders.xlsx', as_attachment=True)
+
+##########################
+# Download Vendor Purchase Orders as Excel
+@app.route('/download_vendor_pos_excel/<int:vendor_id>', methods=['GET'])
+@login_required
+@permission_required('view_vendors')
+def download_vendor_pos_excel(vendor_id):
+    """Export all purchase orders for a specific vendor to Excel"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    
+    # Get vendor name for filename
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+    vendor_result = cursor.fetchone()
+    vendor_name = vendor_result[0] if vendor_result else "Vendor"
+    
+    # Query to fetch purchase orders through vendor-distributor relationships
+    query = '''
+        SELECT DISTINCT
+            po.po_request_number AS "PO Request Number",
+            po.po_number AS "PO Number",
+            rp.project_name AS "Project Name",
+            po.system AS "System/Scope",
+            po.total_amount AS "Total Amount (SAR)",
+            d.name AS "Distributor",
+            po.distributor_engineer AS "Distributor Engineer",
+            po.distributor_contact AS "Distributor Contact",
+            po.distributor_email AS "Distributor Email",
+            po.po_approval_status AS "Approval Status",
+            po.po_delivery_status AS "Delivery Status",
+            eng.username AS "Presale Engineer",
+            pmeng.username AS "Project Manager",
+            po.created_at AS "Created Date",
+            po.po_notes_vendor AS "Vendor Notes",
+            po.po_notes_client AS "Client Notes"
+        FROM purchase_orders po
+        LEFT JOIN register_project rp ON po.project_name = rp.id
+        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
+        LEFT JOIN engineers eng ON po.presale_engineer = eng.id
+        LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
+        JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
+        WHERE vd.vendor_id = ?
+        ORDER BY po.created_at DESC
+    '''
+    
+    df = pd.read_sql_query(query, conn, params=(vendor_id,))
+    conn.close()
+    
+    # Create an Excel file
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Purchase Orders')
+        
+        # Auto-adjust column widths
+        worksheet = writer.sheets['Purchase Orders']
+        for idx, col in enumerate(df.columns):
+            max_len = max(df[col].astype(str).apply(len).max(), len(col)) + 2
+            worksheet.set_column(idx, idx, min(max_len, 50))
+    
+    output.seek(0)
+    
+    # Clean filename
+    safe_vendor_name = "".join(c for c in vendor_name if c.isalnum() or c in (' ', '_')).strip()
+    filename = f'{safe_vendor_name}_Purchase_Orders.xlsx'
+    
+    return send_file(output, download_name=filename, as_attachment=True)
+
+
+# Download Distributor Purchase Orders as Excel
+@app.route('/download_distributor_pos_excel/<int:distributor_id>', methods=['GET'])
+@login_required
+@permission_required('view_distributors')
+def download_distributor_pos_excel(distributor_id):
+    """Export all purchase orders for a specific distributor to Excel"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    
+    # Get distributor name for filename
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+    distributor_result = cursor.fetchone()
+    distributor_name = distributor_result[0] if distributor_result else "Distributor"
+    
+    # Query to fetch purchase orders for this distributor
+    query = '''
+        SELECT
+            po.po_request_number AS "PO Request Number",
+            po.po_number AS "PO Number",
+            rp.project_name AS "Project Name",
+            po.system AS "System/Scope",
+            po.total_amount AS "Total Amount (SAR)",
+            po.distributor_engineer AS "Distributor Engineer",
+            po.distributor_contact AS "Distributor Contact",
+            po.distributor_email AS "Distributor Email",
+            po.po_approval_status AS "Approval Status",
+            po.po_delivery_status AS "Delivery Status",
+            eng.username AS "Presale Engineer",
+            pmeng.username AS "Project Manager",
+            po.created_at AS "Created Date",
+            po.po_notes_vendor AS "Vendor Notes",
+            po.po_notes_client AS "Client Notes"
+        FROM purchase_orders po
+        LEFT JOIN register_project rp ON po.project_name = rp.id
+        LEFT JOIN engineers eng ON po.presale_engineer = eng.id
+        LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
+        WHERE CAST(po.distributor AS TEXT) = CAST(? AS TEXT)
+        ORDER BY po.created_at DESC
+    '''
+    
+    df = pd.read_sql_query(query, conn, params=(distributor_id,))
+    conn.close()
+    
+    # Create an Excel file
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Purchase Orders')
+        
+        # Auto-adjust column widths
+        worksheet = writer.sheets['Purchase Orders']
+        for idx, col in enumerate(df.columns):
+            max_len = max(df[col].astype(str).apply(len).max(), len(col)) + 2
+            worksheet.set_column(idx, idx, min(max_len, 50))
+    
+    output.seek(0)
+    
+    # Clean filename
+    safe_distributor_name = "".join(c for c in distributor_name if c.isalnum() or c in (' ', '_')).strip()
+    filename = f'{safe_distributor_name}_Purchase_Orders.xlsx'
+    
+    return send_file(output, download_name=filename, as_attachment=True)
+
 ##########################
 @app.route('/edit_po/<int:po_id>', methods=['GET', 'POST'])
 #@role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
