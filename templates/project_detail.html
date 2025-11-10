@@ -246,7 +246,7 @@
                                     <td>{{ rfq['deadline'][:10] if rfq['deadline'] else 'N/A' }}</td>
                                     <td>{{ rfq['requested_time'][:10] if rfq['requested_time'] else 'N/A' }}</td>
                                     <td>
-                                        <a href="{{ url_for('quotation_builder') }}?project_name={{ project['project_name'] }}&rfq_ref={{ rfq['rfq_reference'] }}" class="btn btn-sm btn-outline-primary" title="Submit Quote for this RFQ">
+                                        <a href="{{ url_for('upload') }}?project_name={{ project['project_name'] }}&rfq_ref={{ rfq['rfq_reference'] }}&presale_engineer={{ rfq['sales_engineer_presale'] }}&sales_engineer={{ rfq['sales_engineer_sales'] }}" class="btn btn-sm btn-outline-primary" title="Submit Quote for this RFQ">
                                             <i class="fas fa-file-invoice"></i> Submit Quote
                                         </a>
                                     </td>
