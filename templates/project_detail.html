@@ -372,9 +372,6 @@
                     <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
                 </div>
                 <div class="card-body">
-                    <a href="{{ url_for('quotation_builder') }}?project_name={{ project['project_name'] }}" class="btn btn-success btn-block mb-2">
-                        <i class="fas fa-file-invoice"></i> Add Quotation
-                    </a>
                     <a href="{{ url_for('request_for_quotation') }}?project_name={{ project['project_name'] }}&sales_engineer={{ project['sales_engineer_name'] }}" class="btn btn-primary btn-block mb-2">
                         <i class="fas fa-tasks"></i> Create RFQ
                     </a>
