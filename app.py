@@ -4709,13 +4709,29 @@ def show_comparison(ref):
 
     if comparison_data:
         quotation_cost, quotation_selling_price, margin = comparison_data
+        
+        # Sanitize None values and prepare template-ready display values
+        cost_value = quotation_cost if quotation_cost is not None else 0
+        price_value = quotation_selling_price if quotation_selling_price is not None else 0
+        margin_value = margin if margin is not None else None
+        
+        # Calculate markup safely
+        markup_value = None
+        if cost_value and cost_value > 0 and price_value is not None:
+            markup_value = ((price_value - cost_value) / cost_value) * 100
+        
+        # Prepare formatted display strings
+        margin_display = f"{margin_value:.2f}%" if margin_value is not None else "N/A"
+        markup_display = f"{markup_value:.2f}%" if markup_value is not None else "N/A"
 
-        # Prepare data for the chart (this could be more complex depending on your needs)
+        # Prepare data for the chart
         chart_data = {
             'quotation_reference': ref,
-            'quotation_cost': quotation_cost,
-            'quotation_selling_price': quotation_selling_price,
-            'margin': margin,
+            'quotation_cost': cost_value,
+            'quotation_selling_price': price_value,
+            'margin': margin_value,
+            'margin_display': margin_display,
+            'markup_display': markup_display,
         }
 
         return render_template('comparison_charts.html', data=chart_data)
