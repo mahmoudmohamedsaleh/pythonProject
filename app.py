@@ -1322,6 +1322,80 @@ def show_project_history(project_name):
 
     # Always render the history page and let the template decide what to show
     return render_template('project_history.html', projects=projects, project_name=project_name)
+
+@app.route('/project_detail/<int:project_id>', methods=['GET'])
+@login_required
+def project_detail(project_id):
+    """Comprehensive project profile showing all related data"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get project details
+    cursor.execute("""
+        SELECT 
+            rp.*,
+            eu.name as end_user_name,
+            c.name as contractor_name,
+            cons.name as consultant_name,
+            e.name as sales_engineer_name
+        FROM register_project rp
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors c ON rp.contractor_id = c.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        LEFT JOIN engineers e ON CAST(rp.sales_engineer_id AS TEXT) = CAST(e.id AS TEXT)
+        WHERE rp.id = ?
+    """, (project_id,))
+    project = cursor.fetchone()
+    
+    if not project:
+        flash('Project not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_projects'))
+    
+    # Get all quotations for this project
+    cursor.execute("""
+        SELECT * FROM projects
+        WHERE project_name = ?
+        ORDER BY registered_date DESC
+    """, (project['project_name'],))
+    quotations = cursor.fetchall()
+    
+    # Get all RFQs for this project  
+    cursor.execute("""
+        SELECT * FROM rfq_requests
+        WHERE project_name = ?
+        ORDER BY requested_time DESC
+    """, (project['project_name'],))
+    rfqs = cursor.fetchall()
+    
+    # Get all Purchase Orders for this project
+    cursor.execute("""
+        SELECT 
+            po.*,
+            d.name as distributor_name,
+            v.name as vendor_name
+        FROM purchase_orders po
+        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
+        LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = CAST(v.id AS TEXT)
+        WHERE CAST(po.project_name AS TEXT) = CAST(? AS TEXT)
+        ORDER BY po.created_at DESC
+    """, (project_id,))
+    purchase_orders = cursor.fetchall()
+    
+    # Calculate statistics
+    total_quotation_value = sum(q['quotation_selling_price'] or 0 for q in quotations)
+    total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
+    
+    conn.close()
+    
+    return render_template('project_detail.html',
+                         project=project,
+                         quotations=quotations,
+                         rfqs=rfqs,
+                         purchase_orders=purchase_orders,
+                         total_quotation_value=total_quotation_value,
+                         total_po_value=total_po_value)
 ############333
 @app.route('/charts')
 #@role_required('editor')
