@@ -207,7 +207,7 @@
                             <thead class="thead-light">
                                 <tr>
                                     <th>RFQ Reference</th>
-                                    <th>System</th>
+                                    <th>Project Status</th>
                                     <th>Priority</th>
                                     <th>RFQ Status</th>
                                     <th>Quote Status</th>
@@ -219,7 +219,7 @@
                                 {% for rfq in rfqs[:10] %}
                                 <tr>
                                     <td><strong>{{ rfq['rfq_reference'] }}</strong></td>
-                                    <td>{{ rfq['system'] or 'N/A' }}</td>
+                                    <td>{{ rfq['project_status'] or 'N/A' }}</td>
                                     <td>
                                         {% if rfq['priority'] == 'Urgent' %}
                                         <span class="badge badge-danger">{{ rfq['priority'] }}</span>
