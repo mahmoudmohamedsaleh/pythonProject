@@ -122,7 +122,7 @@
                     <tr>
                         <td>
                             <strong>
-                                <a href="{{ url_for('show_project_history', project_name=project[1]) }}">{{ project[1] }}</a>
+                                <a href="{{ url_for('project_detail', project_id=project[0]) }}">{{ project[1] }}</a>
                             </strong>
                         </td>
                         <td>{{ project[2] if project[2] else 'N/A' }}</td>

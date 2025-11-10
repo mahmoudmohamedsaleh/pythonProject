@@ -121,7 +121,7 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                     <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> Quotations ({{ quotations|length }})</h5>
-                    <a href="{{ url_for('submit_quotation', project_name=project['project_name']) }}" class="btn btn-light btn-sm">
+                    <a href="{{ url_for('quotation_builder') }}?project_name={{ project['project_name'] }}" class="btn btn-light btn-sm">
                         <i class="fas fa-plus"></i> Add Quotation
                     </a>
                 </div>
@@ -363,10 +363,10 @@
                     <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
                 </div>
                 <div class="card-body">
-                    <a href="{{ url_for('submit_quotation', project_name=project['project_name']) }}" class="btn btn-success btn-block mb-2">
+                    <a href="{{ url_for('quotation_builder') }}?project_name={{ project['project_name'] }}" class="btn btn-success btn-block mb-2">
                         <i class="fas fa-file-invoice"></i> Add Quotation
                     </a>
-                    <a href="{{ url_for('register_rfq') }}?project_name={{ project['project_name'] }}" class="btn btn-primary btn-block mb-2">
+                    <a href="{{ url_for('request_for_quotation') }}?project_name={{ project['project_name'] }}&sales_engineer={{ project['sales_engineer_name'] }}" class="btn btn-primary btn-block mb-2">
                         <i class="fas fa-tasks"></i> Create RFQ
                     </a>
                     <a href="{{ url_for('register_po') }}?project_id={{ project['id'] }}" class="btn btn-warning btn-block mb-2">
