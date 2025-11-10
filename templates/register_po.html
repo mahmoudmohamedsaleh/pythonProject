@@ -22,7 +22,7 @@
     <main class="main-content">
         <div class="text-center mb-4">
             <h1>Register Purchase Order</h1>
-            <p class="text-muted">Fill in the details below to create a new PO request.</p>
+            <p class="text-muted">{% if rfpo_data %}Creating PO from approved request: <strong>{{ rfpo_data.po_request_reference }}</strong>{% else %}Fill in the details below to create a new PO request.{% endif %}</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -39,7 +39,7 @@
                 <div class="card-header"><i class="fas fa-file-invoice mr-2"></i>Core PO Details</div>
                 <div class="card-body">
                     <div class="form-row">
-                        <div class="form-group col-md-6"><label for="po_request_number">PO Request Number (Zoho Ref)</label><input type="text" class="form-control" id="po_request_number" name="po_request_number" required></div>
+                        <div class="form-group col-md-6"><label for="po_request_number">PO Request Number (Zoho Ref)</label><input type="text" class="form-control" id="po_request_number" name="po_request_number" value="{% if rfpo_data %}{{ rfpo_data.po_request_reference }}{% endif %}" required></div>
                         <div class="form-group col-md-6">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label for="project_name" class="mb-0">Project Name</label>
@@ -48,14 +48,14 @@
                                 </a>
                             </div>
                             <select class="form-control" id="project_name" name="project_name" required>
-                                <option value="" disabled selected>-- Select a Project --</option>
+                                <option value="" disabled {% if not rfpo_data %}selected{% endif %}>-- Select a Project --</option>
                                 {% for project in projects %}
-                                    <option value="{{ project[0] }}">{{ project[1] }}</option>
+                                    <option value="{{ project[0] }}" {% if rfpo_data and project[1] == rfpo_data.project_name %}selected{% endif %}>{{ project[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
-                    <div class="form-group"><label for="system">System / Scope</label><input type="text" class="form-control" id="system" name="system" required></div>
+                    <div class="form-group"><label for="system">System / Scope</label><input type="text" class="form-control" id="system" name="system" value="{% if rfpo_data %}{{ rfpo_data.system or '' }}{% endif %}" required></div>
                 </div>
             </div>
 
@@ -63,8 +63,8 @@
                 <div class="card-header"><i class="fas fa-users mr-2"></i>Personnel</div>
                 <div class="card-body">
                     <div class="form-row">
-                        <div class="form-group col-md-6"><label for="presale_engineer">Pre-Sale Engineer</label><select class="form-control" id="presale_engineer" name="presale_engineer" required>{% for engineer in presale_engineers %}<option value="{{ engineer[0] }}">{{ engineer[1] }}</option>{% endfor %}</select></div>
-                        <div class="form-group col-md-6"><label for="project_manager">Project Manager</label><select class="form-control" id="project_manager" name="project_manager" required>{% for engineer in project_managers %}<option value="{{ engineer[0] }}">{{ engineer[1] }}</option>{% endfor %}</select></div>
+                        <div class="form-group col-md-6"><label for="presale_engineer">Pre-Sale Engineer</label><select class="form-control" id="presale_engineer" name="presale_engineer" required>{% for engineer in presale_engineers %}<option value="{{ engineer[0] }}" {% if rfpo_data and engineer[1] == rfpo_data.presale_engineer %}selected{% endif %}>{{ engineer[1] }}</option>{% endfor %}</select></div>
+                        <div class="form-group col-md-6"><label for="project_manager">Project Manager</label><select class="form-control" id="project_manager" name="project_manager" required>{% for engineer in project_managers %}<option value="{{ engineer[0] }}" {% if rfpo_data and engineer[1] == rfpo_data.project_manager %}selected{% endif %}>{{ engineer[1] }}</option>{% endfor %}</select></div>
                     </div>
                 </div>
             </div>
@@ -84,7 +84,7 @@
                         <select class="form-control" id="vendor" name="vendor">
                             <option value="">-- Select a Vendor (Optional) --</option>
                             {% for vendor in vendors %}
-                                <option value="{{ vendor[0] }}">{{ vendor[1] }}</option>
+                                <option value="{{ vendor[0] }}" {% if rfpo_data and vendor[0] == rfpo_data.vendor_id %}selected{% endif %}>{{ vendor[1] }}</option>
                             {% endfor %}
                         </select>
                         <small class="form-text text-muted">
@@ -98,9 +98,9 @@
                             <a href="{{ url_for('register_distributor') }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Opens in new tab"><i class="fas fa-plus-circle mr-1"></i>Add New Distributor</a>
                         </div>
                         <select class="form-control" id="distributor" name="distributor" required>
-                            <option value="" disabled selected>-- Select a Distributor --</option>
+                            <option value="" disabled {% if not rfpo_data %}selected{% endif %}>-- Select a Distributor --</option>
                             {% for distributor in distributors %}
-                                <option value="{{ distributor[0] }}">{{ distributor[1] }}</option>
+                                <option value="{{ distributor[0] }}" {% if rfpo_data and distributor[0] == rfpo_data.distributor_id %}selected{% endif %}>{{ distributor[1] }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -147,7 +147,7 @@
                 <div class="card-header"><i class="fas fa-sticky-note mr-2"></i>Notes</div>
                 <div class="card-body">
                      <div class="form-row">
-                        <div class="form-group col-md-6"><label for="po_notes_vendor">PO Notes (Vendor Side)</label><textarea class="form-control" id="po_notes_vendor" name="po_notes_vendor" rows="3"></textarea></div>
+                        <div class="form-group col-md-6"><label for="po_notes_vendor">PO Notes (Vendor Side)</label><textarea class="form-control" id="po_notes_vendor" name="po_notes_vendor" rows="3">{% if rfpo_data %}{{ rfpo_data.notes or '' }}{% endif %}</textarea></div>
                         <div class="form-group col-md-6"><label for="po_notes_client">PO Notes (Client Side)</label><textarea class="form-control" id="po_notes_client" name="po_notes_client" rows="3"></textarea></div>
                     </div>
                 </div>
