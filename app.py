@@ -2193,6 +2193,44 @@ def add_distributor_ajax():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         conn.close()
+@app.route('/add_vendor_ajax', methods=['POST'])
+@login_required
+def add_vendor_ajax():
+    """Handles new vendor registration from a modal form."""
+    data = request.get_json()
+    name = data.get('name')
+
+    # Basic validation
+    if not name:
+        return jsonify({'status': 'error', 'message': 'Vendor name is required.'}), 400
+
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    try:
+        # Insert the new vendor with minimal required data
+        c.execute('''INSERT INTO vendors (name, address, contact_person, phone, email)
+                     VALUES (?, ?, ?, ?, ?)''',
+                  (name, data.get('address', ''), data.get('contact_person', ''), data.get('phone', ''),
+                   data.get('email', '')))
+
+        new_vendor_id = c.lastrowid  # Get the ID of the new record
+        conn.commit()
+
+        # Return a success response with the new vendor's details
+        return jsonify({
+            'status': 'success',
+            'id': new_vendor_id,
+            'name': name
+        })
+
+    except sqlite3.IntegrityError:
+        # This error occurs if the vendor name is not unique
+        return jsonify({'status': 'error', 'message': 'A vendor with this name already exists.'}), 409
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        conn.close()
+
 ############################
 # Add this new route anywhere in your app.py file
 

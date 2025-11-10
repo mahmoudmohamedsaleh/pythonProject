@@ -65,22 +65,36 @@
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label>Distributor <span class="text-danger">*</span></label>
-                        <select class="form-control" name="distributor_id" id="distributor_id" required onchange="updateDistributorName()">
-                            <option value="">Select Distributor...</option>
-                            {% for dist in distributors %}
-                                <option value="{{ dist['id'] }}" data-name="{{ dist['name'] }}">{{ dist['name'] }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="input-group">
+                            <select class="form-control" name="distributor_id" id="distributor_id" required onchange="updateDistributorName()">
+                                <option value="">Select Distributor...</option>
+                                {% for dist in distributors %}
+                                    <option value="{{ dist['id'] }}" data-name="{{ dist['name'] }}">{{ dist['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-success" onclick="showAddDistributorModal()" title="Add New Distributor">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
                         <input type="hidden" name="distributor_name" id="distributor_name">
                     </div>
                     <div class="form-group col-md-6">
                         <label>Vendor (Optional)</label>
-                        <select class="form-control" name="vendor_id" id="vendor_id" onchange="updateVendorName()">
-                            <option value="">Select Vendor...</option>
-                            {% for vendor in vendors %}
-                                <option value="{{ vendor['id'] }}" data-name="{{ vendor['name'] }}">{{ vendor['name'] }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="input-group">
+                            <select class="form-control" name="vendor_id" id="vendor_id" onchange="updateVendorName()">
+                                <option value="">Select Vendor...</option>
+                                {% for vendor in vendors %}
+                                    <option value="{{ vendor['id'] }}" data-name="{{ vendor['name'] }}">{{ vendor['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-success" onclick="showAddVendorModal()" title="Add New Vendor">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
                         <input type="hidden" name="vendor_name" id="vendor_name">
                     </div>
                 </div>
@@ -105,6 +119,94 @@
     </div>
 </div>
 
+<!-- Add Distributor Modal -->
+<div class="modal fade" id="addDistributorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-building"></i> Add New Distributor</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addDistributorForm">
+                    <div class="form-group">
+                        <label>Distributor Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="new_distributor_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Person</label>
+                        <input type="text" class="form-control" id="new_distributor_contact">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" class="form-control" id="new_distributor_phone">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" id="new_distributor_email">
+                    </div>
+                    <div class="form-group">
+                        <label>Address</label>
+                        <textarea class="form-control" id="new_distributor_address" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitDistributor()">
+                    <i class="fas fa-save"></i> Add Distributor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Vendor Modal -->
+<div class="modal fade" id="addVendorModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-truck"></i> Add New Vendor</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addVendorForm">
+                    <div class="form-group">
+                        <label>Vendor Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="new_vendor_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Person</label>
+                        <input type="text" class="form-control" id="new_vendor_contact">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" class="form-control" id="new_vendor_phone">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" id="new_vendor_email">
+                    </div>
+                    <div class="form-group">
+                        <label>Address</label>
+                        <textarea class="form-control" id="new_vendor_address" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitVendor()">
+                    <i class="fas fa-save"></i> Add Vendor
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function updateDistributorName() {
     const select = document.getElementById('distributor_id');
@@ -118,6 +220,120 @@ function updateVendorName() {
     const selectedOption = select.options[select.selectedIndex];
     const vendorName = selectedOption.getAttribute('data-name') || '';
     document.getElementById('vendor_name').value = vendorName;
+}
+
+function showAddDistributorModal() {
+    $('#addDistributorModal').modal('show');
+}
+
+function showAddVendorModal() {
+    $('#addVendorModal').modal('show');
+}
+
+function submitDistributor() {
+    const name = document.getElementById('new_distributor_name').value.trim();
+    
+    if (!name) {
+        alert('Distributor name is required!');
+        return;
+    }
+
+    const data = {
+        name: name,
+        contact_person: document.getElementById('new_distributor_contact').value,
+        phone: document.getElementById('new_distributor_phone').value,
+        email: document.getElementById('new_distributor_email').value,
+        address: document.getElementById('new_distributor_address').value
+    };
+
+    fetch('/add_distributor_ajax', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            // Add new option to the dropdown
+            const select = document.getElementById('distributor_id');
+            const newOption = document.createElement('option');
+            newOption.value = result.id;
+            newOption.textContent = result.name;
+            newOption.setAttribute('data-name', result.name);
+            select.appendChild(newOption);
+            
+            // Select the newly added distributor
+            select.value = result.id;
+            updateDistributorName();
+            
+            // Close modal and reset form
+            $('#addDistributorModal').modal('hide');
+            document.getElementById('addDistributorForm').reset();
+            
+            alert('Distributor added successfully!');
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the distributor.');
+    });
+}
+
+function submitVendor() {
+    const name = document.getElementById('new_vendor_name').value.trim();
+    
+    if (!name) {
+        alert('Vendor name is required!');
+        return;
+    }
+
+    const data = {
+        name: name,
+        contact_person: document.getElementById('new_vendor_contact').value,
+        phone: document.getElementById('new_vendor_phone').value,
+        email: document.getElementById('new_vendor_email').value,
+        address: document.getElementById('new_vendor_address').value
+    };
+
+    fetch('/add_vendor_ajax', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            // Add new option to the dropdown
+            const select = document.getElementById('vendor_id');
+            const newOption = document.createElement('option');
+            newOption.value = result.id;
+            newOption.textContent = result.name;
+            newOption.setAttribute('data-name', result.name);
+            select.appendChild(newOption);
+            
+            // Select the newly added vendor
+            select.value = result.id;
+            updateVendorName();
+            
+            // Close modal and reset form
+            $('#addVendorModal').modal('hide');
+            document.getElementById('addVendorForm').reset();
+            
+            alert('Vendor added successfully!');
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the vendor.');
+    });
 }
 </script>
 {% endblock %}
