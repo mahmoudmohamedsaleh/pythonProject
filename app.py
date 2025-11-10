@@ -1396,6 +1396,118 @@ def project_detail(project_id):
                          purchase_orders=purchase_orders,
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value)
+
+@app.route('/download_project_data_excel/<int:project_id>')
+@login_required
+def download_project_data_excel(project_id):
+    """Export all project data (quotations, RFQs, POs) to Excel"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    
+    # Get project name for filename
+    cursor = conn.cursor()
+    cursor.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
+    project_result = cursor.fetchone()
+    project_name = project_result[0] if project_result else "Project"
+    
+    # Query to fetch quotations
+    quotations_query = '''
+        SELECT 
+            quote_ref AS "Quote Reference",
+            system AS "System",
+            presale_eng AS "Presale Engineer",
+            sales_eng AS "Sales Engineer",
+            quotation_cost AS "Cost (SAR)",
+            quotation_selling_price AS "Selling Price (SAR)",
+            margin AS "Margin %",
+            status AS "Status",
+            registered_date AS "Registered Date",
+            updated_time AS "Updated Date",
+            sow AS "Scope of Work",
+            quotation_note AS "Notes",
+            feedback AS "Feedback"
+        FROM projects
+        WHERE project_name = ?
+        ORDER BY registered_date DESC
+    '''
+    df_quotations = pd.read_sql_query(quotations_query, conn, params=(project_name,))
+    
+    # Query to fetch RFQs
+    rfqs_query = '''
+        SELECT 
+            rfq_reference AS "RFQ Reference",
+            system AS "System",
+            priority AS "Priority",
+            rfq_status AS "RFQ Status",
+            quotation_status AS "Quotation Status",
+            deadline AS "Deadline",
+            requested_time AS "Requested Date",
+            scope_of_work AS "Scope of Work",
+            notes AS "Notes"
+        FROM rfq_requests
+        WHERE project_name = ?
+        ORDER BY requested_time DESC
+    '''
+    df_rfqs = pd.read_sql_query(rfqs_query, conn, params=(project_name,))
+    
+    # Query to fetch Purchase Orders
+    pos_query = '''
+        SELECT 
+            po.po_request_number AS "PO Request Number",
+            po.po_number AS "PO Number",
+            d.name AS "Distributor",
+            v.name AS "Vendor",
+            po.system AS "System/Scope",
+            po.total_amount AS "Total Amount (SAR)",
+            po.po_approval_status AS "Approval Status",
+            po.po_delivery_status AS "Delivery Status",
+            eng.username AS "Presale Engineer",
+            pmeng.username AS "Project Manager",
+            po.created_at AS "Created Date",
+            po.po_notes_vendor AS "Vendor Notes",
+            po.po_notes_client AS "Client Notes"
+        FROM purchase_orders po
+        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
+        LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = CAST(v.id AS TEXT)
+        LEFT JOIN engineers eng ON po.presale_engineer = eng.id
+        LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
+        WHERE CAST(po.project_name AS TEXT) = CAST(? AS TEXT)
+        ORDER BY po.created_at DESC
+    '''
+    df_pos = pd.read_sql_query(pos_query, conn, params=(project_id,))
+    
+    conn.close()
+    
+    # Create Excel file with multiple sheets
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_quotations.to_excel(writer, sheet_name='Quotations', index=False)
+        df_rfqs.to_excel(writer, sheet_name='RFQs', index=False)
+        df_pos.to_excel(writer, sheet_name='Purchase Orders', index=False)
+        
+        # Auto-adjust column widths for all sheets
+        for sheet_name in writer.sheets:
+            worksheet = writer.sheets[sheet_name]
+            if sheet_name == 'Quotations':
+                df = df_quotations
+            elif sheet_name == 'RFQs':
+                df = df_rfqs
+            else:
+                df = df_pos
+                
+            for idx, col in enumerate(df.columns):
+                max_length = max(
+                    df[col].astype(str).map(len).max(),
+                    len(str(col))
+                )
+                worksheet.set_column(idx, idx, min(max_length + 2, 50))
+    
+    output.seek(0)
+    filename = f'{project_name}_Project_Data.xlsx'
+    
+    return send_file(output, 
+                     download_name=filename, 
+                     as_attachment=True,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 ############333
 @app.route('/charts')
 #@role_required('editor')
