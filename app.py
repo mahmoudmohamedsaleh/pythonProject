@@ -575,6 +575,33 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         )''')
     
+    # PO Requests table for Purchase Order request workflow with approval
+    c.execute('''CREATE TABLE IF NOT EXISTS po_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            po_request_reference TEXT UNIQUE NOT NULL,
+            quote_ref TEXT NOT NULL,
+            project_name TEXT NOT NULL,
+            system TEXT,
+            presale_engineer TEXT,
+            project_manager TEXT,
+            vendor_id INTEGER,
+            vendor_name TEXT,
+            distributor_id INTEGER,
+            distributor_name TEXT,
+            notes TEXT,
+            request_status TEXT DEFAULT 'Pending Approval',
+            requested_by_id INTEGER NOT NULL,
+            requested_by_name TEXT NOT NULL,
+            requested_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            approved_by_id INTEGER,
+            approved_by_name TEXT,
+            decision_time TIMESTAMP,
+            rejection_reason TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (requested_by_id) REFERENCES users(id)
+        )''')
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
