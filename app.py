@@ -6539,6 +6539,7 @@ def register_po():
         system = request.form['system']
         presale_engineer = request.form['presale_engineer']
         project_manager = request.form['project_manager']
+        vendor = request.form.get('vendor') or None  # Optional vendor
         distributor = request.form['distributor']
         distributor_engineer = request.form['distributor_engineer']
         distributor_contact = request.form['distributor_contact']
@@ -6562,12 +6563,12 @@ def register_po():
         try:
             c.execute('''INSERT INTO purchase_orders (
                 po_request_number, project_name, system, presale_engineer, project_manager,
-                distributor, distributor_engineer, distributor_contact, distributor_email,
+                vendor, distributor, distributor_engineer, distributor_contact, distributor_email,
                 quotation, po_document, po_number, total_amount, po_approval_status,
                 po_delivery_status, po_notes_vendor, po_notes_client
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)''', (
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
                 po_request_number, project_name, system, presale_engineer, project_manager,
-                distributor, distributor_engineer, distributor_contact, distributor_email,
+                vendor, distributor, distributor_engineer, distributor_contact, distributor_email,
                 quotation_data, po_document_data, po_number, total_amount, po_approval_status,
                 po_delivery_status, po_notes_vendor, po_notes_client
             ))
@@ -6625,11 +6626,13 @@ def register_po():
     presale_engineers = c.fetchall()
     c.execute("SELECT id, name FROM engineers WHERE role IN ('Implementation Engineer', 'Project Manager')")
     project_managers = c.fetchall()
+    c.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = c.fetchall()
     c.execute("SELECT id, name FROM distributors")
     distributors = c.fetchall()
     conn.close()
 
-    return render_template('register_po.html', projects=projects, presale_engineers=presale_engineers, project_managers=project_managers, distributors=distributors)
+    return render_template('register_po.html', projects=projects, presale_engineers=presale_engineers, project_managers=project_managers, vendors=vendors, distributors=distributors)
 #######################333
 @app.route('/view_po_status', methods=['GET', 'POST'])
 @permission_required('view_po_status')

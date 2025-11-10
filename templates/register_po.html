@@ -70,8 +70,28 @@
             </div>
 
             <div class="card">
-                <div class="card-header"><i class="fas fa-truck mr-2"></i>Distributor Information</div>
+                <div class="card-header"><i class="fas fa-building mr-2"></i>Vendor & Distributor Information</div>
                 <div class="card-body">
+                    <div class="form-group">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <label for="vendor" class="mb-0">
+                                Vendor <span class="badge badge-secondary">Optional</span>
+                            </label>
+                            <a href="{{ url_for('register_vendor') }}" class="btn btn-sm btn-outline-success" target="_blank" title="Opens in new tab">
+                                <i class="fas fa-plus-circle mr-1"></i>Add New Vendor
+                            </a>
+                        </div>
+                        <select class="form-control" id="vendor" name="vendor">
+                            <option value="">-- Select a Vendor (Optional) --</option>
+                            {% for vendor in vendors %}
+                                <option value="{{ vendor[0] }}">{{ vendor[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Select a vendor to directly link this PO to a specific vendor (useful for direct purchases)
+                        </small>
+                    </div>
+                    
                     <div class="form-group">
                         <div class="d-flex justify-content-between align-items-center">
                             <label for="distributor" class="mb-0">Distributor</label>
