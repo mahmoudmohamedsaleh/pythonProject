@@ -126,13 +126,7 @@
                                 N/A
                             {% endif %}
                         </td>
-                        <td>
-                            {% if req.project_id %}
-                                <a href="{{ url_for('project_detail', project_id=req.project_id) }}">{{ req.project_name }}</a>
-                            {% else %}
-                                {{ req.project_name }}
-                            {% endif %}
-                        </td>
+                        <td>{{ req.project_name }}</td>
                         <td>{{ req.distributor_name }}</td>
                         <td>{{ req.vendor_name if req.vendor_name else 'N/A' }}</td>
                         <td>{{ req.project_manager if req.project_manager else 'N/A' }}</td>

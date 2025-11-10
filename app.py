@@ -7726,15 +7726,15 @@ def po_requests_dashboard():
     # Base query with JOINs to get usernames
     query = """
         SELECT
-            pr.id, pr.po_request_reference, pr.quote_ref, pr.project_id, pr.project_name,
+            pr.id, pr.po_request_reference, pr.quote_ref, pr.project_name,
             pr.system, pr.presale_engineer, pr.distributor_name, pr.vendor_name,
-            pr.project_manager, pr.request_status, pr.notes, pr.created_at,
-            pr.approved_rejected_at, pr.rejection_reason,
+            pr.project_manager, pr.request_status, pr.notes, pr.requested_time as created_at,
+            pr.decision_time as approved_rejected_at, pr.rejection_reason,
             u_req.username as requested_by_username,
             u_appr.username as approved_rejected_by_username
         FROM po_requests pr
         LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
-        LEFT JOIN users u_appr ON pr.approved_rejected_by_id = u_appr.id
+        LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id
         WHERE 1=1
     """
     params = []
@@ -7824,8 +7824,8 @@ def approve_po_request(rfpo_ref):
         # Update request status to Approved
         c.execute("""UPDATE po_requests 
                      SET request_status = 'Approved',
-                         approved_rejected_by_id = ?,
-                         approved_rejected_at = ?
+                         approved_by_id = ?,
+                         decision_time = ?
                      WHERE po_request_reference = ?""",
                  (session['user_id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'), rfpo_ref))
         
@@ -7892,8 +7892,8 @@ def reject_po_request(rfpo_ref):
         # Update request status to Rejected
         c.execute("""UPDATE po_requests 
                      SET request_status = 'Rejected',
-                         approved_rejected_by_id = ?,
-                         approved_rejected_at = ?,
+                         approved_by_id = ?,
+                         decision_time = ?,
                          rejection_reason = ?
                      WHERE po_request_reference = ?""",
                  (session['user_id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
@@ -7944,13 +7944,13 @@ def get_po_request_details(request_id):
                     pr.po_request_reference, pr.quote_ref, pr.project_name,
                     pr.system, pr.presale_engineer, pr.distributor_name,
                     pr.vendor_name, pr.project_manager, pr.request_status,
-                    pr.notes, pr.created_at, pr.approved_rejected_at,
+                    pr.notes, pr.requested_time as created_at, pr.decision_time as approved_rejected_at,
                     pr.rejection_reason,
                     u_req.username as requested_by_username,
                     u_appr.username as approved_rejected_by_username
                  FROM po_requests pr
                  LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
-                 LEFT JOIN users u_appr ON pr.approved_rejected_by_id = u_appr.id
+                 LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id
                  WHERE pr.id = ?""", (request_id,))
     
     po_request = c.fetchone()
@@ -7983,11 +7983,11 @@ def download_po_requests():
             pr.po_request_reference, pr.quote_ref, pr.project_name,
             pr.system, pr.presale_engineer, pr.distributor_name, pr.vendor_name,
             pr.project_manager, u_req.username as requested_by,
-            pr.request_status, pr.created_at, pr.approved_rejected_at,
+            pr.request_status, pr.requested_time as created_at, pr.decision_time as approved_rejected_at,
             u_appr.username as approved_rejected_by, pr.rejection_reason, pr.notes
         FROM po_requests pr
         LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
-        LEFT JOIN users u_appr ON pr.approved_rejected_by_id = u_appr.id
+        LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id
         WHERE 1=1
     """
     params = []
