@@ -1416,6 +1416,22 @@ def project_detail(project_id):
     """, (project_id,))
     purchase_orders = cursor.fetchall()
     
+    # Get all PO Requests for this project
+    cursor.execute("""
+        SELECT 
+            rfpo.*,
+            d.name as distributor_name,
+            v.name as vendor_name,
+            e.name as requester_name
+        FROM po_requests rfpo
+        LEFT JOIN distributors d ON CAST(rfpo.distributor_id AS TEXT) = CAST(d.id AS TEXT)
+        LEFT JOIN vendors v ON rfpo.vendor_id = v.id
+        LEFT JOIN engineers e ON CAST(rfpo.requester_id AS TEXT) = CAST(e.id AS TEXT)
+        WHERE rfpo.project_name = ?
+        ORDER BY rfpo.requested_time DESC
+    """, (project['project_name'],))
+    po_requests = cursor.fetchall()
+    
     # Calculate statistics
     total_quotation_value = sum(q['quotation_selling_price'] or 0 for q in quotations)
     total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
@@ -1427,6 +1443,7 @@ def project_detail(project_id):
                          quotations=quotations,
                          rfqs=rfqs,
                          purchase_orders=purchase_orders,
+                         po_requests=po_requests,
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value)
 
