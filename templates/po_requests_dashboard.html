@@ -1,0 +1,341 @@
+{% extends 'base.html' %}
+{% block title %}PO Requests Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .page-header h1 { font-weight: 700; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); margin-bottom: 30px; }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
+    .table thead th { background-color: #f8f9fa; border-bottom-width: 2px; font-weight: 600; white-space: nowrap; }
+    .table td, .table th { vertical-align: middle; }
+    .action-buttons a, .action-buttons form, .action-buttons button {
+        margin: 0 2px;
+        display: inline-block;
+    }
+    .badge-pending { background-color: #ffc107; color: #000; }
+    .badge-approved { background-color: #28a745; }
+    .badge-rejected { background-color: #dc3545; }
+</style>
+
+<div class="page-header">
+    <h1>PO Requests Dashboard</h1>
+    <p class="text-muted">Manage Purchase Order requests requiring approval from Technical Team Leader or General Manager.</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header"><i class="fas fa-filter mr-2"></i>Filter PO Requests</div>
+            <div class="card-body">
+                <form method="GET">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label>Request Status</label>
+                            <select name="request_status" class="form-control">
+                                <option value="">All</option>
+                                {% for s in status_options %}
+                                <option value="{{ s }}" {% if current_filters.request_status == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Requested By</label>
+                            <select name="requested_by" class="form-control">
+                                <option value="">All</option>
+                                {% for user in requesters %}
+                                <option value="{{ user }}" {% if current_filters.requested_by == user %}selected{% endif %}>{{ user }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Distributor</label>
+                            <select name="distributor" class="form-control">
+                                <option value="">All</option>
+                                {% for dist in distributors %}
+                                <option value="{{ dist }}" {% if current_filters.distributor == dist %}selected{% endif %}>{{ dist }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Vendor</label>
+                            <select name="vendor" class="form-control">
+                                <option value="">All</option>
+                                {% for ven in vendors %}
+                                <option value="{{ ven }}" {% if current_filters.vendor == ven %}selected{% endif %}>{{ ven }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Requested From</label>
+                            <input type="date" class="form-control" name="start_date" value="{{ current_filters.start_date or '' }}">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label>Requested To</label>
+                            <input type="date" class="form-control" name="end_date" value="{{ current_filters.end_date or '' }}">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-search mr-1"></i>Apply</button>
+                    <a href="{{ url_for('po_requests_dashboard') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i>Clear</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-chart-pie mr-2"></i>Status Distribution</span>
+                <span class="badge badge-primary badge-pill">{{ total_requests }} Total</span>
+            </div>
+            <div class="card-body"><canvas id="poStatusChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list-ul mr-2"></i>PO Request Details</span>
+        <a href="{{ url_for('download_po_requests', **request.args) }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel mr-1"></i>Download Excel
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>RFPO Reference</th>
+                        <th>Quote Reference</th>
+                        <th>Project Name</th>
+                        <th>Distributor</th>
+                        <th>Vendor</th>
+                        <th>Project Manager</th>
+                        <th>Requested By</th>
+                        <th>Status</th>
+                        <th>Requested At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in po_requests %}
+                    <tr>
+                        <td><strong>{{ req.po_request_reference }}</strong></td>
+                        <td>
+                            {% if req.quote_ref %}
+                                <a href="{{ url_for('show_comparison', ref=req.quote_ref) }}">{{ req.quote_ref }}</a>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if req.project_id %}
+                                <a href="{{ url_for('project_detail', project_id=req.project_id) }}">{{ req.project_name }}</a>
+                            {% else %}
+                                {{ req.project_name }}
+                            {% endif %}
+                        </td>
+                        <td>{{ req.distributor_name }}</td>
+                        <td>{{ req.vendor_name if req.vendor_name else 'N/A' }}</td>
+                        <td>{{ req.project_manager if req.project_manager else 'N/A' }}</td>
+                        <td>{{ req.requested_by_username }}</td>
+                        <td>
+                            {% if req.request_status == 'Pending Approval' %}
+                                <span class="badge badge-pending">{{ req.request_status }}</span>
+                            {% elif req.request_status == 'Approved' %}
+                                <span class="badge badge-approved">{{ req.request_status }}</span>
+                            {% elif req.request_status == 'Rejected' %}
+                                <span class="badge badge-rejected">{{ req.request_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ req.created_at }}</td>
+                        <td class="action-buttons">
+                            {% if req.request_status == 'Pending Approval' and (user_role == 'Technical Team Leader' or user_role == 'General Manager') %}
+                                <button class="btn btn-success btn-sm" title="Approve" onclick="showApproveModal('{{ req.po_request_reference }}', '{{ req.project_name }}')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" title="Reject" onclick="showRejectModal('{{ req.po_request_reference }}', '{{ req.project_name }}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            {% endif %}
+                            {% if req.request_status == 'Approved' %}
+                                <a href="{{ url_for('create_po_from_request', rfpo_ref=req.po_request_reference) }}" class="btn btn-primary btn-sm" title="Create PO">
+                                    <i class="fas fa-file-invoice"></i> Create PO
+                                </a>
+                            {% endif %}
+                            <button class="btn btn-info btn-sm" title="View Details" onclick="showDetailsModal({{ req.id }})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-5">No PO requests found matching your criteria.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-check-circle mr-2"></i>Approve PO Request</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="approveForm" method="POST">
+                <div class="modal-body">
+                    <p>Are you sure you want to approve this PO request?</p>
+                    <p><strong>RFPO Reference:</strong> <span id="approveRfpoRef"></span></p>
+                    <p><strong>Project:</strong> <span id="approveProjectName"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-check mr-1"></i>Approve</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-times-circle mr-2"></i>Reject PO Request</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="rejectForm" method="POST">
+                <div class="modal-body">
+                    <p><strong>RFPO Reference:</strong> <span id="rejectRfpoRef"></span></p>
+                    <p><strong>Project:</strong> <span id="rejectProjectName"></span></p>
+                    <div class="form-group">
+                        <label for="rejectionReason">Rejection Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="rejectionReason" name="rejection_reason" rows="4" placeholder="Please provide a reason for rejecting this request..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-times mr-1"></i>Reject</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-info-circle mr-2"></i>PO Request Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <p class="text-center text-muted">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script>
+    Chart.register(ChartDataLabels);
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('poStatusChart').getContext('2d');
+        const poStatusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ status_labels|tojson }},
+                datasets: [{
+                    data: {{ status_counts|tojson }},
+                    backgroundColor: ['#ffc107', '#28a745', '#dc3545'],
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    datalabels: {
+                        formatter: (value) => value > 0 ? value : null,
+                        color: '#fff',
+                        font: { weight: 'bold' }
+                    },
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    });
+
+    function showApproveModal(rfpoRef, projectName) {
+        document.getElementById('approveRfpoRef').textContent = rfpoRef;
+        document.getElementById('approveProjectName').textContent = projectName;
+        document.getElementById('approveForm').action = `/approve_po_request/${rfpoRef}`;
+        $('#approveModal').modal('show');
+    }
+
+    function showRejectModal(rfpoRef, projectName) {
+        document.getElementById('rejectRfpoRef').textContent = rfpoRef;
+        document.getElementById('rejectProjectName').textContent = projectName;
+        document.getElementById('rejectForm').action = `/reject_po_request/${rfpoRef}`;
+        document.getElementById('rejectionReason').value = '';
+        $('#rejectModal').modal('show');
+    }
+
+    function showDetailsModal(requestId) {
+        const detailsContent = document.getElementById('detailsContent');
+        detailsContent.innerHTML = '<p class="text-center text-muted">Loading...</p>';
+        
+        fetch(`/get_po_request_details/${requestId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    detailsContent.innerHTML = `<p class="text-danger text-center">${data.error}</p>`;
+                    return;
+                }
+                
+                let html = `
+                    <table class="table table-bordered">
+                        <tr><th width="30%">RFPO Reference</th><td>${data.po_request_reference}</td></tr>
+                        <tr><th>Quote Reference</th><td>${data.quote_ref || 'N/A'}</td></tr>
+                        <tr><th>Project Name</th><td>${data.project_name}</td></tr>
+                        <tr><th>System</th><td>${data.system}</td></tr>
+                        <tr><th>Presale Engineer</th><td>${data.presale_engineer}</td></tr>
+                        <tr><th>Distributor</th><td>${data.distributor_name}</td></tr>
+                        <tr><th>Vendor</th><td>${data.vendor_name || 'N/A'}</td></tr>
+                        <tr><th>Project Manager</th><td>${data.project_manager || 'N/A'}</td></tr>
+                        <tr><th>Requested By</th><td>${data.requested_by_username}</td></tr>
+                        <tr><th>Status</th><td><span class="badge badge-${data.request_status === 'Pending Approval' ? 'pending' : data.request_status === 'Approved' ? 'approved' : 'rejected'}">${data.request_status}</span></td></tr>
+                        <tr><th>Requested At</th><td>${data.created_at}</td></tr>
+                        ${data.approved_rejected_at ? `<tr><th>${data.request_status} At</th><td>${data.approved_rejected_at}</td></tr>` : ''}
+                        ${data.approved_rejected_by_username ? `<tr><th>${data.request_status} By</th><td>${data.approved_rejected_by_username}</td></tr>` : ''}
+                        ${data.rejection_reason ? `<tr><th>Rejection Reason</th><td>${data.rejection_reason}</td></tr>` : ''}
+                        ${data.notes ? `<tr><th>Notes</th><td style="white-space: pre-wrap;">${data.notes}</td></tr>` : ''}
+                    </table>
+                `;
+                detailsContent.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error loading details:', error);
+                detailsContent.innerHTML = '<p class="text-danger text-center">Error loading details. Please try again.</p>';
+            });
+        
+        $('#detailsModal').modal('show');
+    }
+</script>
+{% endblock %}

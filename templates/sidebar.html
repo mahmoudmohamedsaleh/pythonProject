@@ -143,7 +143,8 @@
             </li>
 
             <li class="menu-header">Purchasing</li>
-            <li class="nav-item"><a href="{{ url_for('view_po_status') }}" class="{{ 'active' if '_po' in request.endpoint else '' }}"><i class="fas fa-shopping-cart"></i> PO Status</a></li>
+            <li class="nav-item"><a href="{{ url_for('view_po_status') }}" class="{{ 'active' if 'view_po_status' in request.endpoint else '' }}"><i class="fas fa-shopping-cart"></i> PO Status</a></li>
+            <li class="nav-item"><a href="{{ url_for('po_requests_dashboard') }}" class="{{ 'active' if 'po_requests' in request.endpoint or 'request_po' in request.endpoint else '' }}"><i class="fas fa-clipboard-check"></i> PO Requests</a></li>
             <li class="menu-header">Task Management</li>
             <li class="nav-item"><a href="{{ url_for('tasks') }}" class="{{ 'active' if 'tasks' in request.endpoint else '' }}"><i class="fas fa-tasks"></i> Tasks</a></li>
             <li class="menu-header">SRM</li>

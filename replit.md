@@ -48,6 +48,15 @@ The system features a comprehensive admin access control UI and an admin OTP Das
 - **AI-Powered CCTV Smart Selector**: Advanced intelligent selection system for HIKVISION cameras featuring a smart wizard, AI recommendations, multi-parameter filtering, and comparison tool.
 - **Supplier Relationship Management (SRM) Module**: Comprehensive vendor and distributor management with multi-contact, account manager assignment, performance metrics, document management, activity log, enhanced detail pages, analytics dashboard, and complete PO integration.
 - **Project Profile Pages**: Comprehensive project detail views showing project lifecycle, key statistics, quotations, RFQs, purchase orders, quick actions sidebar, timeline information, approval status, and Excel export.
+- **Request for PO Approval Workflow**: Comprehensive purchase order request system requiring approval from Technical Team Leader or General Manager before PO creation. Features include:
+  - PO request submission from quotations with auto-filled project data
+  - Server-side validation of all authoritative fields (distributors, vendors, project managers)
+  - PO Requests Dashboard with filtering (status, requester, distributor, vendor, dates), status chart, and Excel export
+  - Approval/rejection routes restricted to TTL and GM with mandatory rejection reasons
+  - Automatic notifications to requesters on approval/rejection decisions
+  - Unique RFPO reference format (RFPO-YYYYMMDD###)
+  - Duplicate request prevention for pending approvals
+  - Complete audit trail with timestamps and approver/rejector tracking
 
 ### System Design Choices
 - Environment variables are used for configuration.
