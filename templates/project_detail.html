@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project['project_name'] }} - Project Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header with Project Name -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_projects') }}">Projects</a></li>
+                    <li class="breadcrumb-item active">{{ project['project_name'] }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-project-diagram"></i> {{ project['project_name'] }}
+                    {% if project['stage'] == 'Lead' %}
+                    <span class="badge badge-info">{{ project['stage'] }}</span>
+                    {% elif project['stage'] == 'Proposal Sent' %}
+                    <span class="badge badge-primary">{{ project['stage'] }}</span>
+                    {% elif project['stage'] == 'Won' %}
+                    <span class="badge badge-success">{{ project['stage'] }}</span>
+                    {% elif project['stage'] == 'Lost' %}
+                    <span class="badge badge-danger">{{ project['stage'] }}</span>
+                    {% else %}
+                    <span class="badge badge-secondary">{{ project['stage'] }}</span>
+                    {% endif %}
+                </h2>
+                <div>
+                    <a href="{{ url_for('edit_project_info', project_id=project['id']) }}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit Project
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #667eea;">
+                <div class="card-body">
+                    <h6 class="text-muted">Deal Value</h6>
+                    <h3 class="mb-0">${{ "%.2f"|format(project['deal_value'] or 0) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #28a745;">
+                <div class="card-body">
+                    <h6 class="text-muted">Quotations</h6>
+                    <h3 class="mb-0">{{ quotations|length }}</h3>
+                    <small class="text-muted">${{ "%.2f"|format(total_quotation_value) }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #ffc107;">
+                <div class="card-body">
+                    <h6 class="text-muted">RFQs</h6>
+                    <h3 class="mb-0">{{ rfqs|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #dc3545;">
+                <div class="card-body">
+                    <h6 class="text-muted">Purchase Orders</h6>
+                    <h3 class="mb-0">{{ purchase_orders|length }}</h3>
+                    <small class="text-muted">${{ "%.2f"|format(total_po_value) }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Project Information -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Project Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Sales Engineer:</strong><br>{{ project['sales_engineer_name'] or 'N/A' }}</p>
+                            <p><strong>Expected Close Date:</strong><br>{{ project['expected_close_date'] or 'N/A' }}</p>
+                            <p><strong>Probability:</strong><br>{{ project['probability'] or 'N/A' }}%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>End User:</strong><br>{{ project['end_user_name'] or 'N/A' }}</p>
+                            <p><strong>Contractor:</strong><br>{{ project['contractor_name'] or 'N/A' }}</p>
+                            <p><strong>Consultant:</strong><br>{{ project['consultant_name'] or 'N/A' }}</p>
+                        </div>
+                    </div>
+                    {% if project['scope_of_work'] %}
+                    <p><strong>Scope of Work:</strong><br>{{ project['scope_of_work'] }}</p>
+                    {% endif %}
+                    {% if project['note'] %}
+                    <p><strong>Notes:</strong><br>{{ project['note'] }}</p>
+                    {% endif %}
+                    {% if project['client_type'] %}
+                    <p><strong>Client Type:</strong> 
+                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            {{ project['client_type'] }}
+                        </span>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quotations Section -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> Quotations ({{ quotations|length }})</h5>
+                    <a href="{{ url_for('submit_quotation', project_name=project['project_name']) }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-plus"></i> Add Quotation
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if quotations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Quote Ref</th>
+                                    <th>System</th>
+                                    <th>Presale Eng.</th>
+                                    <th>Sales Eng.</th>
+                                    <th>Selling Price</th>
+                                    <th>Margin %</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quote in quotations[:10] %}
+                                <tr>
+                                    <td><strong>{{ quote['quote_ref'] }}</strong></td>
+                                    <td>{{ quote['system'] or 'N/A' }}</td>
+                                    <td>{{ quote['presale_eng'] or 'N/A' }}</td>
+                                    <td>{{ quote['sales_eng'] or 'N/A' }}</td>
+                                    <td><strong>${{ "%.2f"|format(quote['quotation_selling_price'] or 0) }}</strong></td>
+                                    <td>
+                                        {% if quote['margin'] %}
+                                        <span class="badge badge-success">{{ "%.1f"|format(quote['margin']) }}%</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if quote['status'] == 'Closed Won' %}
+                                        <span class="badge badge-success">{{ quote['status'] }}</span>
+                                        {% elif quote['status'] == 'Closed Lost' %}
+                                        <span class="badge badge-danger">{{ quote['status'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-info">{{ quote['status'] or 'N/A' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ quote['registered_date'][:10] if quote['registered_date'] else 'N/A' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if quotations|length > 10 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary" id="showAllQuotesBtn">
+                            <i class="fas fa-chevron-down"></i> Show All {{ quotations|length }} Quotations
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No quotations found for this project.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- RFQs Section -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-tasks"></i> Request for Quotations ({{ rfqs|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if rfqs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>RFQ Reference</th>
+                                    <th>System</th>
+                                    <th>Priority</th>
+                                    <th>RFQ Status</th>
+                                    <th>Quote Status</th>
+                                    <th>Deadline</th>
+                                    <th>Requested Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rfq in rfqs[:10] %}
+                                <tr>
+                                    <td><strong>{{ rfq['rfq_reference'] }}</strong></td>
+                                    <td>{{ rfq['system'] or 'N/A' }}</td>
+                                    <td>
+                                        {% if rfq['priority'] == 'Urgent' %}
+                                        <span class="badge badge-danger">{{ rfq['priority'] }}</span>
+                                        {% elif rfq['priority'] == 'High' %}
+                                        <span class="badge badge-warning">{{ rfq['priority'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-info">{{ rfq['priority'] or 'Normal' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if rfq['rfq_status'] == 'Quoted' %}
+                                        <span class="badge badge-success">{{ rfq['rfq_status'] }}</span>
+                                        {% elif rfq['rfq_status'] == 'In Progress' %}
+                                        <span class="badge badge-warning">{{ rfq['rfq_status'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ rfq['rfq_status'] or 'Pending' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rfq['quotation_status'] or 'N/A' }}</td>
+                                    <td>{{ rfq['deadline'][:10] if rfq['deadline'] else 'N/A' }}</td>
+                                    <td>{{ rfq['requested_time'][:10] if rfq['requested_time'] else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if rfqs|length > 10 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary" id="showAllRFQsBtn">
+                            <i class="fas fa-chevron-down"></i> Show All {{ rfqs|length }} RFQs
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No RFQs found for this project.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Purchase Orders Section -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Purchase Orders ({{ purchase_orders|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if purchase_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>PO Request #</th>
+                                    <th>PO Number</th>
+                                    <th>Distributor</th>
+                                    <th>Vendor</th>
+                                    <th>Total Amount</th>
+                                    <th>Approval</th>
+                                    <th>Delivery</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in purchase_orders[:10] %}
+                                <tr>
+                                    <td><strong>{{ po['po_request_number'] }}</strong></td>
+                                    <td>{{ po['po_number'] or 'N/A' }}</td>
+                                    <td>{{ po['distributor_name'] or 'N/A' }}</td>
+                                    <td>{{ po['vendor_name'] or 'N/A' }}</td>
+                                    <td><strong>${{ "%.2f"|format(po['total_amount'] or 0) }}</strong></td>
+                                    <td>
+                                        {% if po['po_approval_status'] == 'Approved' %}
+                                        <span class="badge badge-success">Approved</span>
+                                        {% elif po['po_approval_status'] == 'Pending' %}
+                                        <span class="badge badge-warning">Pending</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ po['po_approval_status'] or 'N/A' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if po['po_delivery_status'] == 'Delivered To Client' %}
+                                        <span class="badge badge-success">Delivered</span>
+                                        {% elif po['po_delivery_status'] == 'Order Placed' %}
+                                        <span class="badge badge-info">Order Placed</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ po['po_delivery_status'] or 'N/A' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ po['created_at'][:10] if po['created_at'] else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if purchase_orders|length > 10 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary" id="showAllPOsBtn">
+                            <i class="fas fa-chevron-down"></i> Show All {{ purchase_orders|length }} Purchase Orders
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No purchase orders found for this project.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column (Sidebar) -->
+        <div class="col-md-4">
+            <!-- Timeline Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Registered:</strong><br>{{ project['registered_date'] or 'N/A' }}</p>
+                    {% if project['updated_time'] %}
+                    <p><strong>Last Updated:</strong><br>{{ project['updated_time'] }}</p>
+                    {% endif %}
+                    {% if project['updated_by'] %}
+                    <p><strong>Updated By:</strong><br>{{ project['updated_by'] }}</p>
+                    {% endif %}
+                    {% if project['approved_at'] %}
+                    <p><strong>Approved At:</strong><br>{{ project['approved_at'] }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('submit_quotation', project_name=project['project_name']) }}" class="btn btn-success btn-block mb-2">
+                        <i class="fas fa-file-invoice"></i> Add Quotation
+                    </a>
+                    <a href="{{ url_for('register_rfq') }}?project_name={{ project['project_name'] }}" class="btn btn-primary btn-block mb-2">
+                        <i class="fas fa-tasks"></i> Create RFQ
+                    </a>
+                    <a href="{{ url_for('register_po') }}?project_id={{ project['id'] }}" class="btn btn-warning btn-block mb-2">
+                        <i class="fas fa-shopping-cart"></i> Create PO
+                    </a>
+                    <a href="{{ url_for('show_project_history', project_name=project['project_name']) }}" class="btn btn-info btn-block">
+                        <i class="fas fa-history"></i> View History
+                    </a>
+                </div>
+            </div>
+
+            <!-- Approval Status Card (if applicable) -->
+            {% if project['approval_status'] %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-check-circle"></i> Approval Status</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Status:</strong> 
+                        {% if project['approval_status'] == 'approved' %}
+                        <span class="badge badge-success">Approved</span>
+                        {% elif project['approval_status'] == 'pending' %}
+                        <span class="badge badge-warning">Pending</span>
+                        {% elif project['approval_status'] == 'rejected' %}
+                        <span class="badge badge-danger">Rejected</span>
+                        {% else %}
+                        <span class="badge badge-secondary">{{ project['approval_status'] }}</span>
+                        {% endif %}
+                    </p>
+                    {% if project['approval_notes'] %}
+                    <p><strong>Notes:</strong><br>{{ project['approval_notes'] }}</p>
+                    {% endif %}
+                    {% if project['rejection_reason'] %}
+                    <p><strong>Rejection Reason:</strong><br>{{ project['rejection_reason'] }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Show All functionality -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show All Quotations Button
+    const showAllQuotesBtn = document.getElementById('showAllQuotesBtn');
+    if (showAllQuotesBtn) {
+        showAllQuotesBtn.addEventListener('click', function() {
+            const table = this.closest('.card-body').querySelector('table tbody');
+            const allRows = table.querySelectorAll('tr');
+            allRows.forEach(row => row.style.display = '');
+            this.style.display = 'none';
+        });
+    }
+    
+    // Show All RFQs Button
+    const showAllRFQsBtn = document.getElementById('showAllRFQsBtn');
+    if (showAllRFQsBtn) {
+        showAllRFQsBtn.addEventListener('click', function() {
+            const table = this.closest('.card-body').querySelector('table tbody');
+            const allRows = table.querySelectorAll('tr');
+            allRows.forEach(row => row.style.display = '');
+            this.style.display = 'none';
+        });
+    }
+    
+    // Show All POs Button
+    const showAllPOsBtn = document.getElementById('showAllPOsBtn');
+    if (showAllPOsBtn) {
+        showAllPOsBtn.addEventListener('click', function() {
+            const table = this.closest('.card-body').querySelector('table tbody');
+            const allRows = table.querySelectorAll('tr');
+            allRows.forEach(row => row.style.display = '');
+            this.style.display = 'none';
+        });
+    }
+});
+</script>
+
+<style>
+/* Ensure all rows beyond 10 are initially visible */
+table tbody tr:nth-child(n+11) {
+    display: none;
+}
+
+/* Badge Styling */
+.badge {
+    font-size: 0.9em;
+    padding: 0.4em 0.6em;
+}
+</style>
+{% endblock %}
