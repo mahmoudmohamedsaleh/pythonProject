@@ -168,35 +168,91 @@
 
             <!-- Purchase Orders -->
             <div class="card mb-4">
-                <div class="card-header" style="background: #f8f9fa;">
-                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> Recent Purchase Orders</h5>
+                <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> Purchase Orders ({{ purchase_orders|length }})</h5>
+                    {% if purchase_orders %}
+                    <a href="{{ url_for('download_vendor_pos_excel', vendor_id=vendor['id']) }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-download"></i> Export to Excel
+                    </a>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     {% if purchase_orders %}
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead>
+                        <table class="table table-hover" id="poTable">
+                            <thead class="thead-light">
                                 <tr>
+                                    <th>PO Request #</th>
                                     <th>PO Number</th>
-                                    <th>Date</th>
-                                    <th>Total Price</th>
-                                    <th>Status</th>
+                                    <th>Project</th>
+                                    <th>Distributor</th>
+                                    <th>Created Date</th>
+                                    <th>Total Amount</th>
+                                    <th>Approval Status</th>
+                                    <th>Delivery Status</th>
+                                    <th>Documents</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for po in purchase_orders %}
+                                {% for po in purchase_orders[:10] %}
                                 <tr>
+                                    <td><strong>{{ po['po_request_number'] }}</strong></td>
                                     <td>{{ po['po_number'] }}</td>
+                                    <td>{{ po['project_name'] or 'N/A' }}</td>
+                                    <td>{{ po['distributor_name'] or 'N/A' }}</td>
                                     <td>{{ po['created_at'][:10] if po['created_at'] else '-' }}</td>
-                                    <td>${{ po['total_price'] }}</td>
-                                    <td><span class="badge badge-info">{{ po['status'] or 'Pending' }}</span></td>
+                                    <td><strong>${{ "%.2f"|format(po['total_amount']) }}</strong></td>
+                                    <td>
+                                        {% if po['po_approval_status'] == 'Approved' %}
+                                        <span class="badge badge-success">{{ po['po_approval_status'] }}</span>
+                                        {% elif po['po_approval_status'] == 'Pending' %}
+                                        <span class="badge badge-warning">{{ po['po_approval_status'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ po['po_approval_status'] or 'N/A' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if po['po_delivery_status'] == 'Delivered' %}
+                                        <span class="badge badge-success">{{ po['po_delivery_status'] }}</span>
+                                        {% elif po['po_delivery_status'] == 'Partial' %}
+                                        <span class="badge badge-info">{{ po['po_delivery_status'] }}</span>
+                                        {% elif po['po_delivery_status'] == 'Pending' %}
+                                        <span class="badge badge-warning">{{ po['po_delivery_status'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ po['po_delivery_status'] or 'N/A' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if po['quotation'] %}
+                                        <a href="{{ url_for('view_po_document', po_id=po['id'], doc_type='quotation') }}" class="btn btn-sm btn-outline-primary" target="_blank" title="View Quotation">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if po['po_document'] %}
+                                        <a href="{{ url_for('view_po_document', po_id=po['id'], doc_type='po_document') }}" class="btn btn-sm btn-outline-success" target="_blank" title="View PO Document">
+                                            <i class="fas fa-file-contract"></i>
+                                        </a>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
+                    {% if purchase_orders|length > 10 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary" id="showAllPOsBtn">
+                            <i class="fas fa-chevron-down"></i> Show All {{ purchase_orders|length }} Purchase Orders
+                        </button>
+                    </div>
+                    {% endif %}
+                    
                     {% else %}
-                    <p class="text-muted text-center">No purchase orders found for this vendor.</p>
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No purchase orders found for this vendor.</p>
+                    </div>
                     {% endif %}
                 </div>
             </div>
