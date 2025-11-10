@@ -1435,14 +1435,15 @@ def download_project_data_excel(project_id):
     rfqs_query = '''
         SELECT 
             rfq_reference AS "RFQ Reference",
-            system AS "System",
+            project_status AS "Project Status",
             priority AS "Priority",
+            sales_engineer_presale AS "Presale Engineer",
+            sales_engineer_sales AS "Sales Engineer",
             rfq_status AS "RFQ Status",
             quotation_status AS "Quotation Status",
             deadline AS "Deadline",
             requested_time AS "Requested Date",
-            scope_of_work AS "Scope of Work",
-            notes AS "Notes"
+            note AS "Notes"
         FROM rfq_requests
         WHERE project_name = ?
         ORDER BY requested_time DESC
