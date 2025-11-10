@@ -371,6 +371,7 @@
                                     <th>Requested By</th>
                                     <th>Status</th>
                                     <th>Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -393,6 +394,15 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ rfpo['requested_time'][:10] if rfpo['requested_time'] else 'N/A' }}</td>
+                                    <td>
+                                        {% if rfpo['request_status'] == 'Approved' %}
+                                        <a href="{{ url_for('create_po_from_request', rfpo_ref=rfpo['po_request_reference']) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-file-invoice"></i> Create PO
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
