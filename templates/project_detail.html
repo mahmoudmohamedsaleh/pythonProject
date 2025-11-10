@@ -168,8 +168,11 @@
                                     </td>
                                     <td>{{ quote['registered_date'][:10] if quote['registered_date'] else 'N/A' }}</td>
                                     <td>
-                                        <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning" title="Edit">
+                                        <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning" title="Edit Quotation">
                                             <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{{ url_for('register_po') }}?project_id={{ project['id'] }}&quote_ref={{ quote['quote_ref'] }}" class="btn btn-sm btn-outline-success" title="Create PO from this Quotation">
+                                            <i class="fas fa-shopping-cart"></i>
                                         </a>
                                     </td>
                                 </tr>
@@ -213,6 +216,7 @@
                                     <th>Quote Status</th>
                                     <th>Deadline</th>
                                     <th>Requested Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -241,6 +245,11 @@
                                     <td>{{ rfq['quotation_status'] or 'N/A' }}</td>
                                     <td>{{ rfq['deadline'][:10] if rfq['deadline'] else 'N/A' }}</td>
                                     <td>{{ rfq['requested_time'][:10] if rfq['requested_time'] else 'N/A' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('quotation_builder') }}?project_name={{ project['project_name'] }}&rfq_ref={{ rfq['rfq_reference'] }}" class="btn btn-sm btn-outline-primary" title="Submit Quote for this RFQ">
+                                            <i class="fas fa-file-invoice"></i> Submit Quote
+                                        </a>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -368,9 +377,6 @@
                     </a>
                     <a href="{{ url_for('request_for_quotation') }}?project_name={{ project['project_name'] }}&sales_engineer={{ project['sales_engineer_name'] }}" class="btn btn-primary btn-block mb-2">
                         <i class="fas fa-tasks"></i> Create RFQ
-                    </a>
-                    <a href="{{ url_for('register_po') }}?project_id={{ project['id'] }}" class="btn btn-warning btn-block mb-2">
-                        <i class="fas fa-shopping-cart"></i> Create PO
                     </a>
                     <a href="{{ url_for('show_project_history', project_name=project['project_name']) }}" class="btn btn-info btn-block">
                         <i class="fas fa-history"></i> View History
