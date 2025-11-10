@@ -1979,25 +1979,46 @@ def add_distributor_ajax():
 @app.route('/get_distributor_details/<int:distributor_id>')
 @login_required
 def get_distributor_details(distributor_id):
-    """Fetches distributor details to auto-populate the PO form."""
+    """Fetches distributor details and contacts to auto-populate the PO form."""
     conn = sqlite3.connect('ProjectStatus.db')
-    conn.row_factory = sqlite3.Row  # Allows accessing columns by name
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # Fetches the main contact person, phone, and email for the selected distributor
+    # Fetch main distributor contact
     c.execute("SELECT contact_person, phone, email FROM distributors WHERE id = ?", (distributor_id,))
     distributor = c.fetchone()
+    
+    # Fetch all contacts for this distributor from SRM contacts table
+    c.execute("""
+        SELECT id, name, role, phone, email, is_primary
+        FROM distributor_contacts
+        WHERE distributor_id = ?
+        ORDER BY is_primary DESC, name ASC
+    """, (distributor_id,))
+    contacts = c.fetchall()
+    
     conn.close()
 
     if distributor:
-        # Return the data as a JSON object
+        # Build contacts list
+        contacts_list = []
+        for contact in contacts:
+            contacts_list.append({
+                'id': contact['id'],
+                'name': contact['name'],
+                'role': contact['role'] or '',
+                'phone': contact['phone'] or '',
+                'email': contact['email'] or '',
+                'is_primary': bool(contact['is_primary'])
+            })
+        
         return jsonify({
             'contact_person': distributor['contact_person'],
             'phone': distributor['phone'],
-            'email': distributor['email']
+            'email': distributor['email'],
+            'contacts': contacts_list
         })
     else:
-        # If no distributor is found, return an error
         return jsonify({'error': 'Distributor not found'}), 404
 #################
 from flask import Flask, render_template, request, redirect, url_for, flash, session

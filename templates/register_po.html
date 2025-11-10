@@ -84,6 +84,19 @@
                             {% endfor %}
                         </select>
                     </div>
+                    
+                    <!-- Contact Selection Dropdown (shown dynamically if distributor has contacts) -->
+                    <div class="form-group" id="contact_selection_group" style="display:none;">
+                        <label for="distributor_contact_select">
+                            <i class="fas fa-user-tie mr-1"></i>Select Contact Person
+                            <span class="badge badge-info ml-2">Multiple Contacts Available</span>
+                        </label>
+                        <select class="form-control" id="distributor_contact_select">
+                            <option value="">-- Select a Contact --</option>
+                        </select>
+                        <small class="form-text text-muted">This distributor has multiple contacts. Select one to auto-fill details below.</small>
+                    </div>
+                    
                     <div class="form-row">
                         <div class="form-group col-md-6"><label for="distributor_engineer">Distributor Engineer</label><input type="text" class="form-control" id="distributor_engineer" name="distributor_engineer" required></div>
                         <div class="form-group col-md-6"><label for="distributor_contact">Distributor Contact Number</label><input type="text" class="form-control" id="distributor_contact" name="distributor_contact" required></div>
@@ -157,7 +170,8 @@
                 .catch(error => { $('#modal-alert-placeholder').html(`<div class="alert alert-danger">An unexpected error occurred.</div>`); console.error('Error:', error); });
             });
 
-            // NEW: Auto-populate fields when a distributor is selected
+            // Auto-populate fields when a distributor is selected
+            let distributorContacts = [];
             $('#distributor').on('change', function() {
                 const distributorId = $(this).val();
                 if (distributorId) {
@@ -167,22 +181,68 @@
                             return response.json();
                         })
                         .then(data => {
-                            $('#distributor_engineer').val(data.contact_person || '');
-                            $('#distributor_contact').val(data.phone || '');
-                            $('#distributor_email').val(data.email || '');
+                            // Store contacts for later use
+                            distributorContacts = data.contacts || [];
+                            
+                            // If distributor has SRM contacts, show contact selector
+                            if (distributorContacts.length > 0) {
+                                $('#contact_selection_group').show();
+                                
+                                // Populate contact dropdown
+                                const contactSelect = $('#distributor_contact_select');
+                                contactSelect.empty();
+                                contactSelect.append('<option value="">-- Select a Contact --</option>');
+                                
+                                distributorContacts.forEach(contact => {
+                                    // Escape HTML to prevent XSS
+                                    const escapedName = $('<div>').text(contact.name).html();
+                                    const escapedRole = contact.role ? $('<div>').text(contact.role).html() : '';
+                                    const label = `${escapedName}${escapedRole ? ' (' + escapedRole + ')' : ''}${contact.is_primary ? ' ★ Primary' : ''}`;
+                                    contactSelect.append(`<option value="${contact.id}">${label}</option>`);
+                                });
+                                
+                                // Auto-select primary contact if exists
+                                const primaryContact = distributorContacts.find(c => c.is_primary);
+                                if (primaryContact) {
+                                    contactSelect.val(primaryContact.id).trigger('change');
+                                }
+                            } else {
+                                // No SRM contacts, hide selector and use main distributor info
+                                $('#contact_selection_group').hide();
+                                $('#distributor_engineer').val(data.contact_person || '');
+                                $('#distributor_contact').val(data.phone || '');
+                                $('#distributor_email').val(data.email || '');
+                            }
                         })
                         .catch(error => {
                             console.error('Error fetching distributor details:', error);
-                            // Clear fields if the fetch fails
+                            // Reset contact dropdown and fields on error
+                            distributorContacts = [];
+                            $('#contact_selection_group').hide();
+                            $('#distributor_contact_select').empty().append('<option value="">-- Select a Contact --</option>');
                             $('#distributor_engineer').val('');
                             $('#distributor_contact').val('');
                             $('#distributor_email').val('');
                         });
                 } else {
-                    // Clear fields if no distributor is selected
+                    // Clear all fields if no distributor is selected
+                    $('#contact_selection_group').hide();
                     $('#distributor_engineer').val('');
                     $('#distributor_contact').val('');
                     $('#distributor_email').val('');
+                }
+            });
+            
+            // Handle contact selection
+            $('#distributor_contact_select').on('change', function() {
+                const contactId = $(this).val();
+                if (contactId) {
+                    const selectedContact = distributorContacts.find(c => c.id == contactId);
+                    if (selectedContact) {
+                        $('#distributor_engineer').val(selectedContact.name || '');
+                        $('#distributor_contact').val(selectedContact.phone || '');
+                        $('#distributor_email').val(selectedContact.email || '');
+                    }
                 }
             });
         });
