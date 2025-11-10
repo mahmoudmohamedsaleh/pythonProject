@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Request Purchase Order{% endblock %}
+
+{% block content %}
+<style>
+    .card { border: none; border-radius: 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07); }
+    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
+    .card-body { padding: 2rem; }
+    .form-control:read-only { background-color: #e9ecef; }
+    .badge-pending { background-color: #ffc107; color: #000; }
+</style>
+
+<div class="container" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-shopping-cart mr-2"></i>Request Purchase Order
+            <span class="badge badge-info float-right">Requires Approval</span>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <!-- Auto-filled from Quotation -->
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    The following information is auto-filled from the quotation. This PO request will be sent to Technical Team Leader or General Manager for approval.
+                </div>
+
+                <h5 class="mt-4 mb-3">Quotation Details (Auto-filled)</h5>
+                
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" class="form-control" name="project_name" value="{{ quotation['project_name'] }}" readonly required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>Quote Reference</label>
+                        <input type="text" class="form-control" name="quote_ref" value="{{ quotation['quote_ref'] }}" readonly required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>System</label>
+                        <input type="text" class="form-control" name="system" value="{{ quotation['system'] or 'N/A' }}" readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>Presale Engineer</label>
+                        <input type="text" class="form-control" name="presale_engineer" value="{{ quotation['presale_eng'] }}" readonly required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>Project Manager (Optional)</label>
+                        <select class="form-control" name="project_manager">
+                            <option value="">Select Project Manager...</option>
+                            {% for pm in project_managers %}
+                                <option value="{{ pm['username'] }}">{{ pm['username'] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <h5 class="mb-3">Supplier Information (Required)</h5>
+
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label>Distributor <span class="text-danger">*</span></label>
+                        <select class="form-control" name="distributor_id" id="distributor_id" required onchange="updateDistributorName()">
+                            <option value="">Select Distributor...</option>
+                            {% for dist in distributors %}
+                                <option value="{{ dist['id'] }}" data-name="{{ dist['name'] }}">{{ dist['name'] }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="distributor_name" id="distributor_name">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label>Vendor (Optional)</label>
+                        <select class="form-control" name="vendor_id" id="vendor_id" onchange="updateVendorName()">
+                            <option value="">Select Vendor...</option>
+                            {% for vendor in vendors %}
+                                <option value="{{ vendor['id'] }}" data-name="{{ vendor['name'] }}">{{ vendor['name'] }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="vendor_name" id="vendor_name">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Request Notes</label>
+                    <textarea class="form-control" name="notes" rows="4" placeholder="Add any additional notes for the approvers..."></textarea>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('project_summary') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-paper-plane"></i> Submit PO Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateDistributorName() {
+    const select = document.getElementById('distributor_id');
+    const selectedOption = select.options[select.selectedIndex];
+    const distributorName = selectedOption.getAttribute('data-name') || '';
+    document.getElementById('distributor_name').value = distributorName;
+}
+
+function updateVendorName() {
+    const select = document.getElementById('vendor_id');
+    const selectedOption = select.options[select.selectedIndex];
+    const vendorName = selectedOption.getAttribute('data-name') || '';
+    document.getElementById('vendor_name').value = vendorName;
+}
+</script>
+{% endblock %}

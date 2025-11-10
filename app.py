@@ -602,6 +602,12 @@ def init_db():
             FOREIGN KEY (requested_by_id) REFERENCES users(id)
         )''')
     
+    # Create indexes for po_requests table for better dashboard and query performance
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_quote_ref ON po_requests(quote_ref)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_status ON po_requests(request_status)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_requested_by ON po_requests(requested_by_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_created ON po_requests(created_at)')
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
@@ -7493,6 +7499,189 @@ def view_po_details(po_number):
                            purchase_order_details=purchase_order_details,
                            po_number=po_number,
                            total_amount=total_amount)
+##############333
+@app.route('/request_po', methods=['GET', 'POST'])
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+def request_po():
+    """Request PO from a quotation - requires approval from TTL/GM"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        # Handle PO Request submission
+        quote_ref = request.form['quote_ref']
+        project_manager = request.form.get('project_manager', '').strip()
+        vendor_id = request.form.get('vendor_id') or None
+        distributor_id = request.form['distributor_id']
+        notes = request.form.get('notes', '')
+        
+        # SECURITY: Validate project_manager if provided
+        if project_manager:
+            c.execute("""SELECT username FROM engineers 
+                         WHERE username = ? AND role IN ('Project Manager', 'Implementation Engineer', 'Technical Team Leader')""",
+                     (project_manager,))
+            pm_result = c.fetchone()
+            
+            if not pm_result:
+                flash('Invalid project manager selected!', 'danger')
+                conn.close()
+                return redirect(url_for('request_po', quote_ref=quote_ref))
+        else:
+            project_manager = None  # Set to NULL if not provided
+        
+        # SECURITY: Fetch all authoritative data server-side, don't trust client inputs
+        # Fetch quotation details from database
+        c.execute("""SELECT project_name, system, presale_eng 
+                     FROM projects WHERE quote_ref = ?""", (quote_ref,))
+        quote_data = c.fetchone()
+        
+        if not quote_data:
+            flash('Invalid quotation reference!', 'danger')
+            conn.close()
+            return redirect(url_for('project_summary'))
+        
+        project_name = quote_data['project_name']
+        system = quote_data['system']
+        presale_engineer = quote_data['presale_eng']
+        
+        # Fetch distributor name from database
+        c.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+        dist_result = c.fetchone()
+        
+        if not dist_result:
+            flash('Invalid distributor selected!', 'danger')
+            conn.close()
+            return redirect(url_for('request_po', quote_ref=quote_ref))
+        
+        distributor_name = dist_result['name']
+        
+        # Fetch vendor name if selected (with validation)
+        vendor_name = None
+        if vendor_id:
+            try:
+                vendor_id = int(vendor_id)  # Normalize to integer
+                c.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+                vendor_result = c.fetchone()
+                
+                if not vendor_result:
+                    flash('Invalid vendor selected!', 'danger')
+                    conn.close()
+                    return redirect(url_for('request_po', quote_ref=quote_ref))
+                
+                vendor_name = vendor_result['name']
+            except (ValueError, TypeError):
+                flash('Invalid vendor ID format!', 'danger')
+                conn.close()
+                return redirect(url_for('request_po', quote_ref=quote_ref))
+        else:
+            vendor_id = None  # Set to NULL if not provided
+        
+        # Generate unique PO Request Reference (RFPO-YYYYMMDD###)
+        current_date = datetime.now().strftime('%Y%m%d')
+        c.execute("SELECT COUNT(*) FROM po_requests WHERE po_request_reference LIKE ?", (f'RFPO-{current_date}%',))
+        count = c.fetchone()[0] + 1
+        po_request_reference = f'RFPO-{current_date}{count:03d}'
+        
+        # Check for duplicate pending requests for this quotation
+        c.execute("""SELECT id FROM po_requests 
+                     WHERE quote_ref = ? AND request_status = 'Pending Approval'""", (quote_ref,))
+        existing = c.fetchone()
+        
+        if existing:
+            flash('A PO request for this quotation is already pending approval!', 'warning')
+            conn.close()
+            return redirect(url_for('project_summary'))
+        
+        try:
+            # Insert PO Request
+            c.execute('''INSERT INTO po_requests (
+                po_request_reference, quote_ref, project_name, system,
+                presale_engineer, project_manager, vendor_id, vendor_name,
+                distributor_id, distributor_name, notes, request_status,
+                requested_by_id, requested_by_name, requested_time
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (po_request_reference, quote_ref, project_name, system,
+                 presale_engineer, project_manager, vendor_id, vendor_name,
+                 distributor_id, distributor_name, notes, 'Pending Approval',
+                 session['user_id'], session['username'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            
+            conn.commit()
+            flash(f'PO Request {po_request_reference} submitted successfully! Awaiting approval from Technical Team Leader or General Manager.', 'success')
+            
+            # Send notifications to TTL and GM
+            try:
+                actor_id = session.get('user_id')
+                actor_name = session.get('username', 'User')
+                
+                # Get TTL and GM recipients
+                recipients = notification_service.get_admin_recipients()
+                
+                # Remove current user from recipients
+                if actor_id in recipients:
+                    recipients.remove(actor_id)
+                
+                if recipients:
+                    notification_service.notify_activity(
+                        event_code='po_request.created',
+                        recipient_ids=recipients,
+                        actor_id=actor_id,
+                        context={
+                            'actor_name': actor_name,
+                            'po_request_reference': po_request_reference,
+                            'quote_ref': quote_ref,
+                            'project_name': project_name,
+                            'distributor_name': distributor_name
+                        },
+                        url=url_for('po_requests_dashboard')
+                    )
+            except Exception as e:
+                print(f"Notification error: {e}")
+            
+            return redirect(url_for('project_summary'))
+            
+        except Exception as e:
+            flash(f'Error submitting PO request: {str(e)}', 'danger')
+            conn.rollback()
+            return redirect(url_for('request_po', quote_ref=quote_ref))
+        finally:
+            conn.close()
+    
+    # GET Request - Display form
+    quote_ref = request.args.get('quote_ref')
+    
+    if not quote_ref:
+        flash('Quote reference is required!', 'danger')
+        return redirect(url_for('project_summary'))
+    
+    # Fetch quotation details from projects table
+    c.execute("""SELECT project_name, quote_ref, presale_eng, sales_eng, system
+                 FROM projects WHERE quote_ref = ?""", (quote_ref,))
+    quotation = c.fetchone()
+    
+    if not quotation:
+        flash('Quotation not found!', 'danger')
+        conn.close()
+        return redirect(url_for('project_summary'))
+    
+    # Fetch distributors and vendors for dropdowns
+    c.execute("SELECT id, name FROM distributors ORDER BY name")
+    distributors = c.fetchall()
+    c.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = c.fetchall()
+    
+    # Fetch project managers
+    c.execute("SELECT username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer', 'Technical Team Leader')")
+    project_managers = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('request_po.html',
+                          quotation=quotation,
+                          distributors=distributors,
+                          vendors=vendors,
+                          project_managers=project_managers)
+
 ##############333
 @app.route('/register_po_follow_up', methods=['GET', 'POST'])
 @login_required

@@ -168,8 +168,8 @@
                                         <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning" title="Edit Quotation">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('register_po') }}?project_id={{ project['id'] }}&quote_ref={{ quote['quote_ref'] }}" class="btn btn-sm btn-outline-success" title="Create PO from this Quotation">
-                                            <i class="fas fa-shopping-cart"></i>
+                                        <a href="{{ url_for('request_po') }}?quote_ref={{ quote['quote_ref'] }}" class="btn btn-sm btn-outline-primary" title="Request PO for this Quotation">
+                                            <i class="fas fa-clipboard-list"></i> Request PO
                                         </a>
                                     </td>
                                 </tr>
