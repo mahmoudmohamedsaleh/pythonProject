@@ -1426,7 +1426,7 @@ def project_detail(project_id):
         FROM po_requests rfpo
         LEFT JOIN distributors d ON CAST(rfpo.distributor_id AS TEXT) = CAST(d.id AS TEXT)
         LEFT JOIN vendors v ON rfpo.vendor_id = v.id
-        LEFT JOIN engineers e ON CAST(rfpo.requester_id AS TEXT) = CAST(e.id AS TEXT)
+        LEFT JOIN engineers e ON CAST(rfpo.requested_by_id AS TEXT) = CAST(e.id AS TEXT)
         WHERE rfpo.project_name = ?
         ORDER BY rfpo.requested_time DESC
     """, (project['project_name'],))
