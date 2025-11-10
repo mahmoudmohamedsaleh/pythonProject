@@ -44,7 +44,7 @@
 
     <!-- Key Metrics Row -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card text-center" style="border-left: 4px solid #667eea;">
                 <div class="card-body">
                     <h6 class="text-muted">Deal Value</h6>
@@ -52,7 +52,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card text-center" style="border-left: 4px solid #28a745;">
                 <div class="card-body">
                     <h6 class="text-muted">Quotations</h6>
@@ -61,11 +61,23 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <div class="card text-center" style="border-left: 4px solid #ffc107;">
                 <div class="card-body">
                     <h6 class="text-muted">RFQs</h6>
                     <h3 class="mb-0">{{ rfqs|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #17a2b8;">
+                <div class="card-body">
+                    <h6 class="text-muted">PO Requests</h6>
+                    <h3 class="mb-0">{{ po_requests|length }}</h3>
+                    <small class="text-muted">
+                        {% set approved_count = po_requests|selectattr('request_status', 'equalto', 'Approved')|list|length %}
+                        {{ approved_count }} Approved
+                    </small>
                 </div>
             </div>
         </div>
@@ -336,6 +348,69 @@
                     <div class="text-center py-4">
                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                         <p class="text-muted">No purchase orders found for this project.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- PO Requests Section -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-file-contract"></i> Request For PO ({{ po_requests|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if po_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>RFPO Reference</th>
+                                    <th>Quote Ref</th>
+                                    <th>Distributor</th>
+                                    <th>Vendor</th>
+                                    <th>Requested By</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rfpo in po_requests[:10] %}
+                                <tr>
+                                    <td><strong>{{ rfpo['po_request_reference'] }}</strong></td>
+                                    <td>{{ rfpo['quotation_reference'] or 'N/A' }}</td>
+                                    <td>{{ rfpo['distributor_name'] or 'N/A' }}</td>
+                                    <td>{{ rfpo['vendor_name'] or 'N/A' }}</td>
+                                    <td>{{ rfpo['requester_name'] or 'N/A' }}</td>
+                                    <td>
+                                        {% if rfpo['request_status'] == 'Approved' %}
+                                        <span class="badge badge-success">Approved</span>
+                                        {% elif rfpo['request_status'] == 'Pending Approval' %}
+                                        <span class="badge badge-warning">Pending</span>
+                                        {% elif rfpo['request_status'] == 'Rejected' %}
+                                        <span class="badge badge-danger">Rejected</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ rfpo['request_status'] or 'N/A' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rfpo['requested_time'][:10] if rfpo['requested_time'] else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if po_requests|length > 10 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-info" id="showAllRFPOsBtn">
+                            <i class="fas fa-chevron-down"></i> Show All {{ po_requests|length }} PO Requests
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No PO requests found for this project.</p>
                     </div>
                     {% endif %}
                 </div>
