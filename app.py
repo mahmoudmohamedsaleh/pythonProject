@@ -2157,9 +2157,9 @@ def show_distributors():
 # Add this new route anywhere in your app.py file
 
 @app.route('/add_distributor_ajax', methods=['POST'])
-@login_required  # Make sure the user is logged in
+@login_required
 def add_distributor_ajax():
-    """Handles new distributor registration from a modal form."""
+    """Handles new distributor registration from a modal form with full SRM support."""
     data = request.get_json()
     name = data.get('name')
 
@@ -2170,13 +2170,27 @@ def add_distributor_ajax():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     try:
-        # Insert the new distributor with minimal required data
-        c.execute('''INSERT INTO distributors (name, address, contact_person, phone, email)
-                     VALUES (?, ?, ?, ?, ?)''',
-                  (name, data.get('address', ''), data.get('contact_person', ''), data.get('phone', ''),
-                   data.get('email', '')))
+        # Insert the new distributor with full SRM fields
+        c.execute('''INSERT INTO distributors (name, address, contact_person, phone, email, status, category, website, notes)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (name, 
+                   data.get('address', ''), 
+                   data.get('contact_person', ''), 
+                   data.get('phone', ''),
+                   data.get('email', ''),
+                   data.get('status', 'active'),
+                   data.get('category', ''),
+                   data.get('website', ''),
+                   'Quick-added from PO Request form'))
 
-        new_distributor_id = c.lastrowid  # Get the ID of the new record
+        new_distributor_id = c.lastrowid
+        
+        # Log activity in SRM activity log
+        c.execute("""
+            INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+            VALUES ('distributor', ?, 'distributor_created', ?, ?)
+        """, (new_distributor_id, f'Quick-registered distributor: {name}', session.get('user_id')))
+        
         conn.commit()
 
         # Return a success response with the new distributor's details
@@ -2196,7 +2210,7 @@ def add_distributor_ajax():
 @app.route('/add_vendor_ajax', methods=['POST'])
 @login_required
 def add_vendor_ajax():
-    """Handles new vendor registration from a modal form."""
+    """Handles new vendor registration from a modal form with full SRM support."""
     data = request.get_json()
     name = data.get('name')
 
@@ -2207,13 +2221,27 @@ def add_vendor_ajax():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     try:
-        # Insert the new vendor with minimal required data
-        c.execute('''INSERT INTO vendors (name, address, contact_person, phone, email)
-                     VALUES (?, ?, ?, ?, ?)''',
-                  (name, data.get('address', ''), data.get('contact_person', ''), data.get('phone', ''),
-                   data.get('email', '')))
+        # Insert the new vendor with full SRM fields
+        c.execute('''INSERT INTO vendors (name, address, contact_person, phone, email, status, category, website, notes)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                  (name, 
+                   data.get('address', ''), 
+                   data.get('contact_person', ''), 
+                   data.get('phone', ''),
+                   data.get('email', ''),
+                   data.get('status', 'active'),
+                   data.get('category', ''),
+                   data.get('website', ''),
+                   'Quick-added from PO Request form'))
 
-        new_vendor_id = c.lastrowid  # Get the ID of the new record
+        new_vendor_id = c.lastrowid
+        
+        # Log activity in SRM activity log
+        c.execute("""
+            INSERT INTO srm_activity_log (entity_type, entity_id, activity_type, description, user_id)
+            VALUES ('vendor', ?, 'vendor_created', ?, ?)
+        """, (new_vendor_id, f'Quick-registered vendor: {name}', session.get('user_id')))
+        
         conn.commit()
 
         # Return a success response with the new vendor's details
