@@ -7682,6 +7682,373 @@ def request_po():
                           vendors=vendors,
                           project_managers=project_managers)
 
+####### PO Requests Dashboard #######
+@app.route('/po_requests_dashboard')
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+def po_requests_dashboard():
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get current user role
+    user_role = None
+    if 'user_id' in session:
+        c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+        user_role_result = c.fetchone()
+        if user_role_result:
+            user_role = user_role_result[0]
+    
+    # Get filter values from URL
+    filters = {
+        'request_status': request.args.get('request_status'),
+        'requested_by': request.args.get('requested_by'),
+        'distributor': request.args.get('distributor'),
+        'vendor': request.args.get('vendor'),
+        'start_date': request.args.get('start_date'),
+        'end_date': request.args.get('end_date'),
+    }
+    
+    # Fetch data for filter dropdowns
+    c.execute("SELECT DISTINCT request_status FROM po_requests ORDER BY request_status")
+    status_options = [row[0] for row in c.fetchall()]
+    
+    c.execute("""SELECT DISTINCT u.username FROM po_requests pr
+                 JOIN users u ON pr.requested_by_id = u.id
+                 ORDER BY u.username""")
+    requesters = [row[0] for row in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT distributor_name FROM po_requests WHERE distributor_name IS NOT NULL ORDER BY distributor_name")
+    distributors = [row[0] for row in c.fetchall()]
+    
+    c.execute("SELECT DISTINCT vendor_name FROM po_requests WHERE vendor_name IS NOT NULL ORDER BY vendor_name")
+    vendors = [row[0] for row in c.fetchall()]
+    
+    # Base query with JOINs to get usernames
+    query = """
+        SELECT
+            pr.id, pr.po_request_reference, pr.quote_ref, pr.project_id, pr.project_name,
+            pr.system, pr.presale_engineer, pr.distributor_name, pr.vendor_name,
+            pr.project_manager, pr.request_status, pr.notes, pr.created_at,
+            pr.approved_rejected_at, pr.rejection_reason,
+            u_req.username as requested_by_username,
+            u_appr.username as approved_rejected_by_username
+        FROM po_requests pr
+        LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
+        LEFT JOIN users u_appr ON pr.approved_rejected_by_id = u_appr.id
+        WHERE 1=1
+    """
+    params = []
+    
+    # Apply filters
+    if filters['request_status']:
+        query += " AND pr.request_status = ?"
+        params.append(filters['request_status'])
+    if filters['requested_by']:
+        query += " AND u_req.username = ?"
+        params.append(filters['requested_by'])
+    if filters['distributor']:
+        query += " AND pr.distributor_name = ?"
+        params.append(filters['distributor'])
+    if filters['vendor']:
+        query += " AND pr.vendor_name = ?"
+        params.append(filters['vendor'])
+    if filters['start_date']:
+        query += " AND date(pr.created_at) >= ?"
+        params.append(filters['start_date'])
+    if filters['end_date']:
+        query += " AND date(pr.created_at) <= ?"
+        params.append(filters['end_date'])
+    
+    query += " ORDER BY pr.created_at DESC"
+    
+    c.execute(query, params)
+    po_requests = c.fetchall()
+    total_requests = len(po_requests)
+    
+    # Chart data - status distribution
+    chart_query = "SELECT request_status, COUNT(*) FROM po_requests WHERE 1=1"
+    if filters['request_status']:
+        chart_query += " AND request_status = ?"
+    if filters['requested_by']:
+        chart_query += " AND requested_by_id IN (SELECT id FROM users WHERE username = ?)"
+    if filters['distributor']:
+        chart_query += " AND distributor_name = ?"
+    if filters['vendor']:
+        chart_query += " AND vendor_name = ?"
+    if filters['start_date']:
+        chart_query += " AND date(created_at) >= ?"
+    if filters['end_date']:
+        chart_query += " AND date(created_at) <= ?"
+    chart_query += " GROUP BY request_status"
+    
+    c.execute(chart_query, params)
+    status_counts_raw = c.fetchall()
+    conn.close()
+    
+    status_labels = [row[0] for row in status_counts_raw]
+    status_counts = [row[1] for row in status_counts_raw]
+    
+    return render_template('po_requests_dashboard.html',
+                          po_requests=po_requests,
+                          total_requests=total_requests,
+                          user_role=user_role,
+                          status_options=status_options,
+                          requesters=requesters,
+                          distributors=distributors,
+                          vendors=vendors,
+                          status_labels=status_labels,
+                          status_counts=status_counts,
+                          current_filters=filters)
+
+@app.route('/approve_po_request/<rfpo_ref>', methods=['POST'])
+@role_required('Technical Team Leader', 'General Manager')
+def approve_po_request(rfpo_ref):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Fetch the request with validation
+        c.execute("""SELECT id, request_status, requested_by_id, project_name, quote_ref
+                     FROM po_requests WHERE po_request_reference = ?""", (rfpo_ref,))
+        po_request = c.fetchone()
+        
+        if not po_request:
+            flash('PO request not found!', 'danger')
+            return redirect(url_for('po_requests_dashboard'))
+        
+        if po_request['request_status'] != 'Pending Approval':
+            flash(f'Cannot approve: Request is already {po_request["request_status"]}!', 'warning')
+            return redirect(url_for('po_requests_dashboard'))
+        
+        # Update request status to Approved
+        c.execute("""UPDATE po_requests 
+                     SET request_status = 'Approved',
+                         approved_rejected_by_id = ?,
+                         approved_rejected_at = ?
+                     WHERE po_request_reference = ?""",
+                 (session['user_id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'), rfpo_ref))
+        
+        conn.commit()
+        flash(f'PO Request {rfpo_ref} has been approved successfully!', 'success')
+        
+        # Send notification to requester
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Administrator')
+            requester_id = po_request['requested_by_id']
+            
+            if requester_id and requester_id != actor_id:
+                notification_service.notify_activity(
+                    event_code='po_request.approved',
+                    recipient_ids=[requester_id],
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'po_request_reference': rfpo_ref,
+                        'project_name': po_request['project_name'],
+                        'quote_ref': po_request['quote_ref']
+                    },
+                    url=url_for('po_requests_dashboard')
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+        
+    except Exception as e:
+        flash(f'Error approving request: {str(e)}', 'danger')
+        conn.rollback()
+    finally:
+        conn.close()
+    
+    return redirect(url_for('po_requests_dashboard'))
+
+@app.route('/reject_po_request/<rfpo_ref>', methods=['POST'])
+@role_required('Technical Team Leader', 'General Manager')
+def reject_po_request(rfpo_ref):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    rejection_reason = request.form.get('rejection_reason', '').strip()
+    
+    if not rejection_reason:
+        flash('Rejection reason is required!', 'danger')
+        return redirect(url_for('po_requests_dashboard'))
+    
+    try:
+        # Fetch the request with validation
+        c.execute("""SELECT id, request_status, requested_by_id, project_name, quote_ref
+                     FROM po_requests WHERE po_request_reference = ?""", (rfpo_ref,))
+        po_request = c.fetchone()
+        
+        if not po_request:
+            flash('PO request not found!', 'danger')
+            return redirect(url_for('po_requests_dashboard'))
+        
+        if po_request['request_status'] != 'Pending Approval':
+            flash(f'Cannot reject: Request is already {po_request["request_status"]}!', 'warning')
+            return redirect(url_for('po_requests_dashboard'))
+        
+        # Update request status to Rejected
+        c.execute("""UPDATE po_requests 
+                     SET request_status = 'Rejected',
+                         approved_rejected_by_id = ?,
+                         approved_rejected_at = ?,
+                         rejection_reason = ?
+                     WHERE po_request_reference = ?""",
+                 (session['user_id'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+                  rejection_reason, rfpo_ref))
+        
+        conn.commit()
+        flash(f'PO Request {rfpo_ref} has been rejected.', 'warning')
+        
+        # Send notification to requester
+        try:
+            actor_id = session.get('user_id')
+            actor_name = session.get('username', 'Administrator')
+            requester_id = po_request['requested_by_id']
+            
+            if requester_id and requester_id != actor_id:
+                notification_service.notify_activity(
+                    event_code='po_request.rejected',
+                    recipient_ids=[requester_id],
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'po_request_reference': rfpo_ref,
+                        'project_name': po_request['project_name'],
+                        'quote_ref': po_request['quote_ref'],
+                        'rejection_reason': rejection_reason
+                    },
+                    url=url_for('po_requests_dashboard')
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+        
+    except Exception as e:
+        flash(f'Error rejecting request: {str(e)}', 'danger')
+        conn.rollback()
+    finally:
+        conn.close()
+    
+    return redirect(url_for('po_requests_dashboard'))
+
+@app.route('/get_po_request_details/<int:request_id>')
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+def get_po_request_details(request_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("""SELECT
+                    pr.po_request_reference, pr.quote_ref, pr.project_name,
+                    pr.system, pr.presale_engineer, pr.distributor_name,
+                    pr.vendor_name, pr.project_manager, pr.request_status,
+                    pr.notes, pr.created_at, pr.approved_rejected_at,
+                    pr.rejection_reason,
+                    u_req.username as requested_by_username,
+                    u_appr.username as approved_rejected_by_username
+                 FROM po_requests pr
+                 LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
+                 LEFT JOIN users u_appr ON pr.approved_rejected_by_id = u_appr.id
+                 WHERE pr.id = ?""", (request_id,))
+    
+    po_request = c.fetchone()
+    conn.close()
+    
+    if not po_request:
+        return jsonify({'error': 'PO request not found'}), 404
+    
+    return jsonify(dict(po_request))
+
+@app.route('/download_po_requests')
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+def download_po_requests():
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Apply same filters as dashboard
+    filters = {
+        'request_status': request.args.get('request_status'),
+        'requested_by': request.args.get('requested_by'),
+        'distributor': request.args.get('distributor'),
+        'vendor': request.args.get('vendor'),
+        'start_date': request.args.get('start_date'),
+        'end_date': request.args.get('end_date'),
+    }
+    
+    query = """
+        SELECT
+            pr.po_request_reference, pr.quote_ref, pr.project_name,
+            pr.system, pr.presale_engineer, pr.distributor_name, pr.vendor_name,
+            pr.project_manager, u_req.username as requested_by,
+            pr.request_status, pr.created_at, pr.approved_rejected_at,
+            u_appr.username as approved_rejected_by, pr.rejection_reason, pr.notes
+        FROM po_requests pr
+        LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
+        LEFT JOIN users u_appr ON pr.approved_rejected_by_id = u_appr.id
+        WHERE 1=1
+    """
+    params = []
+    
+    if filters['request_status']:
+        query += " AND pr.request_status = ?"
+        params.append(filters['request_status'])
+    if filters['requested_by']:
+        query += " AND u_req.username = ?"
+        params.append(filters['requested_by'])
+    if filters['distributor']:
+        query += " AND pr.distributor_name = ?"
+        params.append(filters['distributor'])
+    if filters['vendor']:
+        query += " AND pr.vendor_name = ?"
+        params.append(filters['vendor'])
+    if filters['start_date']:
+        query += " AND date(pr.created_at) >= ?"
+        params.append(filters['start_date'])
+    if filters['end_date']:
+        query += " AND date(pr.created_at) <= ?"
+        params.append(filters['end_date'])
+    
+    query += " ORDER BY pr.created_at DESC"
+    
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    
+    # Convert to list of dicts for pandas
+    data = [dict(row) for row in rows]
+    
+    # Create DataFrame
+    df = pd.DataFrame(data)
+    
+    # Rename columns for Excel
+    df.columns = ['RFPO Reference', 'Quote Reference', 'Project Name', 'System',
+                  'Presale Engineer', 'Distributor', 'Vendor', 'Project Manager',
+                  'Requested By', 'Status', 'Requested At', 'Approved/Rejected At',
+                  'Approved/Rejected By', 'Rejection Reason', 'Notes']
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='PO Requests', index=False)
+        
+        # Auto-adjust column widths
+        worksheet = writer.sheets['PO Requests']
+        for idx, col in enumerate(df.columns):
+            max_length = max(df[col].astype(str).map(len).max(), len(col)) + 2
+            worksheet.set_column(idx, idx, min(max_length, 50))
+    
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'PO_Requests_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
 ##############333
 @app.route('/register_po_follow_up', methods=['GET', 'POST'])
 @login_required
