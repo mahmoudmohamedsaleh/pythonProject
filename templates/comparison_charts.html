@@ -109,10 +109,10 @@
         <div class="chart-container">
             <canvas id="comparisonChart"></canvas>
             <div class="margin-info">
-                <p>Margin: {{ "%.2f"|format(data['margin']) }}%</p>
+                <p>Margin: {{ data['margin_display'] }}</p>
             </div>
             <div class="markup-info">
-                <p>Markup: {{ "%.2f"|format(((data['quotation_selling_price'] - data['quotation_cost']) / data['quotation_cost']) * 100) }}%</p>
+                <p>Markup: {{ data['markup_display'] }}</p>
             </div>
             <div class="cost-info">
                 <p>Cost: SAR{{ data['quotation_cost'] }}</p>
