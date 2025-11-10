@@ -7748,6 +7748,52 @@ def request_po():
                           vendors=vendors,
                           project_managers=project_managers)
 
+@app.route('/create_po_from_request/<rfpo_ref>', methods=['GET'])
+@login_required
+def create_po_from_request(rfpo_ref):
+    """Create PO from an approved RFPO request - pre-fills register_po form"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Fetch the RFPO request details
+    c.execute("""SELECT * FROM po_requests WHERE po_request_reference = ?""", (rfpo_ref,))
+    po_request = c.fetchone()
+    
+    if not po_request:
+        flash('PO Request not found!', 'danger')
+        conn.close()
+        return redirect(url_for('po_requests_dashboard'))
+    
+    # Verify the request is approved
+    if po_request['request_status'] != 'Approved':
+        flash('Only approved PO requests can be converted to Purchase Orders!', 'warning')
+        conn.close()
+        return redirect(url_for('po_requests_dashboard'))
+    
+    # Fetch data for dropdowns (same as register_po)
+    c.execute("SELECT id, project_name FROM register_project")
+    projects = c.fetchall()
+    c.execute("SELECT id, name FROM engineers WHERE role='Presale Engineer'")
+    presale_engineers = c.fetchall()
+    c.execute("SELECT id, name FROM engineers WHERE role IN ('Implementation Engineer', 'Project Manager')")
+    project_managers = c.fetchall()
+    c.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = c.fetchall()
+    c.execute("SELECT id, name FROM distributors")
+    distributors = c.fetchall()
+    
+    conn.close()
+    
+    # Render the register_po template with pre-filled data
+    return render_template('register_po.html',
+                          projects=projects,
+                          presale_engineers=presale_engineers,
+                          project_managers=project_managers,
+                          vendors=vendors,
+                          distributors=distributors,
+                          rfpo_data=po_request)
+
 ####### PO Requests Dashboard #######
 @app.route('/po_requests_dashboard')
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
