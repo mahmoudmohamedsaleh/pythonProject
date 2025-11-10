@@ -75,7 +75,7 @@
                     <div class="form-group">
                         <div class="d-flex justify-content-between align-items-center">
                             <label for="distributor" class="mb-0">Distributor</label>
-                            <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#addDistributorModal"><i class="fas fa-plus-circle mr-1"></i>Add New</button>
+                            <a href="{{ url_for('register_distributor') }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Opens in new tab"><i class="fas fa-plus-circle mr-1"></i>Add New Distributor</a>
                         </div>
                         <select class="form-control" id="distributor" name="distributor" required>
                             <option value="" disabled selected>-- Select a Distributor --</option>
