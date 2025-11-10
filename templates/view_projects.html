@@ -137,6 +137,9 @@
                         <th>Registered Date</th>
                         <th>Scope of Work</th>
                         <th>Note</th>
+                        {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
+                        <th>Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -184,9 +187,16 @@
                         <td>{{ project[8].split(' ')[0] if project[8] else 'N/A' }}</td>
                         <td title="{{ project[9] }}"><div class="truncate">{{ project[9] | truncate(30) }}</div></td>
                         <td title="{{ project[10] }}"><div class="truncate">{{ project[10] | truncate(30) }}</div></td>
+                        {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
+                        <td class="action-buttons">
+                            <button onclick="deleteProject({{ project[0] }}, '{{ project[1] }}')" class="btn btn-danger btn-sm" title="Delete Project">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% else %}
-                    <tr><td colspan="11" class="text-center text-muted py-5">No projects found.</td></tr>
+                    <tr><td colspan="{% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}12{% else %}11{% endif %}" class="text-center text-muted py-5">No projects found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
