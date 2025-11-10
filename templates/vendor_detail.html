@@ -185,6 +185,7 @@
                                     <th>PO Request #</th>
                                     <th>PO Number</th>
                                     <th>Project</th>
+                                    <th>Source</th>
                                     <th>Distributor</th>
                                     <th>Created Date</th>
                                     <th>Total Amount</th>
@@ -199,6 +200,13 @@
                                     <td><strong>{{ po['po_request_number'] }}</strong></td>
                                     <td>{{ po['po_number'] }}</td>
                                     <td>{{ po['project_name'] or 'N/A' }}</td>
+                                    <td>
+                                        {% if po['po_source'] == 'Direct' %}
+                                        <span class="badge badge-success"><i class="fas fa-check-circle"></i> Direct</span>
+                                        {% else %}
+                                        <span class="badge badge-info"><i class="fas fa-truck"></i> Via Distributor</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ po['distributor_name'] or 'N/A' }}</td>
                                     <td>{{ po['created_at'][:10] if po['created_at'] else '-' }}</td>
                                     <td><strong>${{ "%.2f"|format(po['total_amount']) }}</strong></td>

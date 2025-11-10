@@ -2190,24 +2190,28 @@ def vendor_detail(vendor_id):
     """, (vendor_id,))
     documents = cursor.fetchall()
     
-    # Get purchase orders through distributors that work with this vendor
+    # Get purchase orders: both directly linked to vendor AND through distributors
     cursor.execute("""
-        SELECT DISTINCT po.*, d.name as distributor_name
+        SELECT DISTINCT po.*, d.name as distributor_name,
+               CASE 
+                   WHEN CAST(po.vendor AS TEXT) = CAST(? AS TEXT) THEN 'Direct'
+                   ELSE 'Via Distributor'
+               END as po_source
         FROM purchase_orders po
-        JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
+        LEFT JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
         LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
-        WHERE vd.vendor_id = ?
+        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) OR vd.vendor_id = ?
         ORDER BY po.created_at DESC
-    """, (vendor_id,))
+    """, (vendor_id, vendor_id, vendor_id))
     purchase_orders = cursor.fetchall()
     
-    # Calculate total spending through associated distributors
+    # Calculate total spending: both direct and through distributors
     cursor.execute("""
         SELECT COALESCE(SUM(total_amount), 0) as total_spending
         FROM purchase_orders po
-        JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
-        WHERE vd.vendor_id = ?
-    """, (vendor_id,))
+        LEFT JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
+        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) OR vd.vendor_id = ?
+    """, (vendor_id, vendor_id))
     spending_result = cursor.fetchone()
     total_spending = spending_result['total_spending']
     
@@ -7016,12 +7020,12 @@ def download_vendor_pos_excel(vendor_id):
         LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
         LEFT JOIN engineers eng ON po.presale_engineer = eng.id
         LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
-        JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
-        WHERE vd.vendor_id = ?
+        LEFT JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
+        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) OR vd.vendor_id = ?
         ORDER BY po.created_at DESC
     '''
     
-    df = pd.read_sql_query(query, conn, params=(vendor_id,))
+    df = pd.read_sql_query(query, conn, params=(vendor_id, vendor_id))
     conn.close()
     
     # Create an Excel file
