@@ -631,6 +631,12 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_supplier_quotations_quote_ref ON supplier_quotations(quote_ref)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_supplier_quotations_uploaded_at ON supplier_quotations(uploaded_at)')
     
+    # Add system column to supplier_quotations table if it doesn't exist
+    try:
+        c.execute("ALTER TABLE supplier_quotations ADD COLUMN system TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
@@ -1725,16 +1731,18 @@ def upload_supplier_quotation():
     """Upload supplier quotation PDF for a specific quotation with distributor/vendor tracking"""
     try:
         quote_ref = request.form.get('quote_ref')
-        supplier_type = request.form.get('supplier_type')  # 'distributor' or 'vendor'
-        supplier_id = request.form.get('supplier_id')
+        distributor_id_str = request.form.get('distributor_id')
+        vendor_id_str = request.form.get('vendor_id')
+        system = request.form.get('system', '')
         notes = request.form.get('notes', '')
         
         if not quote_ref:
             flash('Quote reference is required!', 'danger')
             return redirect(request.referrer or url_for('index'))
         
-        if not supplier_type or not supplier_id:
-            flash('Please select a distributor or vendor!', 'danger')
+        # Validate at least one supplier is selected
+        if not distributor_id_str and not vendor_id_str:
+            flash('Please select at least one distributor or vendor!', 'danger')
             return redirect(request.referrer or url_for('index'))
         
         # Get the uploaded file
@@ -1755,19 +1763,20 @@ def upload_supplier_quotation():
         conn = sqlite3.connect('ProjectStatus.db')
         cursor = conn.cursor()
         
-        # Get supplier name based on type
+        # Get distributor name if selected
         distributor_id = None
         distributor_name = None
-        vendor_id = None
-        vendor_name = None
-        
-        if supplier_type == 'distributor':
-            distributor_id = int(supplier_id)
+        if distributor_id_str:
+            distributor_id = int(distributor_id_str)
             cursor.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
             result = cursor.fetchone()
             distributor_name = result[0] if result else None
-        elif supplier_type == 'vendor':
-            vendor_id = int(supplier_id)
+        
+        # Get vendor name if selected
+        vendor_id = None
+        vendor_name = None
+        if vendor_id_str:
+            vendor_id = int(vendor_id_str)
             cursor.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
             result = cursor.fetchone()
             vendor_name = result[0] if result else None
@@ -1776,15 +1785,22 @@ def upload_supplier_quotation():
         cursor.execute("""
             INSERT INTO supplier_quotations 
             (quote_ref, distributor_id, distributor_name, vendor_id, vendor_name, 
-             supplier_type, quotation_file, filename, uploaded_by, notes)
+             system, quotation_file, filename, uploaded_by, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (quote_ref, distributor_id, distributor_name, vendor_id, vendor_name,
-              supplier_type, quotation_data, filename, session['username'], notes))
+              system, quotation_data, filename, session['username'], notes))
         
         conn.commit()
         conn.close()
         
-        flash(f'Supplier quotation uploaded successfully for {distributor_name or vendor_name}!', 'success')
+        # Build success message
+        supplier_names = []
+        if distributor_name:
+            supplier_names.append(f"Distributor: {distributor_name}")
+        if vendor_name:
+            supplier_names.append(f"Vendor: {vendor_name}")
+        
+        flash(f'Supplier quotation uploaded successfully for {", ".join(supplier_names)}!', 'success')
         return redirect(request.referrer or url_for('index'))
         
     except Exception as e:

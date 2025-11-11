@@ -222,7 +222,7 @@
                         <div id="uploadSupplierQuoteForm" class="collapse mt-3">
                             <div class="card">
                                 <div class="card-body">
-                                    <form action="{{ url_for('upload_supplier_quotation') }}" method="POST" enctype="multipart/form-data">
+                                    <form action="{{ url_for('upload_supplier_quotation') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateSupplierForm()">
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="form-group">
@@ -238,21 +238,17 @@
                                             
                                             <div class="col-md-6">
                                                 <div class="form-group">
-                                                    <label for="supplier_type_select"><strong>Supplier Type <span class="text-danger">*</span></strong></label>
-                                                    <select class="form-control" id="supplier_type_select" name="supplier_type" required onchange="toggleSupplierSelect()">
-                                                        <option value="">-- Select Type --</option>
-                                                        <option value="distributor">Distributor</option>
-                                                        <option value="vendor">Vendor</option>
-                                                    </select>
+                                                    <label for="system_input"><strong>System</strong></label>
+                                                    <input type="text" class="form-control" id="system_input" name="system" placeholder="e.g., Fire Alarm, CCTV, Access Control">
                                                 </div>
                                             </div>
                                         </div>
                                         
                                         <div class="row">
-                                            <div class="col-md-6" id="distributor_select_div" style="display: none;">
+                                            <div class="col-md-6">
                                                 <div class="form-group">
-                                                    <label for="distributor_select"><strong>Distributor <span class="text-danger">*</span></strong></label>
-                                                    <select class="form-control" id="distributor_select" name="supplier_id">
+                                                    <label for="distributor_select"><strong>Distributor</strong> <small class="text-muted">(At least one required)</small></label>
+                                                    <select class="form-control" id="distributor_select" name="distributor_id">
                                                         <option value="">-- Select Distributor --</option>
                                                         {% for distributor in distributors %}
                                                         <option value="{{ distributor['id'] }}">{{ distributor['name'] }}</option>
@@ -261,10 +257,10 @@
                                                 </div>
                                             </div>
                                             
-                                            <div class="col-md-6" id="vendor_select_div" style="display: none;">
+                                            <div class="col-md-6">
                                                 <div class="form-group">
-                                                    <label for="vendor_select"><strong>Vendor <span class="text-danger">*</span></strong></label>
-                                                    <select class="form-control" id="vendor_select" name="supplier_id">
+                                                    <label for="vendor_select"><strong>Vendor</strong> <small class="text-muted">(At least one required)</small></label>
+                                                    <select class="form-control" id="vendor_select" name="vendor_id">
                                                         <option value="">-- Select Vendor --</option>
                                                         {% for vendor in vendors %}
                                                         <option value="{{ vendor['id'] }}">{{ vendor['name'] }}</option>
@@ -272,8 +268,10 @@
                                                     </select>
                                                 </div>
                                             </div>
-                                            
-                                            <div class="col-md-6">
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-12">
                                                 <div class="form-group">
                                                     <label for="supplier_quotation_file"><strong>Supplier Quotation PDF <span class="text-danger">*</span></strong></label>
                                                     <input type="file" class="form-control-file" id="supplier_quotation_file" name="supplier_quotation_file" accept=".pdf" required>
@@ -306,7 +304,7 @@
                             <thead class="thead-light">
                                 <tr>
                                     <th>Quote Ref</th>
-                                    <th>Supplier Type</th>
+                                    <th>System</th>
                                     <th>Distributor</th>
                                     <th>Vendor</th>
                                     <th>Filename</th>
@@ -320,15 +318,21 @@
                                 {% for sq in supplier_quotations %}
                                 <tr>
                                     <td><strong>{{ sq['quote_ref'] }}</strong></td>
+                                    <td>{{ sq['system'] or '-' }}</td>
                                     <td>
-                                        {% if sq['supplier_type'] == 'distributor' %}
-                                        <span class="badge badge-info">Distributor</span>
+                                        {% if sq['distributor_name'] %}
+                                        <span class="badge badge-info">{{ sq['distributor_name'] }}</span>
                                         {% else %}
-                                        <span class="badge badge-warning">Vendor</span>
+                                        <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ sq['distributor_name'] or '-' }}</td>
-                                    <td>{{ sq['vendor_name'] or '-' }}</td>
+                                    <td>
+                                        {% if sq['vendor_name'] %}
+                                        <span class="badge badge-warning">{{ sq['vendor_name'] }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         <i class="fas fa-file-pdf text-danger"></i> {{ sq['filename'] }}
                                     </td>
@@ -679,34 +683,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Toggle between Distributor and Vendor select dropdowns
-function toggleSupplierSelect() {
-    const supplierType = document.getElementById('supplier_type_select').value;
-    const distributorDiv = document.getElementById('distributor_select_div');
-    const vendorDiv = document.getElementById('vendor_select_div');
+// Validate supplier quotation form - require at least one of distributor or vendor
+function validateSupplierForm() {
     const distributorSelect = document.getElementById('distributor_select');
     const vendorSelect = document.getElementById('vendor_select');
     
-    if (supplierType === 'distributor') {
-        distributorDiv.style.display = 'block';
-        vendorDiv.style.display = 'none';
-        distributorSelect.setAttribute('required', 'required');
-        vendorSelect.removeAttribute('required');
-        vendorSelect.value = '';
-    } else if (supplierType === 'vendor') {
-        distributorDiv.style.display = 'none';
-        vendorDiv.style.display = 'block';
-        vendorSelect.setAttribute('required', 'required');
-        distributorSelect.removeAttribute('required');
-        distributorSelect.value = '';
-    } else {
-        distributorDiv.style.display = 'none';
-        vendorDiv.style.display = 'none';
-        distributorSelect.removeAttribute('required');
-        vendorSelect.removeAttribute('required');
-        distributorSelect.value = '';
-        vendorSelect.value = '';
+    const hasDistributor = distributorSelect.value !== '';
+    const hasVendor = vendorSelect.value !== '';
+    
+    if (!hasDistributor && !hasVendor) {
+        alert('Please select at least one Distributor or Vendor.');
+        return false;
     }
+    
+    return true;
 }
 </script>
 
