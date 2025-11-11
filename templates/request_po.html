@@ -17,7 +17,7 @@
             <span class="badge badge-info float-right">Requires Approval</span>
         </div>
         <div class="card-body">
-            <form method="post">
+            <form method="post" action="{{ url_for('request_po') }}">
                 <!-- Auto-filled from Quotation -->
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i> 
