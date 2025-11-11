@@ -537,7 +537,7 @@
                                     <td>{{ rfpo['quote_ref'] or 'N/A' }}</td>
                                     <td>
                                         {% if rfpo['supplier_quotation_filename'] %}
-                                        <a href="{{ url_for('view_supplier_quotation', sq_id=rfpo['supplier_quotation_id'], action='view') }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=rfpo['supplier_quotation_id'], action='view') }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-file-pdf"></i> View
                                         </a>
                                         {% else %}
