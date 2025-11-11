@@ -8147,7 +8147,7 @@ def po_requests_dashboard():
     c.execute("SELECT DISTINCT vendor_name FROM po_requests WHERE vendor_name IS NOT NULL ORDER BY vendor_name")
     vendors = [row[0] for row in c.fetchall()]
     
-    # Base query with JOINs to get usernames
+    # Base query with JOINs to get usernames and supplier quotation info
     query = """
         SELECT
             pr.id, pr.po_request_reference, pr.quote_ref, pr.project_name,
@@ -8155,10 +8155,13 @@ def po_requests_dashboard():
             pr.project_manager, pr.request_status, pr.notes, pr.requested_time as created_at,
             pr.decision_time as approved_rejected_at, pr.rejection_reason,
             u_req.username as requested_by_username,
-            u_appr.username as approved_rejected_by_username
+            u_appr.username as approved_rejected_by_username,
+            pr.supplier_quotation_id,
+            sq.filename as supplier_quotation_filename
         FROM po_requests pr
         LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
         LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id
+        LEFT JOIN supplier_quotations sq ON pr.supplier_quotation_id = sq.id
         WHERE 1=1
     """
     params = []
