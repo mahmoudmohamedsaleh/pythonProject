@@ -59,12 +59,14 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - Complete audit trail with timestamps and approver/rejector tracking
   - Create PO action button in project profile for approved RFPO requests
 - **Supplier Quotation Management**: Track multiple supplier quotation PDFs per project with distributor/vendor association. Features include:
-  - Dedicated supplier_quotations database table with distributor/vendor tracking
-  - Upload supplier quotation PDFs for each quotation reference with supplier (distributor or vendor) selection
+  - Dedicated supplier_quotations database table with distributor/vendor tracking and system field
+  - Upload supplier quotation PDFs for each quotation reference with both distributor AND vendor selection (at least one required)
+  - System field to categorize the quotation (e.g., Fire Alarm, CCTV, Access Control)
   - File validation (PDF only), notes field, and uploaded_by tracking
   - Supplier Quotations section in Project Profile with upload form and comprehensive table display
   - Download functionality for all uploaded supplier quotations
-  - Dynamic form with conditional distributor/vendor dropdown based on supplier type selection
+  - Both distributor and vendor fields visible simultaneously for flexible supplier tracking
+  - Client-side and server-side validation requiring at least one supplier (distributor or vendor)
   - Complete audit trail with timestamps and uploader information
 
 ### System Design Choices
