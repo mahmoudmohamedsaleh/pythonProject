@@ -533,7 +533,7 @@
                                 {% for rfpo in po_requests[:10] %}
                                 <tr>
                                     <td><strong>{{ rfpo['po_request_reference'] }}</strong></td>
-                                    <td>{{ rfpo['quotation_reference'] or 'N/A' }}</td>
+                                    <td>{{ rfpo['quote_ref'] or 'N/A' }}</td>
                                     <td>{{ rfpo['distributor_name'] or 'N/A' }}</td>
                                     <td>{{ rfpo['vendor_name'] or 'N/A' }}</td>
                                     <td>{{ rfpo['requester_name'] or 'N/A' }}</td>
