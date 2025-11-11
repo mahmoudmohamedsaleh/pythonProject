@@ -57,6 +57,15 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - Unique RFPO reference format (RFPO-YYYYMMDD###)
   - Duplicate request prevention for pending approvals
   - Complete audit trail with timestamps and approver/rejector tracking
+  - Create PO action button in project profile for approved RFPO requests
+- **Supplier Quotation Management**: Track multiple supplier quotation PDFs per project with distributor/vendor association. Features include:
+  - Dedicated supplier_quotations database table with distributor/vendor tracking
+  - Upload supplier quotation PDFs for each quotation reference with supplier (distributor or vendor) selection
+  - File validation (PDF only), notes field, and uploaded_by tracking
+  - Supplier Quotations section in Project Profile with upload form and comprehensive table display
+  - Download functionality for all uploaded supplier quotations
+  - Dynamic form with conditional distributor/vendor dropdown based on supplier type selection
+  - Complete audit trail with timestamps and uploader information
 
 ### System Design Choices
 - Environment variables are used for configuration.
