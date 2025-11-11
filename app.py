@@ -1461,6 +1461,25 @@ def project_detail(project_id):
     """, (project['project_name'],))
     po_requests = cursor.fetchall()
     
+    # Get all supplier quotations for quotations in this project
+    quote_refs = [q['quote_ref'] for q in quotations]
+    supplier_quotations = []
+    if quote_refs:
+        placeholders = ','.join('?' * len(quote_refs))
+        cursor.execute(f"""
+            SELECT * FROM supplier_quotations
+            WHERE quote_ref IN ({placeholders})
+            ORDER BY uploaded_at DESC
+        """, quote_refs)
+        supplier_quotations = cursor.fetchall()
+    
+    # Get all distributors and vendors for the upload form
+    cursor.execute("SELECT id, name FROM distributors ORDER BY name")
+    distributors = cursor.fetchall()
+    
+    cursor.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = cursor.fetchall()
+    
     # Calculate statistics
     total_quotation_value = sum(q['quotation_selling_price'] or 0 for q in quotations)
     total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
@@ -1473,6 +1492,9 @@ def project_detail(project_id):
                          rfqs=rfqs,
                          purchase_orders=purchase_orders,
                          po_requests=po_requests,
+                         supplier_quotations=supplier_quotations,
+                         distributors=distributors,
+                         vendors=vendors,
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value)
 

@@ -207,6 +207,154 @@
                 </div>
             </div>
 
+            <!-- Supplier Quotations Section -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 90%, #2BFF88 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-file-pdf"></i> Supplier Quotations ({{ supplier_quotations|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Upload Form -->
+                    <div class="mb-4">
+                        <button class="btn btn-primary" data-toggle="collapse" data-target="#uploadSupplierQuoteForm">
+                            <i class="fas fa-upload"></i> Upload Supplier Quotation
+                        </button>
+                        
+                        <div id="uploadSupplierQuoteForm" class="collapse mt-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <form action="{{ url_for('upload_supplier_quotation') }}" method="POST" enctype="multipart/form-data">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="quote_ref_select"><strong>Quotation Reference <span class="text-danger">*</span></strong></label>
+                                                    <select class="form-control" id="quote_ref_select" name="quote_ref" required>
+                                                        <option value="">-- Select Quotation --</option>
+                                                        {% for quote in quotations %}
+                                                        <option value="{{ quote['quote_ref'] }}">{{ quote['quote_ref'] }} - {{ quote['system'] }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="supplier_type_select"><strong>Supplier Type <span class="text-danger">*</span></strong></label>
+                                                    <select class="form-control" id="supplier_type_select" name="supplier_type" required onchange="toggleSupplierSelect()">
+                                                        <option value="">-- Select Type --</option>
+                                                        <option value="distributor">Distributor</option>
+                                                        <option value="vendor">Vendor</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6" id="distributor_select_div" style="display: none;">
+                                                <div class="form-group">
+                                                    <label for="distributor_select"><strong>Distributor <span class="text-danger">*</span></strong></label>
+                                                    <select class="form-control" id="distributor_select" name="supplier_id">
+                                                        <option value="">-- Select Distributor --</option>
+                                                        {% for distributor in distributors %}
+                                                        <option value="{{ distributor['id'] }}">{{ distributor['name'] }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6" id="vendor_select_div" style="display: none;">
+                                                <div class="form-group">
+                                                    <label for="vendor_select"><strong>Vendor <span class="text-danger">*</span></strong></label>
+                                                    <select class="form-control" id="vendor_select" name="supplier_id">
+                                                        <option value="">-- Select Vendor --</option>
+                                                        {% for vendor in vendors %}
+                                                        <option value="{{ vendor['id'] }}">{{ vendor['name'] }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="supplier_quotation_file"><strong>Supplier Quotation PDF <span class="text-danger">*</span></strong></label>
+                                                    <input type="file" class="form-control-file" id="supplier_quotation_file" name="supplier_quotation_file" accept=".pdf" required>
+                                                    <small class="form-text text-muted">Only PDF files are allowed</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="notes"><strong>Notes (Optional)</strong></label>
+                                            <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Add any notes about this supplier quotation..."></textarea>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Upload Quotation
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#uploadSupplierQuoteForm">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Supplier Quotations Table -->
+                    {% if supplier_quotations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Quote Ref</th>
+                                    <th>Supplier Type</th>
+                                    <th>Distributor</th>
+                                    <th>Vendor</th>
+                                    <th>Filename</th>
+                                    <th>Uploaded By</th>
+                                    <th>Uploaded Date</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sq in supplier_quotations %}
+                                <tr>
+                                    <td><strong>{{ sq['quote_ref'] }}</strong></td>
+                                    <td>
+                                        {% if sq['supplier_type'] == 'distributor' %}
+                                        <span class="badge badge-info">Distributor</span>
+                                        {% else %}
+                                        <span class="badge badge-warning">Vendor</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ sq['distributor_name'] or '-' }}</td>
+                                    <td>{{ sq['vendor_name'] or '-' }}</td>
+                                    <td>
+                                        <i class="fas fa-file-pdf text-danger"></i> {{ sq['filename'] }}
+                                    </td>
+                                    <td>{{ sq['uploaded_by'] }}</td>
+                                    <td>{{ sq['uploaded_at'][:16] if sq['uploaded_at'] else 'N/A' }}</td>
+                                    <td>{{ sq['notes'] or '-' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id']) }}" class="btn btn-sm btn-outline-primary" title="Download PDF">
+                                            <i class="fas fa-download"></i> Download
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No supplier quotations uploaded yet.</p>
+                        <p class="text-muted"><small>Upload supplier quotation PDFs from distributors or vendors to track all quotes for this project.</small></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- RFQs Section -->
             <div class="card mb-4">
                 <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
@@ -530,6 +678,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Toggle between Distributor and Vendor select dropdowns
+function toggleSupplierSelect() {
+    const supplierType = document.getElementById('supplier_type_select').value;
+    const distributorDiv = document.getElementById('distributor_select_div');
+    const vendorDiv = document.getElementById('vendor_select_div');
+    const distributorSelect = document.getElementById('distributor_select');
+    const vendorSelect = document.getElementById('vendor_select');
+    
+    if (supplierType === 'distributor') {
+        distributorDiv.style.display = 'block';
+        vendorDiv.style.display = 'none';
+        distributorSelect.setAttribute('required', 'required');
+        vendorSelect.removeAttribute('required');
+        vendorSelect.value = '';
+    } else if (supplierType === 'vendor') {
+        distributorDiv.style.display = 'none';
+        vendorDiv.style.display = 'block';
+        vendorSelect.setAttribute('required', 'required');
+        distributorSelect.removeAttribute('required');
+        distributorSelect.value = '';
+    } else {
+        distributorDiv.style.display = 'none';
+        vendorDiv.style.display = 'none';
+        distributorSelect.removeAttribute('required');
+        vendorSelect.removeAttribute('required');
+        distributorSelect.value = '';
+        vendorSelect.value = '';
+    }
+}
 </script>
 
 <style>
