@@ -521,6 +521,7 @@
                                 <tr>
                                     <th>RFPO Reference</th>
                                     <th>Quote Ref</th>
+                                    <th>Supplier Quot</th>
                                     <th>Distributor</th>
                                     <th>Vendor</th>
                                     <th>Requested By</th>
@@ -534,6 +535,15 @@
                                 <tr>
                                     <td><strong>{{ rfpo['po_request_reference'] }}</strong></td>
                                     <td>{{ rfpo['quote_ref'] or 'N/A' }}</td>
+                                    <td>
+                                        {% if rfpo['supplier_quotation_filename'] %}
+                                        <a href="{{ url_for('view_supplier_quotation', sq_id=rfpo['supplier_quotation_id'], action='view') }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-file-pdf"></i> View
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ rfpo['distributor_name'] or 'N/A' }}</td>
                                     <td>{{ rfpo['vendor_name'] or 'N/A' }}</td>
                                     <td>{{ rfpo['requester_name'] or 'N/A' }}</td>
