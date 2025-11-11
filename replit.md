@@ -51,7 +51,8 @@ The system features a comprehensive admin access control UI and an admin OTP Das
 - **Request for PO Approval Workflow**: Comprehensive purchase order request system requiring approval from Technical Team Leader or General Manager before PO creation. Features include:
   - PO request submission from quotations with auto-filled project data
   - **Supplier quotation PDF attachment**: When requesting PO from supplier quotation, the PDF is linked to the request with View/Download buttons in the form
-  - Server-side validation of all authoritative fields (distributors, vendors, project managers)
+  - **Project Coordinator assignment**: Optional field to assign a project coordinator who will coordinate the PO execution
+  - Server-side validation of all authoritative fields (distributors, vendors, project managers, project coordinators)
   - PO Requests Dashboard with filtering (status, requester, distributor, vendor, dates), status chart, and Excel export
   - Approval/rejection routes restricted to TTL and GM with mandatory rejection reasons
   - Automatic notifications to requesters on approval/rejection decisions
@@ -59,7 +60,7 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - Duplicate request prevention for pending approvals
   - Complete audit trail with timestamps and approver/rejector tracking
   - Create PO action button in project profile for approved RFPO requests
-  - Database stores supplier_quotation_id reference for tracking the source supplier quotation
+  - Database stores supplier_quotation_id and project_coordinator references for complete tracking
 - **Supplier Quotation Management**: Track multiple supplier quotation PDFs per project with distributor/vendor association. Features include:
   - Dedicated supplier_quotations database table with distributor/vendor tracking and system field
   - Upload supplier quotation PDFs for each quotation reference with both distributor AND vendor selection (at least one required)
