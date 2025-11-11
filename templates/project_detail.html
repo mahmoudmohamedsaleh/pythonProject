@@ -180,9 +180,6 @@
                                         <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning" title="Edit Quotation">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="{{ url_for('request_po') }}?quote_ref={{ quote['quote_ref'] }}" class="btn btn-sm btn-outline-primary" title="Request PO for this Quotation">
-                                            <i class="fas fa-clipboard-list"></i> Request PO
-                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -340,8 +337,14 @@
                                     <td>{{ sq['uploaded_at'][:16] if sq['uploaded_at'] else 'N/A' }}</td>
                                     <td>{{ sq['notes'] or '-' }}</td>
                                     <td>
-                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id']) }}" class="btn btn-sm btn-outline-primary" title="Download PDF">
+                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id'], action='view') }}" class="btn btn-sm btn-outline-success" title="View PDF" target="_blank">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id'], action='download') }}" class="btn btn-sm btn-outline-primary" title="Download PDF">
                                             <i class="fas fa-download"></i> Download
+                                        </a>
+                                        <a href="{{ url_for('request_po_from_supplier_quotation', quotation_id=sq['id']) }}" class="btn btn-sm btn-outline-info" title="Request PO from this Supplier Quotation">
+                                            <i class="fas fa-clipboard-list"></i> Request PO
                                         </a>
                                     </td>
                                 </tr>

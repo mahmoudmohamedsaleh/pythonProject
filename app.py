@@ -1810,8 +1810,10 @@ def upload_supplier_quotation():
 @app.route('/download_supplier_quotation/<int:quotation_id>', methods=['GET'])
 @login_required
 def download_supplier_quotation(quotation_id):
-    """Download a specific supplier quotation PDF"""
+    """View or Download a specific supplier quotation PDF"""
     try:
+        action = request.args.get('action', 'download')  # Default to download
+        
         conn = sqlite3.connect('ProjectStatus.db')
         cursor = conn.cursor()
         
@@ -1830,13 +1832,18 @@ def download_supplier_quotation(quotation_id):
             supplier_name = result[2] or result[3]
             
             output = BytesIO(quotation_data)
-            return send_file(output, download_name=filename, as_attachment=True)
+            
+            # If action is 'view', display inline; otherwise download
+            if action == 'view':
+                return send_file(output, mimetype='application/pdf', as_attachment=False, download_name=filename)
+            else:
+                return send_file(output, download_name=filename, as_attachment=True, mimetype='application/pdf')
         else:
             flash('Supplier quotation not found!', 'danger')
             return redirect(request.referrer or url_for('index'))
             
     except Exception as e:
-        flash(f'Error downloading supplier quotation: {str(e)}', 'danger')
+        flash(f'Error accessing supplier quotation: {str(e)}', 'danger')
         return redirect(request.referrer or url_for('index'))
 
 ###################
@@ -7946,6 +7953,61 @@ def request_po():
                           distributors=distributors,
                           vendors=vendors,
                           project_managers=project_managers)
+
+@app.route('/request_po_from_supplier_quotation/<int:quotation_id>', methods=['GET'])
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+def request_po_from_supplier_quotation(quotation_id):
+    """Request PO from a supplier quotation - auto-fills form with supplier quotation data"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Fetch supplier quotation details
+    c.execute("""SELECT * FROM supplier_quotations WHERE id = ?""", (quotation_id,))
+    supplier_quotation = c.fetchone()
+    
+    if not supplier_quotation:
+        flash('Supplier quotation not found!', 'danger')
+        conn.close()
+        return redirect(url_for('project_summary'))
+    
+    # Fetch quotation details from projects table using the quote_ref from supplier quotation
+    quote_ref = supplier_quotation['quote_ref']
+    c.execute("""SELECT project_name, quote_ref, presale_eng, sales_eng, system
+                 FROM projects WHERE quote_ref = ?""", (quote_ref,))
+    quotation = c.fetchone()
+    
+    if not quotation:
+        flash('Quotation not found!', 'danger')
+        conn.close()
+        return redirect(url_for('project_summary'))
+    
+    # Fetch distributors and vendors for dropdowns
+    c.execute("SELECT id, name FROM distributors ORDER BY name")
+    distributors = c.fetchall()
+    c.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = c.fetchall()
+    
+    # Fetch project managers
+    c.execute("SELECT username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer', 'Technical Team Leader')")
+    project_managers = c.fetchall()
+    
+    conn.close()
+    
+    # Pre-fill data from supplier quotation
+    prefill_data = {
+        'distributor_id': supplier_quotation['distributor_id'],
+        'vendor_id': supplier_quotation['vendor_id'],
+        'system': supplier_quotation['system'],
+        'notes': f"Request from supplier quotation: {supplier_quotation['filename']}\n{supplier_quotation['notes'] or ''}"
+    }
+    
+    return render_template('request_po.html',
+                          quotation=quotation,
+                          distributors=distributors,
+                          vendors=vendors,
+                          project_managers=project_managers,
+                          prefill_data=prefill_data)
 
 @app.route('/create_po_from_request/<rfpo_ref>', methods=['GET'])
 @login_required
