@@ -537,12 +537,6 @@ def init_db():
         c.execute("ALTER TABLE users ADD COLUMN email TEXT")
     except sqlite3.OperationalError:
         pass  # Column already exists
-    
-    # Add supplier_quotation column to projects table if it doesn't exist
-    try:
-        c.execute("ALTER TABLE projects ADD COLUMN supplier_quotation BLOB")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
     c.execute('''CREATE TABLE IF NOT EXISTS engineers (
             id INTEGER PRIMARY KEY,
             name TEXT,
