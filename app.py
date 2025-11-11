@@ -7910,6 +7910,11 @@ def request_po():
             conn.commit()
             flash(f'PO Request {po_request_reference} submitted successfully! Awaiting approval from Technical Team Leader or General Manager.', 'success')
             
+            # Get project_id to redirect to project detail
+            c.execute("SELECT id FROM register_project WHERE project_name = ?", (project_name,))
+            project_result = c.fetchone()
+            project_id = project_result[0] if project_result else None
+            
             # Send notifications to TTL and GM
             try:
                 actor_id = session.get('user_id')
@@ -7939,7 +7944,11 @@ def request_po():
             except Exception as e:
                 print(f"Notification error: {e}")
             
-            return redirect(url_for('project_summary'))
+            # Redirect to project detail page if project_id found, otherwise to project summary
+            if project_id:
+                return redirect(url_for('project_detail', project_id=project_id))
+            else:
+                return redirect(url_for('project_summary'))
             
         except Exception as e:
             flash(f'Error submitting PO request: {str(e)}', 'danger')
