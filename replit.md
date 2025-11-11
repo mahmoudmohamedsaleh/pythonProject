@@ -64,10 +64,12 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - System field to categorize the quotation (e.g., Fire Alarm, CCTV, Access Control)
   - File validation (PDF only), notes field, and uploaded_by tracking
   - Supplier Quotations section in Project Profile with upload form and comprehensive table display
-  - Download functionality for all uploaded supplier quotations
+  - **View and Download functionality**: Inline PDF viewing in browser (View button) and direct download (Download button)
+  - **Request PO from Supplier Quotation**: Direct "Request PO" button in Supplier Quotations section that auto-fills distributor, vendor, system, and notes from the supplier quotation
   - Both distributor and vendor fields visible simultaneously for flexible supplier tracking
   - Client-side and server-side validation requiring at least one supplier (distributor or vendor)
   - Complete audit trail with timestamps and uploader information
+  - Removed "Request PO" button from Quotations section (moved to Supplier Quotations for better workflow)
 
 ### System Design Choices
 - Environment variables are used for configuration.

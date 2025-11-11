@@ -69,7 +69,10 @@
                             <select class="form-control" name="distributor_id" id="distributor_id" required onchange="updateDistributorName()">
                                 <option value="">Select Distributor...</option>
                                 {% for dist in distributors %}
-                                    <option value="{{ dist['id'] }}" data-name="{{ dist['name'] }}">{{ dist['name'] }}</option>
+                                    <option value="{{ dist['id'] }}" data-name="{{ dist['name'] }}" 
+                                        {% if prefill_data and prefill_data.distributor_id == dist['id'] %}selected{% endif %}>
+                                        {{ dist['name'] }}
+                                    </option>
                                 {% endfor %}
                             </select>
                             <div class="input-group-append">
@@ -86,7 +89,10 @@
                             <select class="form-control" name="vendor_id" id="vendor_id" onchange="updateVendorName()">
                                 <option value="">Select Vendor...</option>
                                 {% for vendor in vendors %}
-                                    <option value="{{ vendor['id'] }}" data-name="{{ vendor['name'] }}">{{ vendor['name'] }}</option>
+                                    <option value="{{ vendor['id'] }}" data-name="{{ vendor['name'] }}"
+                                        {% if prefill_data and prefill_data.vendor_id == vendor['id'] %}selected{% endif %}>
+                                        {{ vendor['name'] }}
+                                    </option>
                                 {% endfor %}
                             </select>
                             <div class="input-group-append">
@@ -101,7 +107,7 @@
 
                 <div class="form-group">
                     <label>Request Notes</label>
-                    <textarea class="form-control" name="notes" rows="4" placeholder="Add any additional notes for the approvers..."></textarea>
+                    <textarea class="form-control" name="notes" rows="4" placeholder="Add any additional notes for the approvers...">{{ prefill_data.notes if prefill_data else '' }}</textarea>
                 </div>
 
                 <hr class="my-4">
