@@ -105,6 +105,7 @@
                     <tr>
                         <th>RFPO Reference</th>
                         <th>Quote Reference</th>
+                        <th>Supplier Quote</th>
                         <th>Project Name</th>
                         <th>Distributor</th>
                         <th>Vendor</th>
@@ -119,11 +120,14 @@
                     {% for req in po_requests %}
                     <tr>
                         <td><strong>{{ req.po_request_reference }}</strong></td>
+                        <td>{{ req.quote_ref if req.quote_ref else 'N/A' }}</td>
                         <td>
-                            {% if req.quote_ref %}
-                                <a href="{{ url_for('show_comparison', ref=req.quote_ref) }}">{{ req.quote_ref }}</a>
+                            {% if req.supplier_quotation_filename %}
+                                <a href="{{ url_for('download_supplier_quotation', quotation_id=req.supplier_quotation_id, action='view') }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-file-pdf"></i> View
+                                </a>
                             {% else %}
-                                N/A
+                                <span class="text-muted">N/A</span>
                             {% endif %}
                         </td>
                         <td>{{ req.project_name }}</td>
@@ -162,7 +166,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-5">No PO requests found matching your criteria.</td>
+                        <td colspan="11" class="text-center text-muted py-5">No PO requests found matching your criteria.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
