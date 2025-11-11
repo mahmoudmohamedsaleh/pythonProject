@@ -1463,10 +1463,12 @@ def project_detail(project_id):
             rfpo.*,
             d.name as distributor_name,
             v.name as vendor_name,
-            rfpo.requested_by_name as requester_name
+            rfpo.requested_by_name as requester_name,
+            sq.filename as supplier_quotation_filename
         FROM po_requests rfpo
         LEFT JOIN distributors d ON CAST(rfpo.distributor_id AS TEXT) = CAST(d.id AS TEXT)
         LEFT JOIN vendors v ON rfpo.vendor_id = v.id
+        LEFT JOIN supplier_quotations sq ON rfpo.supplier_quotation_id = sq.id
         WHERE rfpo.project_name = ?
         ORDER BY rfpo.requested_time DESC
     """, (project['project_name'],))
