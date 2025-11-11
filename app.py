@@ -608,6 +608,12 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_requested_by ON po_requests(requested_by_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_created ON po_requests(created_at)')
     
+    # Add supplier_quotation_id column to po_requests table if it doesn't exist
+    try:
+        c.execute("ALTER TABLE po_requests ADD COLUMN supplier_quotation_id INTEGER")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     # Supplier Quotations table for tracking supplier quotation PDFs with distributor/vendor
     c.execute('''CREATE TABLE IF NOT EXISTS supplier_quotations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7787,6 +7793,7 @@ def request_po():
         vendor_id = request.form.get('vendor_id') or None
         distributor_id = request.form['distributor_id']
         notes = request.form.get('notes', '')
+        supplier_quotation_id = request.form.get('supplier_quotation_id') or None
         
         # SECURITY: Validate project_manager if provided
         if project_manager:
@@ -7871,12 +7878,13 @@ def request_po():
                 po_request_reference, quote_ref, project_name, system,
                 presale_engineer, project_manager, vendor_id, vendor_name,
                 distributor_id, distributor_name, notes, request_status,
-                requested_by_id, requested_by_name, requested_time
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                requested_by_id, requested_by_name, requested_time, supplier_quotation_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                 (po_request_reference, quote_ref, project_name, system,
                  presale_engineer, project_manager, vendor_id, vendor_name,
                  distributor_id, distributor_name, notes, 'Pending Approval',
-                 session['user_id'], session['username'], datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                 session['user_id'], session['username'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                 supplier_quotation_id))
             
             conn.commit()
             flash(f'PO Request {po_request_reference} submitted successfully! Awaiting approval from Technical Team Leader or General Manager.', 'success')
@@ -7999,7 +8007,8 @@ def request_po_from_supplier_quotation(quotation_id):
         'distributor_id': supplier_quotation['distributor_id'],
         'vendor_id': supplier_quotation['vendor_id'],
         'system': supplier_quotation['system'],
-        'notes': f"Request from supplier quotation: {supplier_quotation['filename']}\n{supplier_quotation['notes'] or ''}"
+        'notes': f"Request from supplier quotation: {supplier_quotation['filename']}\n{supplier_quotation['notes'] or ''}",
+        'supplier_quotation_id': quotation_id
     }
     
     return render_template('request_po.html',
@@ -8007,7 +8016,8 @@ def request_po_from_supplier_quotation(quotation_id):
                           distributors=distributors,
                           vendors=vendors,
                           project_managers=project_managers,
-                          prefill_data=prefill_data)
+                          prefill_data=prefill_data,
+                          supplier_quotation=supplier_quotation)
 
 @app.route('/create_po_from_request/<rfpo_ref>', methods=['GET'])
 @login_required
