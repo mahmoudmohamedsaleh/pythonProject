@@ -614,6 +614,29 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_requested_by ON po_requests(requested_by_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_requests_created ON po_requests(created_at)')
     
+    # Supplier Quotations table for tracking supplier quotation PDFs with distributor/vendor
+    c.execute('''CREATE TABLE IF NOT EXISTS supplier_quotations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quote_ref TEXT NOT NULL,
+            distributor_id INTEGER,
+            distributor_name TEXT,
+            vendor_id INTEGER,
+            vendor_name TEXT,
+            supplier_type TEXT,
+            quotation_file BLOB NOT NULL,
+            filename TEXT NOT NULL,
+            uploaded_by TEXT NOT NULL,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT,
+            FOREIGN KEY (quote_ref) REFERENCES projects(quote_ref),
+            FOREIGN KEY (distributor_id) REFERENCES distributors(id),
+            FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+        )''')
+    
+    # Create indexes for supplier_quotations table
+    c.execute('CREATE INDEX IF NOT EXISTS idx_supplier_quotations_quote_ref ON supplier_quotations(quote_ref)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_supplier_quotations_uploaded_at ON supplier_quotations(uploaded_at)')
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
@@ -1679,6 +1702,111 @@ def download_cost_sheet():
     else:
         flash('Cost sheet not found!', 'danger')
         return redirect(url_for('index'))
+
+@app.route('/upload_supplier_quotation', methods=['POST'])
+@login_required
+def upload_supplier_quotation():
+    """Upload supplier quotation PDF for a specific quotation with distributor/vendor tracking"""
+    try:
+        quote_ref = request.form.get('quote_ref')
+        supplier_type = request.form.get('supplier_type')  # 'distributor' or 'vendor'
+        supplier_id = request.form.get('supplier_id')
+        notes = request.form.get('notes', '')
+        
+        if not quote_ref:
+            flash('Quote reference is required!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        if not supplier_type or not supplier_id:
+            flash('Please select a distributor or vendor!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        # Get the uploaded file
+        quotation_file = request.files.get('supplier_quotation_file')
+        if not quotation_file or quotation_file.filename == '':
+            flash('Please select a PDF file to upload!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        # Validate file type
+        if not quotation_file.filename.lower().endswith('.pdf'):
+            flash('Only PDF files are allowed!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        # Read file data
+        quotation_data = quotation_file.read()
+        filename = quotation_file.filename
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        # Get supplier name based on type
+        distributor_id = None
+        distributor_name = None
+        vendor_id = None
+        vendor_name = None
+        
+        if supplier_type == 'distributor':
+            distributor_id = int(supplier_id)
+            cursor.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+            result = cursor.fetchone()
+            distributor_name = result[0] if result else None
+        elif supplier_type == 'vendor':
+            vendor_id = int(supplier_id)
+            cursor.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+            result = cursor.fetchone()
+            vendor_name = result[0] if result else None
+        
+        # Insert the supplier quotation
+        cursor.execute("""
+            INSERT INTO supplier_quotations 
+            (quote_ref, distributor_id, distributor_name, vendor_id, vendor_name, 
+             supplier_type, quotation_file, filename, uploaded_by, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (quote_ref, distributor_id, distributor_name, vendor_id, vendor_name,
+              supplier_type, quotation_data, filename, session['username'], notes))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Supplier quotation uploaded successfully for {distributor_name or vendor_name}!', 'success')
+        return redirect(request.referrer or url_for('index'))
+        
+    except Exception as e:
+        flash(f'Error uploading supplier quotation: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('index'))
+
+@app.route('/download_supplier_quotation/<int:quotation_id>', methods=['GET'])
+@login_required
+def download_supplier_quotation(quotation_id):
+    """Download a specific supplier quotation PDF"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT quotation_file, filename, distributor_name, vendor_name 
+            FROM supplier_quotations 
+            WHERE id = ?
+        """, (quotation_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0]:
+            quotation_data = result[0]
+            filename = result[1]
+            supplier_name = result[2] or result[3]
+            
+            output = BytesIO(quotation_data)
+            return send_file(output, download_name=filename, as_attachment=True)
+        else:
+            flash('Supplier quotation not found!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+            
+    except Exception as e:
+        flash(f'Error downloading supplier quotation: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('index'))
+
 ###################
 @app.route('/download_files', methods=['GET', 'POST'])
 #@role_required('editor')
