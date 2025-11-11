@@ -91,6 +91,17 @@
                     </div>
                 </div>
 
+                <div class="form-group">
+                    <label>Project Coordinator (Optional)</label>
+                    <select class="form-control" name="project_coordinator">
+                        <option value="">Select Project Coordinator...</option>
+                        {% for pc in project_coordinators %}
+                            <option value="{{ pc['username'] }}">{{ pc['username'] }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Select the person who will coordinate this PO execution</small>
+                </div>
+
                 <hr class="my-4">
 
                 <h5 class="mb-3">Supplier Information (Required)</h5>

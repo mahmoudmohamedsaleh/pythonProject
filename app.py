@@ -614,6 +614,12 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # Add project_coordinator column to po_requests table if it doesn't exist
+    try:
+        c.execute("ALTER TABLE po_requests ADD COLUMN project_coordinator TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     # Supplier Quotations table for tracking supplier quotation PDFs with distributor/vendor
     c.execute('''CREATE TABLE IF NOT EXISTS supplier_quotations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7790,6 +7796,7 @@ def request_po():
         # Handle PO Request submission
         quote_ref = request.form['quote_ref']
         project_manager = request.form.get('project_manager', '').strip()
+        project_coordinator = request.form.get('project_coordinator', '').strip()
         vendor_id = request.form.get('vendor_id') or None
         distributor_id = request.form['distributor_id']
         notes = request.form.get('notes', '')
@@ -7808,6 +7815,20 @@ def request_po():
                 return redirect(url_for('request_po', quote_ref=quote_ref))
         else:
             project_manager = None  # Set to NULL if not provided
+        
+        # SECURITY: Validate project_coordinator if provided
+        if project_coordinator:
+            c.execute("""SELECT username FROM engineers 
+                         WHERE username = ? AND role IN ('Project Manager', 'Implementation Engineer', 'Project Coordinator', 'Technical Team Leader')""",
+                     (project_coordinator,))
+            pc_result = c.fetchone()
+            
+            if not pc_result:
+                flash('Invalid project coordinator selected!', 'danger')
+                conn.close()
+                return redirect(url_for('request_po', quote_ref=quote_ref))
+        else:
+            project_coordinator = None  # Set to NULL if not provided
         
         # SECURITY: Fetch all authoritative data server-side, don't trust client inputs
         # Fetch quotation details from database
@@ -7876,12 +7897,12 @@ def request_po():
             # Insert PO Request
             c.execute('''INSERT INTO po_requests (
                 po_request_reference, quote_ref, project_name, system,
-                presale_engineer, project_manager, vendor_id, vendor_name,
+                presale_engineer, project_manager, project_coordinator, vendor_id, vendor_name,
                 distributor_id, distributor_name, notes, request_status,
                 requested_by_id, requested_by_name, requested_time, supplier_quotation_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                 (po_request_reference, quote_ref, project_name, system,
-                 presale_engineer, project_manager, vendor_id, vendor_name,
+                 presale_engineer, project_manager, project_coordinator, vendor_id, vendor_name,
                  distributor_id, distributor_name, notes, 'Pending Approval',
                  session['user_id'], session['username'], datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                  supplier_quotation_id))
@@ -7954,13 +7975,18 @@ def request_po():
     c.execute("SELECT username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer', 'Technical Team Leader')")
     project_managers = c.fetchall()
     
+    # Fetch project coordinators
+    c.execute("SELECT username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer', 'Project Coordinator', 'Technical Team Leader')")
+    project_coordinators = c.fetchall()
+    
     conn.close()
     
     return render_template('request_po.html',
                           quotation=quotation,
                           distributors=distributors,
                           vendors=vendors,
-                          project_managers=project_managers)
+                          project_managers=project_managers,
+                          project_coordinators=project_coordinators)
 
 @app.route('/request_po_from_supplier_quotation/<int:quotation_id>', methods=['GET'])
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
@@ -8000,6 +8026,10 @@ def request_po_from_supplier_quotation(quotation_id):
     c.execute("SELECT username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer', 'Technical Team Leader')")
     project_managers = c.fetchall()
     
+    # Fetch project coordinators
+    c.execute("SELECT username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer', 'Project Coordinator', 'Technical Team Leader')")
+    project_coordinators = c.fetchall()
+    
     conn.close()
     
     # Pre-fill data from supplier quotation
@@ -8016,6 +8046,7 @@ def request_po_from_supplier_quotation(quotation_id):
                           distributors=distributors,
                           vendors=vendors,
                           project_managers=project_managers,
+                          project_coordinators=project_coordinators,
                           prefill_data=prefill_data,
                           supplier_quotation=supplier_quotation)
 
