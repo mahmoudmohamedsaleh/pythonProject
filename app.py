@@ -8061,10 +8061,17 @@ def po_profile(po_request_number):
     
     cursor.execute("""
         SELECT * FROM purchase_order_monitoring 
-        WHERE po_number = ? 
+        WHERE (po_number = ? OR po_number = ?) AND deleted_at IS NULL
         ORDER BY order_date DESC
-    """, (po_number,))
+    """, (po_number, po_request_number))
     delivery_notes = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT * FROM vat_invoices 
+        WHERE po_request_number = ?
+        ORDER BY uploaded_at DESC
+    """, (po_request_number,))
+    vat_invoices = cursor.fetchall()
     
     delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
     partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
@@ -8078,6 +8085,7 @@ def po_profile(po_request_number):
                            po_request_number=po_request_number,
                            po_items=po_items,
                            delivery_notes=delivery_notes,
+                           vat_invoices=vat_invoices,
                            delivered_count=delivered_count,
                            partial_count=partial_count,
                            not_delivered_count=not_delivered_count)
@@ -8628,15 +8636,23 @@ def upload_vat_invoice(po_request_number):
         flash('Invalid file format! Please upload a PDF file', 'danger')
         return redirect(url_for('po_profile', po_request_number=po_request_number))
     
+    invoice_name = request.form.get('invoice_name', '').strip()
+    if not invoice_name:
+        invoice_name = f"VAT Invoice - {file.filename}"
+    
     try:
         pdf_data = file.read()
+        file_size = len(pdf_data)
         
         conn = sqlite3.connect('ProjectStatus.db')
         cursor = conn.cursor()
         
         cursor.execute("""
-            UPDATE purchase_orders SET vat_invoice_pdf = ? WHERE po_request_number = ?
-        """, (pdf_data, po_request_number))
+            INSERT INTO vat_invoices 
+            (po_request_number, invoice_name, file_name, file_blob, file_size, uploaded_by_user_id, uploaded_by_username)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (po_request_number, invoice_name, file.filename, pdf_data, file_size, 
+              session.get('user_id'), session.get('username')))
         
         conn.commit()
         conn.close()
@@ -8717,6 +8733,143 @@ def add_po_delivery_note(po_request_number):
         flash(f'Error adding delivery note: {str(e)}', 'danger')
     
     return redirect(url_for('po_profile', po_request_number=po_request_number))
+
+
+@app.route('/view_vat_invoice/<int:invoice_id>')
+@login_required
+def view_vat_invoice(invoice_id):
+    """View a specific VAT invoice PDF"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM vat_invoices WHERE id = ?", (invoice_id,))
+    invoice = cursor.fetchone()
+    
+    if not invoice:
+        conn.close()
+        flash('Invoice not found!', 'danger')
+        return redirect(url_for('view_po_status'))
+    
+    conn.close()
+    
+    if invoice['file_blob']:
+        from io import BytesIO
+        output = BytesIO(invoice['file_blob'])
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=invoice['file_name']
+        )
+    else:
+        flash('Invoice not found!', 'danger')
+        return redirect(url_for('view_po_status'))
+
+
+@app.route('/download_vat_invoice_file/<int:invoice_id>')
+@login_required
+def download_vat_invoice_file(invoice_id):
+    """Download a specific VAT invoice PDF"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM vat_invoices WHERE id = ?", (invoice_id,))
+    invoice = cursor.fetchone()
+    
+    if not invoice:
+        conn.close()
+        flash('Invoice not found!', 'danger')
+        return redirect(url_for('view_po_status'))
+    
+    conn.close()
+    
+    if invoice['file_blob']:
+        from io import BytesIO
+        output = BytesIO(invoice['file_blob'])
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=invoice['file_name']
+        )
+    else:
+        flash('Invoice not found!', 'danger')
+        return redirect(url_for('view_po_status'))
+
+
+@app.route('/delete_vat_invoice/<int:invoice_id>', methods=['POST'])
+@login_required
+@role_required('Technical Team Leader', 'General Manager', 'Presale Engineer', 'Project Manager')
+def delete_vat_invoice(invoice_id):
+    """Delete a VAT invoice - requires authorization"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT po_request_number, uploaded_by_user_id FROM vat_invoices WHERE id = ?", (invoice_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+            flash('Invoice not found!', 'danger')
+            return redirect(url_for('view_po_status'))
+        
+        po_request_number = result['po_request_number']
+        uploaded_by = result['uploaded_by_user_id']
+        current_user_id = session.get('user_id')
+        current_user_role = session.get('role')
+        
+        if uploaded_by != current_user_id and current_user_role not in ['Technical Team Leader', 'General Manager']:
+            conn.close()
+            flash('You do not have permission to delete this invoice!', 'danger')
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
+        
+        cursor.execute("DELETE FROM vat_invoices WHERE id = ?", (invoice_id,))
+        conn.commit()
+        conn.close()
+        flash('VAT Invoice deleted successfully!', 'success')
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
+    except Exception as e:
+        flash(f'Error deleting invoice: {str(e)}', 'danger')
+        return redirect(url_for('view_po_status'))
+
+
+@app.route('/delete_delivery_note/<int:note_id>', methods=['POST'])
+@login_required
+@role_required('Technical Team Leader', 'General Manager', 'Presale Engineer', 'Project Manager')
+def delete_delivery_note(note_id):
+    """Soft delete a delivery note - requires authorization"""
+    try:
+        from datetime import datetime
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT po_number FROM purchase_order_monitoring WHERE id = ? AND deleted_at IS NULL", (note_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+            flash('Delivery note not found!', 'danger')
+            return redirect(url_for('view_po_status'))
+        
+        po_number = result[0]
+        
+        cursor.execute("SELECT po_request_number FROM purchase_orders WHERE po_number = ? OR po_request_number = ?", (po_number, po_number))
+        po_result = cursor.fetchone()
+        po_request_number = po_result[0] if po_result else po_number
+        
+        cursor.execute("UPDATE purchase_order_monitoring SET deleted_at = ? WHERE id = ?", 
+                      (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), note_id))
+        conn.commit()
+        conn.close()
+        flash('Delivery note deleted successfully!', 'success')
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
+    except Exception as e:
+        flash(f'Error deleting delivery note: {str(e)}', 'danger')
+        return redirect(url_for('view_po_status'))
 
 
 ##############333

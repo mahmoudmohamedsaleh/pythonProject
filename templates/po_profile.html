@@ -223,21 +223,61 @@
                 <hr>
                 
                 <div class="vat-invoice-section mt-3">
-                    <h6><strong><i class="fas fa-file-invoice mr-2"></i>VAT Invoice</strong></h6>
-                    {% if po.vat_invoice_pdf %}
-                    <div class="mb-2">
-                        <a href="{{ url_for('download_vat_invoice', po_request_number=po_request_number) }}" class="btn btn-sm btn-success" target="_blank">
-                            <i class="fas fa-file-pdf mr-1"></i>View VAT Invoice
-                        </a>
-                        <a href="{{ url_for('download_vat_invoice', po_request_number=po_request_number) }}" class="btn btn-sm btn-info" download>
-                            <i class="fas fa-download mr-1"></i>Download
-                        </a>
+                    <h6><strong><i class="fas fa-file-invoice mr-2"></i>VAT Invoices</strong></h6>
+                    
+                    {% if vat_invoices %}
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-bordered">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Invoice Name</th>
+                                    <th>Uploaded By</th>
+                                    <th>Uploaded At</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in vat_invoices %}
+                                <tr>
+                                    <td>{{ invoice.invoice_name }}</td>
+                                    <td>{{ invoice.uploaded_by_username or 'N/A' }}</td>
+                                    <td>{{ invoice.uploaded_at.split(' ')[0] if invoice.uploaded_at else 'N/A' }}</td>
+                                    <td>{{ "%.2f"|format(invoice.file_size / 1024) }} KB</td>
+                                    <td>
+                                        <a href="{{ url_for('view_vat_invoice', invoice_id=invoice.id) }}" target="_blank" class="btn btn-xs btn-success" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('download_vat_invoice_file', invoice_id=invoice.id) }}" class="btn btn-xs btn-info" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('delete_vat_invoice', invoice_id=invoice.id) }}" style="display:inline;" class="delete-invoice-form">
+                                            <button type="submit" class="btn btn-xs btn-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this invoice?')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
+                    {% else %}
+                    <p class="text-muted small">No VAT invoices uploaded yet.</p>
                     {% endif %}
-                    <form method="POST" action="{{ url_for('upload_vat_invoice', po_request_number=po_request_number) }}" enctype="multipart/form-data" class="form-inline">
-                        <label class="mr-2"><strong>Upload VAT Invoice PDF:</strong></label>
-                        <input type="file" name="vat_invoice" class="form-control-file mr-2" accept=".pdf" required>
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload mr-1"></i>Upload Invoice</button>
+                    
+                    <form method="POST" action="{{ url_for('upload_vat_invoice', po_request_number=po_request_number) }}" enctype="multipart/form-data">
+                        <div class="form-row">
+                            <div class="col-md-4">
+                                <input type="text" name="invoice_name" class="form-control form-control-sm" placeholder="Invoice Name (optional)">
+                            </div>
+                            <div class="col-md-5">
+                                <input type="file" name="vat_invoice" class="form-control-file form-control-sm" accept=".pdf" required>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload mr-1"></i>Upload Invoice</button>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -343,19 +383,28 @@
                 <div class="timeline">
                     {% for note in delivery_notes %}
                     <div class="timeline-item">
-                        <h6 class="mb-1"><strong>{{ note.registration_date.split(' ')[0] if note.registration_date else 'N/A' }}</strong></h6>
-                        <p class="mb-1"><strong>Status:</strong> {{ note.status }}</p>
-                        {% if note.expected_delivery %}
-                        <p class="mb-1"><strong>Expected Delivery:</strong> {{ note.expected_delivery }}</p>
-                        {% endif %}
-                        {% if note.notes %}
-                        <p class="mb-1"><strong>Notes:</strong> {{ note.notes }}</p>
-                        {% endif %}
-                        {% if note.delivery_note %}
-                        <a href="{{ url_for('view_document', entry_id=note.id, doc_type='delivery_note') }}" target="_blank" class="btn btn-sm btn-outline-info">
-                            <i class="fas fa-file-pdf mr-1"></i>View Delivery Note
-                        </a>
-                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1"><strong>{{ note.registration_date.split(' ')[0] if note.registration_date else 'N/A' }}</strong></h6>
+                                <p class="mb-1"><strong>Status:</strong> {{ note.status }}</p>
+                                {% if note.expected_delivery %}
+                                <p class="mb-1"><strong>Expected Delivery:</strong> {{ note.expected_delivery }}</p>
+                                {% endif %}
+                                {% if note.notes %}
+                                <p class="mb-1"><strong>Notes:</strong> {{ note.notes }}</p>
+                                {% endif %}
+                                {% if note.delivery_note %}
+                                <a href="{{ url_for('view_document', entry_id=note.id, doc_type='delivery_note') }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-file-pdf mr-1"></i>View Delivery Note
+                                </a>
+                                {% endif %}
+                            </div>
+                            <form method="POST" action="{{ url_for('delete_delivery_note', note_id=note.id) }}" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Note" onclick="return confirm('Are you sure you want to delete this delivery note?')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
