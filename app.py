@@ -7857,108 +7857,117 @@ def download_distributor_pos_excel(distributor_id):
 @app.route('/edit_po/<int:po_id>', methods=['GET', 'POST'])
 #@role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
 def edit_po(po_id):
-    with sqlite3.connect('ProjectStatus.db') as conn:
-        c = conn.cursor()
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
 
-        if request.method == 'POST':
-            # Collect form data from the submitted request
-            po_request_number = request.form['po_request_number']
-            project_name = request.form['project_name']
-            system = request.form['system']
-            presale_engineer = request.form['presale_engineer']
-            project_manager = request.form['project_manager']
-            distributor = request.form['distributor']
-            distributor_engineer = request.form['distributor_engineer']
-            distributor_contact = request.form['distributor_contact']
-            distributor_email = request.form['distributor_email']
-            po_number = request.form['po_number']
-            total_amount = request.form['total_amount']
-            po_approval_status = request.form['po_approval_status']
-            po_delivery_status = request.form['po_delivery_status']
-            po_notes_vendor = request.form['po_notes_vendor']
-            po_notes_client = request.form['po_notes_client']
+    if request.method == 'POST':
+        # Collect form data from the submitted request
+        po_request_number = request.form['po_request_number']
+        project_name = request.form['project_name']
+        system = request.form['system']
+        presale_engineer = request.form['presale_engineer']
+        project_manager = request.form['project_manager']
+        vendor = request.form.get('vendor') or None  # Optional vendor
+        distributor = request.form['distributor']
+        distributor_engineer = request.form['distributor_engineer']
+        distributor_contact = request.form['distributor_contact']
+        distributor_email = request.form['distributor_email']
+        po_number = request.form['po_number']
+        total_amount = request.form['total_amount']
+        po_approval_status = request.form['po_approval_status']
+        po_delivery_status = request.form['po_delivery_status']
+        po_notes_vendor = request.form['po_notes_vendor']
+        po_notes_client = request.form['po_notes_client']
 
-            # Fetch the current purchase order details to retrieve existing documents
-            c.execute("SELECT quotation, po_document FROM purchase_orders WHERE id=?", (po_id,))
-            existing_documents = c.fetchone()
-            existing_quotation = existing_documents[0]
-            existing_po_document = existing_documents[1]
+        # Fetch the current purchase order details to retrieve existing documents
+        c.execute("SELECT quotation, po_document FROM purchase_orders WHERE id=?", (po_id,))
+        existing_documents = c.fetchone()
+        existing_quotation = existing_documents['quotation']
+        existing_po_document = existing_documents['po_document']
 
-            # Process the uploaded files
-            quotation_data = request.files['quotation'].read() if 'quotation' in request.files and request.files['quotation'].filename else existing_quotation
-            po_document_data = request.files['po_document'].read() if 'po_document' in request.files and request.files['po_document'].filename else existing_po_document
+        # Process the uploaded files
+        quotation_data = request.files['quotation'].read() if 'quotation' in request.files and request.files['quotation'].filename else existing_quotation
+        po_document_data = request.files['po_document'].read() if 'po_document' in request.files and request.files['po_document'].filename else existing_po_document
 
+        try:
+            c.execute('''UPDATE purchase_orders SET
+                         po_request_number=?, project_name=?, system=?, presale_engineer=?, 
+                         project_manager=?, vendor=?, distributor=?, distributor_engineer=?, 
+                         distributor_contact=?, distributor_email=?, quotation=?, 
+                         po_document=?, po_number=?, total_amount=?, 
+                         po_approval_status=?, po_delivery_status=?, 
+                         po_notes_vendor=?, po_notes_client=?
+                         WHERE id=?''', (
+                po_request_number, project_name, system, presale_engineer,
+                project_manager, vendor, distributor, distributor_engineer,
+                distributor_contact, distributor_email, quotation_data,
+                po_document_data, po_number, total_amount,
+                po_approval_status, po_delivery_status,
+                po_notes_vendor, po_notes_client, po_id))
+            conn.commit()
+            flash('Purchase Order updated successfully!', 'success')
+            
+            # Send notifications to stakeholders
             try:
-                c.execute('''UPDATE purchase_orders SET
-                             po_request_number=?, project_name=?, system=?, presale_engineer=?, 
-                             project_manager=?, distributor=?, distributor_engineer=?, 
-                             distributor_contact=?, distributor_email=?, quotation=?, 
-                             po_document=?, po_number=?, total_amount=?, 
-                             po_approval_status=?, po_delivery_status=?, 
-                             po_notes_vendor=?, po_notes_client=?
-                             WHERE id=?''', (
-                    po_request_number, project_name, system, presale_engineer,
-                    project_manager, distributor, distributor_engineer,
-                    distributor_contact, distributor_email, quotation_data,
-                    po_document_data, po_number, total_amount,
-                    po_approval_status, po_delivery_status,
-                    po_notes_vendor, po_notes_client, po_id))
-                conn.commit()
-                flash('Purchase Order updated successfully!', 'success')
+                actor_id = session.get('user_id')
+                actor_name = session.get('username', 'Unknown')
                 
-                # Send notifications to stakeholders
-                try:
-                    actor_id = session.get('user_id')
-                    actor_name = session.get('username', 'Unknown')
-                    
-                    # Notify presale engineer, project manager, and admins
-                    recipients = []
-                    presale_user_id = notification_service.get_user_id_by_username(presale_engineer)
-                    pm_user_id = notification_service.get_user_id_by_username(project_manager)
-                    if presale_user_id:
-                        recipients.append(presale_user_id)
-                    if pm_user_id:
-                        recipients.append(pm_user_id)
-                    recipients.extend(notification_service.get_admin_recipients())
-                    recipients = list(set(recipients))
-                    
-                    notification_service.notify_activity(
-                        event_code='po.updated',
-                        recipient_ids=recipients,
-                        actor_id=actor_id,
-                        context={
-                            'actor_name': actor_name,
-                            'po_number': po_number,
-                            'project_name': project_name,
-                            'total_amount': total_amount
-                        },
-                        url=url_for('view_po_status')
-                    )
-                except Exception as e:
-                    print(f"Notification error: {e}")
+                # Notify presale engineer, project manager, and admins
+                recipients = []
+                presale_user_id = notification_service.get_user_id_by_username(presale_engineer)
+                pm_user_id = notification_service.get_user_id_by_username(project_manager)
+                if presale_user_id:
+                    recipients.append(presale_user_id)
+                if pm_user_id:
+                    recipients.append(pm_user_id)
+                recipients.extend(notification_service.get_admin_recipients())
+                recipients = list(set(recipients))
                 
-                return redirect(url_for('view_po_status'))
-            except sqlite3.IntegrityError as e:
-                flash('Error updating Purchase Order: {}'.format(e), 'danger')
+                notification_service.notify_activity(
+                    event_code='po.updated',
+                    recipient_ids=recipients,
+                    actor_id=actor_id,
+                    context={
+                        'actor_name': actor_name,
+                        'po_number': po_number,
+                        'project_name': project_name,
+                        'total_amount': total_amount
+                    },
+                    url=url_for('view_po_status')
+                )
+            except Exception as e:
+                print(f"Notification error: {e}")
+            
+            conn.close()
+            return redirect(url_for('view_po_status'))
+        except sqlite3.IntegrityError as e:
+            flash('Error updating Purchase Order: {}'.format(e), 'danger')
+            conn.close()
+            return redirect(url_for('edit_po', po_id=po_id))
 
-        # Fetch the current purchase order details
-        c.execute("SELECT * FROM purchase_orders WHERE id=?", (po_id,))
-        purchase_order = c.fetchone()
-        ##
+    # Fetch the current purchase order details
+    c.execute("SELECT * FROM purchase_orders WHERE id=?", (po_id,))
+    purchase_order = c.fetchone()
 
-        # Fetch projects, presale engineers, project managers, and distributors
-        c.execute("SELECT id, project_name FROM register_project")
-        projects = c.fetchall()
-        c.execute("SELECT id, name FROM engineers WHERE role='Presale Engineer'")
-        presale_engineers = c.fetchall()
-        c.execute("SELECT id, name FROM engineers WHERE role IN ('Implementation Engineer', 'Project Manager')")
-        project_managers = c.fetchall()
-        c.execute("SELECT id, name FROM distributors")
-        distributors = c.fetchall()
-
+    # Fetch projects, presale engineers, project managers, distributors, and vendors
+    c.execute("SELECT id, project_name FROM register_project")
+    projects = c.fetchall()
+    c.execute("SELECT username, name FROM engineers WHERE role='Presale Engineer'")
+    presale_engineers = c.fetchall()
+    c.execute("SELECT username, name FROM engineers WHERE role IN ('Implementation Engineer', 'Project Manager', 'Technical Team Leader')")
+    project_managers = c.fetchall()
+    c.execute("SELECT id, name FROM distributors")
+    distributors = c.fetchall()
+    c.execute("SELECT id, name FROM vendors")
+    vendors = c.fetchall()
+    
+    conn.close()
+    
     return render_template('edit_po.html', purchase_order=purchase_order,
                            projects=projects, presale_engineers=presale_engineers,
-                           project_managers=project_managers, distributors=distributors)
+                           project_managers=project_managers, distributors=distributors,
+                           vendors=vendors)
 #####################
 #####################
 @app.route('/download_po/<po_number>', methods=['GET'], endpoint='download_po_endpoint')
@@ -8034,13 +8043,17 @@ def po_profile(po_request_number):
     cursor.execute("""
         SELECT 
             po.*,
+            rp.project_name as project_name_actual,
             d.name as distributor_name,
             v.name as vendor_name,
-            e.name as presale_engineer_name
+            e.name as presale_engineer_name,
+            pm.name as project_manager_name
         FROM purchase_orders po
+        LEFT JOIN register_project rp ON CAST(po.project_name AS INTEGER) = rp.id
         LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
         LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
         LEFT JOIN engineers e ON po.presale_engineer = e.username
+        LEFT JOIN engineers pm ON po.project_manager = pm.username
         WHERE po.po_request_number = ?
     """, (po_request_number,))
     po = cursor.fetchone()
@@ -8838,6 +8851,54 @@ def delete_vat_invoice(invoice_id):
         return redirect(url_for('po_profile', po_request_number=po_request_number))
     except Exception as e:
         flash(f'Error deleting invoice: {str(e)}', 'danger')
+        return redirect(url_for('view_po_status'))
+
+
+@app.route('/edit_delivery_note/<int:note_id>', methods=['POST'])
+@login_required
+def edit_delivery_note(note_id):
+    """Edit a delivery note status"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT po_number FROM purchase_order_monitoring WHERE id = ? AND deleted_at IS NULL", (note_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+            flash('Delivery note not found!', 'danger')
+            return redirect(url_for('view_po_status'))
+        
+        po_number = result[0]
+        status = request.form.get('status', '').strip()
+        expected_delivery = request.form.get('expected_delivery', '').strip() or None
+        notes = request.form.get('notes', '').strip()
+        
+        if not status:
+            flash('Status is required!', 'danger')
+            conn.close()
+            cursor.execute("SELECT po_request_number FROM purchase_orders WHERE po_number = ? OR po_request_number = ?", (po_number, po_number))
+            po_result = cursor.fetchone()
+            po_request_number = po_result[0] if po_result else po_number
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
+        
+        cursor.execute("""
+            UPDATE purchase_order_monitoring 
+            SET status = ?, expected_delivery = ?, notes = ?
+            WHERE id = ?
+        """, (status, expected_delivery, notes, note_id))
+        
+        cursor.execute("SELECT po_request_number FROM purchase_orders WHERE po_number = ? OR po_request_number = ?", (po_number, po_number))
+        po_result = cursor.fetchone()
+        po_request_number = po_result[0] if po_result else po_number
+        
+        conn.commit()
+        conn.close()
+        flash('Delivery note updated successfully!', 'success')
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
+    except Exception as e:
+        flash(f'Error updating delivery note: {str(e)}', 'danger')
         return redirect(url_for('view_po_status'))
 
 

@@ -22,7 +22,7 @@
     <main class="main-content">
         <div class="text-center mb-4">
             <h1>Edit Purchase Order</h1>
-            <p class="text-muted">Updating PO Request: <strong>{{ purchase_order[1] }}</strong></p>
+            <p class="text-muted">Updating PO Request: <strong>{{ purchase_order['po_request_number'] }}</strong></p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -33,7 +33,7 @@
             {% endif %}
         {% endwith %}
 
-        <form action="{{ url_for('edit_po', po_id=purchase_order[0]) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('edit_po', po_id=purchase_order['id']) }}" method="POST" enctype="multipart/form-data">
 
             <div class="card">
                 <div class="card-header"><i class="fas fa-file-invoice mr-2"></i>Core PO Details</div>
@@ -41,20 +41,20 @@
                     <div class="form-row">
                         <div class="form-group col-md-6">
                             <label for="po_request_number">PO Request Number (Zoho Ref)</label>
-                            <input type="text" class="form-control" id="po_request_number" name="po_request_number" value="{{ purchase_order[1] }}" required>
+                            <input type="text" class="form-control" id="po_request_number" name="po_request_number" value="{{ purchase_order['po_request_number'] }}" required>
                         </div>
                         <div class="form-group col-md-6">
                             <label for="project_name">Project Name</label>
                             <select class="form-control" id="project_name" name="project_name" required>
                                 {% for project in projects %}
-                                    <option value="{{ project[0] }}" {% if project[0] == purchase_order[2] %}selected{% endif %}>{{ project[1] }}</option>
+                                    <option value="{{ project[0] }}" {% if project[0]|string == purchase_order['project_name']|string %}selected{% endif %}>{{ project[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
                     <div class="form-group">
                         <label for="system">System / Scope</label>
-                        <input type="text" class="form-control" id="system" name="system" value="{{ purchase_order[3] }}" required>
+                        <input type="text" class="form-control" id="system" name="system" value="{{ purchase_order['system'] }}" required>
                     </div>
                 </div>
             </div>
@@ -67,7 +67,7 @@
                             <label for="presale_engineer">Pre-Sale Engineer</label>
                             <select class="form-control" id="presale_engineer" name="presale_engineer" required>
                                 {% for engineer in presale_engineers %}
-                                    <option value="{{ engineer[0] }}" {% if engineer[0] == purchase_order[4] %}selected{% endif %}>{{ engineer[1] }}</option>
+                                    <option value="{{ engineer[0] }}" {% if engineer[0] == purchase_order['presale_engineer'] %}selected{% endif %}>{{ engineer[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -75,7 +75,7 @@
                             <label for="project_manager">Project Manager</label>
                             <select class="form-control" id="project_manager" name="project_manager" required>
                                 {% for manager in project_managers %}
-                                    <option value="{{ manager[0] }}" {% if manager[0] == purchase_order[5] %}selected{% endif %}>{{ manager[1] }}</option>
+                                    <option value="{{ manager[0] }}" {% if manager[0] == purchase_order['project_manager'] %}selected{% endif %}>{{ manager[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
