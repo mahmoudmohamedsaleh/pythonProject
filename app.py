@@ -8032,7 +8032,16 @@ def po_profile(po_number):
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT * FROM purchase_orders WHERE po_number = ?
+        SELECT 
+            po.*,
+            d.name as distributor_name,
+            v.name as vendor_name,
+            e.name as presale_engineer_name
+        FROM purchase_orders po
+        LEFT JOIN distributors d ON po.distributor_id = d.id
+        LEFT JOIN vendors v ON po.vendor_id = v.id
+        LEFT JOIN engineers e ON po.presale_engineer = e.username
+        WHERE po.po_number = ?
     """, (po_number,))
     po = cursor.fetchone()
     
@@ -8336,8 +8345,371 @@ def update_po_vat(po_number):
     conn.commit()
     conn.close()
     
-    flash(f'VAT updated to {vat_percentage}%!', 'success')
+    flash('VAT updated successfully!', 'success')
     return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/import_po_items_excel/<po_number>', methods=['POST'])
+@login_required
+def import_po_items_excel(po_number):
+    """Import PO items from Excel file"""
+    if 'excel_file' not in request.files:
+        flash('No file uploaded!', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    file = request.files['excel_file']
+    
+    if file.filename == '':
+        flash('No file selected!', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    if not file.filename.endswith('.xlsx'):
+        flash('Invalid file format! Please upload an Excel file (.xlsx only)', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    try:
+        import openpyxl
+        from io import BytesIO
+        
+        file_content = BytesIO(file.read())
+        workbook = openpyxl.load_workbook(file_content)
+        sheet = workbook.active
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT COALESCE(MAX(item_number), 0) 
+            FROM po_items 
+            WHERE po_number = ?
+        """, (po_number,))
+        next_item_number = cursor.fetchone()[0] + 1
+        
+        items_added = 0
+        items_updated = 0
+        errors = []
+        
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                if not row or all(cell is None or str(cell).strip() == '' for cell in row):
+                    continue
+                
+                part_number = str(row[0]).strip() if row[0] else ''
+                description = str(row[1]).strip() if row[1] else ''
+                
+                if not description:
+                    errors.append(f"Row {row_idx}: Description is required")
+                    continue
+                
+                try:
+                    quantity = float(row[2]) if row[2] else 0
+                    if quantity <= 0:
+                        errors.append(f"Row {row_idx}: Quantity must be greater than zero")
+                        continue
+                except (ValueError, TypeError):
+                    errors.append(f"Row {row_idx}: Invalid quantity value")
+                    continue
+                
+                try:
+                    unit_price = float(row[3]) if row[3] else 0
+                    if unit_price < 0:
+                        errors.append(f"Row {row_idx}: Unit price cannot be negative")
+                        continue
+                except (ValueError, TypeError):
+                    errors.append(f"Row {row_idx}: Invalid unit price value")
+                    continue
+                
+                try:
+                    total_price = float(row[4]) if row[4] else 0
+                    if total_price < 0:
+                        errors.append(f"Row {row_idx}: Total price cannot be negative")
+                        continue
+                except (ValueError, TypeError):
+                    errors.append(f"Row {row_idx}: Invalid total price value")
+                    continue
+                
+                if total_price == 0 and unit_price > 0:
+                    total_price = quantity * unit_price
+                
+                quantity_delivered_provided = False
+                quantity_delivered = 0
+                
+                try:
+                    if len(row) > 5 and row[5] is not None and str(row[5]).strip() != '':
+                        quantity_delivered = float(row[5])
+                        if quantity_delivered < 0:
+                            quantity_delivered = 0
+                        else:
+                            quantity_delivered_provided = True
+                except (ValueError, TypeError, IndexError):
+                    pass
+                
+                existing_item = None
+                
+                if part_number:
+                    cursor.execute("""
+                        SELECT id, quantity_delivered, delivery_status FROM po_items 
+                        WHERE po_number = ? AND LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+                    """, (po_number, part_number))
+                    existing_item = cursor.fetchone()
+                
+                if not existing_item:
+                    cursor.execute("""
+                        SELECT id, quantity_delivered, delivery_status FROM po_items 
+                        WHERE po_number = ? AND LOWER(TRIM(description)) = LOWER(TRIM(?))
+                    """, (po_number, description))
+                    existing_item = cursor.fetchone()
+                
+                if existing_item:
+                    existing_qty_delivered = existing_item[1] or 0
+                    existing_delivery_status = existing_item[2] or 'Not Delivered'
+                    
+                    if quantity_delivered_provided:
+                        if quantity_delivered >= quantity:
+                            final_delivery_status = 'Delivered'
+                        elif quantity_delivered > 0:
+                            final_delivery_status = 'Partial'
+                        else:
+                            final_delivery_status = 'Not Delivered'
+                        final_qty_delivered = quantity_delivered
+                    else:
+                        final_delivery_status = existing_delivery_status
+                        final_qty_delivered = existing_qty_delivered
+                    
+                    cursor.execute("""
+                        UPDATE po_items SET
+                            part_number = ?,
+                            description = ?,
+                            quantity = ?,
+                            unit_price = ?,
+                            total_price = ?,
+                            quantity_delivered = ?,
+                            delivery_status = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (part_number, description, quantity, unit_price, total_price, 
+                          final_qty_delivered, final_delivery_status, existing_item[0]))
+                    items_updated += 1
+                else:
+                    if quantity_delivered_provided:
+                        if quantity_delivered >= quantity:
+                            new_delivery_status = 'Delivered'
+                        elif quantity_delivered > 0:
+                            new_delivery_status = 'Partial'
+                        else:
+                            new_delivery_status = 'Not Delivered'
+                    else:
+                        new_delivery_status = 'Not Delivered'
+                        quantity_delivered = 0
+                    
+                    cursor.execute("""
+                        INSERT INTO po_items (
+                            po_number, item_number, part_number, description, 
+                            quantity, unit_price, total_price, 
+                            quantity_delivered, delivery_status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (po_number, next_item_number, part_number, description, 
+                          quantity, unit_price, total_price, quantity_delivered, new_delivery_status))
+                    next_item_number += 1
+                    items_added += 1
+                
+            except Exception as e:
+                errors.append(f"Row {row_idx}: {str(e)}")
+        
+        conn.commit()
+        conn.close()
+        
+        success_msg = []
+        if items_added > 0:
+            success_msg.append(f"{items_added} item(s) added")
+        if items_updated > 0:
+            success_msg.append(f"{items_updated} item(s) updated")
+        
+        if success_msg:
+            flash(f"Excel import successful! {', '.join(success_msg)}", 'success')
+        
+        if errors:
+            flash(f"Some rows had errors: {'; '.join(errors[:5])}", 'warning')
+        
+    except Exception as e:
+        flash(f'Error importing Excel file: {str(e)}', 'danger')
+    
+    return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/export_po_items_excel/<po_number>')
+@login_required
+def export_po_items_excel(po_number):
+    """Export PO items to Excel file"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from io import BytesIO
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT part_number, description, quantity, unit_price, 
+                   total_price, quantity_delivered
+            FROM po_items
+            WHERE po_number = ?
+            ORDER BY item_number
+        """, (po_number,))
+        items = cursor.fetchall()
+        conn.close()
+        
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "PO Items"
+        
+        headers = ['Part Number', 'Description', 'Qty', 'Unit Price', 'Total', 'Delivered']
+        
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+        header_alignment = Alignment(horizontal='center', vertical='center')
+        
+        for col_idx, header in enumerate(headers, start=1):
+            cell = sheet.cell(row=1, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+        
+        for row_idx, item in enumerate(items, start=2):
+            sheet.cell(row=row_idx, column=1, value=item['part_number'] or '')
+            sheet.cell(row=row_idx, column=2, value=item['description'] or '')
+            sheet.cell(row=row_idx, column=3, value=item['quantity'] or 0)
+            sheet.cell(row=row_idx, column=4, value=item['unit_price'] or 0)
+            sheet.cell(row=row_idx, column=5, value=item['total_price'] or 0)
+            sheet.cell(row=row_idx, column=6, value=item['quantity_delivered'] or 0)
+        
+        sheet.column_dimensions['A'].width = 20
+        sheet.column_dimensions['B'].width = 50
+        sheet.column_dimensions['C'].width = 12
+        sheet.column_dimensions['D'].width = 15
+        sheet.column_dimensions['E'].width = 15
+        sheet.column_dimensions['F'].width = 15
+        
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'PO_{po_number}_Items.xlsx'
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting to Excel: {str(e)}', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/upload_vat_invoice/<po_number>', methods=['POST'])
+@login_required
+def upload_vat_invoice(po_number):
+    """Upload VAT Invoice PDF for purchase order"""
+    if 'vat_invoice' not in request.files:
+        flash('No file uploaded!', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    file = request.files['vat_invoice']
+    
+    if file.filename == '':
+        flash('No file selected!', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    if not file.filename.endswith('.pdf'):
+        flash('Invalid file format! Please upload a PDF file', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    try:
+        pdf_data = file.read()
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            UPDATE purchase_orders SET vat_invoice_pdf = ? WHERE po_number = ?
+        """, (pdf_data, po_number))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('VAT Invoice uploaded successfully!', 'success')
+    except Exception as e:
+        flash(f'Error uploading VAT Invoice: {str(e)}', 'danger')
+    
+    return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/download_vat_invoice/<po_number>')
+@login_required
+def download_vat_invoice(po_number):
+    """Download VAT Invoice PDF"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT vat_invoice_pdf FROM purchase_orders WHERE po_number = ?", (po_number,))
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result and result['vat_invoice_pdf']:
+        from io import BytesIO
+        output = BytesIO(result['vat_invoice_pdf'])
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'VAT_Invoice_{po_number}.pdf'
+        )
+    else:
+        flash('VAT Invoice not found!', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/add_po_delivery_note/<po_number>', methods=['POST'])
+@login_required
+def add_po_delivery_note(po_number):
+    """Add delivery note with optional PDF"""
+    status = request.form.get('status', '').strip()
+    expected_delivery = request.form.get('expected_delivery', '').strip()
+    notes = request.form.get('notes', '').strip()
+    
+    if not status:
+        flash('Delivery status is required!', 'danger')
+        return redirect(url_for('po_profile', po_number=po_number))
+    
+    delivery_note_pdf = None
+    if 'delivery_note_pdf' in request.files:
+        file = request.files['delivery_note_pdf']
+        if file and file.filename and file.filename.endswith('.pdf'):
+            delivery_note_pdf = file.read()
+    
+    try:
+        from datetime import datetime
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO purchase_order_monitoring 
+            (po_number, status, expected_delivery, notes, delivery_note, registration_date, order_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (po_number, status, expected_delivery or None, notes, delivery_note_pdf,
+              datetime.now().strftime('%Y-%m-%d %H:%M:%S'), datetime.now().strftime('%Y-%m-%d')))
+        
+        conn.commit()
+        conn.close()
+        
+        flash('Delivery note added successfully!', 'success')
+    except Exception as e:
+        flash(f'Error adding delivery note: {str(e)}', 'danger')
+    
+    return redirect(url_for('po_profile', po_number=po_number))
+
 
 ##############333
 @app.route('/request_po', methods=['GET', 'POST'])
