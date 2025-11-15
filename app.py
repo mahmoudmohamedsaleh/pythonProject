@@ -7385,6 +7385,7 @@ def register_po():
 @permission_required('view_po_status')
 def view_po_status():
     conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row  # Enable named field access
     c = conn.cursor()
 
     # Fetch distinct presale engineers using JOIN
@@ -7410,13 +7411,21 @@ def view_po_status():
         JOIN distributors d ON po.distributor = d.id
     ''')
     distributors = c.fetchall()
+    
     # Fetch distinct project names
     c.execute('''
-            SELECT DISTINCT rp.id, rp.project_name
-            FROM purchase_orders po
-            JOIN register_project rp ON po.project_name = rp.id
-        ''')
-    projects = c.fetchall()  # Fetch distinct project names
+        SELECT DISTINCT rp.id, rp.project_name
+        FROM purchase_orders po
+        JOIN register_project rp ON po.project_name = rp.id
+    ''')
+    projects = c.fetchall()
+    
+    # Fetch ALL vendors and distributors for inline editing dropdowns
+    c.execute('SELECT id, name FROM vendors ORDER BY name')
+    all_vendors = c.fetchall()
+    
+    c.execute('SELECT id, name FROM distributors ORDER BY name')
+    all_distributors = c.fetchall()
 
     # Initialize filters
     presale_engineer_filter = request.form.get('presale_engineer', '')
@@ -7426,13 +7435,63 @@ def view_po_status():
     po_approval_status_filter = request.form.get('po_approval_status', '')
     project_name_filter = request.form.get('project_name', '')
 
-    # Build the query based on filters with JOIN
+    # Calculate statistics with filters applied
+    stats_query = '''
+    SELECT 
+        COUNT(*) as total_pos,
+        SUM(CASE WHEN po.po_approval_status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
+        SUM(CASE WHEN po.po_approval_status = 'Pending' THEN 1 ELSE 0 END) as pending_count,
+        SUM(CASE WHEN po.po_approval_status = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
+        SUM(CASE WHEN po.po_delivery_status LIKE '%Delivered%' THEN 1 ELSE 0 END) as delivered_count,
+        SUM(CASE WHEN po.po_delivery_status = 'Order Placed' THEN 1 ELSE 0 END) as in_progress_count,
+        COALESCE(SUM(po.total_amount), 0) as total_amount,
+        COALESCE(AVG(po.total_amount), 0) as avg_amount
+    FROM purchase_orders po
+    JOIN register_project rp ON po.project_name = rp.id
+    JOIN distributors d ON po.distributor = d.id
+    JOIN engineers eng ON po.presale_engineer = eng.id
+    JOIN engineers pmeng ON po.project_manager = pmeng.id
+    WHERE 1=1
+    '''
+    stats_params = []
+    
+    if presale_engineer_filter:
+        stats_query += " AND eng.username = ?"
+        stats_params.append(presale_engineer_filter)
+    
+    if project_manager_filter:
+        stats_query += " AND pmeng.username = ?"
+        stats_params.append(project_manager_filter)
+    
+    if distributor_filter:
+        stats_query += " AND d.name = ?"
+        stats_params.append(distributor_filter)
+    
+    if po_delivery_status_filter:
+        stats_query += " AND po.po_delivery_status = ?"
+        stats_params.append(po_delivery_status_filter)
+    
+    if po_approval_status_filter:
+        stats_query += " AND po.po_approval_status = ?"
+        stats_params.append(po_approval_status_filter)
+        
+    if project_name_filter:
+        stats_query += " AND rp.id = ?"
+        stats_params.append(project_name_filter)
+    
+    c.execute(stats_query, stats_params)
+    stats = c.fetchone()
+
+    # Build the main query with vendor information
     query = '''
     SELECT 
-        po.id AS po_id, 
+        po.id AS po_id,
         po.po_request_number, 
         rp.project_name, 
-        d.name AS distributor_name, 
+        d.id AS distributor_id,
+        d.name AS distributor_name,
+        v.id AS vendor_id,
+        v.name AS vendor_name,
         po.po_approval_status, 
         po.po_delivery_status, 
         eng.username AS presale_engineer_name,
@@ -7441,10 +7500,14 @@ def view_po_status():
         po.po_notes_vendor,
         po.po_notes_client,
         po.total_amount,
-         po.system
+        po.system,
+        po.project_name AS project_id,
+        po.presale_engineer AS presale_engineer_id,
+        po.project_manager AS project_manager_id
     FROM purchase_orders po
     JOIN register_project rp ON po.project_name = rp.id
     JOIN distributors d ON po.distributor = d.id
+    LEFT JOIN vendors v ON po.vendor = v.id
     JOIN engineers eng ON po.presale_engineer = eng.id
     JOIN engineers pmeng ON po.project_manager = pmeng.id
     WHERE 1=1
@@ -7452,15 +7515,15 @@ def view_po_status():
     params = []
 
     if presale_engineer_filter:
-        query += " AND presale_engineer_name = ?"
+        query += " AND eng.username = ?"
         params.append(presale_engineer_filter)
 
     if project_manager_filter:
-        query += " AND project_manager_name = ?"
+        query += " AND pmeng.username = ?"
         params.append(project_manager_filter)
 
     if distributor_filter:
-        query += " AND distributor_name = ?"
+        query += " AND d.name = ?"
         params.append(distributor_filter)
 
     if po_delivery_status_filter:
@@ -7470,9 +7533,12 @@ def view_po_status():
     if po_approval_status_filter:
         query += " AND po.po_approval_status = ?"
         params.append(po_approval_status_filter)
+        
     if project_name_filter:
         query += " AND rp.id = ?"
         params.append(project_name_filter)
+    
+    query += " ORDER BY po.id DESC"
 
     c.execute(query, params)
     purchase_orders = c.fetchall()
@@ -7483,8 +7549,11 @@ def view_po_status():
                            presale_engineers=presale_engineers,
                            project_managers=project_managers,
                            distributors=distributors,
-                           projects=projects,  # Pass projects to the template
-                           project_name_filter=project_name_filter,  # Pass the filter value
+                           projects=projects,
+                           all_vendors=all_vendors,
+                           all_distributors=all_distributors,
+                           stats=stats,
+                           project_name_filter=project_name_filter,
                            presale_engineer_filter=presale_engineer_filter,
                            project_manager_filter=project_manager_filter,
                            distributor_filter=distributor_filter,
@@ -7852,6 +7921,72 @@ def download_distributor_pos_excel(distributor_id):
     filename = f'{safe_distributor_name}_Purchase_Orders.xlsx'
     
     return send_file(output, download_name=filename, as_attachment=True)
+
+##########################
+# Inline Edit PO Field
+##########################
+@app.route('/update_po_field', methods=['POST'])
+@login_required
+def update_po_field():
+    """Handle inline editing of PO fields from view_po_status page"""
+    try:
+        data = request.get_json()
+        po_id = data.get('po_id')
+        field = data.get('field')
+        value = data.get('value')
+        
+        if not po_id or not field:
+            return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        # Map frontend field names to database columns
+        field_mapping = {
+            'vendor': 'vendor',
+            'distributor': 'distributor',
+            'delivery_status': 'po_delivery_status'
+        }
+        
+        if field not in field_mapping:
+            return jsonify({'success': False, 'message': 'Invalid field'}), 400
+        
+        db_field = field_mapping[field]
+        
+        # Handle empty vendor (optional field)
+        if field == 'vendor' and value == '':
+            value = None
+        
+        # Validate required fields
+        if field in ['distributor', 'delivery_status'] and not value:
+            return jsonify({'success': False, 'message': f'{field.replace("_", " ").title()} is required'}), 400
+        
+        # Validate foreign keys exist
+        if field == 'vendor' and value:
+            c.execute("SELECT id FROM vendors WHERE id = ?", (value,))
+            if not c.fetchone():
+                return jsonify({'success': False, 'message': 'Invalid vendor'}), 400
+        
+        if field == 'distributor':
+            c.execute("SELECT id FROM distributors WHERE id = ?", (value,))
+            if not c.fetchone():
+                return jsonify({'success': False, 'message': 'Invalid distributor'}), 400
+        
+        # Update the field
+        query = f"UPDATE purchase_orders SET {db_field} = ? WHERE id = ?"
+        c.execute(query, (value, po_id))
+        conn.commit()
+        
+        if c.rowcount == 0:
+            conn.close()
+            return jsonify({'success': False, 'message': 'Purchase order not found'}), 404
+        
+        conn.close()
+        return jsonify({'success': True, 'message': 'Updated successfully'}), 200
+        
+    except Exception as e:
+        print(f"Error updating PO field: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 ##########################
 @app.route('/edit_po/<int:po_id>', methods=['GET', 'POST'])
