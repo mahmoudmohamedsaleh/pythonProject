@@ -89,6 +89,11 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - **VAT Management**: Configurable VAT percentage with automatic calculation of VAT amount and total with VAT; inline VAT update form
   - **Financial Summary**: Clear display of subtotal (before VAT), VAT amount, and total with VAT in color-coded stat boxes
   - **PO Items Management**: Complete per-item tracking with add/edit/delete functionality via modals
+  - **Excel Import/Export**: Bulk import/export PO items using Excel files with format: Part Number, Description, Qty, Unit Price, Total, Delivered
+    - **Import Mode**: Upload Excel to bulk add or update items (updates existing items with same Part Number and Description, adds new ones otherwise)
+    - **Export Mode**: Download current PO items to Excel with professional formatting
+    - **Validation**: Comprehensive server-side validation for all fields with user-friendly error messages
+    - **Error Reporting**: Detailed feedback on rows with errors during import
   - **Per-Item Delivery Status**: Track delivery status (Delivered/Partial/Not Delivered) with quantity delivered tracking per item
   - **Item Details**: Part number, description, quantity, unit price, total price, and notes for each item
   - **Delivery Progress**: Visual progress bar and statistics showing delivered, partial, and not delivered items
@@ -98,6 +103,7 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - **Automatic Status Calculation**: Delivery status automatically updated based on quantity delivered vs total quantity
   - **Quick Actions**: View PO document, edit PO, and add delivery notes directly from profile page
   - **Access**: Clicking PO number in Purchase Order Status page now opens the comprehensive PO Profile instead of old follow-up details
+  - **JavaScript Security**: Fixed potential XSS vulnerabilities by using data attributes instead of inline onclick handlers with dynamic content
 
 ### System Design Choices
 - Environment variables are used for configuration.
