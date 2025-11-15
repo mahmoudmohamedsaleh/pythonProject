@@ -1987,8 +1987,8 @@ def quotation_products_dashboard():
             qp.*,
             sq.filename as quotation_filename,
             p.project_name,
-            v.vendor_name as vendor_name,
-            d.distributor_name as distributor_name
+            v.name as vendor_name,
+            d.name as distributor_name
         FROM quotation_products qp
         LEFT JOIN supplier_quotations sq ON qp.supplier_quotation_id = sq.id
         LEFT JOIN projects p ON qp.quote_ref = p.quote_ref
