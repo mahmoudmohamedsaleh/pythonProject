@@ -8360,23 +8360,23 @@ def update_po_vat(po_number):
     return redirect(url_for('po_profile', po_number=po_number))
 
 
-@app.route('/import_po_items_excel/<po_number>', methods=['POST'])
+@app.route('/import_po_items_excel/<po_request_number>', methods=['POST'])
 @login_required
-def import_po_items_excel(po_number):
+def import_po_items_excel(po_request_number):
     """Import PO items from Excel file"""
     if 'excel_file' not in request.files:
         flash('No file uploaded!', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     file = request.files['excel_file']
     
     if file.filename == '':
         flash('No file selected!', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     if not file.filename.endswith('.xlsx'):
         flash('Invalid file format! Please upload an Excel file (.xlsx only)', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     try:
         import openpyxl
@@ -8388,6 +8388,10 @@ def import_po_items_excel(po_number):
         
         conn = sqlite3.connect('ProjectStatus.db')
         cursor = conn.cursor()
+        
+        cursor.execute("SELECT po_number FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
+        result = cursor.fetchone()
+        po_number = result[0] if result and result[0] else po_request_number
         
         cursor.execute("""
             SELECT COALESCE(MAX(item_number), 0) 
@@ -8545,7 +8549,7 @@ def import_po_items_excel(po_number):
     except Exception as e:
         flash(f'Error importing Excel file: {str(e)}', 'danger')
     
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
 @app.route('/export_po_items_excel/<po_number>')
