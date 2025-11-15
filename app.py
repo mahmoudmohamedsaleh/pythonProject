@@ -2719,6 +2719,16 @@ def vendor_detail(vendor_id):
     cursor.execute("SELECT id, username, role FROM users ORDER BY username")
     all_users = cursor.fetchall()
     
+    # Get supplier quotations for this vendor with project names
+    cursor.execute("""
+        SELECT sq.*, rp.project_name
+        FROM supplier_quotations sq
+        LEFT JOIN register_project rp ON sq.quote_ref = rp.quote_ref
+        WHERE sq.vendor_id = ?
+        ORDER BY sq.uploaded_at DESC
+    """, (vendor_id,))
+    supplier_quotations = cursor.fetchall()
+    
     conn.close()
     
     return render_template('vendor_detail.html',
@@ -2730,7 +2740,8 @@ def vendor_detail(vendor_id):
                          purchase_orders=purchase_orders,
                          total_spending=total_spending,
                          activities=activities,
-                         all_users=all_users)
+                         all_users=all_users,
+                         supplier_quotations=supplier_quotations)
 
 
 # Distributor Detail Page
@@ -2829,6 +2840,16 @@ def distributor_detail(distributor_id):
     cursor.execute("SELECT id, username, role FROM users ORDER BY username")
     all_users = cursor.fetchall()
     
+    # Get supplier quotations for this distributor with project names
+    cursor.execute("""
+        SELECT sq.*, rp.project_name
+        FROM supplier_quotations sq
+        LEFT JOIN register_project rp ON sq.quote_ref = rp.quote_ref
+        WHERE sq.distributor_id = ?
+        ORDER BY sq.uploaded_at DESC
+    """, (distributor_id,))
+    supplier_quotations = cursor.fetchall()
+    
     conn.close()
     
     return render_template('distributor_detail.html',
@@ -2841,7 +2862,8 @@ def distributor_detail(distributor_id):
                          purchase_orders=purchase_orders,
                          total_spending=total_spending,
                          activities=activities,
-                         all_users=all_users)
+                         all_users=all_users,
+                         supplier_quotations=supplier_quotations)
 
 
 # Add Contact (Vendor)
