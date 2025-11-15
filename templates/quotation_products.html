@@ -87,97 +87,108 @@
         </div>
     </div>
 
-    <!-- Products Grid -->
+    <!-- Products Table -->
     {% if products %}
     <div class="row">
-        {% for product in products %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100 shadow-sm" style="border-left: 4px solid #667eea;">
-                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                    <h5 class="mb-0">
-                        <i class="fas fa-tag"></i> {{ product['part_number'] }}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted mb-2"><strong>Description:</strong></p>
-                    <p class="mb-3">{{ product['description'] }}</p>
-                    
-                    <div class="row mb-3">
-                        <div class="col-6">
-                            <p class="text-muted mb-1"><i class="fas fa-dollar-sign"></i> <strong>Unit Price</strong></p>
-                            <h4 class="text-success mb-0">
-                                {{ product['currency'] }} {{ "%.2f"|format(product['unit_price']) }}
-                            </h4>
-                        </div>
-                        {% if product['quantity'] %}
-                        <div class="col-6">
-                            <p class="text-muted mb-1"><i class="fas fa-cubes"></i> <strong>Quantity</strong></p>
-                            <h4 class="mb-0">{{ product['quantity'] }}</h4>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <hr>
-                    
-                    <p class="mb-1">
-                        <i class="fas fa-building text-primary"></i> <strong>Supplier:</strong> 
-                        {{ product['supplier_name'] or 'N/A' }}
-                    </p>
-                    
-                    {% if product['system'] %}
-                    <p class="mb-1">
-                        <i class="fas fa-cogs text-info"></i> <strong>System:</strong> 
-                        <span class="badge badge-info">{{ product['system'] }}</span>
-                    </p>
-                    {% endif %}
-                    
-                    {% if product['project_name'] %}
-                    <p class="mb-1">
-                        <i class="fas fa-project-diagram text-warning"></i> <strong>Project:</strong> 
-                        {{ product['project_name'] }}
-                    </p>
-                    {% endif %}
-                    
-                    {% if product['quotation_filename'] %}
-                    <p class="mb-1">
-                        <i class="fas fa-file-pdf text-danger"></i> <strong>From:</strong> 
-                        {{ product['quotation_filename'] }}
-                    </p>
-                    {% endif %}
-                    
-                    {% if product['notes'] %}
-                    <p class="mb-1 mt-2">
-                        <i class="fas fa-sticky-note"></i> <strong>Notes:</strong><br>
-                        <small>{{ product['notes'] }}</small>
-                    </p>
-                    {% endif %}
-                    
-                    <p class="mb-0 mt-2">
-                        <small class="text-muted">
-                            <i class="fas fa-user"></i> Added by {{ product['added_by'] }}
-                            <br>
-                            <i class="fas fa-clock"></i> {{ product['added_at'][:16] if product['added_at'] else 'N/A' }}
-                        </small>
-                    </p>
-                </div>
-                <div class="card-footer bg-light">
-                    <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('download_supplier_quotation', quotation_id=product['supplier_quotation_id'], action='view') }}" 
-                           class="btn btn-sm btn-outline-success" target="_blank" title="View Source Quotation">
-                            <i class="fas fa-eye"></i> View Source
-                        </a>
-                        <form action="{{ url_for('delete_quotation_product', product_id=product['id']) }}" 
-                              method="POST" style="display:inline;" 
-                              onsubmit="return confirm('Delete this product?')">
-                            <button type="submit" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
-                        </form>
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                <tr>
+                                    <th>Part Number</th>
+                                    <th>Description</th>
+                                    <th>Unit Price</th>
+                                    <th>Vendor</th>
+                                    <th>Distributor</th>
+                                    <th>System</th>
+                                    <th>Source</th>
+                                    <th>Added By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>
+                                        <strong class="text-primary">
+                                            <i class="fas fa-tag"></i> {{ product['part_number'] }}
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        {{ product['description'][:80] }}{% if product['description']|length > 80 %}...{% endif %}
+                                        {% if product['notes'] %}
+                                        <br><small class="text-muted"><i class="fas fa-sticky-note"></i> {{ product['notes'][:50] }}{% if product['notes']|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-success font-weight-bold">
+                                            {{ product['currency'] }} {{ "%.2f"|format(product['unit_price']) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if product['vendor_name'] %}
+                                        <span class="badge badge-primary">{{ product['vendor_name'] }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product['distributor_name'] %}
+                                        <span class="badge badge-info">{{ product['distributor_name'] }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product['system'] %}
+                                        <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                            {{ product['system'] }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product['quotation_filename'] %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-file-pdf text-danger"></i> {{ product['quotation_filename'][:25] }}{% if product['quotation_filename']|length > 25 %}...{% endif %}
+                                        </small>
+                                        {% endif %}
+                                        {% if product['project_name'] %}
+                                        <br><small class="text-muted">
+                                            <i class="fas fa-project-diagram text-warning"></i> {{ product['project_name'][:20] }}{% if product['project_name']|length > 20 %}...{% endif %}
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <i class="fas fa-user"></i> {{ product['added_by'] }}
+                                            <br><i class="fas fa-clock"></i> {{ product['added_at'][:10] if product['added_at'] else 'N/A' }}
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=product['supplier_quotation_id'], action='view') }}" 
+                                           class="btn btn-sm btn-outline-success" target="_blank" title="View Source Quotation">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <form action="{{ url_for('delete_quotation_product', product_id=product['id']) }}" 
+                                              method="POST" style="display:inline;" 
+                                              onsubmit="return confirm('Delete this product?')">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Product">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
     {% else %}
     <div class="row">
@@ -187,7 +198,7 @@
                     <i class="fas fa-box-open fa-5x text-muted mb-3"></i>
                     <h4 class="text-muted">No Products Found</h4>
                     <p class="text-muted">
-                        {% if search_query or supplier_filter or system_filter %}
+                        {% if search_query or supplier_filter or system_filter or start_date or end_date %}
                         No products match your filter criteria. Try adjusting your filters.
                         {% else %}
                         No products have been added from supplier quotations yet.
