@@ -8038,8 +8038,8 @@ def po_profile(po_number):
             v.name as vendor_name,
             e.name as presale_engineer_name
         FROM purchase_orders po
-        LEFT JOIN distributors d ON po.distributor_id = d.id
-        LEFT JOIN vendors v ON po.vendor_id = v.id
+        LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
+        LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
         LEFT JOIN engineers e ON po.presale_engineer = e.username
         WHERE po.po_number = ?
     """, (po_number,))
