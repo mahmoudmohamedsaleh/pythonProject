@@ -343,6 +343,9 @@
                                         <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id'], action='download') }}" class="btn btn-sm btn-outline-primary" title="Download PDF">
                                             <i class="fas fa-download"></i> Download
                                         </a>
+                                        <button type="button" class="btn btn-sm btn-outline-warning" title="Add Product from this Quotation" data-toggle="modal" data-target="#addProductModal{{ sq['id'] }}">
+                                            <i class="fas fa-box-open"></i> Add Product
+                                        </button>
                                         <a href="{{ url_for('request_po_from_supplier_quotation', quotation_id=sq['id']) }}" class="btn btn-sm btn-outline-info" title="Request PO from this Supplier Quotation">
                                             <i class="fas fa-clipboard-list"></i> Request PO
                                         </a>
@@ -658,6 +661,92 @@
         </div>
     </div>
 </div>
+
+<!-- Add Product Modals for each Supplier Quotation -->
+{% for sq in supplier_quotations %}
+<div class="modal fade" id="addProductModal{{ sq['id'] }}" tabindex="-1" role="dialog" aria-labelledby="addProductModalLabel{{ sq['id'] }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="addProductModalLabel{{ sq['id'] }}">
+                    <i class="fas fa-box-open"></i> Add Product from Quotation
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="{{ url_for('add_product_from_quotation', quotation_id=sq['id']) }}" method="POST">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> <strong>Source Quotation:</strong> {{ sq['filename'] }}
+                        <br>
+                        <small>View the PDF to extract product details and enter them below</small>
+                        <br>
+                        <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id'], action='view') }}" 
+                           class="btn btn-sm btn-outline-primary mt-2" target="_blank">
+                            <i class="fas fa-eye"></i> Open PDF in New Tab
+                        </a>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="part_number{{ sq['id'] }}"><strong>Part Number (P/N) <span class="text-danger">*</span></strong></label>
+                                <input type="text" class="form-control" id="part_number{{ sq['id'] }}" name="part_number" required placeholder="e.g., DS-2CD2143G0-I">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="unit_price{{ sq['id'] }}"><strong>Unit Price <span class="text-danger">*</span></strong></label>
+                                <input type="number" step="0.01" class="form-control" id="unit_price{{ sq['id'] }}" name="unit_price" required placeholder="e.g., 125.50">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description{{ sq['id'] }}"><strong>Description <span class="text-danger">*</span></strong></label>
+                        <textarea class="form-control" id="description{{ sq['id'] }}" name="description" rows="3" required placeholder="e.g., 4 MP WDR Fixed Dome Network Camera"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="quantity{{ sq['id'] }}"><strong>Quantity (Optional)</strong></label>
+                                <input type="number" class="form-control" id="quantity{{ sq['id'] }}" name="quantity" placeholder="e.g., 10">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="currency{{ sq['id'] }}"><strong>Currency</strong></label>
+                                <select class="form-control" id="currency{{ sq['id'] }}" name="currency">
+                                    <option value="USD" selected>USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="GBP">GBP</option>
+                                    <option value="AED">AED</option>
+                                    <option value="SAR">SAR</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="notes{{ sq['id'] }}"><strong>Notes (Optional)</strong></label>
+                        <textarea class="form-control" id="notes{{ sq['id'] }}" name="notes" rows="2" placeholder="Any additional notes about this product..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Add Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <!-- JavaScript for Show All functionality -->
 <script>

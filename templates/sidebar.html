@@ -150,6 +150,7 @@
             <li class="menu-header">SRM</li>
             <li class="nav-item"><a href="{{ url_for('show_vendors') }}" class="{{ 'active' if 'vendor' in request.endpoint else '' }}"><i class="fas fa-store"></i> Vendors</a></li>
             <li class="nav-item"><a href="{{ url_for('show_distributors') }}" class="{{ 'active' if 'distributor' in request.endpoint else '' }}"><i class="fas fa-truck"></i> Distributors</a></li>
+            <li class="nav-item"><a href="{{ url_for('quotation_products_dashboard') }}" class="{{ 'active' if 'quotation_products' in request.endpoint else '' }}"><i class="fas fa-box-open"></i> Quotation Products</a></li>
 
             <li class="menu-header">Registration</li>
             <li class="nav-item"><a href="{{ url_for('registration_page') }}" class="{{ 'active' if 'registration_page' in request.endpoint else '' }}"><i class="fas fa-plus-circle"></i> Registration Hub</a></li>

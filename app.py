@@ -649,6 +649,32 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # Quotation Products table for storing products extracted from supplier quotations
+    c.execute('''CREATE TABLE IF NOT EXISTS quotation_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            supplier_quotation_id INTEGER NOT NULL,
+            part_number TEXT NOT NULL,
+            description TEXT NOT NULL,
+            unit_price REAL NOT NULL,
+            quantity INTEGER,
+            currency TEXT DEFAULT 'USD',
+            notes TEXT,
+            quote_ref TEXT,
+            supplier_name TEXT,
+            supplier_type TEXT,
+            system TEXT,
+            added_by TEXT NOT NULL,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (supplier_quotation_id) REFERENCES supplier_quotations(id) ON DELETE CASCADE,
+            FOREIGN KEY (quote_ref) REFERENCES projects(quote_ref)
+        )''')
+    
+    # Create indexes for quotation_products table
+    c.execute('CREATE INDEX IF NOT EXISTS idx_quotation_products_supplier_quotation ON quotation_products(supplier_quotation_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_quotation_products_part_number ON quotation_products(part_number)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_quotation_products_quote_ref ON quotation_products(quote_ref)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_quotation_products_added_at ON quotation_products(added_at)')
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
@@ -1858,6 +1884,189 @@ def download_supplier_quotation(quotation_id):
     except Exception as e:
         flash(f'Error accessing supplier quotation: {str(e)}', 'danger')
         return redirect(request.referrer or url_for('index'))
+
+
+# Add Product from Supplier Quotation
+@app.route('/add_product_from_quotation/<int:quotation_id>', methods=['POST'])
+@login_required
+def add_product_from_quotation(quotation_id):
+    """Add a product extracted from a supplier quotation"""
+    try:
+        part_number = request.form.get('part_number', '').strip()
+        description = request.form.get('description', '').strip()
+        unit_price = request.form.get('unit_price', '').strip()
+        quantity = request.form.get('quantity', '').strip()
+        currency = request.form.get('currency', 'USD').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        # Validate required fields
+        if not part_number or not description or not unit_price:
+            flash('Part Number, Description, and Unit Price are required!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        # Validate unit price is a number
+        try:
+            unit_price_float = float(unit_price)
+        except ValueError:
+            flash('Unit Price must be a valid number!', 'danger')
+            return redirect(request.referrer or url_for('index'))
+        
+        # Validate quantity if provided
+        quantity_int = None
+        if quantity:
+            try:
+                quantity_int = int(quantity)
+            except ValueError:
+                flash('Quantity must be a valid integer!', 'danger')
+                return redirect(request.referrer or url_for('index'))
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get supplier quotation details for metadata
+        cursor.execute("""
+            SELECT quote_ref, distributor_name, vendor_name, system 
+            FROM supplier_quotations 
+            WHERE id = ?
+        """, (quotation_id,))
+        quotation = cursor.fetchone()
+        
+        if not quotation:
+            flash('Supplier quotation not found!', 'danger')
+            conn.close()
+            return redirect(request.referrer or url_for('index'))
+        
+        # Determine supplier name and type
+        supplier_name = quotation['distributor_name'] or quotation['vendor_name'] or 'Unknown'
+        supplier_type = 'distributor' if quotation['distributor_name'] else 'vendor'
+        
+        # Insert the product
+        cursor.execute("""
+            INSERT INTO quotation_products 
+            (supplier_quotation_id, part_number, description, unit_price, quantity, 
+             currency, notes, quote_ref, supplier_name, supplier_type, system, added_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (quotation_id, part_number, description, unit_price_float, quantity_int,
+              currency, notes, quotation['quote_ref'], supplier_name, supplier_type,
+              quotation['system'], session.get('username')))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Product "{part_number}" added successfully!', 'success')
+        return redirect(request.referrer or url_for('index'))
+        
+    except Exception as e:
+        flash(f'Error adding product: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('index'))
+
+
+# Quotation Products Dashboard
+@app.route('/quotation_products')
+@login_required
+def quotation_products_dashboard():
+    """Dashboard showing all products extracted from supplier quotations"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get filter parameters
+    search_query = request.args.get('search_query', '').strip()
+    supplier_filter = request.args.get('supplier_filter', '').strip()
+    system_filter = request.args.get('system_filter', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+    
+    # Build the query with filters
+    query = """
+        SELECT 
+            qp.*,
+            sq.filename as quotation_filename,
+            p.project_name
+        FROM quotation_products qp
+        LEFT JOIN supplier_quotations sq ON qp.supplier_quotation_id = sq.id
+        LEFT JOIN projects p ON qp.quote_ref = p.quote_ref
+        WHERE 1=1
+    """
+    params = []
+    
+    if search_query:
+        query += " AND (qp.part_number LIKE ? OR qp.description LIKE ?)"
+        params.extend([f'%{search_query}%', f'%{search_query}%'])
+    
+    if supplier_filter:
+        query += " AND qp.supplier_name LIKE ?"
+        params.append(f'%{supplier_filter}%')
+    
+    if system_filter:
+        query += " AND qp.system = ?"
+        params.append(system_filter)
+    
+    # Date range filtering
+    if start_date:
+        query += " AND DATE(qp.added_at) >= ?"
+        params.append(start_date)
+    
+    if end_date:
+        query += " AND DATE(qp.added_at) <= ?"
+        params.append(end_date)
+    
+    query += " ORDER BY qp.added_at DESC"
+    
+    cursor.execute(query, params)
+    products = cursor.fetchall()
+    
+    # Get unique suppliers for filter dropdown
+    cursor.execute("""
+        SELECT DISTINCT supplier_name 
+        FROM quotation_products 
+        WHERE supplier_name IS NOT NULL
+        ORDER BY supplier_name
+    """)
+    suppliers = [row['supplier_name'] for row in cursor.fetchall()]
+    
+    # Get unique systems for filter dropdown
+    cursor.execute("""
+        SELECT DISTINCT system 
+        FROM quotation_products 
+        WHERE system IS NOT NULL AND system != ''
+        ORDER BY system
+    """)
+    systems = [row['system'] for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    return render_template('quotation_products.html',
+                         products=products,
+                         suppliers=suppliers,
+                         systems=systems,
+                         search_query=search_query,
+                         supplier_filter=supplier_filter,
+                         system_filter=system_filter,
+                         start_date=start_date,
+                         end_date=end_date)
+
+
+# Delete Product
+@app.route('/delete_quotation_product/<int:product_id>', methods=['POST'])
+@login_required
+def delete_quotation_product(product_id):
+    """Delete a product from quotation products"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM quotation_products WHERE id = ?", (product_id,))
+        conn.commit()
+        conn.close()
+        
+        flash('Product deleted successfully!', 'success')
+    except Exception as e:
+        flash(f'Error deleting product: {str(e)}', 'danger')
+    
+    return redirect(request.referrer or url_for('quotation_products_dashboard'))
+
 
 ###################
 @app.route('/download_files', methods=['GET', 'POST'])
