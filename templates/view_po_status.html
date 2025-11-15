@@ -156,7 +156,7 @@
                     {% for order in purchase_orders %}
                     <tr>
                         <td>{{ order[1] }}</td>
-                        <td><a href="{{ url_for('po_profile', po_number=order[8]) }}" class="btn btn-outline-primary btn-sm">{{ order[8] }}</a></td>
+                        <td>{{ order[8] }}</td>
                          <td>{{ order[2] }}</td>
                         <td>{{ order[12] }}</td>
                         <td>{{ order[3] }}</td>
@@ -179,11 +179,14 @@
                         <td>{{ order[7] }}</td>
                         <td>{{ "{:,.2f}".format(order[11]) }}</td>
                         <td class="action-buttons">
-                            <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='po_document') }}" target="_blank" class="btn btn-info btn-sm" title="Show PO">
+                            <a href="{{ url_for('po_profile', po_request_number=order[1]) }}" class="btn btn-success btn-sm" title="View PO Profile">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='quotation') }}" target="_blank" class="btn btn-secondary btn-sm" title="Show Quotation">
+                            <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='po_document') }}" target="_blank" class="btn btn-info btn-sm" title="Show PO">
                                 <i class="fas fa-file-alt"></i>
+                            </a>
+                            <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='quotation') }}" target="_blank" class="btn btn-secondary btn-sm" title="Show Quotation">
+                                <i class="fas fa-file-invoice"></i>
                             </a>
                             <a href="{{ url_for('edit_po', po_id=order[0]) }}" class="btn btn-warning btn-sm" title="Edit PO"><i class="fas fa-edit"></i></a>
                             <button class="btn btn-primary btn-sm" title="Comments" onclick="openCommentModal({{ order[0] }}, '{{ order[8] }}')">

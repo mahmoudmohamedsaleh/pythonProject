@@ -8023,9 +8023,9 @@ def view_po_details(po_number):
                            po_number=po_number,
                            total_amount=total_amount)
 
-@app.route('/po_profile/<po_number>', methods=['GET'])
+@app.route('/po_profile/<po_request_number>', methods=['GET'])
 @login_required
-def po_profile(po_number):
+def po_profile(po_request_number):
     """Comprehensive PO Profile page with delivery tracking"""
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -8041,14 +8041,16 @@ def po_profile(po_number):
         LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
         LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
         LEFT JOIN engineers e ON po.presale_engineer = e.username
-        WHERE po.po_number = ?
-    """, (po_number,))
+        WHERE po.po_request_number = ?
+    """, (po_request_number,))
     po = cursor.fetchone()
     
     if not po:
         flash('Purchase Order not found!', 'danger')
         conn.close()
         return redirect(url_for('view_po_status'))
+    
+    po_number = po['po_number']
     
     cursor.execute("""
         SELECT * FROM po_items 
