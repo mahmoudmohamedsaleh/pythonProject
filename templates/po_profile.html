@@ -608,7 +608,7 @@
                 <h5 class="modal-title"><i class="fas fa-file-upload mr-2"></i>Import Items from Excel</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
-            <form method="POST" action="{{ url_for('import_po_items_excel', po_number=po_number) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('import_po_items_excel', po_request_number=po_request_number) }}" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <strong><i class="fas fa-info-circle mr-1"></i>Excel Format Requirements:</strong>
