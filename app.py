@@ -8022,6 +8022,323 @@ def view_po_details(po_number):
                            purchase_order_details=purchase_order_details,
                            po_number=po_number,
                            total_amount=total_amount)
+
+@app.route('/po_profile/<po_number>', methods=['GET'])
+@login_required
+def po_profile(po_number):
+    """Comprehensive PO Profile page with delivery tracking"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT * FROM purchase_orders WHERE po_number = ?
+    """, (po_number,))
+    po = cursor.fetchone()
+    
+    if not po:
+        flash('Purchase Order not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_po_status'))
+    
+    cursor.execute("""
+        SELECT * FROM po_items 
+        WHERE po_number = ? 
+        ORDER BY item_number ASC
+    """, (po_number,))
+    po_items = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT * FROM purchase_order_monitoring 
+        WHERE po_number = ? 
+        ORDER BY order_date DESC
+    """, (po_number,))
+    delivery_notes = cursor.fetchall()
+    
+    delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
+    partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
+    not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
+    
+    conn.close()
+    
+    return render_template('po_profile.html',
+                           po=po,
+                           po_number=po_number,
+                           po_items=po_items,
+                           delivery_notes=delivery_notes,
+                           delivered_count=delivered_count,
+                           partial_count=partial_count,
+                           not_delivered_count=not_delivered_count)
+
+
+@app.route('/add_po_item/<po_number>', methods=['POST'])
+@login_required
+def add_po_item(po_number):
+    """Add new item to PO with comprehensive validation"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    try:
+        part_number = request.form.get('part_number', '').strip()
+        
+        description = request.form.get('description', '').strip()
+        if not description:
+            flash('Description is required!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        quantity_str = request.form.get('quantity', '').strip()
+        if not quantity_str:
+            flash('Quantity is required!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        try:
+            quantity = float(quantity_str)
+            if quantity <= 0:
+                flash('Quantity must be greater than zero!', 'danger')
+                conn.close()
+                return redirect(url_for('po_profile', po_number=po_number))
+        except (ValueError, TypeError):
+            flash('Invalid quantity value!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        unit_price_str = request.form.get('unit_price', '0').strip()
+        try:
+            unit_price = float(unit_price_str) if unit_price_str else 0
+            if unit_price < 0:
+                flash('Unit price cannot be negative!', 'danger')
+                conn.close()
+                return redirect(url_for('po_profile', po_number=po_number))
+        except (ValueError, TypeError):
+            flash('Invalid unit price value!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        total_price_str = request.form.get('total_price', '0').strip()
+        try:
+            total_price = float(total_price_str) if total_price_str else 0
+            if total_price < 0:
+                flash('Total price cannot be negative!', 'danger')
+                conn.close()
+                return redirect(url_for('po_profile', po_number=po_number))
+        except (ValueError, TypeError):
+            flash('Invalid total price value!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        if total_price == 0 and unit_price > 0:
+            total_price = quantity * unit_price
+        
+        notes = request.form.get('notes', '').strip()
+        
+        cursor.execute("""
+            SELECT COALESCE(MAX(item_number), 0) + 1 
+            FROM po_items 
+            WHERE po_number = ?
+        """, (po_number,))
+        next_item_number = cursor.fetchone()[0]
+        
+        cursor.execute("""
+            INSERT INTO po_items (
+                po_number, item_number, part_number, description, 
+                quantity, unit_price, total_price, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (po_number, next_item_number, part_number, description, 
+              quantity, unit_price, total_price, notes))
+        
+        conn.commit()
+        flash('Item added successfully!', 'success')
+        
+    except KeyError as e:
+        flash(f'Missing required field: {str(e)}', 'danger')
+    except Exception as e:
+        flash(f'Error adding item: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/edit_po_item/<int:item_id>', methods=['POST'])
+@login_required
+def edit_po_item(item_id):
+    """Edit existing PO item with comprehensive validation"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT po_number FROM po_items WHERE id = ?", (item_id,))
+    result = cursor.fetchone()
+    
+    if not result:
+        flash('Item not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_po_status'))
+    
+    po_number = result['po_number']
+    
+    try:
+        part_number = request.form.get('part_number', '').strip()
+        
+        description = request.form.get('description', '').strip()
+        if not description:
+            flash('Description is required!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        quantity_str = request.form.get('quantity', '').strip()
+        if not quantity_str:
+            flash('Quantity is required!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        try:
+            quantity = float(quantity_str)
+            if quantity <= 0:
+                flash('Quantity must be greater than zero!', 'danger')
+                conn.close()
+                return redirect(url_for('po_profile', po_number=po_number))
+        except (ValueError, TypeError):
+            flash('Invalid quantity value!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        unit_price_str = request.form.get('unit_price', '0').strip()
+        try:
+            unit_price = float(unit_price_str) if unit_price_str else 0
+            if unit_price < 0:
+                flash('Unit price cannot be negative!', 'danger')
+                conn.close()
+                return redirect(url_for('po_profile', po_number=po_number))
+        except (ValueError, TypeError):
+            flash('Invalid unit price value!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        quantity_delivered_str = request.form.get('quantity_delivered', '0').strip()
+        try:
+            quantity_delivered = float(quantity_delivered_str) if quantity_delivered_str else 0
+            if quantity_delivered < 0:
+                flash('Quantity delivered cannot be negative!', 'danger')
+                conn.close()
+                return redirect(url_for('po_profile', po_number=po_number))
+        except (ValueError, TypeError):
+            flash('Invalid quantity delivered value!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        delivery_status = request.form.get('delivery_status', 'Not Delivered')
+        if delivery_status not in ['Not Delivered', 'Partial', 'Delivered']:
+            flash('Invalid delivery status!', 'danger')
+            conn.close()
+            return redirect(url_for('po_profile', po_number=po_number))
+        
+        delivery_date = request.form.get('delivery_date', '').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        total_price = quantity * unit_price if unit_price > 0 else 0
+        
+        if quantity_delivered >= quantity:
+            delivery_status = 'Delivered'
+        elif quantity_delivered > 0:
+            delivery_status = 'Partial'
+        else:
+            delivery_status = 'Not Delivered'
+        
+        cursor.execute("""
+            UPDATE po_items SET
+                part_number = ?,
+                description = ?,
+                quantity = ?,
+                unit_price = ?,
+                total_price = ?,
+                quantity_delivered = ?,
+                delivery_status = ?,
+                delivery_date = ?,
+                notes = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (part_number, description, quantity, unit_price, total_price,
+              quantity_delivered, delivery_status, delivery_date or None, notes, item_id))
+        
+        conn.commit()
+        flash('Item updated successfully!', 'success')
+        
+    except KeyError as e:
+        flash(f'Missing required field: {str(e)}', 'danger')
+    except Exception as e:
+        flash(f'Error updating item: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/delete_po_item/<int:item_id>', methods=['POST'])
+@login_required
+def delete_po_item(item_id):
+    """Delete PO item"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT po_number FROM po_items WHERE id = ?", (item_id,))
+    result = cursor.fetchone()
+    
+    if not result:
+        flash('Item not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_po_status'))
+    
+    po_number = result['po_number']
+    
+    cursor.execute("DELETE FROM po_items WHERE id = ?", (item_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Item deleted successfully!', 'success')
+    return redirect(url_for('po_profile', po_number=po_number))
+
+
+@app.route('/update_po_vat/<po_number>', methods=['POST'])
+@login_required
+def update_po_vat(po_number):
+    """Update VAT percentage for PO"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    vat_percentage = float(request.form['vat_percentage'])
+    
+    cursor.execute("SELECT total_amount FROM purchase_orders WHERE po_number = ?", (po_number,))
+    result = cursor.fetchone()
+    
+    if not result:
+        flash('Purchase Order not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_po_status'))
+    
+    total_amount = result['total_amount']
+    vat_amount = total_amount * (vat_percentage / 100)
+    total_with_vat = total_amount + vat_amount
+    
+    cursor.execute("""
+        UPDATE purchase_orders SET
+            vat_percentage = ?,
+            vat_amount = ?,
+            total_with_vat = ?
+        WHERE po_number = ?
+    """, (vat_percentage, vat_amount, total_with_vat, po_number))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'VAT updated to {vat_percentage}%!', 'success')
+    return redirect(url_for('po_profile', po_number=po_number))
+
 ##############333
 @app.route('/request_po', methods=['GET', 'POST'])
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
