@@ -119,6 +119,7 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - **Database JOINs**: Proper display of project names and presale engineer usernames (not IDs)
   - **Query Updates**: Engineers fetched using username instead of ID for proper selection
   - **Template Modernization**: All purchase_order references updated from index-based (purchase_order[n]) to named access (purchase_order['field_name'])
+  - **"Add New..." Buttons**: Added quick-access buttons for creating new projects, vendors, and distributors directly from Edit PO page, matching Register PO functionality
 
 ### System Design Choices
 - Environment variables are used for configuration.
