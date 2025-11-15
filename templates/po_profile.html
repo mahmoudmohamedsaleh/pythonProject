@@ -130,6 +130,7 @@
 <div class="mb-3">
     <a href="{{ url_for('view_po_status') }}" class="btn btn-secondary"><i class="fas fa-arrow-left mr-2"></i>Back to PO List</a>
     <a href="{{ url_for('view_po_document', po_id=po.id, doc_type='po_document') }}" target="_blank" class="btn btn-info"><i class="fas fa-file-pdf mr-2"></i>View PO Document</a>
+    <a href="{{ url_for('view_po_document', po_id=po.id, doc_type='quotation') }}" target="_blank" class="btn btn-success"><i class="fas fa-file-invoice mr-2"></i>View Quotation Document</a>
     <a href="{{ url_for('edit_po', po_id=po.id) }}" class="btn btn-warning"><i class="fas fa-edit mr-2"></i>Edit PO</a>
 </div>
 
@@ -361,9 +362,6 @@
                 {% else %}
                 <p class="text-muted text-center">No delivery notes recorded yet.</p>
                 {% endif %}
-                <a href="{{ url_for('register_po_follow_up', po_number=po_number, total_amount=po.total_amount) }}" class="btn btn-primary btn-block mt-3">
-                    <i class="fas fa-plus mr-2"></i>Add Delivery Note
-                </a>
             </div>
         </div>
     </div>
