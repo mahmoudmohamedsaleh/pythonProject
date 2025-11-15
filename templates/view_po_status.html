@@ -156,7 +156,7 @@
                     {% for order in purchase_orders %}
                     <tr>
                         <td>{{ order[1] }}</td>
-                        <td><a href="{{ url_for('view_po_details', po_number=order[8]) }}" class="btn btn-outline-primary btn-sm">{{ order[8] }}</a></td>
+                        <td><a href="{{ url_for('po_profile', po_number=order[8]) }}" class="btn btn-outline-primary btn-sm">{{ order[8] }}</a></td>
                          <td>{{ order[2] }}</td>
                         <td>{{ order[12] }}</td>
                         <td>{{ order[3] }}</td>

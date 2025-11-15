@@ -75,15 +75,29 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - Removed "Request PO" button from Quotations section (moved to Supplier Quotations for better workflow)
   - **Cross-entity visibility**: Supplier quotations displayed in Vendor and Distributor profile pages showing all quotations from that supplier
 - **Quotation Products Catalog**: Comprehensive product extraction and management system for building a reusable product library from supplier quotations. Features include:
-  - Dedicated quotation_products database table with part number, description, unit price, quantity, currency, and supplier metadata
+  - Dedicated quotation_products database table with part number, description, unit price, vendor, distributor, and system metadata
   - **Add Product modal**: Modal form accessible from supplier quotations in Project, Vendor, and Distributor pages with PDF viewer link
-  - **Products Dashboard**: Card-based product catalog with complete product information including P/N, description, price, supplier, system, and source quotation
+  - **Products Dashboard**: Professional table-based product catalog with complete product information including P/N, description, unit price, vendor, distributor, system, and source quotation
   - **Advanced Filtering**: Multi-dimensional filtering by part number/description search, supplier name, system type, and date range (start/end date)
   - **Price Tracking**: Links products to source quotations for price history and supplier comparison
   - **Security**: Parameterized queries, input validation, and authentication-protected routes
   - **Navigation**: Integrated into SRM section of sidebar for easy access
   - **Product Management**: Delete products, view source quotations, and track who added each product
   - Future enhancements: Excel export, price history view, bulk import capabilities
+- **PO Profile System**: Comprehensive purchase order profile pages replacing the old PO Follow-Up Details with modern interface for complete PO lifecycle management. Features include:
+  - **PO Profile Page**: Modern, visually stunning interface with purple gradient header, comprehensive PO information, and responsive layout
+  - **VAT Management**: Configurable VAT percentage with automatic calculation of VAT amount and total with VAT; inline VAT update form
+  - **Financial Summary**: Clear display of subtotal (before VAT), VAT amount, and total with VAT in color-coded stat boxes
+  - **PO Items Management**: Complete per-item tracking with add/edit/delete functionality via modals
+  - **Per-Item Delivery Status**: Track delivery status (Delivered/Partial/Not Delivered) with quantity delivered tracking per item
+  - **Item Details**: Part number, description, quantity, unit price, total price, and notes for each item
+  - **Delivery Progress**: Visual progress bar and statistics showing delivered, partial, and not delivered items
+  - **Delivery Notes History**: Timeline view of all delivery notes from purchase_order_monitoring table
+  - **Contact Information**: Distributor contact details in sidebar for quick reference
+  - **Database Schema**: New po_items table with complete item tracking and new VAT fields in purchase_orders table
+  - **Automatic Status Calculation**: Delivery status automatically updated based on quantity delivered vs total quantity
+  - **Quick Actions**: View PO document, edit PO, and add delivery notes directly from profile page
+  - **Access**: Clicking PO number in Purchase Order Status page now opens the comprehensive PO Profile instead of old follow-up details
 
 ### System Design Choices
 - Environment variables are used for configuration.
