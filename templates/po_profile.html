@@ -226,15 +226,15 @@
                     <h6><strong><i class="fas fa-file-invoice mr-2"></i>VAT Invoice</strong></h6>
                     {% if po.vat_invoice_pdf %}
                     <div class="mb-2">
-                        <a href="{{ url_for('download_vat_invoice', po_number=po_number) }}" class="btn btn-sm btn-success" target="_blank">
+                        <a href="{{ url_for('download_vat_invoice', po_request_number=po_request_number) }}" class="btn btn-sm btn-success" target="_blank">
                             <i class="fas fa-file-pdf mr-1"></i>View VAT Invoice
                         </a>
-                        <a href="{{ url_for('download_vat_invoice', po_number=po_number) }}" class="btn btn-sm btn-info" download>
+                        <a href="{{ url_for('download_vat_invoice', po_request_number=po_request_number) }}" class="btn btn-sm btn-info" download>
                             <i class="fas fa-download mr-1"></i>Download
                         </a>
                     </div>
                     {% endif %}
-                    <form method="POST" action="{{ url_for('upload_vat_invoice', po_number=po_number) }}" enctype="multipart/form-data" class="form-inline">
+                    <form method="POST" action="{{ url_for('upload_vat_invoice', po_request_number=po_request_number) }}" enctype="multipart/form-data" class="form-inline">
                         <label class="mr-2"><strong>Upload VAT Invoice PDF:</strong></label>
                         <input type="file" name="vat_invoice" class="form-control-file mr-2" accept=".pdf" required>
                         <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload mr-1"></i>Upload Invoice</button>
@@ -606,7 +606,7 @@
                 <h5 class="modal-title"><i class="fas fa-truck mr-2"></i>Add Delivery Note</h5>
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
-            <form method="POST" action="{{ url_for('add_po_delivery_note', po_number=po_number) }}" enctype="multipart/form-data">
+            <form method="POST" action="{{ url_for('add_po_delivery_note', po_request_number=po_request_number) }}" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="delivery_status"><strong>Delivery Status <span class="text-danger">*</span></strong></label>

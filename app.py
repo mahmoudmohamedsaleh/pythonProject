@@ -8075,6 +8075,7 @@ def po_profile(po_request_number):
     return render_template('po_profile.html',
                            po=po,
                            po_number=po_number,
+                           po_request_number=po_request_number,
                            po_items=po_items,
                            delivery_notes=delivery_notes,
                            delivered_count=delivered_count,
@@ -8609,23 +8610,23 @@ def export_po_items_excel(po_number):
         return redirect(url_for('po_profile', po_number=po_number))
 
 
-@app.route('/upload_vat_invoice/<po_number>', methods=['POST'])
+@app.route('/upload_vat_invoice/<po_request_number>', methods=['POST'])
 @login_required
-def upload_vat_invoice(po_number):
+def upload_vat_invoice(po_request_number):
     """Upload VAT Invoice PDF for purchase order"""
     if 'vat_invoice' not in request.files:
         flash('No file uploaded!', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     file = request.files['vat_invoice']
     
     if file.filename == '':
         flash('No file selected!', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     if not file.filename.endswith('.pdf'):
         flash('Invalid file format! Please upload a PDF file', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     try:
         pdf_data = file.read()
@@ -8634,8 +8635,8 @@ def upload_vat_invoice(po_number):
         cursor = conn.cursor()
         
         cursor.execute("""
-            UPDATE purchase_orders SET vat_invoice_pdf = ? WHERE po_number = ?
-        """, (pdf_data, po_number))
+            UPDATE purchase_orders SET vat_invoice_pdf = ? WHERE po_request_number = ?
+        """, (pdf_data, po_request_number))
         
         conn.commit()
         conn.close()
@@ -8644,38 +8645,39 @@ def upload_vat_invoice(po_number):
     except Exception as e:
         flash(f'Error uploading VAT Invoice: {str(e)}', 'danger')
     
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
-@app.route('/download_vat_invoice/<po_number>')
+@app.route('/download_vat_invoice/<po_request_number>')
 @login_required
-def download_vat_invoice(po_number):
+def download_vat_invoice(po_request_number):
     """Download VAT Invoice PDF"""
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute("SELECT vat_invoice_pdf FROM purchase_orders WHERE po_number = ?", (po_number,))
+    cursor.execute("SELECT vat_invoice_pdf, po_number FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
     result = cursor.fetchone()
     conn.close()
     
     if result and result['vat_invoice_pdf']:
         from io import BytesIO
         output = BytesIO(result['vat_invoice_pdf'])
+        po_num = result['po_number'] or po_request_number
         return send_file(
             output,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f'VAT_Invoice_{po_number}.pdf'
+            download_name=f'VAT_Invoice_{po_num}.pdf'
         )
     else:
         flash('VAT Invoice not found!', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
-@app.route('/add_po_delivery_note/<po_number>', methods=['POST'])
+@app.route('/add_po_delivery_note/<po_request_number>', methods=['POST'])
 @login_required
-def add_po_delivery_note(po_number):
+def add_po_delivery_note(po_request_number):
     """Add delivery note with optional PDF"""
     status = request.form.get('status', '').strip()
     expected_delivery = request.form.get('expected_delivery', '').strip()
@@ -8683,7 +8685,7 @@ def add_po_delivery_note(po_number):
     
     if not status:
         flash('Delivery status is required!', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
     
     delivery_note_pdf = None
     if 'delivery_note_pdf' in request.files:
@@ -8695,6 +8697,10 @@ def add_po_delivery_note(po_number):
         from datetime import datetime
         conn = sqlite3.connect('ProjectStatus.db')
         cursor = conn.cursor()
+        
+        cursor.execute("SELECT po_number FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
+        result = cursor.fetchone()
+        po_number = result[0] if result and result[0] else po_request_number
         
         cursor.execute("""
             INSERT INTO purchase_order_monitoring 
@@ -8710,7 +8716,7 @@ def add_po_delivery_note(po_number):
     except Exception as e:
         flash(f'Error adding delivery note: {str(e)}', 'danger')
     
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
 ##############333
