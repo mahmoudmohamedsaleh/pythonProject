@@ -3,112 +3,312 @@
 
 {% block content %}
 <style>
-    .page-header h1 {
-        font-weight: 700;
+    .hero-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2.5rem 0;
+        margin: -20px -20px 30px -20px;
+        color: white;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
     }
+    
+    .hero-gradient h1 {
+        font-weight: 700;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .hero-gradient p {
+        opacity: 0.95;
+        font-size: 1.1rem;
+    }
+    
+    .stats-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border-left: 4px solid;
+        height: 100%;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+    
+    .stats-card.primary { border-left-color: #667eea; }
+    .stats-card.success { border-left-color: #28a745; }
+    .stats-card.warning { border-left-color: #ffc107; }
+    .stats-card.danger { border-left-color: #dc3545; }
+    .stats-card.info { border-left-color: #17a2b8; }
+    
+    .stats-number {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+    }
+    
+    .stats-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+    
+    .stats-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-icon.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .stats-icon.success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+    .stats-icon.warning { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; }
+    .stats-icon.danger { background: linear-gradient(135deg, #dc3545 0%, #f8719e 100%); color: white; }
+    .stats-icon.info { background: linear-gradient(135deg, #17a2b8 0%, #3498db 100%); color: white; }
+    
     .card {
         border: none;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         margin-bottom: 30px;
     }
+    
     .card-header {
-        background-color: #ffffff;
-        border-bottom: 1px solid #e9ecef;
-        font-weight: 600;
-    }
-    .table thead th {
         background-color: #f8f9fa;
-        border-bottom-width: 2px;
+        border-bottom: 2px solid #e9ecef;
+        font-weight: 600;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .table thead th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
         font-weight: 600;
         white-space: nowrap;
+        padding: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
     }
-    .table td, .table th {
+    
+    .table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+        transform: scale(1.01);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+    }
+    
+    .table td {
         vertical-align: middle;
+        padding: 1rem;
     }
+    
     .badge {
         font-size: 85%;
         font-weight: 600;
-        padding: 0.4em 0.7em;
+        padding: 0.5em 0.9em;
+        border-radius: 8px;
     }
+    
     .action-buttons a, .action-buttons button {
         margin: 0 3px;
+        border-radius: 8px;
     }
+    
+    .inline-edit {
+        cursor: pointer;
+        border-bottom: 2px dashed #667eea;
+        padding: 0.25rem 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .inline-edit:hover {
+        background-color: #f0f3ff;
+        border-bottom-color: #764ba2;
+    }
+    
+    .vendor-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.4em 0.8em;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .po-number {
+        font-weight: 700;
+        color: #667eea;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .filter-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
     .comment-history {
         max-height: 300px;
         overflow-y: auto;
         margin-bottom: 20px;
     }
+    
     .comment-item {
-        border-left: 3px solid #007bff;
+        border-left: 3px solid #667eea;
         padding: 10px;
         margin-bottom: 10px;
         background-color: #f8f9fa;
         border-radius: 5px;
     }
+    
     .comment-header {
         font-weight: 600;
         color: #495057;
         margin-bottom: 5px;
     }
+    
     .comment-time {
         font-size: 0.85rem;
         color: #6c757d;
     }
+    
     .comment-text {
         margin-top: 5px;
         color: #212529;
     }
 </style>
 
-<div class="page-header">
-    <h1>Purchase Order Status</h1>
-    <p class="text-muted">Track and manage all company purchase orders.</p>
-</div>
-<div>
-        <a href="{{ url_for('register_po') }}" class="btn btn-success">
-            <i class="fas fa-plus mr-2"></i>Register New PO
-        </a>
+<div class="hero-gradient">
+    <div class="container-fluid">
+        <h1><i class="fas fa-file-invoice-dollar mr-3"></i>Purchase Order Status</h1>
+        <p>Comprehensive dashboard for tracking and managing all purchase orders</p>
+        <div class="mt-3">
+            <a href="{{ url_for('register_po') }}" class="btn btn-light btn-lg">
+                <i class="fas fa-plus mr-2"></i>Register New PO
+            </a>
+        </div>
+    </div>
 </div>
 
+<!-- KPI Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="stats-card primary">
+            <div class="stats-icon primary">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stats-label">Total Purchase Orders</div>
+            <div class="stats-number">{{ stats['total_pos'] }}</div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="stats-card success">
+            <div class="stats-icon success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-label">Approved</div>
+            <div class="stats-number">{{ stats['approved_count'] }}</div>
+            <small class="text-muted">Pending: {{ stats['pending_count'] }} | Rejected: {{ stats['rejected_count'] }}</small>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="stats-card info">
+            <div class="stats-icon info">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="stats-label">Total Amount</div>
+            <div class="stats-number">{{ "{:,.0f}".format(stats['total_amount']) }} <small style="font-size: 0.6em;">SAR</small></div>
+            <small class="text-muted">Average: {{ "{:,.0f}".format(stats['avg_amount']) }} SAR</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Section -->
 <div class="card">
-    <div class="card-header"><i class="fas fa-filter mr-2"></i>Filter Purchase Orders</div>
+    <div class="card-header">
+        <i class="fas fa-filter mr-2"></i>Filter Purchase Orders
+    </div>
     <div class="card-body">
         <form method="POST">
-            <div class="form-row">
-                <div class="form-group col-md-4"><label>Project Name</label>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Project Name</label>
                     <select class="form-control" name="project_name">
                         <option value="">All</option>
-                        {% for project in projects %}<option value="{{ project[0] }}" {% if project[0] == project_name_filter %}selected{% endif %}>{{ project[1] }}</option>{% endfor %}
+                        {% for project in projects %}
+                            <option value="{{ project['id'] }}" {% if project['id']|string == project_name_filter|string %}selected{% endif %}>
+                                {{ project['project_name'] }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="form-group col-md-4"><label>Presale Engineer</label>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Presale Engineer</label>
                     <select class="form-control" name="presale_engineer">
                         <option value="">All</option>
-                        {% for engineer in presale_engineers %}<option value="{{ engineer[0] }}" {% if engineer[0] == presale_engineer_filter %}selected{% endif %}>{{ engineer[0] }}</option>{% endfor %}
+                        {% for engineer in presale_engineers %}
+                            <option value="{{ engineer['username'] }}" {% if engineer['username'] == presale_engineer_filter %}selected{% endif %}>
+                                {{ engineer['username'] }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="form-group col-md-4"><label>Project Manager</label>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Project Manager</label>
                     <select class="form-control" name="project_manager">
                         <option value="">All</option>
-                        {% for manager in project_managers %}<option value="{{ manager[0] }}" {% if manager[0] == project_manager_filter %}selected{% endif %}>{{ manager[0] }}</option>{% endfor %}
+                        {% for manager in project_managers %}
+                            <option value="{{ manager['username'] }}" {% if manager['username'] == project_manager_filter %}selected{% endif %}>
+                                {{ manager['username'] }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="form-group col-md-4"><label>Distributor</label>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Distributor</label>
                     <select class="form-control" name="distributor">
                         <option value="">All</option>
-                        {% for d in distributors %}<option value="{{ d[0] }}" {% if d[0] == distributor_filter %}selected{% endif %}>{{ d[0] }}</option>{% endfor %}
+                        {% for d in distributors %}
+                            <option value="{{ d['name'] }}" {% if d['name'] == distributor_filter %}selected{% endif %}>
+                                {{ d['name'] }}
+                            </option>
+                        {% endfor %}
                     </select>
                 </div>
-                <div class="form-group col-md-4"><label>Delivery Status</label>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Delivery Status</label>
                     <select class="form-control" name="po_delivery_status">
                         <option value="">All</option>
                         <option value="Order Not Placed" {% if po_delivery_status_filter == 'Order Not Placed' %}selected{% endif %}>Order Not Placed</option>
                         <option value="Order Placed" {% if po_delivery_status_filter == 'Order Placed' %}selected{% endif %}>Order Placed</option>
                         <option value="Delivered To Client" {% if po_delivery_status_filter == 'Delivered To Client' %}selected{% endif %}>Delivered To Client</option>
-                        </select>
+                    </select>
                 </div>
-                 <div class="form-group col-md-4"><label>Approval Status</label>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Approval Status</label>
                     <select class="form-control" name="po_approval_status">
                         <option value="">All</option>
                         <option value="Pending" {% if po_approval_status_filter == 'Pending' %}selected{% endif %}>Pending</option>
@@ -117,22 +317,33 @@
                     </select>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-search mr-1"></i>Apply</button>
-            <a href="{{ url_for('view_po_status') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i>Clear</a>
+            
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search mr-2"></i>Apply Filters
+                </button>
+                <a href="{{ url_for('view_po_status') }}" class="btn btn-secondary">
+                    <i class="fas fa-times mr-2"></i>Clear Filters
+                </a>
+            </div>
         </form>
     </div>
 </div>
 
+<!-- Purchase Orders Table -->
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-list-ul mr-2"></i>Purchase Order Details</span>
+        <span><i class="fas fa-list-ul mr-2"></i>Purchase Order Details ({{ stats['total_pos'] }} orders)</span>
         <form action="{{ url_for('download_filtered_po_excel') }}" method="GET">
             <input type="hidden" name="presale_engineer" value="{{ presale_engineer_filter }}">
             <input type="hidden" name="project_manager" value="{{ project_manager_filter }}">
             <input type="hidden" name="distributor" value="{{ distributor_filter }}">
             <input type="hidden" name="po_delivery_status" value="{{ po_delivery_status_filter }}">
             <input type="hidden" name="po_approval_status" value="{{ po_approval_status_filter }}">
-            <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-file-excel mr-1"></i>Download Excel</button>
+            <input type="hidden" name="project_name" value="{{ project_name_filter }}">
+            <button type="submit" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel mr-1"></i>Download Excel
+            </button>
         </form>
     </div>
     <div class="card-body p-0">
@@ -140,62 +351,116 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>PO Request Num</th>
+                        <th>PO Request</th>
                         <th>PO Number</th>
-                        <th>Project Name</th>
+                        <th>Project</th>
                         <th>System</th>
+                        <th>Vendor</th>
                         <th>Distributor</th>
-                        <th>Approval Status</th>
-                        <th>Delivery Status</th>
-                        <th>Project Manager</th>
-                        <th>Total Amount (SAR)</th>
+                        <th>Approval</th>
+                        <th>Delivery</th>
+                        <th>Manager</th>
+                        <th>Amount (SAR)</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for order in purchase_orders %}
-                    <tr>
-                        <td>{{ order[1] }}</td>
-                        <td>{{ order[8] }}</td>
-                         <td>{{ order[2] }}</td>
-                        <td>{{ order[12] }}</td>
-                        <td>{{ order[3] }}</td>
+                    <tr data-po-id="{{ order['po_id'] }}">
+                        <td><span class="badge badge-secondary">{{ order['po_request_number'] }}</span></td>
+                        <td><span class="po-number">{{ order['po_number'] }}</span></td>
+                        <td>{{ order['project_name'] }}</td>
+                        <td><span class="badge badge-info">{{ order['system'] }}</span></td>
+                        
+                        <!-- Vendor - Inline Editable -->
                         <td>
-                            {% set status = order[4] %}
-                            {% if status == 'Approved' %}<span class="badge badge-success">{{ status }}</span>
-                            {% elif status == 'Pending' %}<span class="badge badge-warning">{{ status }}</span>
-                            {% elif status == 'Rejected' %}<span class="badge badge-danger">{{ status }}</span>
-                            {% else %}<span class="badge badge-secondary">{{ status }}</span>
+                            <span class="inline-edit" 
+                                  data-field="vendor" 
+                                  data-po-id="{{ order['po_id'] }}" 
+                                  data-current-id="{{ order['vendor_id'] if order['vendor_id'] else '' }}"
+                                  title="Click to edit vendor">
+                                {% if order['vendor_name'] %}
+                                    <span class="vendor-badge">{{ order['vendor_name'] }}</span>
+                                {% else %}
+                                    <span class="text-muted"><i class="fas fa-edit"></i> Set Vendor</span>
+                                {% endif %}
+                            </span>
+                        </td>
+                        
+                        <!-- Distributor - Inline Editable -->
+                        <td>
+                            <span class="inline-edit" 
+                                  data-field="distributor" 
+                                  data-po-id="{{ order['po_id'] }}" 
+                                  data-current-id="{{ order['distributor_id'] }}"
+                                  title="Click to edit distributor">
+                                {{ order['distributor_name'] }}
+                            </span>
+                        </td>
+                        
+                        <td>
+                            {% set status = order['po_approval_status'] %}
+                            {% if status == 'Approved' %}
+                                <span class="badge badge-success">{{ status }}</span>
+                            {% elif status == 'Pending' %}
+                                <span class="badge badge-warning">{{ status }}</span>
+                            {% elif status == 'Rejected' %}
+                                <span class="badge badge-danger">{{ status }}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{{ status }}</span>
                             {% endif %}
                         </td>
+                        
+                        <!-- Delivery Status - Inline Editable -->
                         <td>
-                            {% set d_status = order[5] %}
-                            {% if 'Completed' in d_status or 'Delivered' in d_status %}<span class="badge badge-success">{{ d_status }}</span>
-                            {% elif 'Placed' in d_status %}<span class="badge badge-info">{{ d_status }}</span>
-                            {% elif 'Returned' in d_status %}<span class="badge badge-danger">{{ d_status }}</span>
-                            {% else %}<span class="badge badge-light">{{ d_status }}</span>
-                            {% endif %}
+                            <span class="inline-edit" 
+                                  data-field="delivery_status" 
+                                  data-po-id="{{ order['po_id'] }}" 
+                                  data-current-value="{{ order['po_delivery_status'] }}"
+                                  title="Click to edit delivery status">
+                                {% set d_status = order['po_delivery_status'] %}
+                                {% if 'Completed' in d_status or 'Delivered' in d_status %}
+                                    <span class="badge badge-success">{{ d_status }}</span>
+                                {% elif 'Placed' in d_status %}
+                                    <span class="badge badge-info">{{ d_status }}</span>
+                                {% elif 'Returned' in d_status %}
+                                    <span class="badge badge-danger">{{ d_status }}</span>
+                                {% else %}
+                                    <span class="badge badge-light">{{ d_status }}</span>
+                                {% endif %}
+                            </span>
                         </td>
-                        <td>{{ order[7] }}</td>
-                        <td>{{ "{:,.2f}".format(order[11]) }}</td>
+                        
+                        <td>{{ order['project_manager_name'] }}</td>
+                        <td><strong>{{ "{:,.2f}".format(order['total_amount']) }}</strong></td>
+                        
                         <td class="action-buttons">
-                            <a href="{{ url_for('po_profile', po_request_number=order[1]) }}" class="btn btn-success btn-sm" title="View PO Profile">
+                            <a href="{{ url_for('po_profile', po_request_number=order['po_request_number']) }}" 
+                               class="btn btn-success btn-sm" 
+                               title="View PO Profile">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='po_document') }}" target="_blank" class="btn btn-info btn-sm" title="Show PO">
+                            <a href="{{ url_for('view_po_document', po_id=order['po_id'], doc_type='po_document') }}" 
+                               target="_blank" 
+                               class="btn btn-info btn-sm" 
+                               title="Show PO Document">
                                 <i class="fas fa-file-alt"></i>
                             </a>
-                            <a href="{{ url_for('view_po_document', po_id=order[0], doc_type='quotation') }}" target="_blank" class="btn btn-secondary btn-sm" title="Show Quotation">
-                                <i class="fas fa-file-invoice"></i>
+                            <a href="{{ url_for('edit_po', po_id=order['po_id']) }}" 
+                               class="btn btn-warning btn-sm" 
+                               title="Edit PO">
+                                <i class="fas fa-edit"></i>
                             </a>
-                            <a href="{{ url_for('edit_po', po_id=order[0]) }}" class="btn btn-warning btn-sm" title="Edit PO"><i class="fas fa-edit"></i></a>
-                            <button class="btn btn-primary btn-sm" title="Comments" onclick="openCommentModal({{ order[0] }}, '{{ order[8] }}')">
-                                <i class="fas fa-comments"></i>
-                            </button>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="10" class="text-center text-muted py-5">No Purchase Orders found.</td></tr>
+                    <tr>
+                        <td colspan="11" class="text-center text-muted py-5">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            <h5>No Purchase Orders found</h5>
+                            <p>Try adjusting your filters or create a new PO</p>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -203,87 +468,143 @@
     </div>
 </div>
 
-<!-- Comment Modal -->
-<div class="modal fade" id="commentModal" tabindex="-1" role="dialog" aria-labelledby="commentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+<!-- Inline Edit Modal -->
+<div class="modal fade" id="inlineEditModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="commentModalLabel"><i class="fas fa-comments mr-2"></i>PO Comments - <span id="modalPoNumber"></span></h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit mr-2"></i>Quick Edit</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
                 </button>
             </div>
             <div class="modal-body">
-                <!-- Comment History -->
-                <div class="mb-4">
-                    <h6 class="font-weight-bold mb-3">Comment History</h6>
-                    <div id="commentHistory" class="comment-history">
-                        <p class="text-muted text-center">Loading comments...</p>
-                    </div>
-                </div>
-
-                <!-- Add Comment Form -->
-                <form id="commentForm" method="POST">
-                    <div class="form-group">
-                        <label for="commentText" class="font-weight-bold">Add New Comment</label>
-                        <textarea class="form-control" id="commentText" name="comment" rows="4" placeholder="Enter your follow-up comment here..." required></textarea>
-                    </div>
-                    <div class="d-flex justify-content-end">
-                        <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane mr-1"></i>Submit Comment</button>
-                    </div>
-                </form>
+                <div id="editFormContainer"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveInlineEdit">
+                    <i class="fas fa-save mr-1"></i>Save Changes
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-let currentPoId = null;
+// Inline editing functionality
+let currentEditData = {};
 
-function openCommentModal(poId, poNumber) {
-    currentPoId = poId;
-    document.getElementById('modalPoNumber').textContent = poNumber;
-    document.getElementById('commentForm').action = `/add_po_comment/${poId}`;
-    document.getElementById('commentText').value = '';
+document.querySelectorAll('.inline-edit').forEach(element => {
+    element.addEventListener('click', function() {
+        const field = this.dataset.field;
+        const poId = this.dataset.poId;
+        
+        currentEditData = {
+            field: field,
+            poId: poId,
+            currentId: this.dataset.currentId || '',
+            currentValue: this.dataset.currentValue || ''
+        };
+        
+        showEditModal(field, poId);
+    });
+});
+
+function showEditModal(field, poId) {
+    const container = document.getElementById('editFormContainer');
+    let formHtml = '';
     
-    // Load existing comments
-    loadComments(poId);
+    if (field === 'vendor') {
+        formHtml = `
+            <div class="form-group">
+                <label class="font-weight-bold">Select Vendor</label>
+                <select class="form-control" id="editValue">
+                    <option value="">-- No Vendor (Optional) --</option>
+                    {% for vendor in all_vendors %}
+                        <option value="{{ vendor['id'] }}">{{ vendor['name'] }}</option>
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">
+                    <i class="fas fa-info-circle"></i> Vendor is optional for this PO
+                </small>
+            </div>
+        `;
+    } else if (field === 'distributor') {
+        formHtml = `
+            <div class="form-group">
+                <label class="font-weight-bold">Select Distributor</label>
+                <select class="form-control" id="editValue" required>
+                    {% for dist in all_distributors %}
+                        <option value="{{ dist['id'] }}">{{ dist['name'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        `;
+    } else if (field === 'delivery_status') {
+        formHtml = `
+            <div class="form-group">
+                <label class="font-weight-bold">Delivery Status</label>
+                <select class="form-control" id="editValue" required>
+                    <option value="Order Not Placed">Order Not Placed</option>
+                    <option value="Order Placed">Order Placed</option>
+                    <option value="Delivered to our Warehouse">Delivered to our Warehouse</option>
+                    <option value="Delivered To Client">Delivered To Client</option>
+                    <option value="Partially Delivered">Partially Delivered</option>
+                    <option value="Returned">Returned</option>
+                </select>
+            </div>
+        `;
+    }
     
-    $('#commentModal').modal('show');
+    container.innerHTML = formHtml;
+    
+    // Set current value
+    if (currentEditData.currentId) {
+        document.getElementById('editValue').value = currentEditData.currentId;
+    } else if (currentEditData.currentValue) {
+        document.getElementById('editValue').value = currentEditData.currentValue;
+    }
+    
+    $('#inlineEditModal').modal('show');
 }
 
-function loadComments(poId) {
-    const historyDiv = document.getElementById('commentHistory');
-    historyDiv.innerHTML = '<p class="text-muted text-center">Loading comments...</p>';
+document.getElementById('saveInlineEdit').addEventListener('click', function() {
+    const newValue = document.getElementById('editValue').value;
     
-    fetch(`/get_po_comments/${poId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.comments && data.comments.length > 0) {
-                let html = '';
-                data.comments.forEach(comment => {
-                    html += `
-                        <div class="comment-item">
-                            <div class="comment-header">
-                                <i class="fas fa-user-circle mr-1"></i>${comment.username}
-                                <span class="comment-time float-right">
-                                    <i class="fas fa-clock mr-1"></i>${comment.created_at}
-                                </span>
-                            </div>
-                            <div class="comment-text">${comment.comment}</div>
-                        </div>
-                    `;
-                });
-                historyDiv.innerHTML = html;
-            } else {
-                historyDiv.innerHTML = '<p class="text-muted text-center"><i class="fas fa-info-circle mr-1"></i>No comments yet. Be the first to add a comment!</p>';
-            }
+    // Show loading state
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+    
+    // Send AJAX request
+    fetch('/update_po_field', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            po_id: currentEditData.poId,
+            field: currentEditData.field,
+            value: newValue
         })
-        .catch(error => {
-            console.error('Error loading comments:', error);
-            historyDiv.innerHTML = '<p class="text-danger text-center"><i class="fas fa-exclamation-triangle mr-1"></i>Error loading comments. Please try again.</p>';
-        });
-}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Reload page to show updates
+            location.reload();
+        } else {
+            alert('Error: ' + (data.message || 'Failed to update'));
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-save mr-1"></i>Save Changes';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating field');
+        this.disabled = false;
+        this.innerHTML = '<i class="fas fa-save mr-1"></i>Save Changes';
+    });
+});
 </script>
 {% endblock %}
