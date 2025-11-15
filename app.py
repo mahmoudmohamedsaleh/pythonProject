@@ -7447,10 +7447,10 @@ def view_po_status():
         COALESCE(SUM(po.total_amount), 0) as total_amount,
         COALESCE(AVG(po.total_amount), 0) as avg_amount
     FROM purchase_orders po
-    JOIN register_project rp ON po.project_name = rp.id
-    JOIN distributors d ON po.distributor = d.id
-    JOIN engineers eng ON po.presale_engineer = eng.id
-    JOIN engineers pmeng ON po.project_manager = pmeng.id
+    LEFT JOIN register_project rp ON po.project_name = rp.id
+    LEFT JOIN distributors d ON po.distributor = d.id
+    LEFT JOIN engineers eng ON po.presale_engineer = eng.id
+    LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
     WHERE 1=1
     '''
     stats_params = []
@@ -7482,20 +7482,20 @@ def view_po_status():
     c.execute(stats_query, stats_params)
     stats = c.fetchone()
 
-    # Build the main query with vendor information
+    # Build the main query with vendor information - USE LEFT JOINs to show ALL POs
     query = '''
     SELECT 
         po.id AS po_id,
         po.po_request_number, 
-        rp.project_name, 
+        COALESCE(rp.project_name, 'Project ID: ' || po.project_name) AS project_name,
         d.id AS distributor_id,
-        d.name AS distributor_name,
+        COALESCE(d.name, 'Distributor ID: ' || po.distributor) AS distributor_name,
         v.id AS vendor_id,
         v.name AS vendor_name,
         po.po_approval_status, 
         po.po_delivery_status, 
-        eng.username AS presale_engineer_name,
-        pmeng.username AS project_manager_name, 
+        COALESCE(eng.username, 'Engineer ID: ' || po.presale_engineer) AS presale_engineer_name,
+        COALESCE(pmeng.username, 'Manager ID: ' || po.project_manager) AS project_manager_name,
         po.po_number,
         po.po_notes_vendor,
         po.po_notes_client,
@@ -7503,13 +7503,14 @@ def view_po_status():
         po.system,
         po.project_name AS project_id,
         po.presale_engineer AS presale_engineer_id,
-        po.project_manager AS project_manager_id
+        po.project_manager AS project_manager_id,
+        po.distributor AS distributor_raw_id
     FROM purchase_orders po
-    JOIN register_project rp ON po.project_name = rp.id
-    JOIN distributors d ON po.distributor = d.id
+    LEFT JOIN register_project rp ON po.project_name = rp.id
+    LEFT JOIN distributors d ON po.distributor = d.id
     LEFT JOIN vendors v ON po.vendor = v.id
-    JOIN engineers eng ON po.presale_engineer = eng.id
-    JOIN engineers pmeng ON po.project_manager = pmeng.id
+    LEFT JOIN engineers eng ON po.presale_engineer = eng.id
+    LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
     WHERE 1=1
     '''
     params = []
