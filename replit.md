@@ -86,24 +86,28 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - Future enhancements: Excel export, price history view, bulk import capabilities
 - **PO Profile System**: Comprehensive purchase order profile pages replacing the old PO Follow-Up Details with modern interface for complete PO lifecycle management. Features include:
   - **PO Profile Page**: Modern, visually stunning interface with purple gradient header, comprehensive PO information, and responsive layout
+  - **Name Display**: Shows actual names for Distributor, Vendor, and Presale Engineer using LEFT JOINs (instead of displaying IDs)
   - **VAT Management**: Configurable VAT percentage with automatic calculation of VAT amount and total with VAT; inline VAT update form
+  - **VAT Invoice PDF Upload**: Upload, view, and download VAT invoice PDFs stored as BLOBs in purchase_orders.vat_invoice_pdf with validation (.pdf only)
   - **Financial Summary**: Clear display of subtotal (before VAT), VAT amount, and total with VAT in color-coded stat boxes
   - **PO Items Management**: Complete per-item tracking with add/edit/delete functionality via modals
   - **Excel Import/Export**: Bulk import/export PO items using Excel files with format: Part Number, Description, Qty, Unit Price, Total, Delivered
     - **Import Mode**: Upload Excel to bulk add or update items (updates existing items with same Part Number and Description, adds new ones otherwise)
     - **Export Mode**: Download current PO items to Excel with professional formatting
-    - **Validation**: Comprehensive server-side validation for all fields with user-friendly error messages
+    - **Validation**: Comprehensive server-side validation (.xlsx only) for all fields with user-friendly error messages
     - **Error Reporting**: Detailed feedback on rows with errors during import
+    - **Delivery Preservation**: Excel import preserves existing delivery status when delivery data is not provided in spreadsheet
   - **Per-Item Delivery Status**: Track delivery status (Delivered/Partial/Not Delivered) with quantity delivered tracking per item
   - **Item Details**: Part number, description, quantity, unit price, total price, and notes for each item
   - **Delivery Progress**: Visual progress bar and statistics showing delivered, partial, and not delivered items
   - **Delivery Notes History**: Timeline view of all delivery notes from purchase_order_monitoring table
+  - **Add Delivery Note with PDF**: Modal interface to create delivery notes with optional PDF attachment (delivery_note BLOB in purchase_order_monitoring)
   - **Contact Information**: Distributor contact details in sidebar for quick reference
-  - **Database Schema**: New po_items table with complete item tracking and new VAT fields in purchase_orders table
+  - **Database Schema**: New po_items table with complete item tracking, VAT fields in purchase_orders table, and vat_invoice_pdf BLOB column
   - **Automatic Status Calculation**: Delivery status automatically updated based on quantity delivered vs total quantity
   - **Quick Actions**: View PO document, edit PO, and add delivery notes directly from profile page
   - **Access**: Clicking PO number in Purchase Order Status page now opens the comprehensive PO Profile instead of old follow-up details
-  - **JavaScript Security**: Fixed potential XSS vulnerabilities by using data attributes instead of inline onclick handlers with dynamic content
+  - **JavaScript Security**: Fixed potential XSS vulnerabilities by using event delegation instead of inline onclick handlers with dynamic content
 
 ### System Design Choices
 - Environment variables are used for configuration.
