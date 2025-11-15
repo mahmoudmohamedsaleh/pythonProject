@@ -73,6 +73,17 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - Client-side and server-side validation requiring at least one supplier (distributor or vendor)
   - Complete audit trail with timestamps and uploader information
   - Removed "Request PO" button from Quotations section (moved to Supplier Quotations for better workflow)
+  - **Cross-entity visibility**: Supplier quotations displayed in Vendor and Distributor profile pages showing all quotations from that supplier
+- **Quotation Products Catalog**: Comprehensive product extraction and management system for building a reusable product library from supplier quotations. Features include:
+  - Dedicated quotation_products database table with part number, description, unit price, quantity, currency, and supplier metadata
+  - **Add Product modal**: Modal form accessible from supplier quotations in Project, Vendor, and Distributor pages with PDF viewer link
+  - **Products Dashboard**: Card-based product catalog with complete product information including P/N, description, price, supplier, system, and source quotation
+  - **Advanced Filtering**: Multi-dimensional filtering by part number/description search, supplier name, system type, and date range (start/end date)
+  - **Price Tracking**: Links products to source quotations for price history and supplier comparison
+  - **Security**: Parameterized queries, input validation, and authentication-protected routes
+  - **Navigation**: Integrated into SRM section of sidebar for easy access
+  - **Product Management**: Delete products, view source quotations, and track who added each product
+  - Future enhancements: Excel export, price history view, bulk import capabilities
 
 ### System Design Choices
 - Environment variables are used for configuration.
