@@ -2721,9 +2721,9 @@ def vendor_detail(vendor_id):
     
     # Get supplier quotations for this vendor with project names
     cursor.execute("""
-        SELECT sq.*, rp.project_name
+        SELECT sq.*, p.project_name
         FROM supplier_quotations sq
-        LEFT JOIN register_project rp ON sq.quote_ref = rp.quote_ref
+        LEFT JOIN projects p ON sq.quote_ref = p.quote_ref
         WHERE sq.vendor_id = ?
         ORDER BY sq.uploaded_at DESC
     """, (vendor_id,))
@@ -2842,9 +2842,9 @@ def distributor_detail(distributor_id):
     
     # Get supplier quotations for this distributor with project names
     cursor.execute("""
-        SELECT sq.*, rp.project_name
+        SELECT sq.*, p.project_name
         FROM supplier_quotations sq
-        LEFT JOIN register_project rp ON sq.quote_ref = rp.quote_ref
+        LEFT JOIN projects p ON sq.quote_ref = p.quote_ref
         WHERE sq.distributor_id = ?
         ORDER BY sq.uploaded_at DESC
     """, (distributor_id,))
