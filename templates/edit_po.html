@@ -84,21 +84,21 @@
             </div>
 
             <div class="card">
-                <div class="card-header"><i class="fas fa-truck mr-2"></i>Distributor Information</div>
+                <div class="card-header"><i class="fas fa-building mr-2"></i>Vendor & Distributor Information</div>
                 <div class="card-body">
                     <div class="form-group">
                         <label for="distributor">Distributor</label>
                         <select class="form-control" id="distributor" name="distributor" required>
                             {% for dist in distributors %}
-                                <option value="{{ dist[0] }}" {% if dist[0] == purchase_order[6] %}selected{% endif %}>{{ dist[1] }}</option>
+                                <option value="{{ dist[0] }}" {% if dist[0]|string == purchase_order['distributor']|string %}selected{% endif %}>{{ dist[1] }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="form-row">
-                        <div class="form-group col-md-6"><label for="distributor_engineer">Distributor Engineer</label><input type="text" class="form-control" id="distributor_engineer" name="distributor_engineer" value="{{ purchase_order[7] }}" required></div>
-                        <div class="form-group col-md-6"><label for="distributor_contact">Distributor Contact Number</label><input type="text" class="form-control" id="distributor_contact" name="distributor_contact" value="{{ purchase_order[8] }}" required></div>
+                        <div class="form-group col-md-6"><label for="distributor_engineer">Distributor Engineer</label><input type="text" class="form-control" id="distributor_engineer" name="distributor_engineer" value="{{ purchase_order['distributor_engineer'] }}" required></div>
+                        <div class="form-group col-md-6"><label for="distributor_contact">Distributor Contact Number</label><input type="text" class="form-control" id="distributor_contact" name="distributor_contact" value="{{ purchase_order['distributor_contact'] }}" required></div>
                     </div>
-                    <div class="form-group"><label for="distributor_email">Distributor Email</label><input type="email" class="form-control" id="distributor_email" name="distributor_email" value="{{ purchase_order[9] }}" required></div>
+                    <div class="form-group"><label for="distributor_email">Distributor Email</label><input type="email" class="form-control" id="distributor_email" name="distributor_email" value="{{ purchase_order['distributor_email'] }}" required></div>
                 </div>
             </div>
 
@@ -106,12 +106,12 @@
                 <div class="card-header"><i class="fas fa-cogs mr-2"></i>Status, Financials & Documents</div>
                 <div class="card-body">
                     <div class="form-row">
-                        <div class="form-group col-md-6"><label for="po_number">PO Number (Optional)</label><input type="text" class="form-control" id="po_number" name="po_number" value="{{ purchase_order[12] }}"></div>
+                        <div class="form-group col-md-6"><label for="po_number">PO Number (Optional)</label><input type="text" class="form-control" id="po_number" name="po_number" value="{{ purchase_order['po_number'] }}"></div>
                         <div class="form-group col-md-6">
                             <label for="total_amount">Total Amount (SAR)</label>
                             <div class="input-group">
                                 <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-dollar-sign"></i></span></div>
-                                <input type="number" class="form-control" id="total_amount" name="total_amount" value="{{ purchase_order[13] }}" step="0.01" required>
+                                <input type="number" class="form-control" id="total_amount" name="total_amount" value="{{ purchase_order['total_amount'] }}" step="0.01" required>
                             </div>
                         </div>
                     </div>
@@ -119,17 +119,17 @@
                         <div class="form-group col-md-6">
                             <label for="po_approval_status">PO Approval Status</label>
                             <select class="form-control" id="po_approval_status" name="po_approval_status" required>
-                                <option value="Pending" {% if purchase_order[14] == 'Pending' %}selected{% endif %}>Pending</option>
-                                <option value="Approved" {% if purchase_order[14] == 'Approved' %}selected{% endif %}>Approved</option>
-                                <option value="Rejected" {% if purchase_order[14] == 'Rejected' %}selected{% endif %}>Rejected</option>
+                                <option value="Pending" {% if purchase_order['po_approval_status'] == 'Pending' %}selected{% endif %}>Pending</option>
+                                <option value="Approved" {% if purchase_order['po_approval_status'] == 'Approved' %}selected{% endif %}>Approved</option>
+                                <option value="Rejected" {% if purchase_order['po_approval_status'] == 'Rejected' %}selected{% endif %}>Rejected</option>
                             </select>
                         </div>
                         <div class="form-group col-md-6">
                             <label for="po_delivery_status">PO Delivery Status</label>
                             <select class="form-control" id="po_delivery_status" name="po_delivery_status" required>
-                                <option value="Order Not Placed" {% if purchase_order[15] == 'Order Not Placed' %}selected{% endif %}>Order Not Placed</option>
-                                <option value="Order Placed" {% if purchase_order[15] == 'Order Placed' %}selected{% endif %}>Order Placed</option>
-                                <option value="Delivered To Client" {% if purchase_order[15] == 'Delivered To Client' %}selected{% endif %}>Delivered To Client</option>
+                                <option value="Order Not Placed" {% if purchase_order['po_delivery_status'] == 'Order Not Placed' %}selected{% endif %}>Order Not Placed</option>
+                                <option value="Order Placed" {% if purchase_order['po_delivery_status'] == 'Order Placed' %}selected{% endif %}>Order Placed</option>
+                                <option value="Delivered To Client" {% if purchase_order['po_delivery_status'] == 'Delivered To Client' %}selected{% endif %}>Delivered To Client</option>
                             </select>
                         </div>
                     </div>
@@ -152,8 +152,8 @@
                 <div class="card-header"><i class="fas fa-sticky-note mr-2"></i>Notes</div>
                 <div class="card-body">
                      <div class="form-row">
-                        <div class="form-group col-md-6"><label for="po_notes_vendor">PO Notes (Vendor Side)</label><textarea class="form-control" id="po_notes_vendor" name="po_notes_vendor" rows="3">{{ purchase_order[16] }}</textarea></div>
-                        <div class="form-group col-md-6"><label for="po_notes_client">PO Notes (Client Side)</label><textarea class="form-control" id="po_notes_client" name="po_notes_client" rows="3">{{ purchase_order[17] }}</textarea></div>
+                        <div class="form-group col-md-6"><label for="po_notes_vendor">PO Notes (Vendor Side)</label><textarea class="form-control" id="po_notes_vendor" name="po_notes_vendor" rows="3">{{ purchase_order['po_notes_vendor'] }}</textarea></div>
+                        <div class="form-group col-md-6"><label for="po_notes_client">PO Notes (Client Side)</label><textarea class="form-control" id="po_notes_client" name="po_notes_client" rows="3">{{ purchase_order['po_notes_client'] }}</textarea></div>
                     </div>
                 </div>
             </div>

@@ -108,6 +108,17 @@ The system features a comprehensive admin access control UI and an admin OTP Das
   - **Quick Actions**: View PO document, edit PO, and add delivery notes directly from profile page
   - **Access**: Clicking PO number in Purchase Order Status page now opens the comprehensive PO Profile instead of old follow-up details
   - **JavaScript Security**: Fixed potential XSS vulnerabilities by using event delegation instead of inline onclick handlers with dynamic content
+- **Delivery Note Edit Functionality**: Comprehensive delivery note management with modal interface for editing status and notes
+  - **Edit Delivery Note Modal**: Modal form accessible from PO Profile with status dropdown, notes field, and PDF viewer
+  - **Authorization**: Proper validation ensuring only authorized users can edit delivery notes
+  - **Real-time Updates**: AJAX-powered updates without page refresh for seamless user experience
+- **Edit PO Modernization**: Complete overhaul of Edit PO page to match Register PO layout and functionality
+  - **Vendor Support**: Added optional vendor field to edit_po route and template for flexible supplier tracking
+  - **Named Field Access**: Updated to use row_factory for proper field name access instead of index-based access
+  - **Consistent Layout**: Card-based sections matching register_po with proper icons and styling
+  - **Database JOINs**: Proper display of project names and presale engineer usernames (not IDs)
+  - **Query Updates**: Engineers fetched using username instead of ID for proper selection
+  - **Template Modernization**: All purchase_order references updated from index-based (purchase_order[n]) to named access (purchase_order['field_name'])
 
 ### System Design Choices
 - Environment variables are used for configuration.
