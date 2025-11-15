@@ -1926,7 +1926,8 @@ def add_product_from_quotation(quotation_id):
         
         # Get supplier quotation details for metadata
         cursor.execute("""
-            SELECT quote_ref, distributor_name, vendor_name, system 
+            SELECT quote_ref, distributor_name, vendor_name, system, 
+                   distributor_id, vendor_id
             FROM supplier_quotations 
             WHERE id = ?
         """, (quotation_id,))
@@ -1945,11 +1946,13 @@ def add_product_from_quotation(quotation_id):
         cursor.execute("""
             INSERT INTO quotation_products 
             (supplier_quotation_id, part_number, description, unit_price, quantity, 
-             currency, notes, quote_ref, supplier_name, supplier_type, system, added_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             currency, notes, quote_ref, supplier_name, supplier_type, system, added_by,
+             vendor_id, distributor_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (quotation_id, part_number, description, unit_price_float, quantity_int,
               currency, notes, quotation['quote_ref'], supplier_name, supplier_type,
-              quotation['system'], session.get('username')))
+              quotation['system'], session.get('username'),
+              quotation['vendor_id'], quotation['distributor_id']))
         
         conn.commit()
         conn.close()
