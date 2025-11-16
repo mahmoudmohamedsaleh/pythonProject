@@ -7653,7 +7653,10 @@ def delete_po(po_id):
         return jsonify({'success': True, 'message': 'Purchase Order deleted successfully'})
         
     except Exception as e:
-        if conn:
+        print(f"Error deleting PO {po_id}: {str(e)}")  # Log the error to console
+        import traceback
+        traceback.print_exc()  # Print full traceback
+        if 'conn' in locals():
             conn.close()
         return jsonify({'success': False, 'message': f'Error deleting PO: {str(e)}'}), 500
 
