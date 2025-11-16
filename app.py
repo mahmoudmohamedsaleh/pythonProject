@@ -7486,16 +7486,16 @@ def view_po_status():
     c.execute(stats_query, stats_params)
     stats = c.fetchone()
 
-    # Build the main query with vendor information - JOIN on username not ID
+    # Build the main query with vendor information - JOIN on names/usernames not IDs
     query = '''
     SELECT 
         po.id AS po_id,
         po.po_request_number, 
         COALESCE(rp.project_name, 'Project ID: ' || po.project_name) AS project_name,
         d.id AS distributor_id,
-        COALESCE(d.name, 'Distributor ID: ' || po.distributor) AS distributor_name,
+        COALESCE(d.name, po.distributor) AS distributor_name,
         v.id AS vendor_id,
-        v.name AS vendor_name,
+        COALESCE(v.name, po.vendor) AS vendor_name,
         po.po_approval_status, 
         po.po_delivery_status, 
         COALESCE(eng.username, po.presale_engineer) AS presale_engineer_name,
@@ -7511,8 +7511,8 @@ def view_po_status():
         po.distributor AS distributor_raw_id
     FROM purchase_orders po
     LEFT JOIN register_project rp ON po.project_name = rp.id
-    LEFT JOIN distributors d ON po.distributor = d.id
-    LEFT JOIN vendors v ON po.vendor = v.id
+    LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = d.name
+    LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = v.name
     LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
     LEFT JOIN engineers pmeng ON CAST(po.project_manager AS TEXT) = pmeng.username
     WHERE 1=1
