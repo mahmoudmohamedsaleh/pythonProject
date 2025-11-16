@@ -37,7 +37,7 @@ The system features a comprehensive admin access control UI, an admin OTP Dashbo
 - **PO Profile System**: Modernized purchase order profile pages with VAT management, VAT invoice PDF upload, financial summary, per-item tracking (add/edit/delete), Excel import/export for bulk item management, per-item delivery status, delivery notes history with PDF attachment, and integrated contact information.
 - **Delivery Note Edit Functionality**: Modal interface for editing delivery note status and notes with authorization and real-time updates.
 - **Edit PO Modernization**: Overhauled Edit PO page to match Register PO layout, supporting vendors, named field access, consistent card-based sections, and quick-access buttons for new projects, vendors, and distributors.
-- **Purchase Order Status Dashboard Modernization**: Redesigned view_po_status page with a hero header, KPI statistics cards, enhanced table layout with vendor display, inline editing for key fields via AJAX, server-side validation, and filter integration.
+- **Purchase Order Status Dashboard Modernization**: Redesigned view_po_status page with purple gradient hero header, KPI statistics cards, enhanced table layout with vendor display, presale engineer column, account manager column (renamed from "Manager"), LEFT JOIN fix to display all POs, inline editing for key fields via AJAX, server-side validation, and filter integration.
 
 ### System Design Choices
 - Environment variables are used for configuration.
