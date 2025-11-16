@@ -8034,18 +8034,24 @@ def update_po_field():
         if field in ['distributor', 'delivery_status'] and not value:
             return jsonify({'success': False, 'message': f'{field.replace("_", " ").title()} is required'}), 400
         
-        # Validate foreign keys exist
+        # Validate foreign keys and convert IDs to names
         if field == 'vendor' and value:
-            c.execute("SELECT id FROM vendors WHERE id = ?", (value,))
-            if not c.fetchone():
+            c.execute("SELECT name FROM vendors WHERE id = ?", (value,))
+            vendor_result = c.fetchone()
+            if not vendor_result:
                 return jsonify({'success': False, 'message': 'Invalid vendor'}), 400
+            # Store the NAME not the ID
+            value = vendor_result[0]
         
         if field == 'distributor':
-            c.execute("SELECT id FROM distributors WHERE id = ?", (value,))
-            if not c.fetchone():
+            c.execute("SELECT name FROM distributors WHERE id = ?", (value,))
+            dist_result = c.fetchone()
+            if not dist_result:
                 return jsonify({'success': False, 'message': 'Invalid distributor'}), 400
+            # Store the NAME not the ID
+            value = dist_result[0]
         
-        # Update the field
+        # Update the field (value is now NAME for vendor/distributor)
         query = f"UPDATE purchase_orders SET {db_field} = ? WHERE id = ?"
         c.execute(query, (value, po_id))
         conn.commit()
