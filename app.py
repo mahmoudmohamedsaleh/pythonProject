@@ -1469,18 +1469,13 @@ def project_detail(project_id):
     """, (project['project_name'],))
     rfqs = cursor.fetchall()
     
-    # Get all Purchase Orders for this project
+    # Get all Purchase Orders for this project (match by project name, not ID)
     cursor.execute("""
-        SELECT 
-            po.*,
-            d.name as distributor_name,
-            v.name as vendor_name
+        SELECT po.*
         FROM purchase_orders po
-        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
-        LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = CAST(v.id AS TEXT)
         WHERE CAST(po.project_name AS TEXT) = CAST(? AS TEXT)
         ORDER BY po.created_at DESC
-    """, (project_id,))
+    """, (project['project_name'],))
     purchase_orders = cursor.fetchall()
     
     # Get all PO Requests for this project
