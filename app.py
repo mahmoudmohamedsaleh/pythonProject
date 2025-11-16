@@ -7631,8 +7631,8 @@ def delete_po(po_id):
         po_number = po_data['po_number']
         
         # Delete all related data in correct order (foreign key constraints)
-        # 1. Delete delivery notes
-        cursor.execute("DELETE FROM delivery_notes WHERE po_number = ?", (po_number,))
+        # 1. Delete purchase order monitoring records (delivery tracking)
+        cursor.execute("DELETE FROM purchase_order_monitoring WHERE po_number = ?", (po_number,))
         
         # 2. Delete PO items
         cursor.execute("DELETE FROM po_items WHERE po_number = ?", (po_number,))
@@ -7640,7 +7640,10 @@ def delete_po(po_id):
         # 3. Delete supplier quotations associated with this PO
         cursor.execute("DELETE FROM supplier_quotations WHERE po_request_number = ?", (po_request_number,))
         
-        # 4. Finally delete the purchase order itself
+        # 4. Delete VAT invoices associated with this PO
+        cursor.execute("DELETE FROM vat_invoices WHERE po_number = ?", (po_number,))
+        
+        # 5. Finally delete the purchase order itself
         cursor.execute("DELETE FROM purchase_orders WHERE id = ?", (po_id,))
         
         conn.commit()
