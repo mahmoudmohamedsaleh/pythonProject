@@ -8093,7 +8093,7 @@ def edit_po(po_id):
     # Fetch projects, presale engineers, project managers, distributors, and vendors
     c.execute("SELECT id, project_name FROM register_project")
     projects = c.fetchall()
-    c.execute("SELECT username, name FROM engineers WHERE role='Presale Engineer'")
+    c.execute("SELECT username, name FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = c.fetchall()
     c.execute("SELECT username, name FROM engineers WHERE role IN ('Implementation Engineer', 'Project Manager', 'Technical Team Leader')")
     project_managers = c.fetchall()
