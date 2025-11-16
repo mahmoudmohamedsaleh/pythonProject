@@ -190,6 +190,7 @@
                                     <th>Approval Status</th>
                                     <th>Delivery Status</th>
                                     <th>Documents</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -231,6 +232,11 @@
                                             <i class="fas fa-file-contract"></i>
                                         </a>
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('po_profile', po_request_number=po['po_request_number']) }}" class="btn btn-sm btn-purple" title="View PO Profile">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
