@@ -7321,7 +7321,7 @@ def register_po():
         presale_engineer_id = request.form['presale_engineer']
         project_manager_id = request.form['project_manager']
         
-        c.execute("SELECT username FROM users WHERE id = ?", (presale_engineer_id,))
+        c.execute("SELECT username FROM engineers WHERE id = ?", (presale_engineer_id,))
         presale_result = c.fetchone()
         if not presale_result:
             flash('Invalid presale engineer selected!', 'danger')
@@ -7329,7 +7329,7 @@ def register_po():
             return redirect(url_for('register_po'))
         presale_engineer = presale_result['username']
         
-        c.execute("SELECT username FROM users WHERE id = ?", (project_manager_id,))
+        c.execute("SELECT username FROM engineers WHERE id = ?", (project_manager_id,))
         pm_result = c.fetchone()
         if not pm_result:
             flash('Invalid account manager selected!', 'danger')
@@ -8149,7 +8149,7 @@ def edit_po(po_id):
         project_name = project_result['project_name']
         
         # Convert presale engineer and project manager IDs to usernames
-        c.execute("SELECT username FROM users WHERE id = ?", (presale_engineer_id,))
+        c.execute("SELECT username FROM engineers WHERE id = ?", (presale_engineer_id,))
         presale_result = c.fetchone()
         if not presale_result:
             flash('Invalid presale engineer selected!', 'danger')
@@ -8157,7 +8157,7 @@ def edit_po(po_id):
             return redirect(url_for('edit_po', po_id=po_id))
         presale_engineer = presale_result['username']
         
-        c.execute("SELECT username FROM users WHERE id = ?", (project_manager_id,))
+        c.execute("SELECT username FROM engineers WHERE id = ?", (project_manager_id,))
         pm_result = c.fetchone()
         if not pm_result:
             flash('Invalid account manager selected!', 'danger')
