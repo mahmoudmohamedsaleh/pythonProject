@@ -2895,28 +2895,32 @@ def vendor_detail(vendor_id):
     """, (vendor_id,))
     documents = cursor.fetchall()
     
-    # Get purchase orders: both directly linked to vendor AND through distributors
+    # Get purchase orders: both directly linked to vendor AND through distributors (match by name, not ID)
+    vendor_name = vendor['name']
     cursor.execute("""
-        SELECT DISTINCT po.*, d.name as distributor_name,
+        SELECT DISTINCT po.*, po.distributor as distributor_name,
                CASE 
                    WHEN CAST(po.vendor AS TEXT) = CAST(? AS TEXT) THEN 'Direct'
                    ELSE 'Via Distributor'
                END as po_source
         FROM purchase_orders po
-        LEFT JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
-        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
-        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) OR vd.vendor_id = ?
+        LEFT JOIN vendor_distributor vd ON vd.vendor_id = ?
+        LEFT JOIN distributors d ON d.id = vd.distributor_id
+        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) 
+           OR (d.name IS NOT NULL AND CAST(po.distributor AS TEXT) = CAST(d.name AS TEXT))
         ORDER BY po.created_at DESC
-    """, (vendor_id, vendor_id, vendor_id))
+    """, (vendor_name, vendor_id, vendor_name))
     purchase_orders = cursor.fetchall()
     
     # Calculate total spending: both direct and through distributors
     cursor.execute("""
-        SELECT COALESCE(SUM(total_amount), 0) as total_spending
+        SELECT COALESCE(SUM(po.total_amount), 0) as total_spending
         FROM purchase_orders po
-        LEFT JOIN vendor_distributor vd ON CAST(po.distributor AS TEXT) = CAST(vd.distributor_id AS TEXT)
-        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) OR vd.vendor_id = ?
-    """, (vendor_id, vendor_id))
+        LEFT JOIN vendor_distributor vd ON vd.vendor_id = ?
+        LEFT JOIN distributors d ON d.id = vd.distributor_id
+        WHERE CAST(po.vendor AS TEXT) = CAST(? AS TEXT) 
+           OR (d.name IS NOT NULL AND CAST(po.distributor AS TEXT) = CAST(d.name AS TEXT))
+    """, (vendor_id, vendor_name))
     spending_result = cursor.fetchone()
     total_spending = spending_result['total_spending']
     
@@ -3025,12 +3029,13 @@ def distributor_detail(distributor_id):
     """, (distributor_id,))
     vendors = cursor.fetchall()
     
-    # Get purchase orders for this distributor
+    # Get purchase orders for this distributor (match by name, not ID)
+    distributor_name = distributor['name']
     cursor.execute("""
         SELECT * FROM purchase_orders 
         WHERE CAST(distributor AS TEXT) = CAST(? AS TEXT)
         ORDER BY created_at DESC
-    """, (distributor_id,))
+    """, (distributor_name,))
     purchase_orders = cursor.fetchall()
     
     # Calculate total spending from POs
@@ -3038,7 +3043,7 @@ def distributor_detail(distributor_id):
         SELECT COALESCE(SUM(total_amount), 0) as total_spending
         FROM purchase_orders 
         WHERE CAST(distributor AS TEXT) = CAST(? AS TEXT)
-    """, (distributor_id,))
+    """, (distributor_name,))
     total_spending = cursor.fetchone()['total_spending']
     
     # Get recent activity
