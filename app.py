@@ -7286,13 +7286,16 @@ def register_po():
         system = request.form['system']
         presale_engineer = request.form['presale_engineer']
         project_manager = request.form['project_manager']
-        vendor = request.form.get('vendor') or None  # Optional vendor
-        distributor = request.form['distributor']
+        
+        # Process the uploaded files first
+        quotation = request.files['quotation']
+        po_document = request.files.get('po_document')
+        quotation_data = quotation.read()
+        po_document_data = po_document.read() if po_document else None
+        
         distributor_engineer = request.form['distributor_engineer']
         distributor_contact = request.form['distributor_contact']
         distributor_email = request.form['distributor_email']
-        quotation = request.files['quotation']
-        po_document = request.files.get('po_document')
         po_number = request.form['po_number']
         total_amount = request.form['total_amount']
         po_approval_status = request.form['po_approval_status']
@@ -7300,13 +7303,31 @@ def register_po():
         po_notes_vendor = request.form['po_notes_vendor']
         po_notes_client = request.form['po_notes_client']
 
-        # Process the uploaded files
-        quotation_data = quotation.read()
-        po_document_data = po_document.read() if po_document else None
-
         # Store the data in the database
         conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
+        
+        # Convert vendor and distributor IDs to names
+        vendor_id = request.form.get('vendor') or None
+        distributor_id = request.form['distributor']
+        
+        # Look up vendor name from ID
+        if vendor_id:
+            c.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+            vendor_result = c.fetchone()
+            vendor = vendor_result['name'] if vendor_result else None
+        else:
+            vendor = None
+        
+        # Look up distributor name from ID
+        c.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+        dist_result = c.fetchone()
+        if not dist_result:
+            flash('Invalid distributor selected!', 'danger')
+            conn.close()
+            return redirect(url_for('register_po'))
+        distributor = dist_result['name']
         try:
             c.execute('''INSERT INTO purchase_orders (
                 po_request_number, project_name, system, presale_engineer, project_manager,
@@ -8082,8 +8103,28 @@ def edit_po(po_id):
         system = request.form['system']
         presale_engineer = request.form['presale_engineer']
         project_manager = request.form['project_manager']
-        vendor = request.form.get('vendor') or None  # Optional vendor
-        distributor = request.form['distributor']
+        
+        # Convert vendor and distributor IDs to names
+        vendor_id = request.form.get('vendor') or None
+        distributor_id = request.form['distributor']
+        
+        # Look up vendor name from ID
+        if vendor_id:
+            c.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+            vendor_result = c.fetchone()
+            vendor = vendor_result['name'] if vendor_result else None
+        else:
+            vendor = None
+        
+        # Look up distributor name from ID
+        c.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+        dist_result = c.fetchone()
+        if not dist_result:
+            flash('Invalid distributor selected!', 'danger')
+            conn.close()
+            return redirect(url_for('edit_po', po_id=po_id))
+        distributor = dist_result['name']
+        
         distributor_engineer = request.form['distributor_engineer']
         distributor_contact = request.form['distributor_contact']
         distributor_email = request.form['distributor_email']
