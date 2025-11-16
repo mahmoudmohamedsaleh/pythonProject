@@ -298,6 +298,18 @@
                 </div>
                 
                 <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold">Vendor</label>
+                    <select class="form-control" name="vendor">
+                        <option value="">All</option>
+                        {% for v in vendors %}
+                            <option value="{{ v['name'] }}" {% if v['name'] == vendor_filter %}selected{% endif %}>
+                                {{ v['name'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 mb-3">
                     <label class="font-weight-bold">Delivery Status</label>
                     <select class="form-control" name="po_delivery_status">
                         <option value="">All</option>
@@ -338,6 +350,7 @@
             <input type="hidden" name="presale_engineer" value="{{ presale_engineer_filter }}">
             <input type="hidden" name="project_manager" value="{{ project_manager_filter }}">
             <input type="hidden" name="distributor" value="{{ distributor_filter }}">
+            <input type="hidden" name="vendor" value="{{ vendor_filter }}">
             <input type="hidden" name="po_delivery_status" value="{{ po_delivery_status_filter }}">
             <input type="hidden" name="po_approval_status" value="{{ po_approval_status_filter }}">
             <input type="hidden" name="project_name" value="{{ project_name_filter }}">
