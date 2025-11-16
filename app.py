@@ -7317,6 +7317,26 @@ def register_po():
             return redirect(url_for('register_po'))
         project_name = project_result['project_name']
         
+        # Convert presale engineer and project manager IDs to usernames
+        presale_engineer_id = request.form['presale_engineer']
+        project_manager_id = request.form['project_manager']
+        
+        c.execute("SELECT username FROM users WHERE id = ?", (presale_engineer_id,))
+        presale_result = c.fetchone()
+        if not presale_result:
+            flash('Invalid presale engineer selected!', 'danger')
+            conn.close()
+            return redirect(url_for('register_po'))
+        presale_engineer = presale_result['username']
+        
+        c.execute("SELECT username FROM users WHERE id = ?", (project_manager_id,))
+        pm_result = c.fetchone()
+        if not pm_result:
+            flash('Invalid account manager selected!', 'danger')
+            conn.close()
+            return redirect(url_for('register_po'))
+        project_manager = pm_result['username']
+        
         # Convert vendor and distributor IDs to names
         vendor_id = request.form.get('vendor') or None
         distributor_id = request.form['distributor']
@@ -8116,8 +8136,8 @@ def edit_po(po_id):
         po_request_number = request.form['po_request_number']
         project_id = request.form['project_name']
         system = request.form['system']
-        presale_engineer = request.form['presale_engineer']
-        project_manager = request.form['project_manager']
+        presale_engineer_id = request.form['presale_engineer']
+        project_manager_id = request.form['project_manager']
         
         # Convert project ID to project name
         c.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
@@ -8127,6 +8147,23 @@ def edit_po(po_id):
             conn.close()
             return redirect(url_for('edit_po', po_id=po_id))
         project_name = project_result['project_name']
+        
+        # Convert presale engineer and project manager IDs to usernames
+        c.execute("SELECT username FROM users WHERE id = ?", (presale_engineer_id,))
+        presale_result = c.fetchone()
+        if not presale_result:
+            flash('Invalid presale engineer selected!', 'danger')
+            conn.close()
+            return redirect(url_for('edit_po', po_id=po_id))
+        presale_engineer = presale_result['username']
+        
+        c.execute("SELECT username FROM users WHERE id = ?", (project_manager_id,))
+        pm_result = c.fetchone()
+        if not pm_result:
+            flash('Invalid account manager selected!', 'danger')
+            conn.close()
+            return redirect(url_for('edit_po', po_id=po_id))
+        project_manager = pm_result['username']
         
         # Convert vendor and distributor IDs to names
         vendor_id = request.form.get('vendor') or None
