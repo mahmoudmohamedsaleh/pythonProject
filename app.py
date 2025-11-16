@@ -7530,7 +7530,7 @@ def view_po_status():
     SELECT 
         po.id AS po_id,
         po.po_request_number, 
-        COALESCE(rp.project_name, 'Project ID: ' || po.project_name) AS project_name,
+        po.project_name,
         d.id AS distributor_id,
         COALESCE(d.name, po.distributor) AS distributor_name,
         v.id AS vendor_id,
