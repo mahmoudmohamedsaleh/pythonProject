@@ -7369,7 +7369,7 @@ def register_po():
     c = conn.cursor()
     c.execute("SELECT id, project_name FROM register_project")
     projects = c.fetchall()
-    c.execute("SELECT id, name FROM engineers WHERE role='Presale Engineer'")
+    c.execute("SELECT id, name FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = c.fetchall()
     c.execute("SELECT id, name FROM engineers WHERE role IN ('Implementation Engineer', 'Project Manager')")
     project_managers = c.fetchall()
@@ -7388,19 +7388,23 @@ def view_po_status():
     conn.row_factory = sqlite3.Row  # Enable named field access
     c = conn.cursor()
 
-    # Fetch distinct presale engineers using JOIN
+    # Fetch distinct presale engineers and Technical Team Leaders using JOIN on username
     c.execute('''
         SELECT DISTINCT e.username
         FROM purchase_orders po
-        JOIN engineers e ON po.presale_engineer = e.id
+        LEFT JOIN engineers e ON CAST(po.presale_engineer AS TEXT) = e.username
+        WHERE e.username IS NOT NULL
+        ORDER BY e.username
     ''')
     presale_engineers = c.fetchall()
 
-    # Fetch distinct project managers using JOIN
+    # Fetch distinct project managers using JOIN on username
     c.execute('''
         SELECT DISTINCT e.username
         FROM purchase_orders po
-        JOIN engineers e ON po.project_manager = e.id
+        LEFT JOIN engineers e ON CAST(po.project_manager AS TEXT) = e.username
+        WHERE e.username IS NOT NULL
+        ORDER BY e.username
     ''')
     project_managers = c.fetchall()
 
@@ -7435,7 +7439,7 @@ def view_po_status():
     po_approval_status_filter = request.form.get('po_approval_status', '')
     project_name_filter = request.form.get('project_name', '')
 
-    # Calculate statistics with filters applied
+    # Calculate statistics with filters applied - JOIN on username not ID
     stats_query = '''
     SELECT 
         COUNT(*) as total_pos,
@@ -7449,8 +7453,8 @@ def view_po_status():
     FROM purchase_orders po
     LEFT JOIN register_project rp ON po.project_name = rp.id
     LEFT JOIN distributors d ON po.distributor = d.id
-    LEFT JOIN engineers eng ON po.presale_engineer = eng.id
-    LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
+    LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
+    LEFT JOIN engineers pmeng ON CAST(po.project_manager AS TEXT) = pmeng.username
     WHERE 1=1
     '''
     stats_params = []
@@ -7482,7 +7486,7 @@ def view_po_status():
     c.execute(stats_query, stats_params)
     stats = c.fetchone()
 
-    # Build the main query with vendor information - USE LEFT JOINs to show ALL POs
+    # Build the main query with vendor information - JOIN on username not ID
     query = '''
     SELECT 
         po.id AS po_id,
@@ -7494,8 +7498,8 @@ def view_po_status():
         v.name AS vendor_name,
         po.po_approval_status, 
         po.po_delivery_status, 
-        COALESCE(eng.username, 'Engineer ID: ' || po.presale_engineer) AS presale_engineer_name,
-        COALESCE(pmeng.username, 'Manager ID: ' || po.project_manager) AS project_manager_name,
+        COALESCE(eng.username, po.presale_engineer) AS presale_engineer_name,
+        COALESCE(pmeng.username, po.project_manager) AS project_manager_name,
         po.po_number,
         po.po_notes_vendor,
         po.po_notes_client,
@@ -7509,8 +7513,8 @@ def view_po_status():
     LEFT JOIN register_project rp ON po.project_name = rp.id
     LEFT JOIN distributors d ON po.distributor = d.id
     LEFT JOIN vendors v ON po.vendor = v.id
-    LEFT JOIN engineers eng ON po.presale_engineer = eng.id
-    LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
+    LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
+    LEFT JOIN engineers pmeng ON CAST(po.project_manager AS TEXT) = pmeng.username
     WHERE 1=1
     '''
     params = []
