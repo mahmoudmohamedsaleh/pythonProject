@@ -7408,13 +7408,25 @@ def view_po_status():
     ''')
     project_managers = c.fetchall()
 
-    # Fetch distinct distributors using JOIN
+    # Fetch distinct distributors using JOIN on names
     c.execute('''
         SELECT DISTINCT d.name
         FROM purchase_orders po
-        JOIN distributors d ON po.distributor = d.id
+        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = d.name
+        WHERE d.name IS NOT NULL
+        ORDER BY d.name
     ''')
     distributors = c.fetchall()
+    
+    # Fetch distinct vendors using JOIN on names
+    c.execute('''
+        SELECT DISTINCT v.name
+        FROM purchase_orders po
+        LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = v.name
+        WHERE v.name IS NOT NULL
+        ORDER BY v.name
+    ''')
+    vendors = c.fetchall()
     
     # Fetch distinct project names
     c.execute('''
@@ -7435,11 +7447,12 @@ def view_po_status():
     presale_engineer_filter = request.form.get('presale_engineer', '')
     project_manager_filter = request.form.get('project_manager', '')
     distributor_filter = request.form.get('distributor', '')
+    vendor_filter = request.form.get('vendor', '')
     po_delivery_status_filter = request.form.get('po_delivery_status', '')
     po_approval_status_filter = request.form.get('po_approval_status', '')
     project_name_filter = request.form.get('project_name', '')
 
-    # Calculate statistics with filters applied - JOIN on username not ID
+    # Calculate statistics with filters applied - JOIN on names/usernames not IDs
     stats_query = '''
     SELECT 
         COUNT(*) as total_pos,
@@ -7452,7 +7465,8 @@ def view_po_status():
         COALESCE(AVG(po.total_amount), 0) as avg_amount
     FROM purchase_orders po
     LEFT JOIN register_project rp ON po.project_name = rp.id
-    LEFT JOIN distributors d ON po.distributor = d.id
+    LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = d.name
+    LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = v.name
     LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
     LEFT JOIN engineers pmeng ON CAST(po.project_manager AS TEXT) = pmeng.username
     WHERE 1=1
@@ -7470,6 +7484,10 @@ def view_po_status():
     if distributor_filter:
         stats_query += " AND d.name = ?"
         stats_params.append(distributor_filter)
+    
+    if vendor_filter:
+        stats_query += " AND v.name = ?"
+        stats_params.append(vendor_filter)
     
     if po_delivery_status_filter:
         stats_query += " AND po.po_delivery_status = ?"
@@ -7530,6 +7548,10 @@ def view_po_status():
     if distributor_filter:
         query += " AND d.name = ?"
         params.append(distributor_filter)
+    
+    if vendor_filter:
+        query += " AND v.name = ?"
+        params.append(vendor_filter)
 
     if po_delivery_status_filter:
         query += " AND po.po_delivery_status = ?"
@@ -7554,6 +7576,7 @@ def view_po_status():
                            presale_engineers=presale_engineers,
                            project_managers=project_managers,
                            distributors=distributors,
+                           vendors=vendors,
                            projects=projects,
                            all_vendors=all_vendors,
                            all_distributors=all_distributors,
@@ -7562,6 +7585,7 @@ def view_po_status():
                            presale_engineer_filter=presale_engineer_filter,
                            project_manager_filter=project_manager_filter,
                            distributor_filter=distributor_filter,
+                           vendor_filter=vendor_filter,
                            po_delivery_status_filter=po_delivery_status_filter,
                            po_approval_status_filter=po_approval_status_filter)
 
