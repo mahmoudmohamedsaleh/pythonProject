@@ -7589,6 +7589,50 @@ def view_po_status():
                            po_delivery_status_filter=po_delivery_status_filter,
                            po_approval_status_filter=po_approval_status_filter)
 
+@app.route('/delete_po/<int:po_id>', methods=['POST'])
+@login_required
+@role_required('General Manager')
+def delete_po(po_id):
+    """Delete Purchase Order and all associated data (Admin only)"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get PO details for logging
+        cursor.execute("SELECT po_request_number, po_number FROM purchase_orders WHERE id = ?", (po_id,))
+        po_data = cursor.fetchone()
+        
+        if not po_data:
+            return jsonify({'success': False, 'message': 'Purchase Order not found'}), 404
+        
+        po_request_number = po_data['po_request_number']
+        po_number = po_data['po_number']
+        
+        # Delete all related data in correct order (foreign key constraints)
+        # 1. Delete delivery notes
+        cursor.execute("DELETE FROM delivery_notes WHERE po_number = ?", (po_number,))
+        
+        # 2. Delete PO items
+        cursor.execute("DELETE FROM po_items WHERE po_number = ?", (po_number,))
+        
+        # 3. Delete supplier quotations associated with this PO
+        cursor.execute("DELETE FROM supplier_quotations WHERE po_request_number = ?", (po_request_number,))
+        
+        # 4. Finally delete the purchase order itself
+        cursor.execute("DELETE FROM purchase_orders WHERE id = ?", (po_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Purchase Order {po_request_number} and all associated data deleted successfully!', 'success')
+        return jsonify({'success': True, 'message': 'Purchase Order deleted successfully'})
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'success': False, 'message': f'Error deleting PO: {str(e)}'}), 500
+
 ######################
 # RFQ Comments Routes
 ######################

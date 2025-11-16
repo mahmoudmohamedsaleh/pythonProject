@@ -470,6 +470,13 @@
                                title="Edit PO">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            {% if session.get('user_role') == 'General Manager' %}
+                            <button onclick="deletePO({{ order['po_id'] }}, '{{ order['po_request_number'] }}')" 
+                                    class="btn btn-danger btn-sm" 
+                                    title="Delete PO">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
@@ -625,5 +632,32 @@ document.getElementById('saveInlineEdit').addEventListener('click', function() {
         this.innerHTML = '<i class="fas fa-save mr-1"></i>Save Changes';
     });
 });
+
+// Delete PO Function
+function deletePO(poId, poRequestNumber) {
+    if (confirm(`Are you sure you want to delete Purchase Order ${poRequestNumber}?\n\nThis action cannot be undone and will delete:\n- The purchase order\n- All associated items\n- All delivery notes\n- All related documents`)) {
+        if (confirm('Final confirmation: This will permanently delete all data related to this PO. Continue?')) {
+            fetch('/delete_po/' + poId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Purchase Order deleted successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to delete PO'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting purchase order');
+            });
+        }
+    }
+}
 </script>
 {% endblock %}
