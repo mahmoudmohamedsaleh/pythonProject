@@ -7591,7 +7591,7 @@ def view_po_status():
 
 @app.route('/delete_po/<int:po_id>', methods=['POST'])
 @login_required
-@role_required('General Manager')
+@role_required('General Manager', 'Technical Team Leader')
 def delete_po(po_id):
     """Delete Purchase Order and all associated data (Admin only)"""
     try:

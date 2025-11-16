@@ -470,7 +470,7 @@
                                title="Edit PO">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            {% if session.get('user_role') == 'General Manager' %}
+                            {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
                             <button onclick="deletePO({{ order['po_id'] }}, '{{ order['po_request_number'] }}')" 
                                     class="btn btn-danger btn-sm" 
                                     title="Delete PO">
