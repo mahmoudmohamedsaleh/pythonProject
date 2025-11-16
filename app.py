@@ -7637,8 +7637,8 @@ def delete_po(po_id):
         # 2. Delete PO items
         cursor.execute("DELETE FROM po_items WHERE po_number = ?", (po_number,))
         
-        # 3. Delete VAT invoices associated with this PO
-        cursor.execute("DELETE FROM vat_invoices WHERE po_number = ?", (po_number,))
+        # 3. Delete VAT invoices associated with this PO (uses po_request_number)
+        cursor.execute("DELETE FROM vat_invoices WHERE po_request_number = ?", (po_request_number,))
         
         # 4. Delete PO comments if any
         cursor.execute("DELETE FROM po_comments WHERE po_id = ?", (po_id,))
