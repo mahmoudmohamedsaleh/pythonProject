@@ -7282,7 +7282,7 @@ def register_po():
     if request.method == 'POST':
         # Collect form data from the submitted request
         po_request_number = request.form['po_request_number']
-        project_name = request.form['project_name']
+        project_id = request.form['project_name']
         system = request.form['system']
         presale_engineer = request.form['presale_engineer']
         project_manager = request.form['project_manager']
@@ -7307,6 +7307,15 @@ def register_po():
         conn = sqlite3.connect('ProjectStatus.db')
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
+        
+        # Convert project ID to project name
+        c.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
+        project_result = c.fetchone()
+        if not project_result:
+            flash('Invalid project selected!', 'danger')
+            conn.close()
+            return redirect(url_for('register_po'))
+        project_name = project_result['project_name']
         
         # Convert vendor and distributor IDs to names
         vendor_id = request.form.get('vendor') or None
@@ -8105,10 +8114,19 @@ def edit_po(po_id):
     if request.method == 'POST':
         # Collect form data from the submitted request
         po_request_number = request.form['po_request_number']
-        project_name = request.form['project_name']
+        project_id = request.form['project_name']
         system = request.form['system']
         presale_engineer = request.form['presale_engineer']
         project_manager = request.form['project_manager']
+        
+        # Convert project ID to project name
+        c.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
+        project_result = c.fetchone()
+        if not project_result:
+            flash('Invalid project selected!', 'danger')
+            conn.close()
+            return redirect(url_for('edit_po', po_id=po_id))
+        project_name = project_result['project_name']
         
         # Convert vendor and distributor IDs to names
         vendor_id = request.form.get('vendor') or None
