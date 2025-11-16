@@ -254,7 +254,7 @@
                     <select class="form-control" name="project_name">
                         <option value="">All</option>
                         {% for project in projects %}
-                            <option value="{{ project['id'] }}" {% if project['id']|string == project_name_filter|string %}selected{% endif %}>
+                            <option value="{{ project['project_name'] }}" {% if project['project_name'] == project_name_filter %}selected{% endif %}>
                                 {{ project['project_name'] }}
                             </option>
                         {% endfor %}

@@ -7485,7 +7485,7 @@ def view_po_status():
         COALESCE(SUM(po.total_amount), 0) as total_amount,
         COALESCE(AVG(po.total_amount), 0) as avg_amount
     FROM purchase_orders po
-    LEFT JOIN register_project rp ON po.project_name = rp.id
+    LEFT JOIN register_project rp ON CAST(po.project_name AS TEXT) = CAST(rp.project_name AS TEXT)
     LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = d.name
     LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = v.name
     LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
@@ -7544,12 +7544,12 @@ def view_po_status():
         po.po_notes_client,
         po.total_amount,
         po.system,
-        po.project_name AS project_id,
+        po.project_name,
         po.presale_engineer AS presale_engineer_id,
         po.project_manager AS project_manager_id,
         po.distributor AS distributor_raw_id
     FROM purchase_orders po
-    LEFT JOIN register_project rp ON po.project_name = rp.id
+    LEFT JOIN register_project rp ON CAST(po.project_name AS TEXT) = CAST(rp.project_name AS TEXT)
     LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = d.name
     LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = v.name
     LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
