@@ -168,7 +168,11 @@
                                             </button>
                                         </form>
                                     </td>
-                                    <td><strong>{{ quote['quote_ref'] }}</strong></td>
+                                    <td>
+                                        <a href="{{ url_for('quotation_profile', quote_ref=quote['quote_ref']) }}" class="text-primary font-weight-bold" title="View Quotation Profile">
+                                            <strong>{{ quote['quote_ref'] }}</strong>
+                                        </a>
+                                    </td>
                                     <td>{{ quote['system'] or 'N/A' }}</td>
                                     <td>{{ quote['presale_eng'] or 'N/A' }}</td>
                                     <td>{{ quote['sales_eng'] or 'N/A' }}</td>
@@ -479,8 +483,16 @@
                             <tbody>
                                 {% for po in purchase_orders[:10] %}
                                 <tr>
-                                    <td><strong>{{ po['po_request_number'] }}</strong></td>
-                                    <td>{{ po['po_number'] or 'N/A' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('po_profile', po_request_number=po['po_request_number']) }}" class="text-primary font-weight-bold" title="View PO Profile">
+                                            <strong>{{ po['po_request_number'] }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('po_profile', po_request_number=po['po_request_number']) }}" class="text-info" title="View PO Profile">
+                                            {{ po['po_number'] or 'N/A' }}
+                                        </a>
+                                    </td>
                                     <td>{{ po['distributor'] or 'N/A' }}</td>
                                     <td>{{ po['vendor'] or 'N/A' }}</td>
                                     <td><strong>${{ "%.2f"|format(po['total_amount'] or 0) }}</strong></td>
