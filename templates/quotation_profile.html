@@ -156,8 +156,8 @@
                         <table class="table table-sm table-hover">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>Supplier</th>
-                                    <th>Type</th>
+                                    <th>Vendor</th>
+                                    <th>Distributor</th>
                                     <th>System</th>
                                     <th>Filename</th>
                                     <th>Uploaded By</th>
@@ -169,17 +169,17 @@
                                 {% for sq in supplier_quotations %}
                                 <tr>
                                     <td>
-                                        {% if sq['supplier_type'] == 'Distributor' %}
-                                        <i class="fas fa-building text-primary"></i> {{ sq['distributor_name'] or 'N/A' }}
+                                        {% if sq['vendor_name'] %}
+                                        <i class="fas fa-truck text-success"></i> {{ sq['vendor_name'] }}
                                         {% else %}
-                                        <i class="fas fa-truck text-success"></i> {{ sq['vendor_name'] or 'N/A' }}
+                                        -
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if sq['supplier_type'] == 'Distributor' %}
-                                        <span class="badge badge-primary">Distributor</span>
+                                        {% if sq['distributor_name'] %}
+                                        <i class="fas fa-building text-primary"></i> {{ sq['distributor_name'] }}
                                         {% else %}
-                                        <span class="badge badge-success">Vendor</span>
+                                        -
                                         {% endif %}
                                     </td>
                                     <td>{{ sq['system'] or 'N/A' }}</td>
