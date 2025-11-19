@@ -143,6 +143,9 @@
                         <table class="table table-hover">
                             <thead class="thead-light">
                                 <tr>
+                                    <th width="50">
+                                        <i class="fas fa-check-circle text-success" title="Selected for Deal Value"></i>
+                                    </th>
                                     <th>Quote Ref</th>
                                     <th>System</th>
                                     <th>Presale Eng.</th>
@@ -156,7 +159,15 @@
                             </thead>
                             <tbody>
                                 {% for quote in quotations[:10] %}
-                                <tr>
+                                <tr {% if quote['selected_for_deal_value'] %}style="background-color: #d4edda;"{% endif %}>
+                                    <td class="text-center">
+                                        <form action="{{ url_for('toggle_quote_for_deal_value', project_id=project['id'], quote_ref=quote['quote_ref']) }}" method="POST" style="display: inline;">
+                                            <button type="submit" class="btn btn-sm {% if quote['selected_for_deal_value'] %}btn-success{% else %}btn-outline-secondary{% endif %}" 
+                                                    title="{% if quote['selected_for_deal_value'] %}Remove from Deal Value{% else %}Add to Deal Value{% endif %}">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                     <td><strong>{{ quote['quote_ref'] }}</strong></td>
                                     <td>{{ quote['system'] or 'N/A' }}</td>
                                     <td>{{ quote['presale_eng'] or 'N/A' }}</td>
@@ -180,14 +191,9 @@
                                     </td>
                                     <td>{{ quote['registered_date'][:10] if quote['registered_date'] else 'N/A' }}</td>
                                     <td>
-                                        <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning mr-1" title="Edit Quotation">
+                                        <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning" title="Edit Quotation">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <form action="{{ url_for('set_deal_value_from_quote', project_id=project['id'], quote_ref=quote['quote_ref']) }}" method="POST" style="display: inline;" onsubmit="return confirm('Set deal value to SAR {{ '{:,.2f}'.format(quote.quotation_selling_price or 0) }} from quote {{ quote.quote_ref }}?');">
-                                            <button type="submit" class="btn btn-sm btn-success" title="Use this quote for Deal Value">
-                                                <i class="fas fa-check-circle"></i>
-                                            </button>
-                                        </form>
                                     </td>
                                 </tr>
                                 {% endfor %}

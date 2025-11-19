@@ -1532,17 +1532,27 @@ def project_detail(project_id):
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value)
 
-@app.route('/set_deal_value_from_quote/<int:project_id>/<quote_ref>', methods=['POST'])
+@app.route('/toggle_quote_for_deal_value/<int:project_id>/<quote_ref>', methods=['POST'])
 @login_required
-def set_deal_value_from_quote(project_id, quote_ref):
-    """Set the project's deal value from a selected quotation's selling price"""
+def toggle_quote_for_deal_value(project_id, quote_ref):
+    """Toggle a quotation's inclusion in the deal value calculation"""
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
     try:
-        # Get the quotation's selling price
-        c.execute("SELECT quotation_selling_price, system FROM projects WHERE quote_ref = ?", (quote_ref,))
+        # Get the project name for this project_id
+        c.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
+        project = c.fetchone()
+        if not project:
+            flash('Project not found!', 'danger')
+            conn.close()
+            return redirect(url_for('view_projects'))
+        
+        project_name = project['project_name']
+        
+        # Toggle the selected_for_deal_value flag
+        c.execute("SELECT selected_for_deal_value FROM projects WHERE quote_ref = ?", (quote_ref,))
         quote = c.fetchone()
         
         if not quote:
@@ -1550,13 +1560,26 @@ def set_deal_value_from_quote(project_id, quote_ref):
             conn.close()
             return redirect(url_for('project_detail', project_id=project_id))
         
-        selling_price = quote['quotation_selling_price'] or 0
-        system = quote['system'] or ''
+        new_status = 0 if quote['selected_for_deal_value'] else 1
+        c.execute("UPDATE projects SET selected_for_deal_value = ? WHERE quote_ref = ?", (new_status, quote_ref))
         
-        # Update the project's deal value and add note
-        deal_value_note = f"Deal Value from Quote: {quote_ref} (SAR {selling_price:,.2f})"
-        if system:
-            deal_value_note += f" - {system}"
+        # Recalculate total deal value from all selected quotations for this project
+        c.execute("""
+            SELECT SUM(quotation_selling_price) as total,
+                   GROUP_CONCAT(quote_ref || ' (SAR ' || printf('%,.2f', quotation_selling_price) || ')', ', ') as quotes_list
+            FROM projects 
+            WHERE project_name = ? AND selected_for_deal_value = 1
+        """, (project_name,))
+        
+        result = c.fetchone()
+        total_value = result['total'] or 0
+        quotes_list = result['quotes_list'] or ''
+        
+        # Update the register_project with new deal value
+        if total_value > 0:
+            deal_value_note = f"Deal Value from {quotes_list}"
+        else:
+            deal_value_note = None
         
         c.execute("""
             UPDATE register_project 
@@ -1565,10 +1588,14 @@ def set_deal_value_from_quote(project_id, quote_ref):
                 updated_time = datetime('now'),
                 updated_by = ?
             WHERE id = ?
-        """, (selling_price, deal_value_note, session.get('username', 'Unknown'), project_id))
+        """, (total_value, deal_value_note, session.get('username', 'Unknown'), project_id))
         
         conn.commit()
-        flash(f'Deal Value updated to SAR {selling_price:,.2f} from {quote_ref}!', 'success')
+        
+        if new_status == 1:
+            flash(f'Added {quote_ref} to deal value. Total: SAR {total_value:,.2f}', 'success')
+        else:
+            flash(f'Removed {quote_ref} from deal value. Total: SAR {total_value:,.2f}', 'info')
         
     except Exception as e:
         flash(f'Error updating deal value: {e}', 'danger')
