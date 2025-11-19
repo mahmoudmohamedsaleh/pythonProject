@@ -7628,9 +7628,9 @@ def view_po_status():
     
     # Fetch distinct project names
     c.execute('''
-        SELECT DISTINCT rp.id, rp.project_name
+        SELECT DISTINCT rp.project_name, rp.project_name
         FROM purchase_orders po
-        JOIN register_project rp ON po.project_name = rp.id
+        JOIN register_project rp ON po.project_name = rp.project_name
     ''')
     projects = c.fetchall()
     
@@ -7696,7 +7696,7 @@ def view_po_status():
         stats_params.append(po_approval_status_filter)
         
     if project_name_filter:
-        stats_query += " AND rp.id = ?"
+        stats_query += " AND rp.project_name = ?"
         stats_params.append(project_name_filter)
     
     c.execute(stats_query, stats_params)
@@ -7760,7 +7760,7 @@ def view_po_status():
         params.append(po_approval_status_filter)
         
     if project_name_filter:
-        query += " AND rp.id = ?"
+        query += " AND rp.project_name = ?"
         params.append(project_name_filter)
     
     query += " ORDER BY po.id DESC"
