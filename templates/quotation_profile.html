@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quotation['quote_ref'] }} - Quotation Profile{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header with Quotation Reference -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('view_projects') }}">Projects</a></li>
+                    <li class="breadcrumb-item active">{{ quotation['quote_ref'] }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>
+                    <i class="fas fa-file-invoice-dollar"></i> {{ quotation['quote_ref'] }}
+                    {% if quotation['status'] == 'Closed Won' %}
+                    <span class="badge badge-success">{{ quotation['status'] }}</span>
+                    {% elif quotation['status'] == 'Closed Lost' %}
+                    <span class="badge badge-danger">{{ quotation['status'] }}</span>
+                    {% elif quotation['status'] == 'Negotiation' %}
+                    <span class="badge badge-warning">{{ quotation['status'] }}</span>
+                    {% else %}
+                    <span class="badge badge-info">{{ quotation['status'] or 'Pending' }}</span>
+                    {% endif %}
+                </h2>
+                <div>
+                    {% if quotation['quotation'] %}
+                    <a href="{{ url_for('download_quotation', quote_ref=quotation['quote_ref']) }}" class="btn btn-primary mr-2">
+                        <i class="fas fa-download"></i> Download Quotation
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('edit_project', quote_ref=quotation['quote_ref']) }}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> Edit Quotation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #28a745;">
+                <div class="card-body">
+                    <h6 class="text-muted">Selling Price</h6>
+                    <h3 class="mb-0 text-success">SAR {{ "{:,.2f}".format(price_value) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #17a2b8;">
+                <div class="card-body">
+                    <h6 class="text-muted">Cost</h6>
+                    <h3 class="mb-0 text-info">SAR {{ "{:,.2f}".format(cost_value) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #ffc107;">
+                <div class="card-body">
+                    <h6 class="text-muted">Margin</h6>
+                    <h3 class="mb-0 text-warning">
+                        {% if margin_value %}{{ "%.2f"|format(margin_value) }}%{% else %}N/A{% endif %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center" style="border-left: 4px solid #6c757d;">
+                <div class="card-body">
+                    <h6 class="text-muted">Markup</h6>
+                    <h3 class="mb-0 text-secondary">
+                        {% if markup_value %}{{ "%.2f"|format(markup_value) }}%{% else %}N/A{% endif %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+            <!-- Quotation Details -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> Quotation Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Project Name:</strong><br>
+                                {% if project %}
+                                <a href="{{ url_for('project_detail', project_id=project['id']) }}">{{ quotation['project_name'] }}</a>
+                                {% else %}
+                                {{ quotation['project_name'] }}
+                                {% endif %}
+                            </p>
+                            <p><strong>System:</strong><br>{{ quotation['system'] or 'N/A' }}</p>
+                            <p><strong>Presale Engineer:</strong><br>{{ quotation['presale_eng'] or 'N/A' }}</p>
+                            <p><strong>Sales Engineer:</strong><br>{{ quotation['sales_eng'] or 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Registered Date:</strong><br>{{ quotation['registered_date'][:10] if quotation['registered_date'] else 'N/A' }}</p>
+                            <p><strong>Quarter:</strong><br>{{ quotation['quarter'] or 'N/A' }}</p>
+                            <p><strong>Progress:</strong><br>
+                                {% if quotation['progress'] %}
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ quotation['progress'] }}%">
+                                        {{ quotation['progress'] }}%
+                                    </div>
+                                </div>
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </p>
+                            <p><strong>Last Updated:</strong><br>{{ quotation['updated_time'] or 'N/A' }}</p>
+                            <p><strong>Updated By:</strong><br>{{ quotation['updated_by'] or 'N/A' }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if quotation['quotation_note'] %}
+                    <hr>
+                    <p><strong>Quotation Note:</strong><br>{{ quotation['quotation_note'] }}</p>
+                    {% endif %}
+                    
+                    {% if quotation['feedback'] %}
+                    <hr>
+                    <p><strong>Feedback:</strong><br>{{ quotation['feedback'] }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Margin & Markup Chart -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Cost vs Selling Price Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="marginChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Related RFQs -->
+            {% if rfqs %}
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 90%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> Related RFQs ({{ rfqs|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>RFQ Reference</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Deadline</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rfq in rfqs %}
+                                <tr>
+                                    <td><a href="{{ url_for('view_rfq_details', rfq_reference=rfq['rfq_reference']) }}">{{ rfq['rfq_reference'] }}</a></td>
+                                    <td>
+                                        {% if rfq['priority'] == 'High' %}
+                                        <span class="badge badge-danger">High</span>
+                                        {% elif rfq['priority'] == 'Medium' %}
+                                        <span class="badge badge-warning">Medium</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Low</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rfq['rfq_status'] }}</td>
+                                    <td>{{ rfq['deadline'][:10] if rfq['deadline'] else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Related Purchase Orders -->
+            {% if pos %}
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Related Purchase Orders ({{ pos|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>PO Reference</th>
+                                    <th>Vendor/Distributor</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in pos %}
+                                <tr>
+                                    <td><a href="{{ url_for('view_po_profile', po_reference=po['po_reference']) }}">{{ po['po_reference'] }}</a></td>
+                                    <td>{{ po['vendor_name'] or po['distributor_name'] or 'N/A' }}</td>
+                                    <td>SAR {{ "{:,.2f}".format(po['amount'] or 0) }}</td>
+                                    <td>{{ po['status'] or 'N/A' }}</td>
+                                    <td>{{ po['registered_date'][:10] if po['registered_date'] else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('edit_project', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-warning mb-2">
+                        <i class="fas fa-edit"></i> Edit Quotation
+                    </a>
+                    {% if quotation['quotation'] %}
+                    <a href="{{ url_for('download_quotation', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-primary mb-2">
+                        <i class="fas fa-file-pdf"></i> Download Quotation PDF
+                    </a>
+                    {% endif %}
+                    {% if quotation['cost_sheet'] %}
+                    <a href="{{ url_for('download_cost_sheet', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-info mb-2">
+                        <i class="fas fa-file-excel"></i> Download Cost Sheet
+                    </a>
+                    {% endif %}
+                    {% if project %}
+                    <a href="{{ url_for('project_detail', project_id=project['id']) }}" class="btn btn-block btn-secondary">
+                        <i class="fas fa-project-diagram"></i> View Project Profile
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Files -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-folder"></i> Documents</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-file-pdf text-danger"></i> Quotation PDF</span>
+                            {% if quotation['quotation'] %}
+                            <span class="badge badge-success">Available</span>
+                            {% else %}
+                            <span class="badge badge-secondary">Not Uploaded</span>
+                            {% endif %}
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-file-excel text-success"></i> Cost Sheet</span>
+                            {% if quotation['cost_sheet'] %}
+                            <span class="badge badge-success">Available</span>
+                            {% else %}
+                            <span class="badge badge-secondary">Not Uploaded</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Margin Chart
+const ctx = document.getElementById('marginChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Quotation Cost', 'Quotation Selling Price'],
+        datasets: [{
+            label: 'Amount (SAR)',
+            data: [{{ cost_value }}, {{ price_value }}],
+            backgroundColor: [
+                'rgba(23, 162, 184, 0.7)',
+                'rgba(40, 167, 69, 0.7)'
+            ],
+            borderColor: [
+                'rgba(23, 162, 184, 1)',
+                'rgba(40, 167, 69, 1)'
+            ],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'SAR ' + value.toLocaleString();
+                    }
+                }
+            }
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Comparison of Quotation Cost and Selling Price',
+                font: {
+                    size: 16
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return 'SAR ' + context.parsed.y.toLocaleString();
+                    }
+                }
+            },
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Add margin and markup annotations to the chart
+const marginText = "Margin: {% if margin_value %}{{ '%.2f'|format(margin_value) }}%{% else %}N/A{% endif %}";
+const markupText = "Markup: {% if markup_value %}{{ '%.2f'|format(markup_value) }}%{% else %}N/A{% endif %}";
+</script>
+{% endblock %}

@@ -5209,48 +5209,72 @@ def sales_performance():
                            total_quoted_data=total_quoted_data,
                            total_won_data=total_won_data)
 ##########################
+@app.route('/quotation_profile/<quote_ref>')
+@login_required
+def quotation_profile(quote_ref):
+    """Comprehensive quotation profile page showing all quotation details"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Fetch quotation details
+    c.execute("SELECT * FROM projects WHERE quote_ref = ?", (quote_ref,))
+    quotation = c.fetchone()
+    
+    if not quotation:
+        flash('Quotation not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_projects'))
+    
+    # Fetch project details from register_project
+    c.execute("SELECT * FROM register_project WHERE project_name = ?", (quotation['project_name'],))
+    project = c.fetchone()
+    
+    # Fetch related RFQs for this project
+    c.execute("""
+        SELECT * FROM rfq_requests 
+        WHERE project_name = ? OR quotation_reference = ?
+        ORDER BY requested_time DESC
+    """, (quotation['project_name'], quote_ref))
+    rfqs = c.fetchall()
+    
+    # Fetch related POs for this project
+    c.execute("""
+        SELECT po.*, d.name as distributor_name, v.name as vendor_name
+        FROM purchase_orders po
+        LEFT JOIN distributors d ON po.distributor = d.name
+        LEFT JOIN vendors v ON po.vendor = v.name
+        WHERE po.project_name = ?
+        ORDER BY po.registered_date DESC
+    """, (quotation['project_name'],))
+    pos = c.fetchall()
+    
+    # Calculate margin and markup
+    cost_value = quotation['quotation_cost'] if quotation['quotation_cost'] else 0
+    price_value = quotation['quotation_selling_price'] if quotation['quotation_selling_price'] else 0
+    margin_value = quotation['margin']
+    
+    markup_value = None
+    if cost_value and cost_value > 0 and price_value is not None:
+        markup_value = ((price_value - cost_value) / cost_value) * 100
+    
+    conn.close()
+    
+    return render_template('quotation_profile.html',
+                         quotation=quotation,
+                         project=project,
+                         rfqs=rfqs,
+                         pos=pos,
+                         cost_value=cost_value,
+                         price_value=price_value,
+                         margin_value=margin_value,
+                         markup_value=markup_value)
+
 @app.route('/comparison/<ref>', methods=['GET'])
 #@role_required('editor')
 def show_comparison(ref):
-    conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
-
-    # Fetch the data for the given reference
-    c.execute("SELECT quotation_cost, quotation_selling_price, margin FROM projects WHERE quote_ref=?", (ref,))
-    comparison_data = c.fetchone()
-    conn.close()
-
-    if comparison_data:
-        quotation_cost, quotation_selling_price, margin = comparison_data
-        
-        # Sanitize None values and prepare template-ready display values
-        cost_value = quotation_cost if quotation_cost is not None else 0
-        price_value = quotation_selling_price if quotation_selling_price is not None else 0
-        margin_value = margin if margin is not None else None
-        
-        # Calculate markup safely
-        markup_value = None
-        if cost_value and cost_value > 0 and price_value is not None:
-            markup_value = ((price_value - cost_value) / cost_value) * 100
-        
-        # Prepare formatted display strings
-        margin_display = f"{margin_value:.2f}%" if margin_value is not None else "N/A"
-        markup_display = f"{markup_value:.2f}%" if markup_value is not None else "N/A"
-
-        # Prepare data for the chart
-        chart_data = {
-            'quotation_reference': ref,
-            'quotation_cost': cost_value,
-            'quotation_selling_price': price_value,
-            'margin': margin_value,
-            'margin_display': margin_display,
-            'markup_display': markup_display,
-        }
-
-        return render_template('comparison_charts.html', data=chart_data)
-    else:
-        flash('No project found for this Quote Reference!', 'danger')
-        return redirect(url_for('index'))
+    """Redirect to quotation profile (kept for backward compatibility)"""
+    return redirect(url_for('quotation_profile', quote_ref=ref))
 ##############################
 
 @app.route('/request_for_quotation', methods=['GET', 'POST'])
