@@ -5245,7 +5245,7 @@ def quotation_profile(quote_ref):
         LEFT JOIN distributors d ON po.distributor = d.name
         LEFT JOIN vendors v ON po.vendor = v.name
         WHERE po.project_name = ?
-        ORDER BY po.registered_date DESC
+        ORDER BY po.created_at DESC
     """, (quotation['project_name'],))
     pos = c.fetchall()
     

@@ -207,11 +207,11 @@
                             <tbody>
                                 {% for po in pos %}
                                 <tr>
-                                    <td><a href="{{ url_for('view_po_profile', po_reference=po['po_reference']) }}">{{ po['po_reference'] }}</a></td>
+                                    <td><a href="{{ url_for('view_po_profile', po_reference=po['po_number']) }}">{{ po['po_number'] or 'N/A' }}</a></td>
                                     <td>{{ po['vendor_name'] or po['distributor_name'] or 'N/A' }}</td>
-                                    <td>SAR {{ "{:,.2f}".format(po['amount'] or 0) }}</td>
-                                    <td>{{ po['status'] or 'N/A' }}</td>
-                                    <td>{{ po['registered_date'][:10] if po['registered_date'] else 'N/A' }}</td>
+                                    <td>SAR {{ "{:,.2f}".format(po['total_amount'] or 0) }}</td>
+                                    <td>{{ po['po_delivery_status'] or 'N/A' }}</td>
+                                    <td>{{ po['created_at'][:10] if po['created_at'] else 'N/A' }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
