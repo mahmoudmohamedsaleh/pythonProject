@@ -8296,8 +8296,8 @@ def edit_po(po_id):
             return redirect(url_for('edit_po', po_id=po_id))
         project_name = project_result['project_name']
         
-        # Convert presale engineer and project manager IDs to usernames
-        c.execute("SELECT username FROM engineers WHERE id = ?", (presale_engineer_id,))
+        # Validate presale engineer and project manager (form sends usernames, not IDs)
+        c.execute("SELECT username FROM engineers WHERE username = ?", (presale_engineer_id,))
         presale_result = c.fetchone()
         if not presale_result:
             flash('Invalid presale engineer selected!', 'danger')
@@ -8305,7 +8305,7 @@ def edit_po(po_id):
             return redirect(url_for('edit_po', po_id=po_id))
         presale_engineer = presale_result['username']
         
-        c.execute("SELECT username FROM engineers WHERE id = ?", (project_manager_id,))
+        c.execute("SELECT username FROM engineers WHERE username = ?", (project_manager_id,))
         pm_result = c.fetchone()
         if not pm_result:
             flash('Invalid account manager selected!', 'danger')
