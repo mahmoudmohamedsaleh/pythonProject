@@ -5484,10 +5484,55 @@ def rfq_summary():
 
     status_labels = [row[0] for row in status_counts_raw]
     status_counts = [row[1] for row in status_counts_raw]
+    
+    # Calculate KPI statistics
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Build same query for statistics
+    stats_query_base = "SELECT COUNT(*) FROM rfq_requests r WHERE 1=1"
+    stats_params = params.copy()
+    filter_clause = ""
+    if filters['presale_engineer']: filter_clause += " AND r.sales_engineer_presale = ?"
+    if filters['sales_engineer']: filter_clause += " AND r.sales_engineer_sales = ?"
+    if filters['rfq_status']: filter_clause += " AND r.rfq_status = ?"
+    if filters['quotation_status']: filter_clause += " AND r.quotation_status = ?"
+    if filters['start_date']: filter_clause += " AND date(r.requested_time) >= ?"
+    if filters['end_date']: filter_clause += " AND date(r.requested_time) <= ?"
+    
+    # Count by status
+    c.execute(stats_query_base + filter_clause + " AND r.rfq_status = 'Queue'", stats_params)
+    queue_count = c.fetchone()[0]
+    
+    c.execute(stats_query_base + filter_clause + " AND r.rfq_status = 'Quoted'", stats_params)
+    quoted_count = c.fetchone()[0]
+    
+    c.execute(stats_query_base + filter_clause + " AND r.rfq_status = 'Cancelled'", stats_params)
+    cancelled_count = c.fetchone()[0]
+    
+    # Count high priority
+    c.execute(stats_query_base + filter_clause + " AND r.priority = 'High'", stats_params)
+    high_priority_count = c.fetchone()[0]
+    
+    # Count overdue (deadline passed and still in Queue)
+    c.execute(stats_query_base + filter_clause + " AND r.deadline < date('now') AND r.rfq_status = 'Queue'", stats_params)
+    overdue_count = c.fetchone()[0]
+    
+    conn.close()
+    
+    kpi_stats = {
+        'total': total_rfqs,
+        'queue': queue_count,
+        'quoted': quoted_count,
+        'cancelled': cancelled_count,
+        'high_priority': high_priority_count,
+        'overdue': overdue_count
+    }
 
     return render_template('rfq_summary.html',
                            rfqs=rfqs,
                            total_rfqs=total_rfqs,
+                           kpi_stats=kpi_stats,
                            user_role=user_role,
                            presale_engineers=presale_engineers,
                            sales_engineers=sales_engineers,
