@@ -145,6 +145,61 @@
                 </div>
             </div>
 
+            <!-- Supplier Quotations -->
+            {% if supplier_quotations %}
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 90%, #2BFF88 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-file-pdf"></i> Supplier Quotations ({{ supplier_quotations|length }})</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th>Type</th>
+                                    <th>System</th>
+                                    <th>Filename</th>
+                                    <th>Uploaded By</th>
+                                    <th>Uploaded Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sq in supplier_quotations %}
+                                <tr>
+                                    <td>
+                                        {% if sq['supplier_type'] == 'Distributor' %}
+                                        <i class="fas fa-building text-primary"></i> {{ sq['distributor_name'] or 'N/A' }}
+                                        {% else %}
+                                        <i class="fas fa-truck text-success"></i> {{ sq['vendor_name'] or 'N/A' }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if sq['supplier_type'] == 'Distributor' %}
+                                        <span class="badge badge-primary">Distributor</span>
+                                        {% else %}
+                                        <span class="badge badge-success">Vendor</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ sq['system'] or 'N/A' }}</td>
+                                    <td><small>{{ sq['filename'] or 'document.pdf' }}</small></td>
+                                    <td>{{ sq['uploaded_by'] or 'N/A' }}</td>
+                                    <td>{{ sq['uploaded_at'][:10] if sq['uploaded_at'] else 'N/A' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('download_supplier_quotation', quotation_id=sq['id']) }}" class="btn btn-sm btn-primary" title="Download PDF">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Related RFQs -->
             {% if rfqs %}
             <div class="card mb-4">

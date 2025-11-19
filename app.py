@@ -5247,6 +5247,14 @@ def quotation_profile(quote_ref):
     """, (quotation['project_name'],))
     pos = c.fetchall()
     
+    # Fetch supplier quotations for this quote_ref
+    c.execute("""
+        SELECT * FROM supplier_quotations 
+        WHERE quote_ref = ?
+        ORDER BY uploaded_at DESC
+    """, (quote_ref,))
+    supplier_quotations = c.fetchall()
+    
     # Calculate margin and markup
     cost_value = quotation['quotation_cost'] if quotation['quotation_cost'] else 0
     price_value = quotation['quotation_selling_price'] if quotation['quotation_selling_price'] else 0
@@ -5263,6 +5271,7 @@ def quotation_profile(quote_ref):
                          project=project,
                          rfqs=rfqs,
                          pos=pos,
+                         supplier_quotations=supplier_quotations,
                          cost_value=cost_value,
                          price_value=price_value,
                          margin_value=margin_value,
