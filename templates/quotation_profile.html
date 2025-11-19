@@ -165,7 +165,7 @@
                             <tbody>
                                 {% for rfq in rfqs %}
                                 <tr>
-                                    <td><a href="{{ url_for('view_rfq_details', rfq_reference=rfq['rfq_reference']) }}">{{ rfq['rfq_reference'] }}</a></td>
+                                    <td><strong>{{ rfq['rfq_reference'] }}</strong></td>
                                     <td>
                                         {% if rfq['priority'] == 'High' %}
                                         <span class="badge badge-danger">High</span>
@@ -207,7 +207,7 @@
                             <tbody>
                                 {% for po in pos %}
                                 <tr>
-                                    <td><a href="{{ url_for('view_po_profile', po_reference=po['po_number']) }}">{{ po['po_number'] or 'N/A' }}</a></td>
+                                    <td><strong>{{ po['po_number'] or 'N/A' }}</strong></td>
                                     <td>{{ po['vendor_name'] or po['distributor_name'] or 'N/A' }}</td>
                                     <td>SAR {{ "{:,.2f}".format(po['total_amount'] or 0) }}</td>
                                     <td>{{ po['po_delivery_status'] or 'N/A' }}</td>
