@@ -5233,9 +5233,9 @@ def quotation_profile(quote_ref):
     # Fetch related RFQs for this project
     c.execute("""
         SELECT * FROM rfq_requests 
-        WHERE project_name = ? OR quotation_reference = ?
+        WHERE project_name = ?
         ORDER BY requested_time DESC
-    """, (quotation['project_name'], quote_ref))
+    """, (quotation['project_name'],))
     rfqs = c.fetchall()
     
     # Fetch related POs for this project
