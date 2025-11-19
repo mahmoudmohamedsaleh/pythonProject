@@ -5163,7 +5163,7 @@ def sales_performance():
         SELECT
             sales_eng,
             SUM(quotation_selling_price) AS total_quoted,
-            SUM(CASE WHEN status = 'WON' THEN quotation_selling_price ELSE 0 END) AS total_won
+            SUM(CASE WHEN status = 'Closed Won' THEN quotation_selling_price ELSE 0 END) AS total_won
         FROM projects
         WHERE strftime('%Y', registered_date) = ? AND sales_eng IS NOT NULL
     """
@@ -5180,9 +5180,9 @@ def sales_performance():
         SELECT 
             p.sales_eng, 
             COUNT(p.id) AS total_quotes, 
-            SUM(CASE WHEN p.status = 'WON' THEN 1 ELSE 0 END) AS won_deals,
-            SUM(CASE WHEN p.status = 'WON' THEN p.quotation_selling_price ELSE 0 END) AS won_value,
-            AVG(CASE WHEN p.status = 'WON' THEN p.margin ELSE NULL END) AS avg_margin
+            SUM(CASE WHEN p.status = 'Closed Won' THEN 1 ELSE 0 END) AS won_deals,
+            SUM(CASE WHEN p.status = 'Closed Won' THEN p.quotation_selling_price ELSE 0 END) AS won_value,
+            AVG(CASE WHEN p.status = 'Closed Won' THEN p.margin ELSE NULL END) AS avg_margin
         FROM projects p 
         WHERE strftime('%Y', p.registered_date) = ? AND p.sales_eng IS NOT NULL
     """
