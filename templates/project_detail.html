@@ -183,8 +183,7 @@
                                         <a href="{{ url_for('edit_project', quote_ref=quote['quote_ref']) }}" class="btn btn-sm btn-outline-warning mr-1" title="Edit Quotation">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        {% set price_formatted = "{:,.2f}".format(quote['quotation_selling_price'] or 0) %}
-                                        <form action="{{ url_for('set_deal_value_from_quote', project_id=project['id'], quote_ref=quote['quote_ref']) }}" method="POST" style="display: inline;" onsubmit="return confirm('Set deal value to SAR {{ price_formatted }} from {{ quote[&quot;quote_ref&quot;] }}?');">
+                                        <form action="{{ url_for('set_deal_value_from_quote', project_id=project['id'], quote_ref=quote['quote_ref']) }}" method="POST" style="display: inline;" onsubmit="return confirm('Set deal value to SAR {{ '{:,.2f}'.format(quote.quotation_selling_price or 0) }} from quote {{ quote.quote_ref }}?');">
                                             <button type="submit" class="btn btn-sm btn-success" title="Use this quote for Deal Value">
                                                 <i class="fas fa-check-circle"></i>
                                             </button>
