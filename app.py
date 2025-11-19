@@ -1532,6 +1532,51 @@ def project_detail(project_id):
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value)
 
+@app.route('/set_deal_value_from_quote/<int:project_id>/<quote_ref>', methods=['POST'])
+@login_required
+def set_deal_value_from_quote(project_id, quote_ref):
+    """Set the project's deal value from a selected quotation's selling price"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Get the quotation's selling price
+        c.execute("SELECT quotation_selling_price, system FROM projects WHERE quote_ref = ?", (quote_ref,))
+        quote = c.fetchone()
+        
+        if not quote:
+            flash('Quotation not found!', 'danger')
+            conn.close()
+            return redirect(url_for('project_detail', project_id=project_id))
+        
+        selling_price = quote['quotation_selling_price'] or 0
+        system = quote['system'] or ''
+        
+        # Update the project's deal value and add note
+        deal_value_note = f"Deal Value from Quote: {quote_ref} (SAR {selling_price:,.2f})"
+        if system:
+            deal_value_note += f" - {system}"
+        
+        c.execute("""
+            UPDATE register_project 
+            SET deal_value = ?, 
+                deal_value_note = ?,
+                updated_time = datetime('now'),
+                updated_by = ?
+            WHERE id = ?
+        """, (selling_price, deal_value_note, session.get('username', 'Unknown'), project_id))
+        
+        conn.commit()
+        flash(f'Deal Value updated to SAR {selling_price:,.2f} from {quote_ref}!', 'success')
+        
+    except Exception as e:
+        flash(f'Error updating deal value: {e}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('project_detail', project_id=project_id))
+
 @app.route('/download_project_data_excel/<int:project_id>')
 @login_required
 def download_project_data_excel(project_id):
