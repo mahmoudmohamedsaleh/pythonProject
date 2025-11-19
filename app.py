@@ -1793,10 +1793,9 @@ def download_project_history(project_name):
 
     return send_file(output, download_name=filename, as_attachment=True)
 
-@app.route('/download_quotation', methods=['POST'])
+@app.route('/download_quotation/<quote_ref>', methods=['GET'])
 #@role_required('editor')
-def download_quotation():
-    quote_ref = request.form['quote_ref']
+def download_quotation(quote_ref):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute("SELECT quotation FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -1804,18 +1803,17 @@ def download_quotation():
     result = c.fetchone()
     conn.close()
 
-    if result:
+    if result and result[0]:
         quotation_data = result[0]
         output = BytesIO(quotation_data)
         return send_file(output, download_name=f'{quote_ref}.xlsx', as_attachment=True)
     else:
         flash('Quotation not found!', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
-@app.route('/download_cost_sheet', methods=['POST'])
+@app.route('/download_cost_sheet/<quote_ref>', methods=['GET'])
 #@role_required('editor')
-def download_cost_sheet():
-    quote_ref = request.form['quote_ref']
+def download_cost_sheet(quote_ref):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute("SELECT cost_sheet FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -1823,13 +1821,13 @@ def download_cost_sheet():
     result = c.fetchone()
     conn.close()
 
-    if result:
+    if result and result[0]:
         cost_sheet_data = result[0]
         output = BytesIO(cost_sheet_data)
-        return send_file(output, download_name=f'{quote_ref}cost_sheet.xlsx', as_attachment=True)
+        return send_file(output, download_name=f'{quote_ref}_cost_sheet.xlsx', as_attachment=True)
     else:
         flash('Cost sheet not found!', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
 @app.route('/upload_supplier_quotation', methods=['POST'])
 @login_required
