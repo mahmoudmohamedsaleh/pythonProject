@@ -209,6 +209,7 @@
                         <th>RFQ Status</th>
                         <th>Quote Status</th>
                         <th>Deadline</th>
+                        <th>Overdue By</th>
                         <th>Age</th>
                         <th>Actions</th>
                     </tr>
@@ -256,8 +257,6 @@
                         <td>
                             {% if rfq[9] %}
                                 {% set deadline = rfq[9][:10] %}
-                                {% set today = None %}
-                                <script>today = new Date().toISOString().split('T')[0];</script>
                                 {% if deadline < '2025-11-19' and rfq[7] == 'Queue' %}
                                     <span class="deadline-overdue" title="Overdue!">
                                         <i class="fas fa-exclamation-triangle"></i> {{ deadline }}
@@ -267,6 +266,26 @@
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">No deadline</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if rfq[9] and rfq[7] == 'Queue' %}
+                                {% set deadline = rfq[9][:10] %}
+                                {% set today = '2025-11-19' %}
+                                {% if deadline < today %}
+                                    {% set deadline_parts = deadline.split('-') %}
+                                    {% set today_parts = today.split('-') %}
+                                    {% set deadline_days = (deadline_parts[0]|int * 365) + (deadline_parts[1]|int * 30) + (deadline_parts[2]|int) %}
+                                    {% set today_days = (today_parts[0]|int * 365) + (today_parts[1]|int * 30) + (today_parts[2]|int) %}
+                                    {% set days_overdue = today_days - deadline_days %}
+                                    <span class="badge badge-danger" style="font-size: 0.9rem; padding: 6px 12px;">
+                                        <i class="fas fa-clock"></i> {{ days_overdue }} day{{ 's' if days_overdue != 1 else '' }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td>
