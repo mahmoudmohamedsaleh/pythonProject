@@ -1068,13 +1068,13 @@ def index():
     pipeline_deals_amount = c.fetchone()[0] or 0
 
     # 3. Won Projects Count (This Year) - NOW FROM 'projects' TABLE
-    c.execute("SELECT COUNT(*) FROM projects WHERE status = 'WON' AND strftime('%Y', registered_date) = ?",
+    c.execute("SELECT COUNT(*) FROM projects WHERE status = 'Closed Won' AND strftime('%Y', registered_date) = ?",
               (current_year,))
     won_projects_count = c.fetchone()[0]
 
     # 4. Won Projects Amount (This Year) - NOW FROM 'projects' TABLE
     c.execute(
-        "SELECT SUM(quotation_selling_price) FROM projects WHERE status = 'WON' AND strftime('%Y', registered_date) = ?",
+        "SELECT SUM(quotation_selling_price) FROM projects WHERE status = 'Closed Won' AND strftime('%Y', registered_date) = ?",
         (current_year,))
     won_projects_amount = c.fetchone()[0] or 0
 
