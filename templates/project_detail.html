@@ -383,6 +383,140 @@
                 </div>
             </div>
 
+            <!-- Project Documents Section -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-folder-open"></i> Project Documents</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Upload/Update Form -->
+                    <div class="mb-4">
+                        <button class="btn btn-primary" data-toggle="collapse" data-target="#uploadProjectDocsForm">
+                            <i class="fas fa-upload"></i> {% if project_documents %}Update{% else %}Upload{% endif %} Project Documents
+                        </button>
+                        
+                        <div id="uploadProjectDocsForm" class="collapse mt-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <form action="{{ url_for('upload_project_documents', project_id=project['id']) }}" method="POST" enctype="multipart/form-data">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="boq_file"><strong><i class="fas fa-file-excel text-success"></i> BOQ (Bill of Quantities)</strong></label>
+                                                    <input type="file" class="form-control-file" id="boq_file" name="boq_file" accept=".xlsx,.xls">
+                                                    <small class="form-text text-muted">Upload Excel file (.xlsx or .xls)</small>
+                                                    {% if project_documents and project_documents['boq_filename'] %}
+                                                    <div class="mt-2">
+                                                        <span class="badge badge-success">Current: {{ project_documents['boq_filename'] }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="spec_file"><strong><i class="fas fa-file-pdf text-danger"></i> Specification Document</strong></label>
+                                                    <input type="file" class="form-control-file" id="spec_file" name="spec_file" accept=".pdf">
+                                                    <small class="form-text text-muted">Upload PDF file</small>
+                                                    {% if project_documents and project_documents['spec_filename'] %}
+                                                    <div class="mt-2">
+                                                        <span class="badge badge-danger">Current: {{ project_documents['spec_filename'] }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-group">
+                                            <label for="gdrive_link"><strong><i class="fab fa-google-drive" style="color: #4285F4;"></i> Google Drive Folder Link</strong></label>
+                                            <input type="url" class="form-control" id="gdrive_link" name="gdrive_link" 
+                                                   placeholder="https://drive.google.com/drive/folders/..." 
+                                                   value="{{ project_documents['gdrive_link'] if project_documents else '' }}">
+                                            <small class="form-text text-muted">Paste the link to the Google Drive folder containing all project documents</small>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> {% if project_documents %}Update{% else %}Upload{% endif %} Documents
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" data-toggle="collapse" data-target="#uploadProjectDocsForm">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documents Display -->
+                    {% if project_documents %}
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card text-center h-100" style="border-left: 4px solid #28a745;">
+                                <div class="card-body">
+                                    <i class="fas fa-file-excel fa-3x text-success mb-3"></i>
+                                    <h6 class="card-title">BOQ (Bill of Quantities)</h6>
+                                    {% if project_documents['boq_filename'] %}
+                                    <p class="text-muted small mb-2">{{ project_documents['boq_filename'] }}</p>
+                                    <a href="{{ url_for('download_project_boq', project_id=project['id']) }}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    {% else %}
+                                    <p class="text-muted"><small>Not uploaded yet</small></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card text-center h-100" style="border-left: 4px solid #dc3545;">
+                                <div class="card-body">
+                                    <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                                    <h6 class="card-title">Specification Document</h6>
+                                    {% if project_documents['spec_filename'] %}
+                                    <p class="text-muted small mb-2">{{ project_documents['spec_filename'] }}</p>
+                                    <a href="{{ url_for('download_project_spec', project_id=project['id']) }}" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    {% else %}
+                                    <p class="text-muted"><small>Not uploaded yet</small></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card text-center h-100" style="border-left: 4px solid #4285F4;">
+                                <div class="card-body">
+                                    <i class="fab fa-google-drive fa-3x mb-3" style="color: #4285F4;"></i>
+                                    <h6 class="card-title">Google Drive Folder</h6>
+                                    {% if project_documents['gdrive_link'] %}
+                                    <a href="{{ project_documents['gdrive_link'] }}" target="_blank" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-external-link-alt"></i> Open Folder
+                                    </a>
+                                    {% else %}
+                                    <p class="text-muted"><small>Not set yet</small></p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-right">
+                        <small class="text-muted">
+                            <i class="fas fa-user"></i> Uploaded by: {{ project_documents['uploaded_by'] or 'N/A' }} | 
+                            <i class="fas fa-calendar"></i> Last updated: {{ project_documents['uploaded_at'][:16] if project_documents['uploaded_at'] else 'N/A' }}
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No project documents uploaded yet.</p>
+                        <p class="text-muted"><small>Upload BOQ (Excel), Specifications (PDF), and add Google Drive folder link for easy access to all project documents.</small></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- RFQs Section -->
             <div class="card mb-4">
                 <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">

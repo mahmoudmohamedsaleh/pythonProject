@@ -1514,6 +1514,15 @@ def project_detail(project_id):
     cursor.execute("SELECT id, name FROM vendors ORDER BY name")
     vendors = cursor.fetchall()
     
+    # Get project documents
+    cursor.execute("""
+        SELECT * FROM project_documents
+        WHERE project_id = ?
+        ORDER BY uploaded_at DESC
+        LIMIT 1
+    """, (project_id,))
+    project_documents = cursor.fetchone()
+    
     # Calculate statistics
     total_quotation_value = sum(q['quotation_selling_price'] or 0 for q in quotations)
     total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
@@ -1530,7 +1539,8 @@ def project_detail(project_id):
                          distributors=distributors,
                          vendors=vendors,
                          total_quotation_value=total_quotation_value,
-                         total_po_value=total_po_value)
+                         total_po_value=total_po_value,
+                         project_documents=project_documents)
 
 @app.route('/toggle_quote_for_deal_value/<int:project_id>/<quote_ref>', methods=['POST'])
 @login_required
@@ -1949,6 +1959,181 @@ def download_supplier_quotation(quotation_id):
     except Exception as e:
         flash(f'Error accessing supplier quotation: {str(e)}', 'danger')
         return redirect(request.referrer or url_for('index'))
+
+
+# Upload Project Documents (BOQ, Spec, Google Drive Link)
+@app.route('/upload_project_documents/<int:project_id>', methods=['POST'])
+@login_required
+def upload_project_documents(project_id):
+    """Upload or update project documents (BOQ, Spec, Google Drive Link)"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get project details
+        cursor.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
+        project = cursor.fetchone()
+        
+        if not project:
+            flash('Project not found!', 'danger')
+            conn.close()
+            return redirect(url_for('view_projects'))
+        
+        project_name = project['project_name']
+        
+        # Get Google Drive link from form
+        gdrive_link = request.form.get('gdrive_link', '').strip()
+        
+        # Get uploaded files
+        boq_file = request.files.get('boq_file')
+        spec_file = request.files.get('spec_file')
+        
+        # Validate file types
+        allowed_boq_extensions = {'.xlsx', '.xls'}
+        allowed_spec_extensions = {'.pdf'}
+        
+        boq_data = None
+        boq_filename = None
+        spec_data = None
+        spec_filename = None
+        
+        if boq_file and boq_file.filename:
+            file_ext = os.path.splitext(boq_file.filename)[1].lower()
+            if file_ext not in allowed_boq_extensions:
+                flash('BOQ file must be Excel format (.xlsx or .xls)!', 'danger')
+                conn.close()
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            boq_data = boq_file.read()
+            boq_filename = boq_file.filename
+        
+        if spec_file and spec_file.filename:
+            file_ext = os.path.splitext(spec_file.filename)[1].lower()
+            if file_ext not in allowed_spec_extensions:
+                flash('Specification file must be PDF format!', 'danger')
+                conn.close()
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            spec_data = spec_file.read()
+            spec_filename = spec_file.filename
+        
+        # Check if documents already exist for this project
+        cursor.execute("SELECT id FROM project_documents WHERE project_id = ?", (project_id,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing record
+            update_fields = []
+            update_params = []
+            
+            if boq_data:
+                update_fields.append("boq_file = ?")
+                update_fields.append("boq_filename = ?")
+                update_params.extend([boq_data, boq_filename])
+            
+            if spec_data:
+                update_fields.append("spec_file = ?")
+                update_fields.append("spec_filename = ?")
+                update_params.extend([spec_data, spec_filename])
+            
+            if gdrive_link:
+                update_fields.append("gdrive_link = ?")
+                update_params.append(gdrive_link)
+            
+            if update_fields:
+                update_fields.append("uploaded_by = ?")
+                update_fields.append("uploaded_at = CURRENT_TIMESTAMP")
+                update_params.append(session.get('username'))
+                update_params.append(existing['id'])
+                
+                query = f"UPDATE project_documents SET {', '.join(update_fields)} WHERE id = ?"
+                cursor.execute(query, update_params)
+                flash('Project documents updated successfully!', 'success')
+            else:
+                flash('No documents were uploaded or updated!', 'warning')
+        else:
+            # Insert new record
+            cursor.execute("""
+                INSERT INTO project_documents 
+                (project_id, project_name, boq_file, boq_filename, spec_file, spec_filename, gdrive_link, uploaded_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (project_id, project_name, boq_data, boq_filename, spec_data, spec_filename, gdrive_link, session.get('username')))
+            flash('Project documents uploaded successfully!', 'success')
+        
+        conn.commit()
+        conn.close()
+        return redirect(url_for('project_detail', project_id=project_id))
+        
+    except Exception as e:
+        flash(f'Error uploading documents: {str(e)}', 'danger')
+        return redirect(url_for('project_detail', project_id=project_id))
+
+
+# Download BOQ File
+@app.route('/download_project_boq/<int:project_id>', methods=['GET'])
+@login_required
+def download_project_boq(project_id):
+    """Download BOQ file for a project"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT boq_file, boq_filename 
+            FROM project_documents 
+            WHERE project_id = ?
+        """, (project_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0]:
+            boq_data = result[0]
+            filename = result[1] or 'BOQ.xlsx'
+            
+            output = BytesIO(boq_data)
+            return send_file(output, download_name=filename, as_attachment=True)
+        else:
+            flash('BOQ file not found!', 'danger')
+            return redirect(url_for('project_detail', project_id=project_id))
+            
+    except Exception as e:
+        flash(f'Error downloading BOQ: {str(e)}', 'danger')
+        return redirect(url_for('project_detail', project_id=project_id))
+
+
+# Download Specification File
+@app.route('/download_project_spec/<int:project_id>', methods=['GET'])
+@login_required
+def download_project_spec(project_id):
+    """Download Specification PDF for a project"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT spec_file, spec_filename 
+            FROM project_documents 
+            WHERE project_id = ?
+        """, (project_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result and result[0]:
+            spec_data = result[0]
+            filename = result[1] or 'Specification.pdf'
+            
+            output = BytesIO(spec_data)
+            return send_file(output, download_name=filename, as_attachment=True, mimetype='application/pdf')
+        else:
+            flash('Specification file not found!', 'danger')
+            return redirect(url_for('project_detail', project_id=project_id))
+            
+    except Exception as e:
+        flash(f'Error downloading specification: {str(e)}', 'danger')
+        return redirect(url_for('project_detail', project_id=project_id))
 
 
 # Add Product from Supplier Quotation
