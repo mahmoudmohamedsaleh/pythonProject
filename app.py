@@ -1516,7 +1516,7 @@ def project_detail(project_id):
     
     # Get project documents
     cursor.execute("""
-        SELECT * FROM project_documents
+        SELECT * FROM project_docs
         WHERE project_id = ?
         ORDER BY uploaded_at DESC
         LIMIT 1
@@ -2019,7 +2019,7 @@ def upload_project_documents(project_id):
             spec_filename = spec_file.filename
         
         # Check if documents already exist for this project
-        cursor.execute("SELECT id FROM project_documents WHERE project_id = ?", (project_id,))
+        cursor.execute("SELECT id FROM project_docs WHERE project_id = ?", (project_id,))
         existing = cursor.fetchone()
         
         if existing:
@@ -2047,7 +2047,7 @@ def upload_project_documents(project_id):
                 update_params.append(session.get('username'))
                 update_params.append(existing['id'])
                 
-                query = f"UPDATE project_documents SET {', '.join(update_fields)} WHERE id = ?"
+                query = f"UPDATE project_docs SET {', '.join(update_fields)} WHERE id = ?"
                 cursor.execute(query, update_params)
                 flash('Project documents updated successfully!', 'success')
             else:
@@ -2055,7 +2055,7 @@ def upload_project_documents(project_id):
         else:
             # Insert new record
             cursor.execute("""
-                INSERT INTO project_documents 
+                INSERT INTO project_docs 
                 (project_id, project_name, boq_file, boq_filename, spec_file, spec_filename, gdrive_link, uploaded_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (project_id, project_name, boq_data, boq_filename, spec_data, spec_filename, gdrive_link, session.get('username')))
@@ -2081,7 +2081,7 @@ def download_project_boq(project_id):
         
         cursor.execute("""
             SELECT boq_file, boq_filename 
-            FROM project_documents 
+            FROM project_docs 
             WHERE project_id = ?
         """, (project_id,))
         
@@ -2114,7 +2114,7 @@ def download_project_spec(project_id):
         
         cursor.execute("""
             SELECT spec_file, spec_filename 
-            FROM project_documents 
+            FROM project_docs 
             WHERE project_id = ?
         """, (project_id,))
         
