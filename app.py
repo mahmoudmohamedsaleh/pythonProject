@@ -17,7 +17,10 @@ from io import BytesIO
 import pandas as pd
 from flask import send_file
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import uuid
 import secrets
+import html
 import string
 import smtplib
 from email.mime.text import MIMEText
@@ -1541,6 +1544,244 @@ def project_detail(project_id):
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value,
                          project_documents=project_documents)
+
+##############
+# PROJECT CHAT ROUTES
+##############
+
+@app.route('/project/<int:project_id>/chat/messages', methods=['GET'])
+@login_required
+def get_chat_messages(project_id):
+    """Fetch chat messages for a project with proper access control"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get project with sales engineer info for access control
+    cursor.execute("""
+        SELECT rp.id, rp.sales_engineer_id, rp.approval_status
+        FROM register_project rp
+        WHERE rp.id = ?
+    """, (project_id,))
+    project = cursor.fetchone()
+    
+    if not project:
+        conn.close()
+        return jsonify({'error': 'Project not found'}), 404
+    
+    # ACCESS CONTROL: Check if user can access this project
+    # Sales Engineers can only access their own projects
+    # All other roles can access all approved projects
+    cursor.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+    user_role_result = cursor.fetchone()
+    user_role = user_role_result[0] if user_role_result else None
+    
+    if user_role == 'Sales Engineer':
+        # Sales Engineer - check if they own this project
+        cursor.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        engineer_result = cursor.fetchone()
+        if engineer_result:
+            engineer_id = engineer_result[0]
+            if project['sales_engineer_id'] != engineer_id:
+                conn.close()
+                return jsonify({'error': 'Access denied'}), 403
+    
+    # Get last_message_id for pagination (only fetch new messages)
+    last_message_id = request.args.get('last_message_id', 0, type=int)
+    
+    # Fetch messages with LIMIT to prevent large responses (max 100 messages per request)
+    cursor.execute("""
+        SELECT 
+            id, project_id, user_id, username, message_text,
+            attachment_path, attachment_filename, attachment_type,
+            file_size, created_at
+        FROM project_chat_messages
+        WHERE project_id = ? AND id > ?
+        ORDER BY created_at ASC
+        LIMIT 100
+    """, (project_id, last_message_id))
+    
+    messages = []
+    for row in cursor.fetchall():
+        messages.append({
+            'id': row['id'],
+            'username': row['username'],
+            'message_text': row['message_text'],
+            'attachment_filename': row['attachment_filename'],
+            'attachment_type': row['attachment_type'],
+            'file_size': row['file_size'],
+            'created_at': row['created_at'],
+            'has_attachment': bool(row['attachment_path'])
+        })
+    
+    conn.close()
+    return jsonify({'messages': messages})
+
+@app.route('/project/<int:project_id>/chat', methods=['POST'])
+@login_required
+def send_chat_message(project_id):
+    """Send a chat message with optional file attachment - with access control"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get project with sales engineer info for access control
+    cursor.execute("""
+        SELECT rp.id, rp.project_name, rp.sales_engineer_id, rp.approval_status
+        FROM register_project rp
+        WHERE rp.id = ?
+    """, (project_id,))
+    project = cursor.fetchone()
+    
+    if not project:
+        conn.close()
+        return jsonify({'error': 'Project not found'}), 404
+    
+    # ACCESS CONTROL: Check if user can access this project
+    cursor.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+    user_role_result = cursor.fetchone()
+    user_role = user_role_result[0] if user_role_result else None
+    
+    if user_role == 'Sales Engineer':
+        # Sales Engineer - check if they own this project
+        cursor.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        engineer_result = cursor.fetchone()
+        if engineer_result:
+            engineer_id = engineer_result[0]
+            if project['sales_engineer_id'] != engineer_id:
+                conn.close()
+                return jsonify({'error': 'Access denied'}), 403
+    
+    message_text = request.form.get('message_text', '').strip()
+    file = request.files.get('attachment')
+    
+    # Sanitize HTML from message text to prevent stored XSS
+    if message_text:
+        # Limit message length first
+        if len(message_text) > 1000:
+            message_text = message_text[:1000]
+        # Escape HTML entities to prevent XSS
+        message_text = html.escape(message_text, quote=True)
+    
+    # At least message or file is required
+    if not message_text and not file:
+        conn.close()
+        return jsonify({'error': 'Message or file is required'}), 400
+    
+    attachment_path = None
+    attachment_filename = None
+    attachment_type = None
+    file_size = None
+    
+    # Handle file upload
+    if file and file.filename:
+        # Validate file extension
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'pdf'}
+        filename = secure_filename(file.filename)
+        file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        
+        if file_ext not in allowed_extensions:
+            conn.close()
+            return jsonify({'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'}), 400
+        
+        # Check file size (max 10MB)
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            conn.close()
+            return jsonify({'error': 'File size must be less than 10MB'}), 400
+        
+        # Create project-specific upload directory
+        upload_dir = os.path.join('uploads', 'chat', str(project_id))
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        attachment_path = os.path.join(upload_dir, unique_filename)
+        
+        # Save file
+        file.save(attachment_path)
+        attachment_filename = filename
+        
+        # Determine attachment type
+        if file_ext in {'jpg', 'jpeg', 'png', 'gif'}:
+            attachment_type = 'image'
+        elif file_ext == 'pdf':
+            attachment_type = 'pdf'
+    
+    # Insert message into database
+    cursor.execute("""
+        INSERT INTO project_chat_messages 
+        (project_id, user_id, username, message_text, attachment_path, 
+         attachment_filename, attachment_type, file_size)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (project_id, session['user_id'], session['username'], message_text,
+          attachment_path, attachment_filename, attachment_type, file_size))
+    
+    conn.commit()
+    message_id = cursor.lastrowid
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'message_id': message_id,
+        'message': 'Message sent successfully'
+    })
+
+@app.route('/chat/attachment/<int:message_id>')
+@login_required
+def download_chat_attachment(message_id):
+    """Download chat message attachment with proper access control"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get message with project info for access check
+    cursor.execute("""
+        SELECT 
+            pcm.attachment_path, pcm.attachment_filename, pcm.attachment_type,
+            rp.id as project_id, rp.sales_engineer_id
+        FROM project_chat_messages pcm
+        JOIN register_project rp ON pcm.project_id = rp.id
+        WHERE pcm.id = ?
+    """, (message_id,))
+    
+    message = cursor.fetchone()
+    
+    if not message or not message['attachment_path']:
+        conn.close()
+        return jsonify({'error': 'Attachment not found'}), 404
+    
+    # ACCESS CONTROL: Check if user can access this project's attachments
+    cursor.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+    user_role_result = cursor.fetchone()
+    user_role = user_role_result[0] if user_role_result else None
+    
+    if user_role == 'Sales Engineer':
+        # Sales Engineer - check if they own this project
+        cursor.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        engineer_result = cursor.fetchone()
+        if engineer_result:
+            engineer_id = engineer_result[0]
+            if message['sales_engineer_id'] != engineer_id:
+                conn.close()
+                return jsonify({'error': 'Access denied'}), 403
+    
+    conn.close()
+    
+    # Verify file exists before sending
+    if not os.path.exists(message['attachment_path']):
+        return jsonify({'error': 'File not found on server'}), 404
+    
+    # Send file securely
+    return send_file(
+        message['attachment_path'],
+        as_attachment=True,
+        download_name=message['attachment_filename'],
+        mimetype='application/octet-stream'
+    )
 
 @app.route('/toggle_quote_for_deal_value/<int:project_id>/<quote_ref>', methods=['POST'])
 @login_required

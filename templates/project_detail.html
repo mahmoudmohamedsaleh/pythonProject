@@ -829,6 +829,50 @@
                 </div>
             </div>
 
+            <!-- Project Chat Card -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments"></i> Project Chat
+                        <span class="badge badge-light text-dark ml-2" id="chatMessageCount">0</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Chat Messages Container -->
+                    <div id="chatMessagesContainer" style="height: 400px; overflow-y: auto; padding: 15px; background-color: #f8f9fa;">
+                        <div class="text-center py-5" id="chatLoadingIndicator">
+                            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                            <p class="text-muted mt-2">Loading messages...</p>
+                        </div>
+                        <div id="chatMessages">
+                            <!-- Messages will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input Form -->
+                    <div class="border-top p-3" style="background-color: white;">
+                        <form id="chatMessageForm" enctype="multipart/form-data">
+                            <div class="form-group mb-2">
+                                <textarea class="form-control" id="chatMessageText" name="message_text" rows="2" placeholder="Type your message..." maxlength="1000"></textarea>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <label for="chatAttachment" class="btn btn-sm btn-outline-secondary mb-0" style="cursor: pointer;">
+                                        <i class="fas fa-paperclip"></i> Attach File
+                                    </label>
+                                    <input type="file" id="chatAttachment" name="attachment" accept=".jpg,.jpeg,.png,.gif,.pdf" style="display: none;">
+                                    <small class="text-muted ml-2" id="attachmentInfo"></small>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm" id="sendChatBtn">
+                                    <i class="fas fa-paper-plane"></i> Send
+                                </button>
+                            </div>
+                            <small class="text-muted">Max 10MB. Allowed: Images (JPG, PNG, GIF) and PDF files</small>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- Approval Status Card (if applicable) -->
             {% if project['approval_status'] %}
             <div class="card mb-4">
@@ -1067,6 +1111,214 @@ function removeDocument(docType, projectId) {
         });
     }
 }
+
+// ===========================
+// PROJECT CHAT FUNCTIONALITY
+// ===========================
+let lastMessageId = 0;
+let chatPollInterval = null;
+const projectId = {{ project['id'] }};
+
+// Load chat messages
+function loadChatMessages() {
+    fetch(`/project/${projectId}/chat/messages?last_message_id=${lastMessageId}`)
+        .then(response => response.json())
+        .then(data => {
+            const chatMessages = document.getElementById('chatMessages');
+            const chatLoadingIndicator = document.getElementById('chatLoadingIndicator');
+            const chatMessageCount = document.getElementById('chatMessageCount');
+            
+            // Hide loading indicator
+            if (chatLoadingIndicator) {
+                chatLoadingIndicator.style.display = 'none';
+            }
+            
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(msg => {
+                    const messageDiv = createMessageElement(msg);
+                    chatMessages.appendChild(messageDiv);
+                    lastMessageId = Math.max(lastMessageId, msg.id);
+                });
+                
+                // Auto-scroll to bottom
+                scrollChatToBottom();
+                
+                // Update count
+                const allMessages = chatMessages.querySelectorAll('.chat-message');
+                chatMessageCount.textContent = allMessages.length;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+        });
+}
+
+// Create message HTML element
+function createMessageElement(msg) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message mb-3';
+    
+    // Format timestamp
+    const timestamp = new Date(msg.created_at).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    // Create message HTML
+    let attachmentHTML = '';
+    if (msg.has_attachment) {
+        if (msg.attachment_type === 'image') {
+            attachmentHTML = `
+                <div class="mt-2">
+                    <a href="/chat/attachment/${msg.id}" target="_blank">
+                        <img src="/chat/attachment/${msg.id}" class="img-thumbnail" style="max-width: 200px; max-height: 200px; cursor: pointer;" alt="${msg.attachment_filename}">
+                    </a>
+                    <div><small class="text-muted"><i class="fas fa-image"></i> ${msg.attachment_filename}</small></div>
+                </div>
+            `;
+        } else if (msg.attachment_type === 'pdf') {
+            const fileSizeKB = (msg.file_size / 1024).toFixed(1);
+            attachmentHTML = `
+                <div class="mt-2">
+                    <a href="/chat/attachment/${msg.id}" class="btn btn-sm btn-outline-danger" target="_blank">
+                        <i class="fas fa-file-pdf"></i> ${msg.attachment_filename} (${fileSizeKB} KB)
+                    </a>
+                </div>
+            `;
+        }
+    }
+    
+    messageDiv.innerHTML = `
+        <div class="card shadow-sm">
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <strong class="text-primary"><i class="fas fa-user-circle"></i> ${escapeHtml(msg.username)}</strong>
+                    <small class="text-muted">${timestamp}</small>
+                </div>
+                ${msg.message_text ? `<p class="mb-1">${escapeHtml(msg.message_text)}</p>` : ''}
+                ${attachmentHTML}
+            </div>
+        </div>
+    `;
+    
+    return messageDiv;
+}
+
+// Scroll chat to bottom
+function scrollChatToBottom() {
+    const container = document.getElementById('chatMessagesContainer');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Handle form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const chatForm = document.getElementById('chatMessageForm');
+    const chatMessageText = document.getElementById('chatMessageText');
+    const chatAttachment = document.getElementById('chatAttachment');
+    const attachmentInfo = document.getElementById('attachmentInfo');
+    const sendBtn = document.getElementById('sendChatBtn');
+    
+    // Show file info when file is selected
+    chatAttachment.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            attachmentInfo.textContent = `${file.name} (${fileSizeMB} MB)`;
+            
+            // Validate file size
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size must be less than 10MB');
+                chatAttachment.value = '';
+                attachmentInfo.textContent = '';
+            }
+        } else {
+            attachmentInfo.textContent = '';
+        }
+    });
+    
+    // Handle form submit
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const messageText = chatMessageText.value.trim();
+        const file = chatAttachment.files[0];
+        
+        // Require at least message or file
+        if (!messageText && !file) {
+            alert('Please enter a message or attach a file');
+            return;
+        }
+        
+        // Prepare form data
+        const formData = new FormData();
+        if (messageText) {
+            formData.append('message_text', messageText);
+        }
+        if (file) {
+            formData.append('attachment', file);
+        }
+        
+        // Disable send button
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        
+        // Send message
+        fetch(`/project/${projectId}/chat`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear form
+                chatMessageText.value = '';
+                chatAttachment.value = '';
+                attachmentInfo.textContent = '';
+                
+                // Reload messages immediately
+                loadChatMessages();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to send message'));
+            }
+        })
+        .catch(error => {
+            alert('Error sending message: ' + error);
+        })
+        .finally(() => {
+            // Re-enable send button
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+        });
+    });
+    
+    // Initial load
+    loadChatMessages();
+    
+    // Poll for new messages every 10 seconds
+    chatPollInterval = setInterval(loadChatMessages, 10000);
+});
+
+// Clean up interval when page unloads
+window.addEventListener('beforeunload', function() {
+    if (chatPollInterval) {
+        clearInterval(chatPollInterval);
+    }
+});
 </script>
 
 <!-- Update BOQ Modal -->
