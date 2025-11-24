@@ -4697,6 +4697,30 @@ def register_project():
         # Get the username of who is registering the project
         updated_by = session.get('username', 'Unknown')
 
+        # Handle document uploads (optional)
+        boq_file = request.files.get('boq_file')
+        spec_file = request.files.get('spec_file')
+        gdrive_link = request.form.get('gdrive_link', '').strip()
+        
+        boq_data = None
+        boq_filename = None
+        spec_data = None
+        spec_filename = None
+        
+        # Validate and read BOQ file
+        if boq_file and boq_file.filename:
+            file_ext = os.path.splitext(boq_file.filename)[1].lower()
+            if file_ext in {'.xlsx', '.xls'}:
+                boq_data = boq_file.read()
+                boq_filename = boq_file.filename
+        
+        # Validate and read Spec file
+        if spec_file and spec_file.filename:
+            file_ext = os.path.splitext(spec_file.filename)[1].lower()
+            if file_ext == '.pdf':
+                spec_data = spec_file.read()
+                spec_filename = spec_file.filename
+        
         try:
             # Updated INSERT statement with approval_status='Pending' for new projects
             c.execute('''INSERT INTO register_project 
@@ -4706,6 +4730,15 @@ def register_project():
                       (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note,
                        stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending', updated_by, client_type))
             project_id = c.lastrowid
+            
+            # Save project documents if any were uploaded
+            if boq_data or spec_data or gdrive_link:
+                c.execute("""
+                    INSERT INTO project_docs 
+                    (project_id, project_name, boq_file, boq_filename, spec_file, spec_filename, gdrive_link, uploaded_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (project_id, project_name, boq_data, boq_filename, spec_data, spec_filename, gdrive_link, updated_by))
+            
             conn.commit()
             flash('Project registered successfully! It is pending admin approval before appearing in the pipeline.', 'info')
             
