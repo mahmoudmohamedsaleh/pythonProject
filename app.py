@@ -2136,6 +2136,131 @@ def download_project_spec(project_id):
         return redirect(url_for('project_detail', project_id=project_id))
 
 
+# Remove Individual Project Document
+@app.route('/remove_project_document/<int:project_id>/<doc_type>', methods=['POST'])
+@login_required
+def remove_project_document(project_id, doc_type):
+    """Remove individual document (BOQ, Spec, or Google Drive link)"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        
+        # Map doc_type to database columns
+        column_mappings = {
+            'boq': ('boq_file', 'boq_filename'),
+            'spec': ('spec_file', 'spec_filename'),
+            'gdrive': ('gdrive_link',)
+        }
+        
+        if doc_type not in column_mappings:
+            return jsonify({'success': False, 'error': 'Invalid document type'}), 400
+        
+        # Build UPDATE query to set columns to NULL
+        if doc_type == 'gdrive':
+            cursor.execute("""
+                UPDATE project_docs 
+                SET gdrive_link = NULL
+                WHERE project_id = ?
+            """, (project_id,))
+        else:
+            file_col, filename_col = column_mappings[doc_type]
+            cursor.execute(f"""
+                UPDATE project_docs 
+                SET {file_col} = NULL, {filename_col} = NULL
+                WHERE project_id = ?
+            """, (project_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Update Individual Project Document
+@app.route('/update_project_document/<int:project_id>/<doc_type>', methods=['POST'])
+@login_required
+def update_project_document(project_id, doc_type):
+    """Update individual document (BOQ, Spec, or Google Drive link)"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        cursor = conn.cursor()
+        updated_by = session.get('username', 'Unknown')
+        
+        if doc_type == 'boq':
+            # Handle BOQ file update
+            boq_file = request.files.get('file')
+            if not boq_file or not boq_file.filename:
+                flash('Please select a BOQ file!', 'danger')
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            file_ext = os.path.splitext(boq_file.filename)[1].lower()
+            if file_ext not in {'.xlsx', '.xls'}:
+                flash('Invalid file type! Please upload Excel file (.xlsx or .xls)', 'danger')
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            boq_data = boq_file.read()
+            boq_filename = boq_file.filename
+            
+            cursor.execute("""
+                UPDATE project_docs 
+                SET boq_file = ?, boq_filename = ?, uploaded_by = ?, uploaded_at = CURRENT_TIMESTAMP
+                WHERE project_id = ?
+            """, (boq_data, boq_filename, updated_by, project_id))
+            flash('BOQ file updated successfully!', 'success')
+            
+        elif doc_type == 'spec':
+            # Handle Spec file update
+            spec_file = request.files.get('file')
+            if not spec_file or not spec_file.filename:
+                flash('Please select a Specification file!', 'danger')
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            file_ext = os.path.splitext(spec_file.filename)[1].lower()
+            if file_ext != '.pdf':
+                flash('Invalid file type! Please upload PDF file', 'danger')
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            spec_data = spec_file.read()
+            spec_filename = spec_file.filename
+            
+            cursor.execute("""
+                UPDATE project_docs 
+                SET spec_file = ?, spec_filename = ?, uploaded_by = ?, uploaded_at = CURRENT_TIMESTAMP
+                WHERE project_id = ?
+            """, (spec_data, spec_filename, updated_by, project_id))
+            flash('Specification file updated successfully!', 'success')
+            
+        elif doc_type == 'gdrive':
+            # Handle Google Drive link update
+            gdrive_link = request.form.get('gdrive_link', '').strip()
+            if not gdrive_link:
+                flash('Please enter a Google Drive link!', 'danger')
+                return redirect(url_for('project_detail', project_id=project_id))
+            
+            cursor.execute("""
+                UPDATE project_docs 
+                SET gdrive_link = ?, uploaded_by = ?, uploaded_at = CURRENT_TIMESTAMP
+                WHERE project_id = ?
+            """, (gdrive_link, updated_by, project_id))
+            flash('Google Drive link updated successfully!', 'success')
+            
+        else:
+            flash('Invalid document type!', 'danger')
+            return redirect(url_for('project_detail', project_id=project_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return redirect(url_for('project_detail', project_id=project_id))
+        
+    except Exception as e:
+        flash(f'Error updating document: {str(e)}', 'danger')
+        return redirect(url_for('project_detail', project_id=project_id))
+
+
 # Add Product from Supplier Quotation
 @app.route('/add_product_from_quotation/<int:quotation_id>', methods=['POST'])
 @login_required
