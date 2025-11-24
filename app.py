@@ -1763,11 +1763,16 @@ def download_chat_attachment(message_id):
         # Sales Engineer - check if they own this project
         cursor.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
         engineer_result = cursor.fetchone()
-        if engineer_result:
-            engineer_id = engineer_result[0]
-            if message['sales_engineer_id'] != engineer_id:
-                conn.close()
-                return jsonify({'error': 'Access denied'}), 403
+        if not engineer_result:
+            # Sales Engineer not found in engineers table - deny access
+            conn.close()
+            return jsonify({'error': 'Access denied - engineer profile not found'}), 403
+        
+        engineer_id = engineer_result[0]
+        # Verify this Sales Engineer owns the project
+        if message['sales_engineer_id'] != engineer_id:
+            conn.close()
+            return jsonify({'error': 'Access denied - not your project'}), 403
     
     conn.close()
     
