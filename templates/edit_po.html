@@ -50,9 +50,14 @@
                                     <i class="fas fa-plus-circle mr-1"></i>Add New Project
                                 </a>
                             </div>
+                            {% if purchase_order['project_name'] %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <small><i class="fas fa-info-circle mr-1"></i><strong>Previously Registered:</strong> {{ purchase_order['project_name'] }}</small>
+                            </div>
+                            {% endif %}
                             <select class="form-control" id="project_name" name="project_name" required>
                                 {% for project in projects %}
-                                    <option value="{{ project[0] }}" {% if project[0]|string == purchase_order['project_name']|string %}selected{% endif %}>{{ project[1] }}</option>
+                                    <option value="{{ project[0] }}" {% if project[1] == purchase_order['project_name'] %}selected{% endif %}>{{ project[1] }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -70,6 +75,15 @@
                     <div class="form-row">
                         <div class="form-group col-md-6">
                             <label for="presale_engineer">Pre-Sale Engineer</label>
+                            {% if purchase_order['presale_engineer'] %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <small><i class="fas fa-info-circle mr-1"></i><strong>Previously Registered:</strong> 
+                                {% for engineer in presale_engineers %}
+                                    {% if engineer[0] == purchase_order['presale_engineer'] %}{{ engineer[1] }}{% endif %}
+                                {% endfor %}
+                                </small>
+                            </div>
+                            {% endif %}
                             <select class="form-control" id="presale_engineer" name="presale_engineer" required>
                                 {% for engineer in presale_engineers %}
                                     <option value="{{ engineer[0] }}" {% if engineer[0] == purchase_order['presale_engineer'] %}selected{% endif %}>{{ engineer[1] }}</option>
@@ -78,6 +92,15 @@
                         </div>
                         <div class="form-group col-md-6">
                             <label for="project_manager">Project Manager</label>
+                            {% if purchase_order['project_manager'] %}
+                            <div class="alert alert-info py-2 mb-2">
+                                <small><i class="fas fa-info-circle mr-1"></i><strong>Previously Registered:</strong> 
+                                {% for manager in project_managers %}
+                                    {% if manager[0] == purchase_order['project_manager'] %}{{ manager[1] }}{% endif %}
+                                {% endfor %}
+                                </small>
+                            </div>
+                            {% endif %}
                             <select class="form-control" id="project_manager" name="project_manager" required>
                                 {% for manager in project_managers %}
                                     <option value="{{ manager[0] }}" {% if manager[0] == purchase_order['project_manager'] %}selected{% endif %}>{{ manager[1] }}</option>
@@ -100,10 +123,15 @@
                                 <i class="fas fa-plus-circle mr-1"></i>Add New Vendor
                             </a>
                         </div>
+                        {% if purchase_order['vendor'] %}
+                        <div class="alert alert-info py-2 mb-2">
+                            <small><i class="fas fa-info-circle mr-1"></i><strong>Previously Registered:</strong> {{ purchase_order['vendor'] }}</small>
+                        </div>
+                        {% endif %}
                         <select class="form-control" id="vendor" name="vendor">
                             <option value="">-- Select a Vendor (Optional) --</option>
                             {% for vendor in vendors %}
-                                <option value="{{ vendor[0] }}" {% if vendor[0]|string == purchase_order['vendor']|string %}selected{% endif %}>{{ vendor[1] }}</option>
+                                <option value="{{ vendor[0] }}" {% if vendor[1] == purchase_order['vendor'] %}selected{% endif %}>{{ vendor[1] }}</option>
                             {% endfor %}
                         </select>
                         <small class="form-text text-muted">
@@ -118,9 +146,14 @@
                                 <i class="fas fa-plus-circle mr-1"></i>Add New Distributor
                             </a>
                         </div>
+                        {% if purchase_order['distributor'] %}
+                        <div class="alert alert-info py-2 mb-2">
+                            <small><i class="fas fa-info-circle mr-1"></i><strong>Previously Registered:</strong> {{ purchase_order['distributor'] }}</small>
+                        </div>
+                        {% endif %}
                         <select class="form-control" id="distributor" name="distributor" required>
                             {% for dist in distributors %}
-                                <option value="{{ dist[0] }}" {% if dist[0]|string == purchase_order['distributor']|string %}selected{% endif %}>{{ dist[1] }}</option>
+                                <option value="{{ dist[0] }}" {% if dist[1] == purchase_order['distributor'] %}selected{% endif %}>{{ dist[1] }}</option>
                             {% endfor %}
                         </select>
                     </div>
