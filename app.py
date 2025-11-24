@@ -4810,8 +4810,6 @@ def register_project():
         deal_value = 0.0
         expected_close_date = request.form['expected_close_date']
         sales_engineer_id = request.form.get('sales_engineer_id')
-        gm_id = request.form.get('gm_id') or None
-        project_manager_id = request.form.get('project_manager_id') or None
         end_user_id = request.form['end_user_id']
         contractor_id = request.form.get('contractor_id')
         consultant_id = request.form.get('consultant_id')
@@ -4852,10 +4850,10 @@ def register_project():
             # Updated INSERT statement with approval_status='Pending' for new projects
             c.execute('''INSERT INTO register_project 
                          (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note, 
-                          stage, deal_value, expected_close_date, probability, sales_engineer_id, gm_id, project_manager_id, registered_date, approval_status, updated_by, client_type)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                          stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, approval_status, updated_by, client_type)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (project_name, end_user_id, contractor_id, consultant_id, scope_of_work, note,
-                       stage, deal_value, expected_close_date, probability, sales_engineer_id, gm_id, project_manager_id, registered_date, 'Pending', updated_by, client_type))
+                       stage, deal_value, expected_close_date, probability, sales_engineer_id, registered_date, 'Pending', updated_by, client_type))
             project_id = c.lastrowid
             
             # Save project documents if any were uploaded
@@ -4911,12 +4909,8 @@ def register_project():
     contractors = c.fetchall()
     c.execute('SELECT id, name FROM consultants')
     consultants = c.fetchall()
-    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager', 'Implementation Engineer')")
     sales_engineers = c.fetchall()
-    c.execute("SELECT id, username FROM engineers WHERE role = 'General Manager'")
-    general_managers = c.fetchall()
-    c.execute("SELECT id, username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer')")
-    project_managers = c.fetchall()
 
     # Get current logged-in user's engineer ID (if they are a sales engineer)
     current_username = session.get('username')
@@ -4934,7 +4928,6 @@ def register_project():
 
     return render_template('register_project.html', end_users=end_users, contractors=contractors,
                            consultants=consultants, stages=stages, sales_engineers=sales_engineers,
-                           general_managers=general_managers, project_managers=project_managers,
                            current_date=current_date, current_user_engineer_id=current_user_engineer_id)
 
 ####################################
@@ -5051,8 +5044,6 @@ def edit_project_pipeline(project_id):
         deal_value = 0.0
         expected_close_date = request.form['expected_close_date']
         sales_engineer_id = request.form.get('sales_engineer_id')
-        gm_id = request.form.get('gm_id') or None
-        project_manager_id = request.form.get('project_manager_id') or None
         end_user_id = request.form['end_user_id']
         contractor_id = request.form.get('contractor_id')
         consultant_id = request.form.get('consultant_id')
@@ -5070,12 +5061,11 @@ def edit_project_pipeline(project_id):
             project_name = ?, stage = ?, probability = ?, deal_value = ?,
             expected_close_date = ?, end_user_id = ?, contractor_id = ?,
             consultant_id = ?, client_type = ?, scope_of_work = ?, note = ?, sales_engineer_id = ?,
-            gm_id = ?, project_manager_id = ?,
             updated_time = ?, updated_by = ?
             WHERE id = ?
         ''', (project_name, stage, probability, deal_value, expected_close_date,
               end_user_id, contractor_id, consultant_id, client_type, scope_of_work, note,
-              sales_engineer_id, gm_id, project_manager_id, updated_time, updated_by, project_id))
+              sales_engineer_id, updated_time, updated_by, project_id))
 
         conn.commit()
         conn.close()
@@ -5119,18 +5109,13 @@ def edit_project_pipeline(project_id):
     contractors = c.fetchall()
     c.execute('SELECT id, name FROM consultants')
     consultants = c.fetchall()
-    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager', 'Implementation Engineer')")
     sales_engineers = c.fetchall()
-    c.execute("SELECT id, username FROM engineers WHERE role = 'General Manager'")
-    general_managers = c.fetchall()
-    c.execute("SELECT id, username FROM engineers WHERE role IN ('Project Manager', 'Implementation Engineer')")
-    project_managers = c.fetchall()
     conn.close()
 
     return render_template('edit_project_pipeline.html', project=project, stages=stages,
                            end_users=end_users, contractors=contractors,
-                           consultants=consultants, sales_engineers=sales_engineers,
-                           general_managers=general_managers, project_managers=project_managers)
+                           consultants=consultants, sales_engineers=sales_engineers)
 
 @app.route('/delete_project/<int:project_id>', methods=['POST'])
 @login_required
