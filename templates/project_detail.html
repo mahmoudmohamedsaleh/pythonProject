@@ -398,12 +398,15 @@
                         <div id="uploadProjectDocsForm" class="collapse mt-3">
                             <div class="card">
                                 <div class="card-body">
-                                    <form action="{{ url_for('upload_project_documents', project_id=project['id']) }}" method="POST" enctype="multipart/form-data">
+                                    <form action="{{ url_for('upload_project_documents', project_id=project['id']) }}" method="POST" enctype="multipart/form-data" id="uploadDocsForm" onsubmit="return validateDocumentsForm()">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Please upload at least one document (BOQ, Spec, or Google Drive link).
+                                        </div>
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <div class="form-group">
                                                     <label for="boq_file"><strong><i class="fas fa-file-excel text-success"></i> BOQ (Bill of Quantities)</strong></label>
-                                                    <input type="file" class="form-control-file" id="boq_file" name="boq_file" accept=".xlsx,.xls">
+                                                    <input type="file" class="form-control-file" id="boq_file" name="boq_file" accept=".xlsx,.xls" onchange="clearValidationMessage()">
                                                     <small class="form-text text-muted">Upload Excel file (.xlsx or .xls)</small>
                                                     {% if project_documents and project_documents['boq_filename'] %}
                                                     <div class="mt-2">
@@ -416,7 +419,7 @@
                                             <div class="col-md-6">
                                                 <div class="form-group">
                                                     <label for="spec_file"><strong><i class="fas fa-file-pdf text-danger"></i> Specification Document</strong></label>
-                                                    <input type="file" class="form-control-file" id="spec_file" name="spec_file" accept=".pdf">
+                                                    <input type="file" class="form-control-file" id="spec_file" name="spec_file" accept=".pdf" onchange="clearValidationMessage()">
                                                     <small class="form-text text-muted">Upload PDF file</small>
                                                     {% if project_documents and project_documents['spec_filename'] %}
                                                     <div class="mt-2">
@@ -431,8 +434,13 @@
                                             <label for="gdrive_link"><strong><i class="fab fa-google-drive" style="color: #4285F4;"></i> Google Drive Folder Link</strong></label>
                                             <input type="url" class="form-control" id="gdrive_link" name="gdrive_link" 
                                                    placeholder="https://drive.google.com/drive/folders/..." 
-                                                   value="{{ project_documents['gdrive_link'] if project_documents else '' }}">
+                                                   value="{{ project_documents['gdrive_link'] if project_documents else '' }}"
+                                                   oninput="clearValidationMessage()">
                                             <small class="form-text text-muted">Paste the link to the Google Drive folder containing all project documents</small>
+                                        </div>
+                                        
+                                        <div id="validationMessage" class="alert alert-danger d-none" role="alert">
+                                            <i class="fas fa-exclamation-triangle"></i> Please select at least one file (BOQ or Spec) or enter a Google Drive link before submitting!
                                         </div>
                                         
                                         <button type="submit" class="btn btn-success">
@@ -976,6 +984,35 @@ function validateSupplierForm() {
     }
     
     return true;
+}
+
+// Validate project documents form - require at least one field
+function validateDocumentsForm() {
+    const boqFile = document.getElementById('boq_file');
+    const specFile = document.getElementById('spec_file');
+    const gdriveLink = document.getElementById('gdrive_link');
+    const validationMessage = document.getElementById('validationMessage');
+    
+    const hasBoq = boqFile && boqFile.files.length > 0;
+    const hasSpec = specFile && specFile.files.length > 0;
+    const hasGDrive = gdriveLink && gdriveLink.value.trim() !== '';
+    
+    if (!hasBoq && !hasSpec && !hasGDrive) {
+        validationMessage.classList.remove('d-none');
+        validationMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+    }
+    
+    validationMessage.classList.add('d-none');
+    return true;
+}
+
+// Clear validation message when user interacts with form
+function clearValidationMessage() {
+    const validationMessage = document.getElementById('validationMessage');
+    if (validationMessage) {
+        validationMessage.classList.add('d-none');
+    }
 }
 </script>
 
