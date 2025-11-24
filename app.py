@@ -6978,7 +6978,9 @@ def view_projects():
     params = []
     user_role = None
 
-    # --- NEW ACCESS CONTROL LOGIC ---
+    # --- ACCESS CONTROL LOGIC ---
+    # Sales Engineers: See only their own projects
+    # All other roles (GM, TTL, PM, Project Coordinator, etc.): See ALL projects
     if 'user_id' in session:
         c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
         user_role_result = c.fetchone()
