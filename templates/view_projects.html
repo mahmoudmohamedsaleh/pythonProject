@@ -86,28 +86,36 @@
 
 <div class="card mb-4">
     <div class="card-body">
-        <form method="GET" class="form-inline p-3">
-            {% if user_role != 'Sales Engineer' %}
-            <div class="form-group mr-3">
-                <label for="sales_engineer_id" class="mr-2">Sales Engineer</label>
-                <select class="form-control" id="sales_engineer_id" name="sales_engineer_id">
-                    <option value="">All</option>
-                    {% for engineer in sales_engineers %}
-                        <option value="{{ engineer[0] }}" {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>{{ engineer[1] }}</option>
-                    {% endfor %}
-                </select>
+        <form method="GET" class="p-3">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <label for="project_name" class="mb-1">Project Name</label>
+                    <input type="text" class="form-control" id="project_name" name="project_name" placeholder="Search by name..." value="{{ current_filters.project_name or '' }}">
+                </div>
+                {% if user_role != 'Sales Engineer' %}
+                <div class="col-md-3 mb-2">
+                    <label for="sales_engineer_id" class="mb-1">Sales Engineer</label>
+                    <select class="form-control" id="sales_engineer_id" name="sales_engineer_id">
+                        <option value="">All</option>
+                        {% for engineer in sales_engineers %}
+                            <option value="{{ engineer[0] }}" {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>{{ engineer[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-md-2 mb-2">
+                    <label for="start_date" class="mb-1">Registered From</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ current_filters.start_date or '' }}">
+                </div>
+                <div class="col-md-2 mb-2">
+                    <label for="end_date" class="mb-1">To</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ current_filters.end_date or '' }}">
+                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-info mr-2"><i class="fas fa-filter mr-1"></i> Filter</button>
+                    <a href="{{ url_for('view_projects') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i> Clear</a>
+                </div>
             </div>
-            {% endif %}
-            <div class="form-group mr-3">
-                <label for="start_date" class="mr-2">Registered From</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ current_filters.start_date or '' }}">
-            </div>
-            <div class="form-group mr-3">
-                <label for="end_date" class="mr-2">To</label>
-                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ current_filters.end_date or '' }}">
-            </div>
-            <button type="submit" class="btn btn-info mr-2"><i class="fas fa-filter mr-1"></i> Filter</button>
-            <a href="{{ url_for('view_projects') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i> Clear</a>
         </form>
     </div>
 </div>

@@ -6947,9 +6947,17 @@ def view_projects():
     sales_engineer_filter = request.args.get('sales_engineer_id')
     start_date_filter = request.args.get('start_date')
     end_date_filter = request.args.get('end_date')
+    project_name_filter = request.args.get('project_name', '').strip()
 
-    # Fetch all sales engineers for the filter dropdown
-    c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    # Smart filter: Fetch only sales engineers who have registered projects
+    c.execute("""
+        SELECT DISTINCT e.id, e.username 
+        FROM engineers e
+        INNER JOIN register_project rp ON e.id = rp.sales_engineer_id
+        WHERE e.role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager', 'Implementation Engineer')
+        AND rp.approval_status = 'Approved'
+        ORDER BY e.username
+    """)
     sales_engineers = c.fetchall()
 
     # Base query updated to fetch contractor and consultant names - only show approved projects
@@ -6995,6 +7003,9 @@ def view_projects():
     if end_date_filter:
         query += " AND date(rp.registered_date) <= ?"
         params.append(end_date_filter)
+    if project_name_filter:
+        query += " AND rp.project_name LIKE ?"
+        params.append(f'%{project_name_filter}%')
 
     # Order by registered date - newest first
     query += " ORDER BY rp.registered_date DESC"
@@ -7010,7 +7021,8 @@ def view_projects():
                            current_filters={
                                'sales_engineer_id': sales_engineer_filter,
                                'start_date': start_date_filter,
-                               'end_date': end_date_filter
+                               'end_date': end_date_filter,
+                               'project_name': project_name_filter
                            })
 ###############3
 @app.route('/view_end_users')
