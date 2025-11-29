@@ -11021,6 +11021,7 @@ def po_requests_dashboard():
     vendors = [row[0] for row in c.fetchall()]
     
     # Base query with JOINs to get usernames and supplier quotation info
+    # Also check if a PO has been created for this request
     query = """
         SELECT
             pr.id, pr.po_request_reference, pr.quote_ref, pr.project_name,
@@ -11030,11 +11031,17 @@ def po_requests_dashboard():
             u_req.username as requested_by_username,
             u_appr.username as approved_rejected_by_username,
             pr.supplier_quotation_id,
-            sq.filename as supplier_quotation_filename
+            sq.filename as supplier_quotation_filename,
+            CASE 
+                WHEN po.id IS NOT NULL THEN 'Created'
+                ELSE 'Not Created'
+            END as po_creation_status,
+            po.po_number as created_po_number
         FROM po_requests pr
         LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
         LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id
         LEFT JOIN supplier_quotations sq ON pr.supplier_quotation_id = sq.id
+        LEFT JOIN purchase_orders po ON pr.po_request_reference = po.po_request_number
         WHERE 1=1
     """
     params = []
