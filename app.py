@@ -10003,6 +10003,30 @@ def import_po_items_excel(po_request_number):
                     """, (part_number, description, quantity, unit_price, total_price, 
                           final_qty_delivered, final_delivery_status, existing_item[0]))
                     items_updated += 1
+                    
+                    # Check if product exists in quotation_products, if not add it
+                    cursor.execute("""
+                        SELECT id FROM quotation_products 
+                        WHERE po_number = ? AND (
+                            LOWER(TRIM(part_number)) = LOWER(TRIM(?)) OR
+                            LOWER(TRIM(description)) = LOWER(TRIM(?))
+                        )
+                    """, (po_number, part_number, description))
+                    existing_qp = cursor.fetchone()
+                    
+                    if not existing_qp:
+                        # Add to quotation_products table
+                        cursor.execute("""
+                            INSERT INTO quotation_products (
+                                supplier_quotation_id, part_number, description, 
+                                unit_price, quantity, currency, system,
+                                supplier_name, supplier_type, added_by,
+                                po_number, distributor_id
+                            ) VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'Distributor', ?, ?, ?)
+                        """, (supplier_quotation_id, part_number, description,
+                              unit_price, int(quantity), po_system,
+                              distributor_name, session.get('username'),
+                              po_number, distributor_id))
                 else:
                     if quantity_delivered_provided:
                         if quantity_delivered >= quantity:
