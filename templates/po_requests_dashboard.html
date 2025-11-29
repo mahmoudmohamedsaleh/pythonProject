@@ -177,7 +177,7 @@
                             <button class="btn btn-info btn-sm" title="View Details" onclick="showDetailsModal({{ req.id }})">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            {% if user_role == 'Admin' or user_role == 'General Manager' %}
+                            {% if user_role == 'Technical Team Leader' or user_role == 'Procurement Engineer' %}
                             <button class="btn btn-danger btn-sm" title="Delete Request" onclick="confirmDelete('{{ req.po_request_reference }}', '{{ req.project_name }}')">
                                 <i class="fas fa-trash"></i>
                             </button>

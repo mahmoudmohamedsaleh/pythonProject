@@ -11241,7 +11241,7 @@ def reject_po_request(rfpo_ref):
     return redirect(url_for('po_requests_dashboard'))
 
 @app.route('/delete_po_request/<rfpo_ref>', methods=['POST'])
-@role_required('Admin', 'General Manager')
+@role_required('Technical Team Leader', 'Procurement Engineer')
 def delete_po_request(rfpo_ref):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
