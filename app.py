@@ -10981,7 +10981,7 @@ def create_po_from_request(rfpo_ref):
 
 ####### PO Requests Dashboard #######
 @app.route('/po_requests_dashboard')
-@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def po_requests_dashboard():
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -11101,7 +11101,7 @@ def po_requests_dashboard():
                           current_filters=filters)
 
 @app.route('/approve_po_request/<rfpo_ref>', methods=['POST'])
-@role_required('Technical Team Leader', 'General Manager')
+@role_required('Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def approve_po_request(rfpo_ref):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -11163,7 +11163,7 @@ def approve_po_request(rfpo_ref):
     return redirect(url_for('po_requests_dashboard'))
 
 @app.route('/reject_po_request/<rfpo_ref>', methods=['POST'])
-@role_required('Technical Team Leader', 'General Manager')
+@role_required('Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def reject_po_request(rfpo_ref):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -11234,7 +11234,7 @@ def reject_po_request(rfpo_ref):
     return redirect(url_for('po_requests_dashboard'))
 
 @app.route('/get_po_request_details/<int:request_id>')
-@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def get_po_request_details(request_id):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -11262,7 +11262,7 @@ def get_po_request_details(request_id):
     return jsonify(dict(po_request))
 
 @app.route('/download_po_requests')
-@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
+@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def download_po_requests():
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
