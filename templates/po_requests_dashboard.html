@@ -177,6 +177,11 @@
                             <button class="btn btn-info btn-sm" title="View Details" onclick="showDetailsModal({{ req.id }})">
                                 <i class="fas fa-eye"></i>
                             </button>
+                            {% if user_role == 'Admin' or user_role == 'General Manager' %}
+                            <button class="btn btn-danger btn-sm" title="Delete Request" onclick="confirmDelete('{{ req.po_request_reference }}', '{{ req.project_name }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}
@@ -255,6 +260,34 @@
             </div>
             <div class="modal-body" id="detailsContent">
                 <p class="text-center text-muted">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash-alt mr-2"></i>Delete PO Request</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this PO Request?</p>
+                <p><strong>RFPO Reference:</strong> <span id="deleteRfpoRef"></span></p>
+                <p><strong>Project:</strong> <span id="deleteProjectName"></span></p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    This action cannot be undone. The request will be permanently removed.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger"><i class="fas fa-trash mr-1"></i>Delete Request</button>
+                </form>
             </div>
         </div>
     </div>
@@ -349,6 +382,13 @@
             });
         
         $('#detailsModal').modal('show');
+    }
+
+    function confirmDelete(rfpoRef, projectName) {
+        document.getElementById('deleteRfpoRef').textContent = rfpoRef;
+        document.getElementById('deleteProjectName').textContent = projectName;
+        document.getElementById('deleteForm').action = `/delete_po_request/${rfpoRef}`;
+        $('#deleteModal').modal('show');
     }
 </script>
 {% endblock %}

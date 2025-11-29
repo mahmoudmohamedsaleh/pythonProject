@@ -11240,6 +11240,44 @@ def reject_po_request(rfpo_ref):
     
     return redirect(url_for('po_requests_dashboard'))
 
+@app.route('/delete_po_request/<rfpo_ref>', methods=['POST'])
+@role_required('Admin', 'General Manager')
+def delete_po_request(rfpo_ref):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Check if the request exists
+        c.execute("SELECT id, project_name FROM po_requests WHERE po_request_reference = ?", (rfpo_ref,))
+        po_request = c.fetchone()
+        
+        if not po_request:
+            flash('PO request not found!', 'danger')
+            return redirect(url_for('po_requests_dashboard'))
+        
+        # Check if a PO has been created from this request
+        c.execute("SELECT id FROM purchase_orders WHERE po_request_number = ?", (rfpo_ref,))
+        existing_po = c.fetchone()
+        
+        if existing_po:
+            flash('Cannot delete: A Purchase Order has already been created from this request!', 'danger')
+            return redirect(url_for('po_requests_dashboard'))
+        
+        # Delete the request
+        c.execute("DELETE FROM po_requests WHERE po_request_reference = ?", (rfpo_ref,))
+        conn.commit()
+        
+        flash(f'PO Request {rfpo_ref} has been deleted successfully.', 'success')
+        
+    except Exception as e:
+        flash(f'Error deleting request: {str(e)}', 'danger')
+        conn.rollback()
+    finally:
+        conn.close()
+    
+    return redirect(url_for('po_requests_dashboard'))
+
 @app.route('/get_po_request_details/<int:request_id>')
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def get_po_request_details(request_id):
