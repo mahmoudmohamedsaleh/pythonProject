@@ -12975,9 +12975,8 @@ def add_user():
         finally:
             conn.close()
     
-    # Available roles in the system
-    roles = ['editor', 'General Manager', 'Technical Team Leader', 
-             'Presale Engineer', 'Sales Engineer', 'Project Coordinator']
+    # Get roles from database
+    roles = get_all_roles()
     
     return render_template('add_user.html', roles=roles)
 
@@ -13041,8 +13040,8 @@ def edit_user(user_id):
         flash('User not found!', 'danger')
         return redirect(url_for('manage_users'))
     
-    roles = ['editor', 'General Manager', 'Technical Team Leader', 
-             'Presale Engineer', 'Sales Engineer', 'Project Coordinator']
+    # Get roles from database
+    roles = get_all_roles()
     
     return render_template('edit_user.html', user=user, roles=roles)
 
