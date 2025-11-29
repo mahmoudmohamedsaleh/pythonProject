@@ -540,6 +540,17 @@ def init_db():
         c.execute("ALTER TABLE users ADD COLUMN email TEXT")
     except sqlite3.OperationalError:
         pass  # Column already exists
+    
+    # Roles table for managing custom roles
+    c.execute('''CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_system_role INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_by TEXT
+        )''')
+    
     c.execute('''CREATE TABLE IF NOT EXISTS engineers (
             id INTEGER PRIMARY KEY,
             name TEXT,
@@ -893,6 +904,49 @@ def seed_default_role_permissions():
     
     conn.commit()
     conn.close()
+
+
+def seed_default_roles():
+    """Set up default system roles"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Check if roles already exist
+    c.execute("SELECT COUNT(*) FROM roles")
+    if c.fetchone()[0] > 0:
+        conn.close()
+        return  # Already seeded
+    
+    # Default system roles
+    default_roles = [
+        ('General Manager', 'Full access to all system features', 1),
+        ('Technical Team Leader', 'Technical leadership with full system access', 1),
+        ('Presale Engineer', 'Presales activities and technical support', 1),
+        ('Sales Engineer', 'Sales activities and customer management', 1),
+        ('Project Coordinator', 'Project coordination and tracking', 1),
+        ('Project Manager', 'Project management and oversight', 1),
+        ('editor', 'Basic editing capabilities', 1),
+    ]
+    
+    for name, description, is_system in default_roles:
+        c.execute("""
+            INSERT OR IGNORE INTO roles (name, description, is_system_role, created_by)
+            VALUES (?, ?, ?, 'System')
+        """, (name, description, is_system))
+    
+    conn.commit()
+    conn.close()
+
+
+def get_all_roles():
+    """Get all roles from database"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM roles ORDER BY is_system_role DESC, name ASC")
+    roles = c.fetchall()
+    conn.close()
+    return roles
 
 
 def get_user_permissions(user_id, user_role):
@@ -13522,6 +13576,287 @@ def update_user_permission():
 
 
 ##############################################
+# ============ ROLE MANAGEMENT ============
+##############################################
+
+@app.route('/manage_roles')
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def manage_roles():
+    """View and manage all roles"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get all roles with user count
+    c.execute("""
+        SELECT r.*, 
+               (SELECT COUNT(*) FROM users u WHERE u.role = r.name) as user_count,
+               (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role = r.name) as permission_count
+        FROM roles r
+        ORDER BY r.is_system_role DESC, r.name ASC
+    """)
+    roles = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('manage_roles.html', roles=roles)
+
+
+@app.route('/add_role', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def add_role():
+    """Add a new role"""
+    role_name = request.form.get('role_name', '').strip()
+    description = request.form.get('description', '').strip()
+    
+    if not role_name:
+        flash('Role name is required!', 'danger')
+        return redirect(url_for('manage_roles'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("""
+            INSERT INTO roles (name, description, is_system_role, created_by)
+            VALUES (?, ?, 0, ?)
+        """, (role_name, description, session.get('username', 'Unknown')))
+        conn.commit()
+        flash(f'Role "{role_name}" created successfully!', 'success')
+    except sqlite3.IntegrityError:
+        flash(f'Role "{role_name}" already exists!', 'danger')
+    except Exception as e:
+        flash(f'Error creating role: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('manage_roles'))
+
+
+@app.route('/edit_role/<int:role_id>', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def edit_role(role_id):
+    """Edit an existing role"""
+    new_name = request.form.get('role_name', '').strip()
+    description = request.form.get('description', '').strip()
+    
+    if not new_name:
+        flash('Role name is required!', 'danger')
+        return redirect(url_for('manage_roles'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Get current role info
+        c.execute("SELECT name, is_system_role FROM roles WHERE id = ?", (role_id,))
+        role = c.fetchone()
+        
+        if not role:
+            flash('Role not found!', 'danger')
+            return redirect(url_for('manage_roles'))
+        
+        old_name = role['name']
+        
+        # Update role
+        c.execute("""
+            UPDATE roles SET name = ?, description = ?
+            WHERE id = ?
+        """, (new_name, description, role_id))
+        
+        # If name changed, update all references
+        if old_name != new_name:
+            # Update users table
+            c.execute("UPDATE users SET role = ? WHERE role = ?", (new_name, old_name))
+            # Update role_permissions table
+            c.execute("UPDATE role_permissions SET role = ? WHERE role = ?", (new_name, old_name))
+        
+        conn.commit()
+        flash(f'Role updated successfully!', 'success')
+    except sqlite3.IntegrityError:
+        flash(f'Role "{new_name}" already exists!', 'danger')
+    except Exception as e:
+        flash(f'Error updating role: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('manage_roles'))
+
+
+@app.route('/delete_role/<int:role_id>', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def delete_role(role_id):
+    """Delete a custom role (system roles cannot be deleted)"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Check if role exists and is not a system role
+        c.execute("SELECT name, is_system_role FROM roles WHERE id = ?", (role_id,))
+        role = c.fetchone()
+        
+        if not role:
+            flash('Role not found!', 'danger')
+            return redirect(url_for('manage_roles'))
+        
+        if role['is_system_role']:
+            flash('System roles cannot be deleted!', 'danger')
+            return redirect(url_for('manage_roles'))
+        
+        # Check if any users are assigned to this role
+        c.execute("SELECT COUNT(*) FROM users WHERE role = ?", (role['name'],))
+        user_count = c.fetchone()[0]
+        
+        if user_count > 0:
+            flash(f'Cannot delete role "{role["name"]}" - {user_count} user(s) are still assigned to it!', 'danger')
+            return redirect(url_for('manage_roles'))
+        
+        # Delete role permissions
+        c.execute("DELETE FROM role_permissions WHERE role = ?", (role['name'],))
+        
+        # Delete role
+        c.execute("DELETE FROM roles WHERE id = ?", (role_id,))
+        
+        conn.commit()
+        flash(f'Role "{role["name"]}" deleted successfully!', 'success')
+    except Exception as e:
+        flash(f'Error deleting role: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('manage_roles'))
+
+
+@app.route('/api/roles')
+@login_required
+def api_get_roles():
+    """API endpoint to get all roles"""
+    roles = get_all_roles()
+    return jsonify({
+        'success': True,
+        'roles': [{'id': r['id'], 'name': r['name'], 'description': r['description']} for r in roles]
+    })
+
+
+@app.route('/api/add_role', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def api_add_role():
+    """API endpoint to add a new role (for AJAX calls)"""
+    data = request.get_json()
+    role_name = data.get('role_name', '').strip()
+    description = data.get('description', '').strip()
+    
+    if not role_name:
+        return jsonify({'success': False, 'error': 'Role name is required'})
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("""
+            INSERT INTO roles (name, description, is_system_role, created_by)
+            VALUES (?, ?, 0, ?)
+        """, (role_name, description, session.get('username', 'Unknown')))
+        conn.commit()
+        role_id = c.lastrowid
+        return jsonify({'success': True, 'role_id': role_id, 'role_name': role_name})
+    except sqlite3.IntegrityError:
+        return jsonify({'success': False, 'error': f'Role "{role_name}" already exists'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        conn.close()
+
+
+@app.route('/role_permissions/<role_name>')
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def manage_role_permissions(role_name):
+    """Manage default permissions for a specific role"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Check if role exists
+    c.execute("SELECT * FROM roles WHERE name = ?", (role_name,))
+    role = c.fetchone()
+    
+    if not role:
+        flash('Role not found!', 'danger')
+        return redirect(url_for('manage_roles'))
+    
+    # Get all permissions grouped by category
+    c.execute("SELECT * FROM permissions ORDER BY category, label")
+    all_permissions = c.fetchall()
+    
+    # Get current role permissions
+    c.execute("""
+        SELECT permission_id FROM role_permissions WHERE role = ?
+    """, (role_name,))
+    role_perm_ids = {row['permission_id'] for row in c.fetchall()}
+    
+    # Group permissions by category
+    permissions_by_category = {}
+    for perm in all_permissions:
+        category = perm['category'] or 'Other'
+        if category not in permissions_by_category:
+            permissions_by_category[category] = []
+        permissions_by_category[category].append({
+            'id': perm['id'],
+            'code': perm['code'],
+            'label': perm['label'],
+            'description': perm['description'],
+            'has_permission': perm['id'] in role_perm_ids
+        })
+    
+    conn.close()
+    
+    return render_template('role_permissions.html', 
+                          role=role,
+                          permissions_by_category=permissions_by_category)
+
+
+@app.route('/update_role_permission', methods=['POST'])
+@role_required('General Manager', 'Technical Team Leader')
+@permission_required('manage_permissions')
+def update_role_permission():
+    """Toggle a permission for a role"""
+    data = request.get_json()
+    role_name = data.get('role_name')
+    permission_id = data.get('permission_id')
+    action = data.get('action')  # 'add' or 'remove'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        if action == 'add':
+            c.execute("""
+                INSERT OR IGNORE INTO role_permissions (role, permission_id)
+                VALUES (?, ?)
+            """, (role_name, permission_id))
+        else:  # remove
+            c.execute("""
+                DELETE FROM role_permissions 
+                WHERE role = ? AND permission_id = ?
+            """, (role_name, permission_id))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Permission updated'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
+
+##############################################
 # ============ PASSWORD RESET WITH OTP ============
 ##############################################
 
@@ -14432,6 +14767,7 @@ if __name__ == '__main__':
     init_db()
     seed_permissions()
     seed_default_role_permissions()
+    seed_default_roles()
     host = os.getenv('HOST', '0.0.0.0')
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'
