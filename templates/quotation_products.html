@@ -118,7 +118,6 @@
                                     <th>Supplier (Distributor)</th>
                                     <th>System</th>
                                     <th>PO Number</th>
-                                    <th>Source</th>
                                     <th>Added By</th>
                                     <th>Actions</th>
                                 </tr>
@@ -159,28 +158,16 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if product['po_number'] %}
-                                        <a href="{{ url_for('po_profile', po_request_number=product['po_number']) }}" class="badge badge-success">
+                                        {% if product['po_number'] and product['po_request_number'] %}
+                                        <a href="{{ url_for('po_profile', po_request_number=product['po_request_number']) }}" class="badge badge-success">
                                             <i class="fas fa-file-invoice"></i> {{ product['po_number'] }}
                                         </a>
+                                        {% elif product['po_number'] %}
+                                        <span class="badge badge-secondary">
+                                            <i class="fas fa-file-invoice"></i> {{ product['po_number'] }}
+                                        </span>
                                         {% else %}
                                         <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if product['quotation_filename'] and product['quotation_filename'] != 'PO Import' %}
-                                        <small class="text-muted">
-                                            <i class="fas fa-file-pdf text-danger"></i> {{ product['quotation_filename'][:25] }}{% if product['quotation_filename']|length > 25 %}...{% endif %}
-                                        </small>
-                                        {% elif product['po_number'] %}
-                                        <small class="text-muted">
-                                            <i class="fas fa-file-invoice text-success"></i> PO Import
-                                        </small>
-                                        {% endif %}
-                                        {% if product['project_name'] %}
-                                        <br><small class="text-muted">
-                                            <i class="fas fa-project-diagram text-warning"></i> {{ product['project_name'][:20] }}{% if product['project_name']|length > 20 %}...{% endif %}
-                                        </small>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -190,10 +177,12 @@
                                         </small>
                                     </td>
                                     <td class="text-center">
+                                        {% if product['quotation_filename'] and product['quotation_filename'] != 'PO Import' %}
                                         <a href="{{ url_for('download_supplier_quotation', quotation_id=product['supplier_quotation_id'], action='view') }}" 
                                            class="btn btn-sm btn-outline-success" target="_blank" title="View Source Quotation">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        {% endif %}
                                         <form action="{{ url_for('delete_quotation_product', product_id=product['id']) }}" 
                                               method="POST" style="display:inline;" 
                                               onsubmit="return confirm('Delete this product?')">

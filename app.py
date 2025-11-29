@@ -2627,12 +2627,14 @@ def quotation_products_dashboard():
             sq.filename as quotation_filename,
             p.project_name,
             v.name as vendor_name,
-            d.name as distributor_name
+            d.name as distributor_name,
+            po.po_request_number as po_request_number
         FROM quotation_products qp
         LEFT JOIN supplier_quotations sq ON qp.supplier_quotation_id = sq.id
         LEFT JOIN projects p ON qp.quote_ref = p.quote_ref
         LEFT JOIN vendors v ON qp.vendor_id = v.id
         LEFT JOIN distributors d ON qp.distributor_id = d.id
+        LEFT JOIN purchase_orders po ON qp.po_number = po.po_number
         WHERE 1=1
     """
     params = []
