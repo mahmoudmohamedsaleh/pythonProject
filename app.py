@@ -986,7 +986,9 @@ def permission_required(*permission_codes):
             
             if not has_permission:
                 flash('You do not have permission to access this page!', 'danger')
-                return redirect(url_for('index'))
+                # Redirect to view_projects instead of index to avoid redirect loops
+                # when user doesn't have dashboard permission
+                return redirect(url_for('view_projects'))
             
             return f(*args, **kwargs)
         return decorated_function
