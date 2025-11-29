@@ -9,15 +9,30 @@
         <div class="col-md-12">
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
                         <div>
                             <h2 class="mb-0">
                                 <i class="fas fa-box-open"></i> Products from Supplier Quotations
                             </h2>
                             <p class="text-muted mb-0">Manage and browse products extracted from supplier quotations</p>
                         </div>
-                        <div>
-                            <span class="badge badge-primary" style="font-size: 1.2rem; padding: 0.5rem 1rem;">
+                        <div class="d-flex align-items-center mt-2 mt-md-0">
+                            <!-- Export Excel Button -->
+                            <a href="{{ url_for('export_quotation_products_excel') }}" class="btn btn-success mr-2">
+                                <i class="fas fa-file-excel"></i> Export Excel
+                            </a>
+                            
+                            <!-- Import Excel Button -->
+                            <button type="button" class="btn btn-info mr-2" data-toggle="modal" data-target="#importExcelModal">
+                                <i class="fas fa-file-upload"></i> Import Excel
+                            </button>
+                            
+                            <!-- Add Item Button -->
+                            <button type="button" class="btn btn-primary mr-2" data-toggle="modal" data-target="#addProductModal">
+                                <i class="fas fa-plus"></i> Add Item
+                            </button>
+                            
+                            <span class="badge badge-primary ml-2" style="font-size: 1.2rem; padding: 0.5rem 1rem;">
                                 {{ products|length }} Product{{ 's' if products|length != 1 else '' }}
                             </span>
                         </div>
@@ -212,4 +227,159 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Import Excel Modal -->
+<div class="modal fade" id="importExcelModal" tabindex="-1" role="dialog" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="importExcelModalLabel">
+                    <i class="fas fa-file-upload mr-2"></i>Import Products from Excel
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="{{ url_for('import_quotation_products_excel') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <strong>Excel Format:</strong> The Excel file should have the following columns:
+                        <ol class="mb-0 mt-2">
+                            <li>Part Number</li>
+                            <li>Description</li>
+                            <li>Unit Price</li>
+                            <li>Qty</li>
+                            <li>Currency (SAR, USD, etc.)</li>
+                            <li>Vendor</li>
+                            <li>Distributor</li>
+                            <li>System</li>
+                            <li>Notes</li>
+                        </ol>
+                    </div>
+                    <div class="form-group">
+                        <label for="excel_file"><i class="fas fa-file-excel text-success mr-1"></i>Select Excel File (.xlsx)</label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="excel_file" name="excel_file" accept=".xlsx" required>
+                            <label class="custom-file-label" for="excel_file">Choose file...</label>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <small>Products with matching Part Numbers will be updated. New Part Numbers will be added.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload mr-1"></i>Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1" role="dialog" aria-labelledby="addProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="addProductModalLabel">
+                    <i class="fas fa-plus-circle mr-2"></i>Add New Product
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="{{ url_for('add_quotation_product_manual') }}" method="POST">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="part_number"><i class="fas fa-tag mr-1"></i>Part Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="part_number" name="part_number" required placeholder="e.g., DS-2CD2143G2-I">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="unit_price"><i class="fas fa-dollar-sign mr-1"></i>Unit Price <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="unit_price" name="unit_price" step="0.01" min="0" required placeholder="0.00">
+                                <select class="form-control" id="currency" name="currency" style="max-width: 100px;">
+                                    <option value="SAR" selected>SAR</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="AED">AED</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="description"><i class="fas fa-align-left mr-1"></i>Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="description" name="description" rows="2" required placeholder="Product description..."></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="quantity"><i class="fas fa-sort-numeric-up mr-1"></i>Quantity</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="vendor_id"><i class="fas fa-building mr-1"></i>Vendor</label>
+                            <select class="form-control" id="vendor_id" name="vendor_id">
+                                <option value="">-- Select Vendor --</option>
+                                {% for vendor in vendors %}
+                                <option value="{{ vendor['id'] }}">{{ vendor['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="distributor_id"><i class="fas fa-truck mr-1"></i>Distributor</label>
+                            <select class="form-control" id="distributor_id" name="distributor_id">
+                                <option value="">-- Select Distributor --</option>
+                                {% for distributor in distributors %}
+                                <option value="{{ distributor['id'] }}">{{ distributor['name'] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="system"><i class="fas fa-cogs mr-1"></i>System</label>
+                            <select class="form-control" id="system" name="system">
+                                <option value="">-- Select System --</option>
+                                <option value="CCTV">CCTV</option>
+                                <option value="Access Control">Access Control</option>
+                                <option value="Fire Alarm">Fire Alarm</option>
+                                <option value="Passive">Passive</option>
+                                <option value="ICT">ICT</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="notes"><i class="fas fa-sticky-note mr-1"></i>Notes</label>
+                            <input type="text" class="form-control" id="notes" name="notes" placeholder="Optional notes...">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i>Add Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show filename in custom file input
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.custom-file-input').forEach(function(input) {
+        input.addEventListener('change', function(e) {
+            var fileName = e.target.files[0] ? e.target.files[0].name : 'Choose file...';
+            var label = e.target.nextElementSibling;
+            label.textContent = fileName;
+        });
+    });
+});
+</script>
 {% endblock %}

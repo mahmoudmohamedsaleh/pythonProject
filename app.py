@@ -2663,12 +2663,22 @@ def quotation_products_dashboard():
     """)
     systems = [row['system'] for row in cursor.fetchall()]
     
+    # Get vendors for Add Product modal
+    cursor.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = cursor.fetchall()
+    
+    # Get distributors for Add Product modal
+    cursor.execute("SELECT id, name FROM distributors ORDER BY name")
+    distributors = cursor.fetchall()
+    
     conn.close()
     
     return render_template('quotation_products.html',
                          products=products,
                          suppliers=suppliers,
                          systems=systems,
+                         vendors=vendors,
+                         distributors=distributors,
                          search_query=search_query,
                          supplier_filter=supplier_filter,
                          system_filter=system_filter,
@@ -2694,6 +2704,366 @@ def delete_quotation_product(product_id):
         flash(f'Error deleting product: {str(e)}', 'danger')
     
     return redirect(request.referrer or url_for('quotation_products_dashboard'))
+
+
+# Export Quotation Products to Excel
+@app.route('/export_quotation_products_excel')
+@login_required
+def export_quotation_products_excel():
+    """Export quotation products to Excel file"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                qp.part_number, qp.description, qp.unit_price, qp.quantity,
+                qp.currency, qp.notes, qp.system,
+                v.name as vendor_name,
+                d.name as distributor_name,
+                qp.added_by, qp.added_at
+            FROM quotation_products qp
+            LEFT JOIN vendors v ON qp.vendor_id = v.id
+            LEFT JOIN distributors d ON qp.distributor_id = d.id
+            ORDER BY qp.added_at DESC
+        """)
+        products = cursor.fetchall()
+        conn.close()
+        
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Quotation Products"
+        
+        headers = ['Part Number', 'Description', 'Unit Price', 'Qty', 'Currency', 
+                   'Vendor', 'Distributor', 'System', 'Notes']
+        
+        header_fill = PatternFill(start_color='667eea', end_color='667eea', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+        header_alignment = Alignment(horizontal='center', vertical='center')
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        for col_idx, header in enumerate(headers, 1):
+            cell = sheet.cell(row=1, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+            cell.border = thin_border
+        
+        for row_idx, product in enumerate(products, 2):
+            sheet.cell(row=row_idx, column=1, value=product['part_number'] or '')
+            sheet.cell(row=row_idx, column=2, value=product['description'] or '')
+            sheet.cell(row=row_idx, column=3, value=product['unit_price'] or 0)
+            sheet.cell(row=row_idx, column=4, value=product['quantity'] or 0)
+            sheet.cell(row=row_idx, column=5, value=product['currency'] or 'SAR')
+            sheet.cell(row=row_idx, column=6, value=product['vendor_name'] or '')
+            sheet.cell(row=row_idx, column=7, value=product['distributor_name'] or '')
+            sheet.cell(row=row_idx, column=8, value=product['system'] or '')
+            sheet.cell(row=row_idx, column=9, value=product['notes'] or '')
+            
+            for col_idx in range(1, 10):
+                sheet.cell(row=row_idx, column=col_idx).border = thin_border
+        
+        # Adjust column widths
+        column_widths = [18, 50, 12, 8, 10, 20, 20, 15, 30]
+        for i, width in enumerate(column_widths, 1):
+            sheet.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
+        
+        output = BytesIO()
+        workbook.save(output)
+        output.seek(0)
+        
+        from datetime import datetime
+        filename = f"quotation_products_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting products: {str(e)}', 'danger')
+        return redirect(url_for('quotation_products_dashboard'))
+
+
+# Import Quotation Products from Excel
+@app.route('/import_quotation_products_excel', methods=['POST'])
+@login_required
+def import_quotation_products_excel():
+    """Import quotation products from Excel file"""
+    if 'excel_file' not in request.files:
+        flash('No file uploaded!', 'danger')
+        return redirect(url_for('quotation_products_dashboard'))
+    
+    file = request.files['excel_file']
+    
+    if file.filename == '':
+        flash('No file selected!', 'danger')
+        return redirect(url_for('quotation_products_dashboard'))
+    
+    if not file.filename.endswith('.xlsx'):
+        flash('Invalid file format! Please upload an Excel file (.xlsx only)', 'danger')
+        return redirect(url_for('quotation_products_dashboard'))
+    
+    try:
+        import openpyxl
+        from io import BytesIO
+        
+        file_content = BytesIO(file.read())
+        workbook = openpyxl.load_workbook(file_content)
+        sheet = workbook.active
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Create or get a default supplier quotation for imported products
+        cursor.execute("""
+            SELECT id FROM supplier_quotations 
+            WHERE filename = 'Excel Import' AND system = 'Imported'
+            LIMIT 1
+        """)
+        sq_result = cursor.fetchone()
+        
+        if sq_result:
+            supplier_quotation_id = sq_result['id']
+        else:
+            # Create a default supplier quotation for imports
+            cursor.execute("""
+                INSERT INTO supplier_quotations 
+                (project_id, quote_ref, system, filename, file_data, uploaded_by, uploaded_at)
+                VALUES (NULL, 'IMPORT', 'Imported', 'Excel Import', NULL, ?, CURRENT_TIMESTAMP)
+            """, (session.get('username'),))
+            supplier_quotation_id = cursor.lastrowid
+        
+        items_added = 0
+        items_updated = 0
+        errors = []
+        
+        # Excel format: Part Number, Description, Unit Price, Qty, Currency, Vendor, Distributor, System, Notes
+        for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                if not row or all(cell is None or str(cell).strip() == '' for cell in row):
+                    continue
+                
+                part_number = str(row[0]).strip() if row[0] else ''
+                description = str(row[1]).strip() if len(row) > 1 and row[1] else ''
+                
+                if not part_number and not description:
+                    errors.append(f"Row {row_idx}: Part number or description is required")
+                    continue
+                
+                # Parse unit price
+                try:
+                    unit_price = float(row[2]) if len(row) > 2 and row[2] else 0
+                    if unit_price < 0:
+                        errors.append(f"Row {row_idx}: Unit price cannot be negative")
+                        continue
+                except (ValueError, TypeError):
+                    errors.append(f"Row {row_idx}: Invalid unit price value")
+                    continue
+                
+                # Parse quantity
+                try:
+                    quantity = int(float(row[3])) if len(row) > 3 and row[3] else 1
+                    if quantity < 0:
+                        quantity = 1
+                except (ValueError, TypeError):
+                    quantity = 1
+                
+                currency = str(row[4]).strip() if len(row) > 4 and row[4] else 'SAR'
+                vendor_name = str(row[5]).strip() if len(row) > 5 and row[5] else ''
+                distributor_name = str(row[6]).strip() if len(row) > 6 and row[6] else ''
+                system = str(row[7]).strip() if len(row) > 7 and row[7] else ''
+                notes = str(row[8]).strip() if len(row) > 8 and row[8] else ''
+                
+                # Look up vendor_id by name
+                vendor_id = None
+                if vendor_name:
+                    cursor.execute("SELECT id FROM vendors WHERE LOWER(name) = LOWER(?)", (vendor_name,))
+                    vendor_result = cursor.fetchone()
+                    if vendor_result:
+                        vendor_id = vendor_result['id']
+                
+                # Look up distributor_id by name
+                distributor_id = None
+                if distributor_name:
+                    cursor.execute("SELECT id FROM distributors WHERE LOWER(name) = LOWER(?)", (distributor_name,))
+                    dist_result = cursor.fetchone()
+                    if dist_result:
+                        distributor_id = dist_result['id']
+                
+                # Check if product already exists (by part number)
+                existing_product = None
+                if part_number:
+                    cursor.execute("""
+                        SELECT id FROM quotation_products 
+                        WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+                    """, (part_number,))
+                    existing_product = cursor.fetchone()
+                
+                if existing_product:
+                    # Update existing product
+                    cursor.execute("""
+                        UPDATE quotation_products SET
+                            description = ?,
+                            unit_price = ?,
+                            quantity = ?,
+                            currency = ?,
+                            notes = ?,
+                            system = ?,
+                            vendor_id = COALESCE(?, vendor_id),
+                            distributor_id = COALESCE(?, distributor_id),
+                            supplier_name = COALESCE(?, supplier_name)
+                        WHERE id = ?
+                    """, (description, unit_price, quantity, currency, notes, system,
+                          vendor_id, distributor_id, vendor_name or distributor_name, existing_product['id']))
+                    items_updated += 1
+                else:
+                    # Insert new product
+                    cursor.execute("""
+                        INSERT INTO quotation_products 
+                        (supplier_quotation_id, part_number, description, unit_price, quantity,
+                         currency, notes, system, vendor_id, distributor_id, supplier_name, 
+                         supplier_type, added_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (supplier_quotation_id, part_number, description, unit_price, quantity,
+                          currency, notes, system, vendor_id, distributor_id, 
+                          vendor_name or distributor_name,
+                          'Vendor' if vendor_name else ('Distributor' if distributor_name else ''),
+                          session.get('username')))
+                    items_added += 1
+                
+            except Exception as e:
+                errors.append(f"Row {row_idx}: {str(e)}")
+        
+        conn.commit()
+        conn.close()
+        
+        # Build success message
+        success_msg = []
+        if items_added > 0:
+            success_msg.append(f"{items_added} product(s) added")
+        if items_updated > 0:
+            success_msg.append(f"{items_updated} product(s) updated")
+        
+        if success_msg:
+            flash(f"Excel import successful! {', '.join(success_msg)}", 'success')
+        else:
+            flash("No products were imported. Please check the file format.", 'warning')
+        
+        if errors:
+            flash(f"Some rows had errors: {'; '.join(errors[:5])}", 'warning')
+        
+    except Exception as e:
+        flash(f'Error importing Excel file: {str(e)}', 'danger')
+    
+    return redirect(url_for('quotation_products_dashboard'))
+
+
+# Add Quotation Product Manually (from dashboard)
+@app.route('/add_quotation_product_manual', methods=['POST'])
+@login_required
+def add_quotation_product_manual():
+    """Add a product manually to quotation products"""
+    try:
+        part_number = request.form.get('part_number', '').strip()
+        description = request.form.get('description', '').strip()
+        unit_price = request.form.get('unit_price', 0)
+        quantity = request.form.get('quantity', 1)
+        currency = request.form.get('currency', 'SAR')
+        vendor_id = request.form.get('vendor_id') or None
+        distributor_id = request.form.get('distributor_id') or None
+        system = request.form.get('system', '').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        if not part_number:
+            flash('Part Number is required!', 'danger')
+            return redirect(url_for('quotation_products_dashboard'))
+        
+        if not description:
+            flash('Description is required!', 'danger')
+            return redirect(url_for('quotation_products_dashboard'))
+        
+        try:
+            unit_price = float(unit_price)
+        except:
+            unit_price = 0
+        
+        try:
+            quantity = int(quantity)
+        except:
+            quantity = 1
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get vendor/distributor names
+        vendor_name = ''
+        if vendor_id:
+            cursor.execute("SELECT name FROM vendors WHERE id = ?", (vendor_id,))
+            result = cursor.fetchone()
+            if result:
+                vendor_name = result['name']
+        
+        distributor_name = ''
+        if distributor_id:
+            cursor.execute("SELECT name FROM distributors WHERE id = ?", (distributor_id,))
+            result = cursor.fetchone()
+            if result:
+                distributor_name = result['name']
+        
+        # Get or create default supplier quotation
+        cursor.execute("""
+            SELECT id FROM supplier_quotations 
+            WHERE filename = 'Manual Entry' AND system = 'Manual'
+            LIMIT 1
+        """)
+        sq_result = cursor.fetchone()
+        
+        if sq_result:
+            supplier_quotation_id = sq_result['id']
+        else:
+            cursor.execute("""
+                INSERT INTO supplier_quotations 
+                (project_id, quote_ref, system, filename, file_data, uploaded_by, uploaded_at)
+                VALUES (NULL, 'MANUAL', 'Manual', 'Manual Entry', NULL, ?, CURRENT_TIMESTAMP)
+            """, (session.get('username'),))
+            supplier_quotation_id = cursor.lastrowid
+        
+        cursor.execute("""
+            INSERT INTO quotation_products 
+            (supplier_quotation_id, part_number, description, unit_price, quantity,
+             currency, notes, system, vendor_id, distributor_id, supplier_name, 
+             supplier_type, added_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (supplier_quotation_id, part_number, description, unit_price, quantity,
+              currency, notes, system, vendor_id, distributor_id,
+              vendor_name or distributor_name,
+              'Vendor' if vendor_id else ('Distributor' if distributor_id else ''),
+              session.get('username')))
+        
+        conn.commit()
+        conn.close()
+        
+        flash(f'Product "{part_number}" added successfully!', 'success')
+        
+    except Exception as e:
+        flash(f'Error adding product: {str(e)}', 'danger')
+    
+    return redirect(url_for('quotation_products_dashboard'))
 
 
 ###################
