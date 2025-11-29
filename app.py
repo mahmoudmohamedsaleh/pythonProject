@@ -9858,14 +9858,20 @@ def import_po_items_excel(po_request_number):
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT po_number, distributor_id, distributor_name, system
+            SELECT po_number, distributor, system
             FROM purchase_orders WHERE po_request_number = ?
         """, (po_request_number,))
         result = cursor.fetchone()
         po_number = result[0] if result and result[0] else po_request_number
-        distributor_id = result[1] if result else None
-        distributor_name = result[2] if result else None
-        po_system = result[3] if result else None
+        distributor_name = result[1] if result else None
+        po_system = result[2] if result else None
+        
+        # Get distributor_id from distributors table if distributor name exists
+        distributor_id = None
+        if distributor_name:
+            cursor.execute("SELECT id FROM distributors WHERE name = ?", (distributor_name,))
+            dist_result = cursor.fetchone()
+            distributor_id = dist_result[0] if dist_result else None
         
         cursor.execute("""
             SELECT COALESCE(MAX(item_number), 0) 
