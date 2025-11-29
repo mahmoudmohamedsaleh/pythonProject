@@ -696,6 +696,26 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # Product Price History table for tracking price changes
+    c.execute('''CREATE TABLE IF NOT EXISTS product_price_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            part_number TEXT NOT NULL,
+            old_price REAL,
+            new_price REAL NOT NULL,
+            price_change REAL,
+            price_change_percent REAL,
+            currency TEXT DEFAULT 'SAR',
+            supplier_name TEXT,
+            po_number TEXT,
+            source TEXT,
+            changed_by TEXT NOT NULL,
+            changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+    
+    # Create indexes for price history table
+    c.execute('CREATE INDEX IF NOT EXISTS idx_price_history_part_number ON product_price_history(part_number)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_price_history_changed_at ON product_price_history(changed_at)')
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
@@ -10008,7 +10028,7 @@ def import_po_items_excel(po_request_number):
                     
                     # Check if product exists in quotation_products, if not add it
                     cursor.execute("""
-                        SELECT id FROM quotation_products 
+                        SELECT id, unit_price FROM quotation_products 
                         WHERE po_number = ? AND (
                             LOWER(TRIM(part_number)) = LOWER(TRIM(?)) OR
                             LOWER(TRIM(description)) = LOWER(TRIM(?))
@@ -10016,7 +10036,44 @@ def import_po_items_excel(po_request_number):
                     """, (po_number, part_number, description))
                     existing_qp = cursor.fetchone()
                     
-                    if not existing_qp:
+                    if existing_qp:
+                        # Check for price change and log it
+                        old_price = existing_qp[1] or 0
+                        if old_price != unit_price and part_number:
+                            price_change = unit_price - old_price
+                            price_change_percent = (price_change / old_price * 100) if old_price > 0 else 0
+                            cursor.execute("""
+                                INSERT INTO product_price_history 
+                                (part_number, old_price, new_price, price_change, price_change_percent, 
+                                 currency, supplier_name, po_number, source, changed_by)
+                                VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'PO Import Update', ?)
+                            """, (part_number, old_price, unit_price, price_change, price_change_percent,
+                                  distributor_name, po_number, session.get('username')))
+                            # Update the price in quotation_products
+                            cursor.execute("""
+                                UPDATE quotation_products SET unit_price = ? WHERE id = ?
+                            """, (unit_price, existing_qp[0]))
+                    else:
+                        # Check if same part_number exists with different price (from another source)
+                        if part_number:
+                            cursor.execute("""
+                                SELECT unit_price FROM quotation_products 
+                                WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+                                ORDER BY added_at DESC LIMIT 1
+                            """, (part_number,))
+                            prev_price_row = cursor.fetchone()
+                            if prev_price_row and prev_price_row[0] != unit_price:
+                                old_price = prev_price_row[0]
+                                price_change = unit_price - old_price
+                                price_change_percent = (price_change / old_price * 100) if old_price > 0 else 0
+                                cursor.execute("""
+                                    INSERT INTO product_price_history 
+                                    (part_number, old_price, new_price, price_change, price_change_percent, 
+                                     currency, supplier_name, po_number, source, changed_by)
+                                    VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'PO Import New', ?)
+                                """, (part_number, old_price, unit_price, price_change, price_change_percent,
+                                      distributor_name, po_number, session.get('username')))
+                        
                         # Add to quotation_products table
                         cursor.execute("""
                             INSERT INTO quotation_products (
@@ -10051,6 +10108,26 @@ def import_po_items_excel(po_request_number):
                           quantity, unit_price, total_price, quantity_delivered, new_delivery_status))
                     next_item_number += 1
                     items_added += 1
+                    
+                    # Check if same part_number exists with different price (for price history)
+                    if part_number:
+                        cursor.execute("""
+                            SELECT unit_price FROM quotation_products 
+                            WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+                            ORDER BY added_at DESC LIMIT 1
+                        """, (part_number,))
+                        prev_price_row = cursor.fetchone()
+                        if prev_price_row and prev_price_row[0] != unit_price:
+                            old_price = prev_price_row[0]
+                            price_change = unit_price - old_price
+                            price_change_percent = (price_change / old_price * 100) if old_price > 0 else 0
+                            cursor.execute("""
+                                INSERT INTO product_price_history 
+                                (part_number, old_price, new_price, price_change, price_change_percent, 
+                                 currency, supplier_name, po_number, source, changed_by)
+                                VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'PO Import', ?)
+                            """, (part_number, old_price, unit_price, price_change, price_change_percent,
+                                  distributor_name, po_number, session.get('username')))
                     
                     # Also add to quotation_products table
                     cursor.execute("""
