@@ -676,6 +676,58 @@
     </div>
 </div>
 
+<!-- Import Price Changes Modal -->
+<div class="modal fade" id="importPriceChangesModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Price Changes Detected During Import
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="priceChangesLoading" class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Loading price changes...</p>
+                </div>
+                <div id="priceChangesContent" style="display: none;">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        The following products had price changes compared to their previously recorded prices.
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped table-bordered">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Part Number</th>
+                                    <th>Description</th>
+                                    <th>Old Price</th>
+                                    <th>New Price</th>
+                                    <th>Change</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="priceChangesBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="priceChangesSummary" class="alert alert-secondary mt-3">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ url_for('quotation_products_dashboard') }}" class="btn btn-info">
+                    <i class="fas fa-database mr-1"></i>View All Products
+                </a>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.edit-item-btn').forEach(function(button) {
@@ -701,5 +753,69 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Function to show import price changes modal
+function showImportPriceChanges() {
+    document.getElementById('priceChangesLoading').style.display = 'block';
+    document.getElementById('priceChangesContent').style.display = 'none';
+    
+    $('#importPriceChangesModal').modal('show');
+    
+    fetch('/api/import_price_changes')
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            document.getElementById('priceChangesLoading').style.display = 'none';
+            document.getElementById('priceChangesContent').style.display = 'block';
+            
+            var tbody = document.getElementById('priceChangesBody');
+            tbody.innerHTML = '';
+            
+            if (data.success && data.price_changes && data.price_changes.length > 0) {
+                var totalIncrease = 0;
+                var totalDecrease = 0;
+                
+                data.price_changes.forEach(function(item) {
+                    var changeClass = item.change > 0 ? 'text-danger' : 'text-success';
+                    var changeIcon = item.change > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    var changeSign = item.change > 0 ? '+' : '';
+                    var bgClass = item.change > 0 ? 'table-danger' : 'table-success';
+                    
+                    if (item.change > 0) {
+                        totalIncrease++;
+                    } else {
+                        totalDecrease++;
+                    }
+                    
+                    var row = '<tr class="' + bgClass + '">' +
+                        '<td><strong>' + (item.part_number || '-') + '</strong></td>' +
+                        '<td>' + (item.description || '-') + '</td>' +
+                        '<td>SAR ' + (item.old_price ? item.old_price.toFixed(2) : '0.00') + '</td>' +
+                        '<td><strong>SAR ' + item.new_price.toFixed(2) + '</strong></td>' +
+                        '<td class="' + changeClass + '"><i class="fas ' + changeIcon + '"></i> ' + changeSign + item.change.toFixed(2) + '</td>' +
+                        '<td class="' + changeClass + '"><strong>' + changeSign + item.change_percent.toFixed(1) + '%</strong></td>' +
+                        '</tr>';
+                    tbody.innerHTML += row;
+                });
+                
+                var summary = '<strong>Summary:</strong> ' + data.price_changes.length + ' price change(s) detected. ';
+                if (totalIncrease > 0) {
+                    summary += '<span class="badge badge-danger ml-2"><i class="fas fa-arrow-up"></i> ' + totalIncrease + ' increase(s)</span> ';
+                }
+                if (totalDecrease > 0) {
+                    summary += '<span class="badge badge-success ml-2"><i class="fas fa-arrow-down"></i> ' + totalDecrease + ' decrease(s)</span>';
+                }
+                document.getElementById('priceChangesSummary').innerHTML = summary;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No price changes recorded</td></tr>';
+                document.getElementById('priceChangesSummary').innerHTML = 'No price changes were detected during the import.';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error fetching price changes:', error);
+            document.getElementById('priceChangesLoading').style.display = 'none';
+            document.getElementById('priceChangesContent').style.display = 'block';
+            document.getElementById('priceChangesBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading price changes</td></tr>';
+        });
+}
 </script>
 {% endblock %}

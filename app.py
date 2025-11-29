@@ -9961,6 +9961,7 @@ def import_po_items_excel(po_request_number):
         items_added = 0
         items_updated = 0
         errors = []
+        price_changes = []  # Track price changes during import
         
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             try:
@@ -10087,6 +10088,15 @@ def import_po_items_excel(po_request_number):
                                 VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'PO Import Update', ?)
                             """, (part_number, old_price, unit_price, price_change, price_change_percent,
                                   distributor_name, po_number, session.get('username')))
+                            # Track this price change for alert
+                            price_changes.append({
+                                'part_number': part_number,
+                                'description': description[:50],
+                                'old_price': old_price,
+                                'new_price': unit_price,
+                                'change': price_change,
+                                'change_percent': price_change_percent
+                            })
                             # Update the price in quotation_products
                             cursor.execute("""
                                 UPDATE quotation_products SET unit_price = ? WHERE id = ?
@@ -10111,6 +10121,15 @@ def import_po_items_excel(po_request_number):
                                     VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'PO Import New', ?)
                                 """, (part_number, old_price, unit_price, price_change, price_change_percent,
                                       distributor_name, po_number, session.get('username')))
+                                # Track this price change for alert
+                                price_changes.append({
+                                    'part_number': part_number,
+                                    'description': description[:50],
+                                    'old_price': old_price,
+                                    'new_price': unit_price,
+                                    'change': price_change,
+                                    'change_percent': price_change_percent
+                                })
                         
                         # Add to quotation_products table
                         cursor.execute("""
@@ -10166,6 +10185,15 @@ def import_po_items_excel(po_request_number):
                                 VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'PO Import', ?)
                             """, (part_number, old_price, unit_price, price_change, price_change_percent,
                                   distributor_name, po_number, session.get('username')))
+                            # Track this price change for alert
+                            price_changes.append({
+                                'part_number': part_number,
+                                'description': description[:50],
+                                'old_price': old_price,
+                                'new_price': unit_price,
+                                'change': price_change,
+                                'change_percent': price_change_percent
+                            })
                     
                     # Also add to quotation_products table
                     cursor.execute("""
@@ -10197,6 +10225,12 @@ def import_po_items_excel(po_request_number):
         
         if errors:
             flash(f"Some rows had errors: {'; '.join(errors[:5])}", 'warning')
+        
+        # Store price changes in session for alert display
+        if price_changes:
+            session['price_changes'] = price_changes
+            session['price_changes_po'] = po_number
+            flash(f"PRICE_ALERT:{len(price_changes)} price change(s) detected during import!", 'price_alert')
         
     except Exception as e:
         flash(f'Error importing Excel file: {str(e)}', 'danger')
@@ -14213,6 +14247,30 @@ def api_price_history(part_number):
             'part_number': part_number,
             'history': history,
             'total_changes': len(history)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/import_price_changes')
+@login_required
+def api_import_price_changes():
+    """Get price changes from the last import (stored in session)"""
+    try:
+        price_changes = session.get('price_changes', [])
+        po_number = session.get('price_changes_po', '')
+        
+        # Clear the session data after retrieval
+        if 'price_changes' in session:
+            del session['price_changes']
+        if 'price_changes_po' in session:
+            del session['price_changes_po']
+        
+        return jsonify({
+            'success': True,
+            'po_number': po_number,
+            'price_changes': price_changes,
+            'count': len(price_changes)
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

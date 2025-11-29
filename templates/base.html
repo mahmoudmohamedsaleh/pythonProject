@@ -111,7 +111,24 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
+                    {% if category == 'price_alert' %}
+                    <div class="alert alert-warning alert-dismissible fade show" role="alert" style="border-left: 5px solid #ff6b6b;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <i class="fas fa-exclamation-triangle text-danger mr-2"></i>
+                                <strong>Price Alert!</strong> {{ message.replace('PRICE_ALERT:', '') }}
+                            </div>
+                            <button type="button" class="btn btn-danger btn-sm ml-3" onclick="showImportPriceChanges()">
+                                <i class="fas fa-list"></i> View All Price Changes
+                            </button>
+                        </div>
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    {% else %}
                     <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
