@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Role Permissions - {{ role.name }}{% endblock %}
+{% block content %}
+<div class="container-fluid" style="max-width: 1200px;">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+            <div>
+                <h4 class="mb-0"><i class="fas fa-key"></i> Default Permissions for: {{ role.name }}</h4>
+                <p class="mb-0 small opacity-75">Set which pages users with this role can access by default</p>
+            </div>
+            <div>
+                <a href="{{ url_for('manage_roles') }}" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back to Roles
+                </a>
+                <a href="{{ url_for('access_control') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-shield-alt"></i> User Access Control
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle"></i> <strong>How Role Permissions Work:</strong>
+                <ul class="mb-0">
+                    <li>Enabled permissions become the <strong>default</strong> for all users with this role</li>
+                    <li>Individual users can have permissions <strong>overridden</strong> via Access Control</li>
+                    <li>Changes here affect all users with the "{{ role.name }}" role who don't have explicit overrides</li>
+                </ul>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-success" id="selectAllBtn">
+                            <i class="fas fa-check-double"></i> Select All
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="deselectAllBtn">
+                            <i class="fas fa-times"></i> Deselect All
+                        </button>
+                    </div>
+                    <span class="ms-3 text-muted" id="permissionCount">
+                        <span id="enabledCount">0</span> / <span id="totalCount">0</span> permissions enabled
+                    </span>
+                </div>
+            </div>
+            
+            {% for category, permissions in permissions_by_category.items() %}
+            <div class="card mb-3">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong><i class="fas fa-folder"></i> {{ category }}</strong>
+                        <span class="text-muted small">({{ permissions|length }} permissions)</span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-success category-select-all" data-category="{{ category }}">
+                            <i class="fas fa-check"></i> All
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary category-deselect-all" data-category="{{ category }}">
+                            <i class="fas fa-times"></i> None
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for perm in permissions %}
+                        <div class="col-md-6 col-lg-4 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input permission-checkbox" 
+                                       type="checkbox" 
+                                       id="perm_{{ perm.id }}"
+                                       data-permission-id="{{ perm.id }}"
+                                       data-category="{{ category }}"
+                                       {% if perm.has_permission %}checked{% endif %}>
+                                <label class="form-check-label" for="perm_{{ perm.id }}">
+                                    <strong>{{ perm.label }}</strong>
+                                    {% if perm.description %}
+                                    <br><small class="text-muted">{{ perm.description }}</small>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+const roleName = "{{ role.name }}";
+
+function updatePermissionCount() {
+    const total = document.querySelectorAll('.permission-checkbox').length;
+    const enabled = document.querySelectorAll('.permission-checkbox:checked').length;
+    document.getElementById('enabledCount').textContent = enabled;
+    document.getElementById('totalCount').textContent = total;
+}
+
+function togglePermission(checkbox) {
+    const permissionId = checkbox.dataset.permissionId;
+    const action = checkbox.checked ? 'add' : 'remove';
+    
+    fetch('/update_role_permission', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            role_name: roleName,
+            permission_id: parseInt(permissionId),
+            action: action
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert('Error: ' + data.error);
+            checkbox.checked = !checkbox.checked;
+        }
+        updatePermissionCount();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        checkbox.checked = !checkbox.checked;
+    });
+}
+
+document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        togglePermission(this);
+    });
+});
+
+document.getElementById('selectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('.permission-checkbox:not(:checked)').forEach(checkbox => {
+        checkbox.checked = true;
+        togglePermission(checkbox);
+    });
+});
+
+document.getElementById('deselectAllBtn').addEventListener('click', function() {
+    document.querySelectorAll('.permission-checkbox:checked').forEach(checkbox => {
+        checkbox.checked = false;
+        togglePermission(checkbox);
+    });
+});
+
+document.querySelectorAll('.category-select-all').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const category = this.dataset.category;
+        document.querySelectorAll(`.permission-checkbox[data-category="${category}"]:not(:checked)`).forEach(checkbox => {
+            checkbox.checked = true;
+            togglePermission(checkbox);
+        });
+    });
+});
+
+document.querySelectorAll('.category-deselect-all').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const category = this.dataset.category;
+        document.querySelectorAll(`.permission-checkbox[data-category="${category}"]:checked`).forEach(checkbox => {
+            checkbox.checked = false;
+            togglePermission(checkbox);
+        });
+    });
+});
+
+updatePermissionCount();
+</script>
+{% endblock %}
