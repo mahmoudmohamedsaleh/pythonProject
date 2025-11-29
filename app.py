@@ -678,6 +678,24 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_quotation_products_quote_ref ON quotation_products(quote_ref)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_quotation_products_added_at ON quotation_products(added_at)')
     
+    # Add po_number column to quotation_products table for linking to purchase orders
+    try:
+        c.execute("ALTER TABLE quotation_products ADD COLUMN po_number TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add distributor_id column to quotation_products table
+    try:
+        c.execute("ALTER TABLE quotation_products ADD COLUMN distributor_id INTEGER")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add vendor_id column to quotation_products table
+    try:
+        c.execute("ALTER TABLE quotation_products ADD COLUMN vendor_id INTEGER")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     # ============ PERMISSION SYSTEM TABLES ============
     # Permissions: Master list of all available permissions/pages
     c.execute('''CREATE TABLE IF NOT EXISTS permissions (
@@ -9839,9 +9857,15 @@ def import_po_items_excel(po_request_number):
         conn = sqlite3.connect('ProjectStatus.db')
         cursor = conn.cursor()
         
-        cursor.execute("SELECT po_number FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
+        cursor.execute("""
+            SELECT po_number, distributor_id, distributor_name, system
+            FROM purchase_orders WHERE po_request_number = ?
+        """, (po_request_number,))
         result = cursor.fetchone()
         po_number = result[0] if result and result[0] else po_request_number
+        distributor_id = result[1] if result else None
+        distributor_name = result[2] if result else None
+        po_system = result[3] if result else None
         
         cursor.execute("""
             SELECT COALESCE(MAX(item_number), 0) 
@@ -9849,6 +9873,24 @@ def import_po_items_excel(po_request_number):
             WHERE po_number = ?
         """, (po_number,))
         next_item_number = cursor.fetchone()[0] + 1
+        
+        # Get or create a default supplier quotation for PO imports
+        cursor.execute("""
+            SELECT id FROM supplier_quotations 
+            WHERE filename = 'PO Import' AND system = 'PO Import'
+            LIMIT 1
+        """)
+        sq_result = cursor.fetchone()
+        
+        if sq_result:
+            supplier_quotation_id = sq_result[0]
+        else:
+            cursor.execute("""
+                INSERT INTO supplier_quotations 
+                (quote_ref, system, filename, quotation_file, uploaded_by, uploaded_at)
+                VALUES ('PO-IMPORT', 'PO Import', 'PO Import', X'00', ?, CURRENT_TIMESTAMP)
+            """, (session.get('username'),))
+            supplier_quotation_id = cursor.lastrowid
         
         items_added = 0
         items_updated = 0
@@ -9977,6 +10019,19 @@ def import_po_items_excel(po_request_number):
                           quantity, unit_price, total_price, quantity_delivered, new_delivery_status))
                     next_item_number += 1
                     items_added += 1
+                    
+                    # Also add to quotation_products table
+                    cursor.execute("""
+                        INSERT INTO quotation_products (
+                            supplier_quotation_id, part_number, description, 
+                            unit_price, quantity, currency, system,
+                            supplier_name, supplier_type, added_by,
+                            po_number, distributor_id
+                        ) VALUES (?, ?, ?, ?, ?, 'SAR', ?, ?, 'Distributor', ?, ?, ?)
+                    """, (supplier_quotation_id, part_number, description,
+                          unit_price, int(quantity), po_system,
+                          distributor_name, session.get('username'),
+                          po_number, distributor_id))
                 
             except Exception as e:
                 errors.append(f"Row {row_idx}: {str(e)}")
