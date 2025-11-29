@@ -14267,6 +14267,116 @@ def api_price_alerts():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/export_price_history_excel/<part_number>')
+@login_required
+def export_price_history_excel(part_number):
+    """Export price history for a specific part number to Excel"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                part_number, old_price, new_price, price_change, 
+                price_change_percent, currency, supplier_name, po_number, 
+                source, changed_by, changed_at
+            FROM product_price_history
+            WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+            ORDER BY changed_at DESC
+        """, (part_number,))
+        
+        history = cursor.fetchall()
+        conn.close()
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Price History"
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="667eea", end_color="764ba2", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Title row
+        ws.merge_cells('A1:I1')
+        ws['A1'] = f"Price History: {part_number}"
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal="center")
+        
+        # Headers
+        headers = ['Date', 'Old Price', 'New Price', 'Change', 'Change %', 'Currency', 'Supplier', 'PO Number', 'Changed By']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+        
+        # Data rows
+        increase_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+        decrease_fill = PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid")
+        
+        for row_num, record in enumerate(history, 4):
+            ws.cell(row=row_num, column=1, value=record['changed_at'][:16] if record['changed_at'] else 'N/A').border = thin_border
+            ws.cell(row=row_num, column=2, value=record['old_price'] or 0).border = thin_border
+            ws.cell(row=row_num, column=3, value=record['new_price']).border = thin_border
+            
+            change_cell = ws.cell(row=row_num, column=4, value=record['price_change'] or 0)
+            change_cell.border = thin_border
+            if record['price_change'] and record['price_change'] > 0:
+                change_cell.fill = increase_fill
+            elif record['price_change'] and record['price_change'] < 0:
+                change_cell.fill = decrease_fill
+            
+            pct_cell = ws.cell(row=row_num, column=5, value=f"{record['price_change_percent']:.1f}%" if record['price_change_percent'] else "0.0%")
+            pct_cell.border = thin_border
+            if record['price_change_percent'] and record['price_change_percent'] > 0:
+                pct_cell.fill = increase_fill
+            elif record['price_change_percent'] and record['price_change_percent'] < 0:
+                pct_cell.fill = decrease_fill
+            
+            ws.cell(row=row_num, column=6, value=record['currency'] or 'SAR').border = thin_border
+            ws.cell(row=row_num, column=7, value=record['supplier_name'] or '-').border = thin_border
+            ws.cell(row=row_num, column=8, value=record['po_number'] or '-').border = thin_border
+            ws.cell(row=row_num, column=9, value=record['changed_by'] or '-').border = thin_border
+        
+        # Column widths
+        column_widths = [18, 12, 12, 12, 10, 10, 20, 15, 15]
+        for i, width in enumerate(column_widths, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
+        
+        # Save to BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Clean filename
+        safe_part_number = "".join(c for c in part_number if c.isalnum() or c in (' ', '-', '_')).strip()
+        filename = f"Price_History_{safe_part_number}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        flash(f'Error exporting price history: {str(e)}', 'danger')
+        return redirect(request.referrer or url_for('quotation_products_dashboard'))
+
+
 if __name__ == '__main__':
     init_db()
     seed_permissions()

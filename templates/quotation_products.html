@@ -414,6 +414,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="exportPriceHistoryBtn" onclick="exportPriceHistory()">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
         </div>
@@ -447,6 +450,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // Price History Modal Function
 function showPriceHistory(partNumber) {
     console.log('Opening price history for:', partNumber);
+    
+    // Store part number for export
+    currentPriceHistoryPartNumber = partNumber;
     
     document.getElementById('historyPartNumber').textContent = partNumber;
     document.getElementById('priceHistoryLoading').style.display = 'block';
@@ -525,6 +531,18 @@ function closePriceHistoryModal() {
         document.body.classList.remove('modal-open');
         var backdrop = document.getElementById('priceHistoryBackdrop');
         if (backdrop) backdrop.remove();
+    }
+}
+
+// Store current part number for export
+var currentPriceHistoryPartNumber = '';
+
+// Export Price History to Excel
+function exportPriceHistory() {
+    if (currentPriceHistoryPartNumber) {
+        window.location.href = '/export_price_history_excel/' + encodeURIComponent(currentPriceHistoryPartNumber);
+    } else {
+        alert('No part number selected for export');
     }
 }
 </script>
