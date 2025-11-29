@@ -2683,7 +2683,45 @@ def quotation_products_dashboard():
     query += " ORDER BY qp.added_at DESC"
     
     cursor.execute(query, params)
-    products = cursor.fetchall()
+    products_raw = cursor.fetchall()
+    
+    # Get price history counts for products and latest price change
+    products = []
+    for product in products_raw:
+        product_dict = dict(product)
+        part_number = product['part_number']
+        
+        # Get price change count for this part number
+        cursor.execute("""
+            SELECT COUNT(*) as change_count,
+                   MAX(changed_at) as last_change
+            FROM product_price_history
+            WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+        """, (part_number,))
+        history_info = cursor.fetchone()
+        product_dict['price_change_count'] = history_info['change_count'] if history_info else 0
+        product_dict['last_price_change'] = history_info['last_change'] if history_info else None
+        
+        # Get latest price change details
+        cursor.execute("""
+            SELECT old_price, new_price, price_change, price_change_percent
+            FROM product_price_history
+            WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+            ORDER BY changed_at DESC LIMIT 1
+        """, (part_number,))
+        latest_change = cursor.fetchone()
+        if latest_change:
+            product_dict['latest_old_price'] = latest_change['old_price']
+            product_dict['latest_new_price'] = latest_change['new_price']
+            product_dict['latest_price_change'] = latest_change['price_change']
+            product_dict['latest_price_change_percent'] = latest_change['price_change_percent']
+        else:
+            product_dict['latest_old_price'] = None
+            product_dict['latest_new_price'] = None
+            product_dict['latest_price_change'] = None
+            product_dict['latest_price_change_percent'] = None
+        
+        products.append(product_dict)
     
     # Get unique suppliers for filter dropdown
     cursor.execute("""
@@ -14126,6 +14164,104 @@ def api_notifications_count():
         return jsonify({
             'success': True,
             'unread_count': count
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/price_history/<part_number>')
+@login_required
+def api_price_history(part_number):
+    """Get price history for a specific part number"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id, part_number, old_price, new_price, price_change, 
+                price_change_percent, currency, supplier_name, po_number, 
+                source, changed_by, changed_at
+            FROM product_price_history
+            WHERE LOWER(TRIM(part_number)) = LOWER(TRIM(?))
+            ORDER BY changed_at DESC
+            LIMIT 50
+        """, (part_number,))
+        
+        history = []
+        for row in cursor.fetchall():
+            history.append({
+                'id': row['id'],
+                'part_number': row['part_number'],
+                'old_price': row['old_price'],
+                'new_price': row['new_price'],
+                'price_change': row['price_change'],
+                'price_change_percent': row['price_change_percent'],
+                'currency': row['currency'] or 'SAR',
+                'supplier_name': row['supplier_name'],
+                'po_number': row['po_number'],
+                'source': row['source'],
+                'changed_by': row['changed_by'],
+                'changed_at': row['changed_at']
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'part_number': part_number,
+            'history': history,
+            'total_changes': len(history)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/price_alerts')
+@login_required
+def api_price_alerts():
+    """Get recent price change alerts"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get price changes from last 30 days
+        cursor.execute("""
+            SELECT 
+                id, part_number, old_price, new_price, price_change, 
+                price_change_percent, currency, supplier_name, po_number, 
+                source, changed_by, changed_at
+            FROM product_price_history
+            WHERE changed_at >= datetime('now', '-30 days')
+            ORDER BY changed_at DESC
+            LIMIT 100
+        """)
+        
+        alerts = []
+        for row in cursor.fetchall():
+            alerts.append({
+                'id': row['id'],
+                'part_number': row['part_number'],
+                'old_price': row['old_price'],
+                'new_price': row['new_price'],
+                'price_change': row['price_change'],
+                'price_change_percent': row['price_change_percent'],
+                'currency': row['currency'] or 'SAR',
+                'supplier_name': row['supplier_name'],
+                'po_number': row['po_number'],
+                'source': row['source'],
+                'changed_by': row['changed_by'],
+                'changed_at': row['changed_at']
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'total_alerts': len(alerts)
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

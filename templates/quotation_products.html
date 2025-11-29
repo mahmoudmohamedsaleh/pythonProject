@@ -140,6 +140,20 @@
                                         <span class="text-success font-weight-bold">
                                             {{ product['currency'] }} {{ "%.2f"|format(product['unit_price']) }}
                                         </span>
+                                        {% if product['price_change_count'] and product['price_change_count'] > 0 %}
+                                        <br>
+                                        <span class="badge {% if product['latest_price_change'] > 0 %}badge-danger{% else %}badge-success{% endif %}" 
+                                              style="cursor: pointer; font-size: 10px;" 
+                                              onclick="showPriceHistory('{{ product['part_number'] }}')"
+                                              title="Click to view price history">
+                                            {% if product['latest_price_change'] > 0 %}
+                                            <i class="fas fa-arrow-up"></i> +{{ "%.1f"|format(product['latest_price_change_percent']) }}%
+                                            {% else %}
+                                            <i class="fas fa-arrow-down"></i> {{ "%.1f"|format(product['latest_price_change_percent']) }}%
+                                            {% endif %}
+                                            <i class="fas fa-history ml-1"></i> {{ product['price_change_count'] }}
+                                        </span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if product['distributor_name'] or product['supplier_name'] %}
@@ -356,6 +370,56 @@
     </div>
 </div>
 
+<!-- Price History Modal -->
+<div class="modal fade" id="priceHistoryModal" tabindex="-1" role="dialog" aria-labelledby="priceHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title" id="priceHistoryModalLabel">
+                    <i class="fas fa-history mr-2"></i>Price History: <span id="historyPartNumber"></span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="priceHistoryLoading" class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                    <p class="mt-2">Loading price history...</p>
+                </div>
+                <div id="priceHistoryContent" style="display: none;">
+                    <div id="priceHistoryEmpty" class="text-center py-4" style="display: none;">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5>No Price Changes</h5>
+                        <p class="text-muted">This product has no recorded price changes.</p>
+                    </div>
+                    <div class="table-responsive" id="priceHistoryTable" style="display: none;">
+                        <table class="table table-sm table-striped">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Old Price</th>
+                                    <th>New Price</th>
+                                    <th>Change</th>
+                                    <th>%</th>
+                                    <th>Supplier</th>
+                                    <th>PO</th>
+                                    <th>By</th>
+                                </tr>
+                            </thead>
+                            <tbody id="priceHistoryBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Show filename in custom file input
 document.addEventListener('DOMContentLoaded', function() {
@@ -367,5 +431,63 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Price History Modal Function
+function showPriceHistory(partNumber) {
+    document.getElementById('historyPartNumber').textContent = partNumber;
+    document.getElementById('priceHistoryLoading').style.display = 'block';
+    document.getElementById('priceHistoryContent').style.display = 'none';
+    
+    $('#priceHistoryModal').modal('show');
+    
+    fetch('/api/price_history/' + encodeURIComponent(partNumber))
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('priceHistoryLoading').style.display = 'none';
+            document.getElementById('priceHistoryContent').style.display = 'block';
+            
+            if (data.success && data.history && data.history.length > 0) {
+                document.getElementById('priceHistoryEmpty').style.display = 'none';
+                document.getElementById('priceHistoryTable').style.display = 'block';
+                
+                let tbody = document.getElementById('priceHistoryBody');
+                tbody.innerHTML = '';
+                
+                data.history.forEach(function(item) {
+                    let changeClass = item.price_change > 0 ? 'text-danger' : 'text-success';
+                    let changeIcon = item.price_change > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    let changeSign = item.price_change > 0 ? '+' : '';
+                    
+                    let row = `
+                        <tr>
+                            <td><small>${item.changed_at ? item.changed_at.substring(0, 16) : 'N/A'}</small></td>
+                            <td>${item.currency} ${item.old_price ? item.old_price.toFixed(2) : '0.00'}</td>
+                            <td><strong>${item.currency} ${item.new_price.toFixed(2)}</strong></td>
+                            <td class="${changeClass}">
+                                <i class="fas ${changeIcon}"></i> ${changeSign}${item.price_change ? item.price_change.toFixed(2) : '0.00'}
+                            </td>
+                            <td class="${changeClass}">
+                                ${changeSign}${item.price_change_percent ? item.price_change_percent.toFixed(1) : '0.0'}%
+                            </td>
+                            <td><small>${item.supplier_name || '-'}</small></td>
+                            <td><small>${item.po_number || '-'}</small></td>
+                            <td><small>${item.changed_by || '-'}</small></td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } else {
+                document.getElementById('priceHistoryEmpty').style.display = 'block';
+                document.getElementById('priceHistoryTable').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching price history:', error);
+            document.getElementById('priceHistoryLoading').style.display = 'none';
+            document.getElementById('priceHistoryContent').style.display = 'block';
+            document.getElementById('priceHistoryEmpty').style.display = 'block';
+            document.getElementById('priceHistoryTable').style.display = 'none';
+        });
+}
 </script>
 {% endblock %}
