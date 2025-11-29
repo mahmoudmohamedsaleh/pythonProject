@@ -9993,17 +9993,8 @@ def import_po_items_excel(po_request_number):
                     errors.append(f"Row {row_idx}: Invalid unit price value")
                     continue
                 
-                try:
-                    total_price = float(row[4]) if row[4] else 0
-                    if total_price < 0:
-                        errors.append(f"Row {row_idx}: Total price cannot be negative")
-                        continue
-                except (ValueError, TypeError):
-                    errors.append(f"Row {row_idx}: Invalid total price value")
-                    continue
-                
-                if total_price == 0 and unit_price > 0:
-                    total_price = quantity * unit_price
+                # Always calculate total as Qty * Unit Price (ignore Excel value)
+                total_price = quantity * unit_price
                 
                 quantity_delivered_provided = False
                 quantity_delivered = 0
