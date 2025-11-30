@@ -11,6 +11,7 @@
     <div class="container mt-5">
         <h1>Download Files</h1>
 
+        {% if user_has_permission('download_quotation') %}
         <form action="{{ url_for('download_quotation') }}" method="post">
             <div class="form-group">
                 <label for="quote_ref">Enter Quote Reference to Download Quotation:</label>
@@ -18,7 +19,11 @@
             </div>
             <button type="submit" class="btn btn-primary">Download Quotation</button>
         </form>
+        {% else %}
+        <div class="alert alert-warning">You do not have permission to download quotations.</div>
+        {% endif %}
 
+        {% if user_has_permission('download_cost_sheet') %}
         <form action="{{ url_for('download_cost_sheet') }}" method="post" class="mt-3">
             <div class="form-group">
                 <label for="quote_ref_cost">Enter Quote Reference to Download Cost Sheet:</label>
@@ -26,6 +31,9 @@
             </div>
             <button type="submit" class="btn btn-primary">Download Cost Sheet</button>
         </form>
+        {% else %}
+        <div class="alert alert-warning mt-3">You do not have permission to download cost sheets.</div>
+        {% endif %}
     </div>
 </body>
 </html>

@@ -29,7 +29,7 @@
                     {% endif %}
                 </h2>
                 <div>
-                    {% if quotation['quotation'] %}
+                    {% if quotation['quotation'] and user_has_permission('download_quotation') %}
                     <a href="{{ url_for('download_quotation', quote_ref=quotation['quote_ref']) }}" class="btn btn-primary mr-2">
                         <i class="fas fa-download"></i> Download Quotation
                     </a>
@@ -288,12 +288,12 @@
                     <a href="{{ url_for('edit_project', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-warning mb-2">
                         <i class="fas fa-edit"></i> Edit Quotation
                     </a>
-                    {% if quotation['quotation'] %}
+                    {% if quotation['quotation'] and user_has_permission('download_quotation') %}
                     <a href="{{ url_for('download_quotation', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-primary mb-2">
                         <i class="fas fa-file-pdf"></i> Download Quotation PDF
                     </a>
                     {% endif %}
-                    {% if quotation['cost_sheet'] %}
+                    {% if quotation['cost_sheet'] and user_has_permission('download_cost_sheet') %}
                     <a href="{{ url_for('download_cost_sheet', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-info mb-2">
                         <i class="fas fa-file-excel"></i> Download Cost Sheet
                     </a>

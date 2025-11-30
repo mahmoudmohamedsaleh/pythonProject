@@ -770,6 +770,27 @@ def init_db():
         os.makedirs('uploads')
 
 
+def add_missing_permissions():
+    """Add any new permissions that don't exist in the database"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # New permissions to add
+    new_permissions = [
+        ('download_quotation', 'Download Quotation', 'Sales', 'Download quotation PDF files'),
+        ('download_cost_sheet', 'Download Cost Sheet', 'Sales', 'Download cost sheet Excel files'),
+    ]
+    
+    for code, label, category, description in new_permissions:
+        c.execute("""
+            INSERT OR IGNORE INTO permissions (code, label, category, description)
+            VALUES (?, ?, ?, ?)
+        """, (code, label, category, description))
+    
+    conn.commit()
+    conn.close()
+
+
 def seed_permissions():
     """Seed permissions table with all available pages/features"""
     conn = sqlite3.connect('ProjectStatus.db')
@@ -779,6 +800,8 @@ def seed_permissions():
     c.execute("SELECT COUNT(*) FROM permissions")
     if c.fetchone()[0] > 0:
         conn.close()
+        # Add any missing permissions
+        add_missing_permissions()
         return  # Already seeded
     
     # Define all permissions with categories
@@ -803,6 +826,8 @@ def seed_permissions():
         ('view_products', 'Products', 'Sales', 'View product catalog'),
         ('view_solution_builder', 'Solution Builder', 'Sales', 'Access solution builder'),
         ('view_quotation_builder', 'Quotation Builder', 'Sales', 'Access quotation builder'),
+        ('download_quotation', 'Download Quotation', 'Sales', 'Download quotation PDF files'),
+        ('download_cost_sheet', 'Download Cost Sheet', 'Sales', 'Download cost sheet Excel files'),
         
         # Purchasing
         ('view_po_status', 'PO Status', 'Purchasing', 'View purchase order status'),
@@ -2148,8 +2173,13 @@ def download_project_history(project_name):
     return send_file(output, download_name=filename, as_attachment=True)
 
 @app.route('/download_quotation/<quote_ref>', methods=['GET'])
-#@role_required('editor')
+@login_required
 def download_quotation(quote_ref):
+    # Check permission
+    if not user_has_permission('download_quotation'):
+        flash('You do not have permission to download quotations.', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
+    
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute("SELECT quotation FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -2166,8 +2196,13 @@ def download_quotation(quote_ref):
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
 @app.route('/download_cost_sheet/<quote_ref>', methods=['GET'])
-#@role_required('editor')
+@login_required
 def download_cost_sheet(quote_ref):
+    # Check permission
+    if not user_has_permission('download_cost_sheet'):
+        flash('You do not have permission to download cost sheets.', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
+    
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute("SELECT cost_sheet FROM projects WHERE quote_ref=?", (quote_ref,))

@@ -92,15 +92,19 @@
         </div>
         <h4>Downloads</h4>
 
+        {% if user_has_permission('download_cost_sheet') %}
         <form action="{{ url_for('download_cost_sheet') }}" method="post" class="mb-3">
             <input type="hidden" name="quote_ref" value="{{ data['quotation_reference'] }}">
             <button type="submit" class="btn btn-primary btn-block">Download Cost Sheet</button>
         </form>
+        {% endif %}
 
+        {% if user_has_permission('download_quotation') %}
         <form action="{{ url_for('download_quotation') }}" method="post">
             <input type="hidden" name="quote_ref" value="{{ data['quotation_reference'] }}">
             <button type="submit" class="btn btn-secondary btn-block">Download Quotation</button>
         </form>
+        {% endif %}
     </div>
     <div class="content">
         <h1 class="text-center">Margin And Markup for Quote Reference: {{ data['quotation_reference'] }}</h1>
