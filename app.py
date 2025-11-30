@@ -2687,6 +2687,7 @@ def add_product_from_quotation(quotation_id):
 # Quotation Products Dashboard
 @app.route('/quotation_products')
 @login_required
+@permission_required('view_products')
 def quotation_products_dashboard():
     """Dashboard showing all products extracted from supplier quotations"""
     conn = sqlite3.connect('ProjectStatus.db')
@@ -3562,6 +3563,7 @@ def download_file(doc_type, doc_id):
 ##############
 @app.route('/products')
 @login_required
+@permission_required('view_products')
 def products_page():
     return render_template('products_page.html')
 #############
