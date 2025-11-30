@@ -7263,6 +7263,7 @@ def consultant_projects(consultant_id):
 ##########33
 @app.route('/view_all_clients')
 @login_required
+@permission_required('view_all_clients')
 def view_all_clients():
     """
     View all entities marked as clients (End Users, Contractors, Consultants)
