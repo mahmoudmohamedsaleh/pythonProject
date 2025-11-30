@@ -1040,9 +1040,13 @@ def permission_required(*permission_codes):
             
             if not has_permission:
                 flash('You do not have permission to access this page!', 'danger')
-                # Redirect to view_projects instead of index to avoid redirect loops
-                # when user doesn't have dashboard permission
-                return redirect(url_for('view_projects'))
+                # Redirect to login if coming from login, otherwise try dashboard
+                # If user has no permissions at all, they'll see the flash message on login
+                referrer = request.referrer or ''
+                if 'login' in referrer or request.endpoint == 'index':
+                    return redirect(url_for('login'))
+                # Try to go back to the referrer or index
+                return redirect(request.referrer or url_for('index'))
             
             return f(*args, **kwargs)
         return decorated_function
@@ -7689,6 +7693,7 @@ def edit_contractor(contractor_id):
 #########
 @app.route('/view_projects')
 @login_required
+@permission_required('view_projects')
 def view_projects():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -10981,7 +10986,8 @@ def create_po_from_request(rfpo_ref):
 
 ####### PO Requests Dashboard #######
 @app.route('/po_requests_dashboard')
-@role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
+@login_required
+@permission_required('view_po_requests')
 def po_requests_dashboard():
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
