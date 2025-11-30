@@ -18,7 +18,9 @@
     <div class="card-body">
         <form method="GET" class="form-inline p-3">
             <div class="form-group mr-3"><label for="year" class="mr-2">Select Year</label><select class="form-control" id="year" name="year">{% for year in year_range %}<option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select></div>
+            {% if not is_sales_engineer %}
             <div class="form-group mr-3"><label for="sales_engineer" class="mr-2">Sales Engineer</label><select class="form-control" id="sales_engineer" name="sales_engineer"><option value="">All</option>{% for engineer in sales_engineers %}<option value="{{ engineer }}" {% if engineer == sales_filter %}selected{% endif %}>{{ engineer }}</option>{% endfor %}</select></div>
+            {% endif %}
             <button type="submit" class="btn btn-info"><i class="fas fa-filter mr-1"></i> Filter</button>
         </form>
     </div>

@@ -6287,10 +6287,31 @@ def sales_performance():
     current_year = datetime.now().year
     selected_year = request.args.get('year', default=current_year, type=int)
     sales_filter = request.args.get('sales_engineer')
+    
+    # --- ACCESS CONTROL: Check if user is a Sales Engineer ---
+    user_role = None
+    user_sales_eng_name = None
+    is_sales_engineer = False
+    
+    if 'user_id' in session:
+        c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
+        user_role_result = c.fetchone()
+        if user_role_result:
+            user_role = user_role_result[0]
+            if user_role == 'Sales Engineer':
+                is_sales_engineer = True
+                # Get the engineer's username (case-insensitive match)
+                c.execute("SELECT username FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
+                eng_result = c.fetchone()
+                if eng_result:
+                    user_sales_eng_name = eng_result[0]
 
-    # Fetch SALES engineers for the filter dropdown
-    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
-    sales_engineers = [row[0] for row in c.fetchall()]
+    # Fetch SALES engineers for the filter dropdown (only for managers)
+    if is_sales_engineer:
+        sales_engineers = []  # Hide dropdown for Sales Engineers
+    else:
+        c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+        sales_engineers = [row[0] for row in c.fetchall()]
 
     # --- Calculation 1: Win Rate & Value Analysis (Grouped by SALES Engineer) ---
     value_query = """
@@ -6302,7 +6323,12 @@ def sales_performance():
         WHERE strftime('%Y', registered_date) = ? AND sales_eng IS NOT NULL
     """
     value_params = [str(selected_year)]
-    if sales_filter:
+    
+    # Sales Engineers only see their own data
+    if is_sales_engineer and user_sales_eng_name:
+        value_query += " AND sales_eng = ?"
+        value_params.append(user_sales_eng_name)
+    elif sales_filter:
         value_query += " AND sales_eng = ?"
         value_params.append(sales_filter)
     value_query += " GROUP BY sales_eng ORDER BY total_won DESC"
@@ -6321,7 +6347,12 @@ def sales_performance():
         WHERE strftime('%Y', p.registered_date) = ? AND p.sales_eng IS NOT NULL
     """
     leaderboard_params = [str(selected_year)]
-    if sales_filter:
+    
+    # Sales Engineers only see their own data
+    if is_sales_engineer and user_sales_eng_name:
+        leaderboard_query += " AND p.sales_eng = ?"
+        leaderboard_params.append(user_sales_eng_name)
+    elif sales_filter:
         leaderboard_query += " AND p.sales_eng = ?"
         leaderboard_params.append(sales_filter)
     leaderboard_query += " GROUP BY p.sales_eng ORDER BY won_value DESC"
@@ -6341,7 +6372,8 @@ def sales_performance():
                            leaderboard_data=leaderboard_data,
                            value_labels=value_labels,
                            total_quoted_data=total_quoted_data,
-                           total_won_data=total_won_data)
+                           total_won_data=total_won_data,
+                           is_sales_engineer=is_sales_engineer)
 ##########################
 @app.route('/quotation_profile/<quote_ref>')
 @login_required
