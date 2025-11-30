@@ -7211,10 +7211,10 @@ def view_consultants():
     user_role_result = c.fetchone()
     user_role = user_role_result[0] if user_role_result else None
     
-    # Get engineer ID if user is a Sales Engineer
+    # Get engineer ID if user is a Sales Engineer (case-insensitive matching)
     engineer_id = None
     if user_role == 'Sales Engineer':
-        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
         engineer_id_result = c.fetchone()
         if engineer_id_result:
             engineer_id = engineer_id_result[0]
@@ -7352,10 +7352,10 @@ def view_all_clients():
     user_role_result = c.fetchone()
     user_role = user_role_result[0] if user_role_result else None
     
-    # Get engineer ID if user is a Sales Engineer
+    # Get engineer ID if user is a Sales Engineer (case-insensitive matching)
     engineer_id = None
     if user_role == 'Sales Engineer':
-        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
         engineer_id_result = c.fetchone()
         if engineer_id_result:
             engineer_id = engineer_id_result[0]
@@ -7580,10 +7580,10 @@ def view_contractors():
     user_role_result = c.fetchone()
     user_role = user_role_result[0] if user_role_result else None
     
-    # Get engineer ID if user is a Sales Engineer
+    # Get engineer ID if user is a Sales Engineer (case-insensitive matching)
     engineer_id = None
     if user_role == 'Sales Engineer':
-        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
         engineer_id_result = c.fetchone()
         if engineer_id_result:
             engineer_id = engineer_id_result[0]
@@ -7873,10 +7873,10 @@ def view_end_users():
     user_role_result = c.fetchone()
     user_role = user_role_result[0] if user_role_result else None
     
-    # Get engineer ID if user is a Sales Engineer
+    # Get engineer ID if user is a Sales Engineer (case-insensitive matching)
     engineer_id = None
     if user_role == 'Sales Engineer':
-        c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+        c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
         engineer_id_result = c.fetchone()
         if engineer_id_result:
             engineer_id = engineer_id_result[0]
