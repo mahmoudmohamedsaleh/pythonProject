@@ -5766,7 +5766,8 @@ def project_pipeline():
         if user_role_result:
             user_role = user_role_result[0]
             if user_role == 'Sales Engineer':
-                c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+                # Use case-insensitive matching for username
+                c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
                 engineer_id_result = c.fetchone()
                 if engineer_id_result:
                     query += " AND rp.sales_engineer_id = ?"
@@ -6094,7 +6095,8 @@ def pipeline_analysis():
         if user_role_result:
             user_role = user_role_result[0]
             if user_role == 'Sales Engineer':
-                c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+                # Use case-insensitive matching for username
+                c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
                 engineer_id_result = c.fetchone()
                 if engineer_id_result:
                     query += " AND rp.sales_engineer_id = ?"
@@ -7781,8 +7783,8 @@ def view_projects():
         if user_role_result:
             user_role = user_role_result[0]
             if user_role == 'Sales Engineer':
-                # If user is a Sales Engineer, find their engineer ID
-                c.execute("SELECT id FROM engineers WHERE username = ?", (session['username'],))
+                # If user is a Sales Engineer, find their engineer ID (case-insensitive)
+                c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
                 engineer_id_result = c.fetchone()
                 if engineer_id_result:
                     # Filter the main query by their ID
