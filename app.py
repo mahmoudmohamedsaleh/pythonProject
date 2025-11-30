@@ -6956,6 +6956,7 @@ def request_technical_support():
 ###########
 @app.route('/technical_support_summary', methods=['GET'])
 @login_required
+@permission_required('view_rfts')
 def technical_support_summary():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
