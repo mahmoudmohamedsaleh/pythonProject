@@ -237,6 +237,9 @@
             {% if user_has_permission('view_password_reset_otps') %}
             <li class="nav-item"><a href="{{ url_for('pending_otp_requests') }}" class="{{ 'active' if 'pending_otp' in request.endpoint else '' }}"><i class="fas fa-key"></i> Password Reset OTPs</a></li>
             {% endif %}
+            {% if session.get('user_role') == 'General Manager' %}
+            <li class="nav-item"><a href="{{ url_for('active_users') }}" class="{{ 'active' if 'active_users' in request.endpoint else '' }}"><i class="fas fa-user-check"></i> Active Users</a></li>
+            {% endif %}
             {% endif %}
         </ul>
 

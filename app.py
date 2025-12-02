@@ -761,6 +761,24 @@ def init_db():
             FOREIGN KEY (permission_id) REFERENCES permissions(id),
             UNIQUE(user_id, permission_id)
         )''')
+    
+    # Active Sessions: Track currently logged-in users
+    c.execute('''CREATE TABLE IF NOT EXISTS active_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            role TEXT,
+            session_id TEXT UNIQUE NOT NULL,
+            login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ip_address TEXT,
+            user_agent TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )''')
+    
+    # Create index for faster session lookups
+    c.execute('CREATE INDEX IF NOT EXISTS idx_active_sessions_user_id ON active_sessions(user_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_active_sessions_session_id ON active_sessions(session_id)')
 
     conn.commit()
     conn.close()
@@ -1144,6 +1162,23 @@ def login():
             session['username'] = user[1]
             session['user_role'] = user[3]  # Save user's role in the session
             
+            # Generate a unique session ID for tracking
+            session_id = str(uuid.uuid4())
+            session['session_id'] = session_id
+            
+            # Record active session in database
+            conn2 = sqlite3.connect('ProjectStatus.db')
+            c2 = conn2.cursor()
+            # Remove any existing sessions for this user (enforce single session)
+            c2.execute("DELETE FROM active_sessions WHERE user_id = ?", (user[0],))
+            # Insert new session
+            c2.execute("""
+                INSERT INTO active_sessions (user_id, username, role, session_id, login_time, last_activity, ip_address, user_agent)
+                VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)
+            """, (user[0], user[1], user[3], session_id, request.remote_addr, request.headers.get('User-Agent', '')[:500]))
+            conn2.commit()
+            conn2.close()
+            
             # Load user permissions into session
             refresh_user_permissions()
 
@@ -1164,14 +1199,44 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
+
+# Update last activity time on each request
+@app.before_request
+def update_last_activity():
+    """Update the last_activity timestamp for the current user's session"""
+    if 'session_id' in session and 'user_id' in session:
+        # Skip static files and certain endpoints
+        if request.endpoint and not request.endpoint.startswith('static'):
+            try:
+                conn = sqlite3.connect('ProjectStatus.db')
+                c = conn.cursor()
+                c.execute("""
+                    UPDATE active_sessions 
+                    SET last_activity = datetime('now')
+                    WHERE session_id = ?
+                """, (session['session_id'],))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass  # Don't break the request if update fails
+
 ################3
 @app.route('/logout')
-#@role_required('editor')
 def logout():
+    # Remove active session from database
+    if 'session_id' in session:
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        c.execute("DELETE FROM active_sessions WHERE session_id = ?", (session['session_id'],))
+        conn.commit()
+        conn.close()
+    
     session.pop('user_id', None)  # Remove user_id from the session
     session.pop('username', None)  # Remove username from the session
+    session.pop('session_id', None)  # Remove session_id
+    session.pop('user_role', None)  # Remove user_role
     flash('You have been logged out.', 'success')
-    return redirect(url_for('index'))  # Redirect to the main page
+    return redirect(url_for('login'))  # Redirect to login page
 
 ################################3
 @app.route('/')
@@ -4000,6 +4065,78 @@ def delete_distributor(distributor_id):
         conn.close()
     
     return redirect(url_for('show_distributors'))
+
+
+# =================================================================
+# ================ ACTIVE USERS TRACKING (ADMIN ONLY) =============
+# =================================================================
+
+@app.route('/active-users')
+@login_required
+@role_required('General Manager')
+def active_users():
+    """View currently active users - Admin (General Manager) only"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get all active sessions
+    c.execute("""
+        SELECT 
+            a.id,
+            a.user_id,
+            a.username,
+            a.role,
+            a.login_time,
+            a.last_activity,
+            a.ip_address,
+            a.user_agent,
+            u.email
+        FROM active_sessions a
+        LEFT JOIN users u ON a.user_id = u.id
+        ORDER BY a.last_activity DESC
+    """)
+    sessions = c.fetchall()
+    
+    # Get total registered users for context
+    c.execute("SELECT COUNT(*) FROM users")
+    total_users = c.fetchone()[0]
+    
+    # Clean up stale sessions (inactive for more than 24 hours)
+    c.execute("""
+        DELETE FROM active_sessions 
+        WHERE datetime(last_activity) < datetime('now', '-24 hours')
+    """)
+    conn.commit()
+    
+    conn.close()
+    
+    return render_template('active_users.html', 
+                           sessions=sessions, 
+                           total_users=total_users,
+                           active_count=len(sessions))
+
+
+@app.route('/api/active-users/terminate/<int:session_id>', methods=['POST'])
+@login_required
+@role_required('General Manager')
+def terminate_user_session(session_id):
+    """Terminate a specific user session - Admin only"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get session info for logging
+    c.execute("SELECT username FROM active_sessions WHERE id = ?", (session_id,))
+    session_info = c.fetchone()
+    
+    if session_info:
+        c.execute("DELETE FROM active_sessions WHERE id = ?", (session_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': f'Session for {session_info[0]} has been terminated.'})
+    
+    conn.close()
+    return jsonify({'success': False, 'message': 'Session not found.'})
 
 
 # =================================================================
