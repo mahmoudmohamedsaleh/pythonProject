@@ -226,7 +226,7 @@
                                     <td><a href="{{ url_for('edit_rfq', rfq_id=rfq['id']) }}" class="text-primary"><strong>{{ rfq['rfq_reference'] }}</strong></a></td>
                                     <td>
                                         {% if rfq['quotation_ref'] %}
-                                            <span class="text-info font-weight-bold">{{ rfq['quotation_ref'] }}</span>
+                                            <a href="{{ url_for('quotation_profile', quote_ref=rfq['quotation_ref']) }}" class="text-info font-weight-bold">{{ rfq['quotation_ref'] }}</a>
                                         {% else %}
                                             <span class="text-muted">-</span>
                                         {% endif %}

@@ -6396,11 +6396,13 @@ def quotation_profile(quote_ref):
     c.execute("SELECT * FROM register_project WHERE project_name = ?", (quotation['project_name'],))
     project = c.fetchone()
     
-    # Fetch related RFQs for this project
+    # Fetch related RFQs for this project with quotation reference from projects table
     c.execute("""
-        SELECT * FROM rfq_requests 
-        WHERE project_name = ?
-        ORDER BY requested_time DESC
+        SELECT r.*, p.quote_ref as quotation_ref
+        FROM rfq_requests r
+        LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+        WHERE r.project_name = ?
+        ORDER BY r.requested_time DESC
     """, (quotation['project_name'],))
     rfqs = c.fetchall()
     
