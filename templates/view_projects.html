@@ -46,13 +46,30 @@
     .action-buttons a, .action-buttons button {
         margin: 0 2px;
     }
+    .client-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: flex-start;
+    }
+    .client-name {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.9rem;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     .client-badge {
         background: linear-gradient(135deg, #7C3AED 0%, #5B21B6 100%);
         color: white;
-        padding: 0.4em 0.7em;
-        border-radius: 12px;
+        padding: 0.3em 0.6em;
+        border-radius: 10px;
         font-weight: 600;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
+        display: inline-flex;
+        align-items: center;
     }
     .project-name-link {
         color: #007bff;
@@ -166,7 +183,16 @@
                         <td>{{ project[7] if project[7] else 'N/A' }}</td>
                         <td>
                             {% if project[13] %}
-                            <span class="client-badge"><i class="fas fa-star mr-1"></i>{{ project[13] }}</span>
+                            <div class="client-info">
+                                {% if project[13] == 'Contractor' and project[11] %}
+                                <span class="client-name">{{ project[11] }}</span>
+                                {% elif project[13] == 'End User' and project[2] %}
+                                <span class="client-name">{{ project[2] }}</span>
+                                {% elif project[13] == 'Consultant' and project[12] %}
+                                <span class="client-name">{{ project[12] }}</span>
+                                {% endif %}
+                                <span class="client-badge"><i class="fas fa-star mr-1"></i>{{ project[13] }}</span>
+                            </div>
                             {% else %}
                             <span class="text-muted">N/A</span>
                             {% endif %}
