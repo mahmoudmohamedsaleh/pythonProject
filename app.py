@@ -1564,12 +1564,13 @@ def project_detail(project_id):
             eu.name as end_user_name,
             c.name as contractor_name,
             cons.name as consultant_name,
-            e.name as sales_engineer_name
+            e.name as sales_engineer_name,
+            e.username as sales_engineer_username
         FROM register_project rp
         LEFT JOIN end_users eu ON rp.end_user_id = eu.id
         LEFT JOIN contractors c ON rp.contractor_id = c.id
         LEFT JOIN consultants cons ON rp.consultant_id = cons.id
-        LEFT JOIN engineers e ON CAST(rp.sales_engineer_id AS TEXT) = CAST(e.id AS TEXT)
+        LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
         WHERE rp.id = ?
     """, (project_id,))
     project = cursor.fetchone()

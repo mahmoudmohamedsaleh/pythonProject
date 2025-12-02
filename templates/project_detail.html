@@ -106,7 +106,7 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <p><strong>Sales Engineer:</strong><br>{{ project['sales_engineer_name'] or 'N/A' }}</p>
+                            <p><strong>Sales Engineer:</strong><br>{{ project['sales_engineer_name'] or project['sales_engineer_username'] or 'N/A' }}</p>
                             <p><strong>Expected Close Date:</strong><br>{{ project['expected_close_date'] or 'N/A' }}</p>
                             <p><strong>Probability:</strong><br>{{ project['probability'] or 'N/A' }}%</p>
                         </div>
