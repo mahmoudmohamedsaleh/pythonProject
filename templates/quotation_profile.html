@@ -212,6 +212,9 @@
                             <thead class="thead-light">
                                 <tr>
                                     <th>RFQ Reference</th>
+                                    <th>Quote Ref</th>
+                                    <th>System</th>
+                                    <th>Presale Eng.</th>
                                     <th>Priority</th>
                                     <th>Status</th>
                                     <th>Deadline</th>
@@ -220,7 +223,35 @@
                             <tbody>
                                 {% for rfq in rfqs %}
                                 <tr>
-                                    <td><strong>{{ rfq['rfq_reference'] }}</strong></td>
+                                    <td><a href="{{ url_for('edit_rfq', rfq_id=rfq['id']) }}" class="text-primary"><strong>{{ rfq['rfq_reference'] }}</strong></a></td>
+                                    <td>
+                                        {% if rfq['quotation_ref'] %}
+                                            <span class="text-info font-weight-bold">{{ rfq['quotation_ref'] }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if rfq['system'] %}
+                                            {% for system in rfq['system'].split(', ') %}
+                                                {% set sys = system|lower %}
+                                                {% if 'cctv' in sys %}
+                                                    <span class="badge badge-info mb-1">{{ system }}</span>
+                                                {% elif 'fire' in sys %}
+                                                    <span class="badge badge-danger mb-1">{{ system }}</span>
+                                                {% elif 'passive' in sys %}
+                                                    <span class="badge badge-secondary mb-1">{{ system }}</span>
+                                                {% elif 'access' in sys %}
+                                                    <span class="badge badge-success mb-1">{{ system }}</span>
+                                                {% else %}
+                                                    <span class="badge badge-primary mb-1">{{ system }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rfq['sales_engineer_presale'] if rfq['sales_engineer_presale'] else '-' }}</td>
                                     <td>
                                         {% if rfq['priority'] == 'High' %}
                                         <span class="badge badge-danger">High</span>
