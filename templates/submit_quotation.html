@@ -132,7 +132,34 @@
                         </div>
                         <input type="hidden" id="system" name="system" value="">
                     </div>
-                    <div class="form-group col-md-6"><label for="sow">SOW</label><input type="text" class="form-control" id="sow" name="sow" required></div>
+                    <div class="form-group col-md-6">
+                        <label>Scope of Work (SOW)</label>
+                        <div class="sow-checkbox-group border rounded p-2" style="max-height: 150px; overflow-y: auto; background: #f8f9fa;">
+                            <div class="form-check">
+                                <input class="form-check-input sow-checkbox" type="checkbox" value="Supply" id="sow_supply">
+                                <label class="form-check-label" for="sow_supply">Supply</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input sow-checkbox" type="checkbox" value="Installation" id="sow_installation">
+                                <label class="form-check-label" for="sow_installation">Installation</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input sow-checkbox" type="checkbox" value="Configuration" id="sow_configuration">
+                                <label class="form-check-label" for="sow_configuration">Configuration</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input sow-checkbox" type="checkbox" value="Testing" id="sow_testing">
+                                <label class="form-check-label" for="sow_testing">Testing</label>
+                            </div>
+                        </div>
+                        <div class="input-group mt-2">
+                            <input type="text" class="form-control" id="custom_sow" placeholder="Add custom SOW...">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-primary" type="button" id="add_custom_sow"><i class="fas fa-plus"></i> Add</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="sow" name="sow" value="">
+                    </div>
                 </div>
                 <div class="form-row">
                      <div class="form-group col-md-6"><label for="quotation_cost">Quotation Cost</label><input type="number" step="0.01" class="form-control" id="quotation_cost" name="quotation_cost" required></div>
@@ -247,6 +274,46 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 addBtn.click();
+            }
+        });
+        
+        // SOW multi-select functionality
+        const sowCheckboxGroup = document.querySelector('.sow-checkbox-group');
+        const sowHiddenInput = document.getElementById('sow');
+        const customSowInput = document.getElementById('custom_sow');
+        const addSowBtn = document.getElementById('add_custom_sow');
+        
+        function updateSowHiddenInput() {
+            const checked = document.querySelectorAll('.sow-checkbox:checked');
+            const values = Array.from(checked).map(cb => cb.value);
+            sowHiddenInput.value = values.join(', ');
+        }
+        
+        document.querySelectorAll('.sow-checkbox').forEach(cb => {
+            cb.addEventListener('change', updateSowHiddenInput);
+        });
+        
+        addSowBtn.addEventListener('click', function() {
+            const customValue = customSowInput.value.trim();
+            if (customValue && !document.querySelector(`.sow-checkbox[value="${customValue}"]`)) {
+                const newId = 'sow_custom_' + Date.now();
+                const newCheck = document.createElement('div');
+                newCheck.className = 'form-check';
+                newCheck.innerHTML = `
+                    <input class="form-check-input sow-checkbox" type="checkbox" value="${customValue}" id="${newId}" checked>
+                    <label class="form-check-label" for="${newId}">${customValue}</label>
+                `;
+                sowCheckboxGroup.appendChild(newCheck);
+                newCheck.querySelector('input').addEventListener('change', updateSowHiddenInput);
+                customSowInput.value = '';
+                updateSowHiddenInput();
+            }
+        });
+        
+        customSowInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addSowBtn.click();
             }
         });
     });
