@@ -63,7 +63,7 @@
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group col-md-4">
+                    <div class="form-group col-md-3">
                         <label for="priority">Priority</label>
                         <select class="form-control" id="priority" name="priority" required>
                             {% for option in priority_options %}
@@ -71,22 +71,51 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="form-group col-md-4">
-                        <label for="system">System</label>
-                        <select class="form-control" id="system" name="system" required>
-                            <option value="" disabled selected>Select System...</option>
-                            <option value="CCTV">CCTV</option>
-                            <option value="Fire Alarm">Fire Alarm</option>
-                            <option value="Passive">Passive</option>
-                            <option value="Access Control">Access Control</option>
-                            <option value="MATV">MATV</option>
-                            <option value="Intercom">Intercom</option>
-                            <option value="BMS">BMS</option>
-                            <option value="PA System">PA System</option>
-                            <option value="Other">Other</option>
-                        </select>
+                    <div class="form-group col-md-6">
+                        <label>System(s)</label>
+                        <div class="system-checkbox-group border rounded p-2" style="max-height: 150px; overflow-y: auto; background: #f8f9fa;">
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="CCTV" id="sys_cctv">
+                                <label class="form-check-label" for="sys_cctv">CCTV</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Fire Alarm" id="sys_fire">
+                                <label class="form-check-label" for="sys_fire">Fire Alarm</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Passive" id="sys_passive">
+                                <label class="form-check-label" for="sys_passive">Passive</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Access Control" id="sys_access">
+                                <label class="form-check-label" for="sys_access">Access Control</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="MATV" id="sys_matv">
+                                <label class="form-check-label" for="sys_matv">MATV</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Intercom" id="sys_intercom">
+                                <label class="form-check-label" for="sys_intercom">Intercom</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="BMS" id="sys_bms">
+                                <label class="form-check-label" for="sys_bms">BMS</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="PA System" id="sys_pa">
+                                <label class="form-check-label" for="sys_pa">PA System</label>
+                            </div>
+                        </div>
+                        <div class="input-group mt-2">
+                            <input type="text" class="form-control" id="custom_system" placeholder="Add custom system...">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-primary" type="button" id="add_custom_system"><i class="fas fa-plus"></i> Add</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="system" name="system" value="">
                     </div>
-                    <div class="form-group col-md-4">
+                    <div class="form-group col-md-3">
                         <label for="deadline">Deadline</label>
                         <input type="date" class="form-control" id="deadline" name="deadline" required>
                     </div>
@@ -146,4 +175,47 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxGroup = document.querySelector('.system-checkbox-group');
+    const hiddenInput = document.getElementById('system');
+    const customInput = document.getElementById('custom_system');
+    const addBtn = document.getElementById('add_custom_system');
+    
+    function updateHiddenInput() {
+        const checked = document.querySelectorAll('.system-checkbox:checked');
+        const values = Array.from(checked).map(cb => cb.value);
+        hiddenInput.value = values.join(', ');
+    }
+    
+    document.querySelectorAll('.system-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateHiddenInput);
+    });
+    
+    addBtn.addEventListener('click', function() {
+        const customValue = customInput.value.trim();
+        if (customValue && !document.querySelector(`.system-checkbox[value="${customValue}"]`)) {
+            const newId = 'sys_custom_' + Date.now();
+            const newCheck = document.createElement('div');
+            newCheck.className = 'form-check';
+            newCheck.innerHTML = `
+                <input class="form-check-input system-checkbox" type="checkbox" value="${customValue}" id="${newId}" checked>
+                <label class="form-check-label" for="${newId}">${customValue}</label>
+            `;
+            checkboxGroup.appendChild(newCheck);
+            newCheck.querySelector('input').addEventListener('change', updateHiddenInput);
+            customInput.value = '';
+            updateHiddenInput();
+        }
+    });
+    
+    customInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addBtn.click();
+        }
+    });
+});
+</script>
 {% endblock %}

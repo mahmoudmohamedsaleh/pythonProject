@@ -243,20 +243,28 @@
                         <td><strong>{{ rfq[2] }}</strong></td>
                         <td>
                             {% if rfq[13] %}
-                                {% set sys = rfq[13]|lower %}
-                                {% if 'cctv' in sys or 'camera' in sys %}
-                                    <span class="system-badge system-cctv"><i class="fas fa-video mr-1"></i>{{ rfq[13] }}</span>
-                                {% elif 'fire' in sys or 'alarm' in sys %}
-                                    <span class="system-badge system-fire"><i class="fas fa-fire mr-1"></i>{{ rfq[13] }}</span>
-                                {% elif 'passive' in sys %}
-                                    <span class="system-badge system-passive"><i class="fas fa-network-wired mr-1"></i>{{ rfq[13] }}</span>
-                                {% elif 'access' in sys %}
-                                    <span class="system-badge system-access"><i class="fas fa-door-open mr-1"></i>{{ rfq[13] }}</span>
-                                {% elif 'matv' in sys or 'tv' in sys %}
-                                    <span class="system-badge system-matv"><i class="fas fa-tv mr-1"></i>{{ rfq[13] }}</span>
-                                {% else %}
-                                    <span class="system-badge system-default"><i class="fas fa-cogs mr-1"></i>{{ rfq[13] }}</span>
-                                {% endif %}
+                                {% for system in rfq[13].split(', ') %}
+                                    {% set sys = system|lower %}
+                                    {% if 'cctv' in sys or 'camera' in sys %}
+                                        <span class="system-badge system-cctv mb-1"><i class="fas fa-video mr-1"></i>{{ system }}</span>
+                                    {% elif 'fire' in sys or 'alarm' in sys %}
+                                        <span class="system-badge system-fire mb-1"><i class="fas fa-fire mr-1"></i>{{ system }}</span>
+                                    {% elif 'passive' in sys %}
+                                        <span class="system-badge system-passive mb-1"><i class="fas fa-network-wired mr-1"></i>{{ system }}</span>
+                                    {% elif 'access' in sys %}
+                                        <span class="system-badge system-access mb-1"><i class="fas fa-door-open mr-1"></i>{{ system }}</span>
+                                    {% elif 'matv' in sys or 'tv' in sys %}
+                                        <span class="system-badge system-matv mb-1"><i class="fas fa-tv mr-1"></i>{{ system }}</span>
+                                    {% elif 'intercom' in sys %}
+                                        <span class="system-badge system-default mb-1"><i class="fas fa-phone-alt mr-1"></i>{{ system }}</span>
+                                    {% elif 'bms' in sys %}
+                                        <span class="system-badge system-access mb-1"><i class="fas fa-building mr-1"></i>{{ system }}</span>
+                                    {% elif 'pa' in sys %}
+                                        <span class="system-badge system-default mb-1"><i class="fas fa-volume-up mr-1"></i>{{ system }}</span>
+                                    {% else %}
+                                        <span class="system-badge system-default mb-1"><i class="fas fa-cogs mr-1"></i>{{ system }}</span>
+                                    {% endif %}
+                                {% endfor %}
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
