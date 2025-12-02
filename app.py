@@ -797,6 +797,7 @@ def add_missing_permissions():
     new_permissions = [
         ('download_quotation', 'Download Quotation', 'Sales', 'Download quotation PDF files'),
         ('download_cost_sheet', 'Download Cost Sheet', 'Sales', 'Download cost sheet Excel files'),
+        ('view_active_users', 'Active Users', 'Administration', 'View and manage currently active user sessions'),
     ]
     
     for code, label, category, description in new_permissions:
@@ -4073,7 +4074,7 @@ def delete_distributor(distributor_id):
 
 @app.route('/active-users')
 @login_required
-@role_required('General Manager')
+@permission_required('view_active_users')
 def active_users():
     """View currently active users - Admin (General Manager) only"""
     conn = sqlite3.connect('ProjectStatus.db')
@@ -4119,7 +4120,7 @@ def active_users():
 
 @app.route('/api/active-users/terminate/<int:session_id>', methods=['POST'])
 @login_required
-@role_required('General Manager')
+@permission_required('view_active_users')
 def terminate_user_session(session_id):
     """Terminate a specific user session - Admin only"""
     conn = sqlite3.connect('ProjectStatus.db')
