@@ -177,8 +177,33 @@
                 <hr class="my-4">
 
                 <div class="form-group">
-                    <label for="scope_of_work">Scope of Work</label>
-                    <textarea class="form-control" id="scope_of_work" name="scope_of_work" rows="3" required>{{ project['scope_of_work'] }}</textarea>
+                    <label>Scope of Work (SOW)</label>
+                    {% set selected_sow = project['scope_of_work'].split(', ') if project['scope_of_work'] else [] %}
+                    <div class="sow-checkbox-group border rounded p-2" style="max-height: 150px; overflow-y: auto; background: #f8f9fa;">
+                        <div class="form-check">
+                            <input class="form-check-input sow-checkbox" type="checkbox" value="Supply" id="sow_supply" {% if 'Supply' in selected_sow %}checked{% endif %}>
+                            <label class="form-check-label" for="sow_supply">Supply</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input sow-checkbox" type="checkbox" value="Installation" id="sow_installation" {% if 'Installation' in selected_sow %}checked{% endif %}>
+                            <label class="form-check-label" for="sow_installation">Installation</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input sow-checkbox" type="checkbox" value="Configuration" id="sow_configuration" {% if 'Configuration' in selected_sow %}checked{% endif %}>
+                            <label class="form-check-label" for="sow_configuration">Configuration</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input sow-checkbox" type="checkbox" value="Testing" id="sow_testing" {% if 'Testing' in selected_sow %}checked{% endif %}>
+                            <label class="form-check-label" for="sow_testing">Testing</label>
+                        </div>
+                    </div>
+                    <div class="input-group mt-2">
+                        <input type="text" class="form-control" id="custom_sow" placeholder="Add custom SOW...">
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-primary" type="button" id="add_custom_sow"><i class="fas fa-plus"></i> Add</button>
+                        </div>
+                    </div>
+                    <input type="hidden" id="scope_of_work" name="scope_of_work" value="{{ project['scope_of_work'] or '' }}">
                 </div>
                 <div class="form-group">
                     <label for="note">Note</label>
@@ -238,6 +263,66 @@
                 // Check the radio button
                 this.querySelector('input[type="radio"]').checked = true;
             });
+        });
+        
+        // SOW multi-select functionality
+        const sowCheckboxGroup = document.querySelector('.sow-checkbox-group');
+        const sowHiddenInput = document.getElementById('scope_of_work');
+        const customSowInput = document.getElementById('custom_sow');
+        const addSowBtn = document.getElementById('add_custom_sow');
+        
+        function updateSowHiddenInput() {
+            const checked = document.querySelectorAll('.sow-checkbox:checked');
+            const values = Array.from(checked).map(cb => cb.value);
+            sowHiddenInput.value = values.join(', ');
+        }
+        
+        document.querySelectorAll('.sow-checkbox').forEach(cb => {
+            cb.addEventListener('change', updateSowHiddenInput);
+        });
+        
+        // Add custom SOW values that aren't in the default list
+        const existingSow = sowHiddenInput.value;
+        if (existingSow) {
+            const sowValues = existingSow.split(', ');
+            const defaultValues = ['Supply', 'Installation', 'Configuration', 'Testing'];
+            sowValues.forEach(val => {
+                if (val && !defaultValues.includes(val)) {
+                    const newId = 'sow_custom_' + Date.now() + Math.random().toString(36).substr(2, 5);
+                    const newCheck = document.createElement('div');
+                    newCheck.className = 'form-check';
+                    newCheck.innerHTML = `
+                        <input class="form-check-input sow-checkbox" type="checkbox" value="${val}" id="${newId}" checked>
+                        <label class="form-check-label" for="${newId}">${val}</label>
+                    `;
+                    sowCheckboxGroup.appendChild(newCheck);
+                    newCheck.querySelector('input').addEventListener('change', updateSowHiddenInput);
+                }
+            });
+        }
+        
+        addSowBtn.addEventListener('click', function() {
+            const customValue = customSowInput.value.trim();
+            if (customValue && !document.querySelector(`.sow-checkbox[value="${customValue}"]`)) {
+                const newId = 'sow_custom_' + Date.now();
+                const newCheck = document.createElement('div');
+                newCheck.className = 'form-check';
+                newCheck.innerHTML = `
+                    <input class="form-check-input sow-checkbox" type="checkbox" value="${customValue}" id="${newId}" checked>
+                    <label class="form-check-label" for="${newId}">${customValue}</label>
+                `;
+                sowCheckboxGroup.appendChild(newCheck);
+                newCheck.querySelector('input').addEventListener('change', updateSowHiddenInput);
+                customSowInput.value = '';
+                updateSowHiddenInput();
+            }
+        });
+        
+        customSowInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addSowBtn.click();
+            }
         });
     });
 </script>
