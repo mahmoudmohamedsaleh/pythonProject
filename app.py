@@ -6474,13 +6474,14 @@ def request_for_quotation():
 
         try:
             # 1. Insert the new RFQ record
+            system = request.form.get('system')
             c.execute('''INSERT INTO rfq_requests (rfq_reference, project_name, project_status, priority,
                         sales_engineer_presale, sales_engineer_sales, rfq_status, quotation_status,
-                        deadline, note,requested_time)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)''',
+                        deadline, note, requested_time, system)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (rfq_reference, project_name, project_status, priority,
                        sales_engineer_presale, sales_engineer_sales, rfq_status, quotation_status,
-                       deadline, note, requested_time))
+                       deadline, note, requested_time, system))
 
             # 2. Update the project's stage from 'Qualification' to 'Proposal Prep'
             c.execute("""
@@ -6615,7 +6616,7 @@ def rfq_summary():
             r.id, r.rfq_reference, r.project_name, r.project_status, r.priority,
             r.sales_engineer_presale, r.sales_engineer_sales, r.rfq_status,
             r.quotation_status, r.deadline, r.note, r.requested_time,
-            p.quote_ref
+            p.quote_ref, r.system
         FROM rfq_requests r
         LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
         WHERE 1=1
@@ -6808,6 +6809,7 @@ def edit_rfq(rfq_id):
         project_name = request.form['project_name']
         project_status = request.form['project_status']
         priority = request.form['priority']
+        system = request.form.get('system')
         sales_engineer_presale = request.form['sales_engineer_presale']
         sales_engineer_sales = request.form['sales_engineer_sales']
         rfq_status = request.form['rfq_status']
@@ -6818,11 +6820,11 @@ def edit_rfq(rfq_id):
         try:
             c.execute("""
                 UPDATE rfq_requests SET
-                project_name = ?, project_status = ?, priority = ?, sales_engineer_presale = ?,
+                project_name = ?, project_status = ?, priority = ?, system = ?, sales_engineer_presale = ?,
                 sales_engineer_sales = ?, rfq_status = ?, quotation_status = ?,
                 deadline = ?, note = ?
                 WHERE id = ?
-            """, (project_name, project_status, priority, sales_engineer_presale,
+            """, (project_name, project_status, priority, system, sales_engineer_presale,
                   sales_engineer_sales, rfq_status, quotation_status, deadline, note, rfq_id))
             conn.commit()
             flash('RFQ updated successfully!', 'success')

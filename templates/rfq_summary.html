@@ -53,6 +53,15 @@
     /* Clickable Links */
     .rfq-link { color: #667eea; font-weight: 700; text-decoration: none; }
     .rfq-link:hover { color: #764ba2; text-decoration: underline; }
+    
+    /* System Badges */
+    .system-badge { padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 0.8rem; display: inline-block; }
+    .system-cctv { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .system-fire { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); color: white; }
+    .system-passive { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+    .system-access { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; }
+    .system-matv { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; }
+    .system-default { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; }
 </style>
 
 <!-- Hero Header -->
@@ -203,6 +212,7 @@
                         <th>RFQ Ref</th>
                         <th>Quotation Ref</th>
                         <th>Project Name</th>
+                        <th>System</th>
                         <th>Priority</th>
                         <th>Presale Eng.</th>
                         <th>Sales Eng.</th>
@@ -231,6 +241,26 @@
                             {% endif %}
                         </td>
                         <td><strong>{{ rfq[2] }}</strong></td>
+                        <td>
+                            {% if rfq[13] %}
+                                {% set sys = rfq[13]|lower %}
+                                {% if 'cctv' in sys or 'camera' in sys %}
+                                    <span class="system-badge system-cctv"><i class="fas fa-video mr-1"></i>{{ rfq[13] }}</span>
+                                {% elif 'fire' in sys or 'alarm' in sys %}
+                                    <span class="system-badge system-fire"><i class="fas fa-fire mr-1"></i>{{ rfq[13] }}</span>
+                                {% elif 'passive' in sys %}
+                                    <span class="system-badge system-passive"><i class="fas fa-network-wired mr-1"></i>{{ rfq[13] }}</span>
+                                {% elif 'access' in sys %}
+                                    <span class="system-badge system-access"><i class="fas fa-door-open mr-1"></i>{{ rfq[13] }}</span>
+                                {% elif 'matv' in sys or 'tv' in sys %}
+                                    <span class="system-badge system-matv"><i class="fas fa-tv mr-1"></i>{{ rfq[13] }}</span>
+                                {% else %}
+                                    <span class="system-badge system-default"><i class="fas fa-cogs mr-1"></i>{{ rfq[13] }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if rfq[4] == 'High' %}
                                 <span class="priority-high"><i class="fas fa-exclamation-circle"></i> High</span>

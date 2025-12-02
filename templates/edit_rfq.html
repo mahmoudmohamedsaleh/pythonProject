@@ -46,7 +46,7 @@
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group col-md-6">
+                    <div class="form-group col-md-4">
                         <label for="priority">Priority</label>
                         <select class="form-control" id="priority" name="priority" required>
                             {% for option in priority_options %}
@@ -54,7 +54,22 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="form-group col-md-6">
+                    <div class="form-group col-md-4">
+                        <label for="system">System</label>
+                        <select class="form-control" id="system" name="system" required>
+                            <option value="" disabled>Select System...</option>
+                            <option value="CCTV" {% if rfq['system'] == 'CCTV' %}selected{% endif %}>CCTV</option>
+                            <option value="Fire Alarm" {% if rfq['system'] == 'Fire Alarm' %}selected{% endif %}>Fire Alarm</option>
+                            <option value="Passive" {% if rfq['system'] == 'Passive' %}selected{% endif %}>Passive</option>
+                            <option value="Access Control" {% if rfq['system'] == 'Access Control' %}selected{% endif %}>Access Control</option>
+                            <option value="MATV" {% if rfq['system'] == 'MATV' %}selected{% endif %}>MATV</option>
+                            <option value="Intercom" {% if rfq['system'] == 'Intercom' %}selected{% endif %}>Intercom</option>
+                            <option value="BMS" {% if rfq['system'] == 'BMS' %}selected{% endif %}>BMS</option>
+                            <option value="PA System" {% if rfq['system'] == 'PA System' %}selected{% endif %}>PA System</option>
+                            <option value="Other" {% if rfq['system'] == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-4">
                         <label for="deadline">Deadline</label>
                         <input type="date" class="form-control" id="deadline" name="deadline" value="{{ rfq['deadline'] }}" required>
                     </div>
