@@ -3,92 +3,564 @@
 
 {% block content %}
 <style>
-    .page-header h1 {
-        font-weight: 700;
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
     }
+    .hero-header h1 {
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .hero-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+        font-size: 1.1rem;
+    }
+    
+    .kpi-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border: none;
+        height: 100%;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+    .kpi-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+    .kpi-icon.total { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .kpi-icon.done { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .kpi-icon.pending { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .kpi-icon.approved { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .kpi-icon.high { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #2d3748;
+        line-height: 1.2;
+    }
+    .kpi-label {
+        font-size: 0.85rem;
+        color: #718096;
+        font-weight: 500;
+    }
+    
     .card {
         border: none;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        margin-bottom: 30px;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
     }
     .card-header {
-        background-color: #ffffff;
-        border-bottom: 1px solid #e9ecef;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1rem 1.25rem;
         font-weight: 600;
+        font-size: 1rem;
+        color: #2d3748;
+    }
+    .card-header i {
+        color: #667eea;
+    }
+    
+    .filter-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    }
+    .filter-card .card-header {
+        background: transparent;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+    }
+    .filter-card label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+    }
+    .filter-card .form-control {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+    .filter-card .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
+    
+    .btn-apply {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        transition: all 0.2s ease;
+    }
+    .btn-apply:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    .btn-clear {
+        background: #e2e8f0;
+        color: #4a5568;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .btn-clear:hover {
+        background: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    .chart-card {
+        background: white;
+    }
+    .chart-container {
+        height: 220px;
+        position: relative;
+    }
+    
+    .table-card .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .btn-download {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
+        transition: all 0.2s ease;
+    }
+    .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
+    }
+    
+    .table {
+        margin-bottom: 0;
     }
     .table thead th {
-        background-color: #f8f9fa;
-        border-bottom-width: 2px;
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border-bottom: 2px solid #667eea;
         font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #4a5568;
+        padding: 1rem 0.75rem;
         white-space: nowrap;
     }
-    .table td, .table th {
+    .table tbody td {
+        padding: 0.85rem 0.75rem;
         vertical-align: middle;
+        font-size: 0.9rem;
+        color: #2d3748;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .table tbody tr:hover {
+        background-color: #f8f9ff;
+    }
+    
+    .badge-priority {
+        padding: 0.4rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-priority.high {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+        color: white;
+    }
+    .badge-priority.medium {
+        background: linear-gradient(135deg, #ffa502 0%, #ff9f1a 100%);
+        color: white;
+    }
+    .badge-priority.low {
+        background: linear-gradient(135deg, #20bf6b 0%, #26de81 100%);
+        color: white;
+    }
+    
+    .badge-status {
+        padding: 0.4rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-status.done {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    .badge-status.pending {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    .badge-status.in-progress {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .badge-result {
+        padding: 0.4rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-result.approved {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+    }
+    .badge-result.rejected {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+        color: white;
+    }
+    .badge-result.pending {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+    
+    .btn-edit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 6px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    .btn-edit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-view {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        border-radius: 6px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        color: white;
+    }
+    .btn-view:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+        color: white;
+    }
+    
+    .type-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        background: #f0f4ff;
+        color: #667eea;
+    }
+    
+    .project-link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+    .project-link:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        color: #cbd5e0;
+        margin-bottom: 1rem;
+    }
+    .empty-state h5 {
+        color: #4a5568;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .empty-state p {
+        color: #718096;
+        margin-bottom: 0;
+    }
+    
+    .total-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.35rem 0.85rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
     }
 </style>
 
-<div class="page-header">
-    <h1>Technical Support Summary</h1>
-    <p class="text-muted">An overview of all RFTS requests.</p>
+<div class="hero-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-headset mr-2"></i>Technical Support Summary</h1>
+            <p>Overview and management of all RFTS (Request for Technical Support) tickets</p>
+        </div>
+        <div>
+            <a href="{{ url_for('new_request') }}" class="btn btn-light btn-lg">
+                <i class="fas fa-plus mr-2"></i>New Request
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon total mr-3">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div>
+                    <div class="kpi-value">{{ total_requests }}</div>
+                    <div class="kpi-label">Total Requests</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon done mr-3">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div>
+                    <div class="kpi-value">{{ done_count|default(0) }}</div>
+                    <div class="kpi-label">Completed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon pending mr-3">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <div class="kpi-value">{{ pending_count|default(0) }}</div>
+                    <div class="kpi-label">Pending</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon high mr-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <div class="kpi-value">{{ high_priority_count|default(0) }}</div>
+                    <div class="kpi-label">High Priority</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row">
     <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header"><i class="fas fa-filter mr-2"></i>Filter Requests</div>
+        <div class="card filter-card">
+            <div class="card-header">
+                <i class="fas fa-filter mr-2"></i>Filter Requests
+            </div>
             <div class="card-body">
                 <form method="GET">
-                    <div class="form-row">
-                        <div class="form-group col-md-4"><label>Presale Engineer</label><select name="presale_engineer" class="form-control"><option value="">All</option>{% for e in presale_engineers %}<option value="{{ e }}">{{ e }}</option>{% endfor %}</select></div>
-                        <div class="form-group col-md-4"><label>Sales Engineer</label><select name="sales_engineer" class="form-control"><option value="">All</option>{% for e in sales_engineers %}<option value="{{ e }}">{{ e }}</option>{% endfor %}</select></div>
-                        <div class="form-group col-md-4"><label>Request Type</label><select name="request_type" class="form-control"><option value="">All</option>{% for t in request_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></div>
-                        <div class="form-group col-md-4"><label>Request Status</label><select name="request_status" class="form-control"><option value="">All</option>{% for s in request_statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
-                        <div class="form-group col-md-4"><label>Priority</label><select name="priority" class="form-control"><option value="">All</option>{% for p in priorities %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label><i class="fas fa-user-cog mr-1"></i>Presale Engineer</label>
+                            <select name="presale_engineer" class="form-control">
+                                <option value="">All Engineers</option>
+                                {% for e in presale_engineers %}
+                                <option value="{{ e }}" {% if request.args.get('presale_engineer') == e %}selected{% endif %}>{{ e }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label><i class="fas fa-user-tie mr-1"></i>Sales Engineer</label>
+                            <select name="sales_engineer" class="form-control">
+                                <option value="">All Engineers</option>
+                                {% for e in sales_engineers %}
+                                <option value="{{ e }}" {% if request.args.get('sales_engineer') == e %}selected{% endif %}>{{ e }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label><i class="fas fa-tag mr-1"></i>Request Type</label>
+                            <select name="request_type" class="form-control">
+                                <option value="">All Types</option>
+                                {% for t in request_types %}
+                                <option value="{{ t }}" {% if request.args.get('request_type') == t %}selected{% endif %}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label><i class="fas fa-info-circle mr-1"></i>Request Status</label>
+                            <select name="request_status" class="form-control">
+                                <option value="">All Statuses</option>
+                                {% for s in request_statuses %}
+                                <option value="{{ s }}" {% if request.args.get('request_status') == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label><i class="fas fa-flag mr-1"></i>Priority</label>
+                            <select name="priority" class="form-control">
+                                <option value="">All Priorities</option>
+                                {% for p in priorities %}
+                                <option value="{{ p }}" {% if request.args.get('priority') == p %}selected{% endif %}>{{ p }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary btn-apply mr-2">
+                                <i class="fas fa-search mr-1"></i>Apply
+                            </button>
+                            <a href="{{ url_for('technical_support_summary') }}" class="btn btn-clear">
+                                <i class="fas fa-times mr-1"></i>Clear
+                            </a>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-search mr-1"></i>Apply</button>
-                    <a href="{{ url_for('technical_support_summary') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i>Clear</a>
                 </form>
             </div>
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="card">
+        <div class="card chart-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-chart-pie mr-2"></i>Status Distribution</span>
-                <span class="badge badge-primary badge-pill">{{ total_requests }} Total</span>
+                <span class="total-badge">{{ total_requests }} Total</span>
             </div>
-            <div class="card-body"><canvas id="requestStatusChart"></canvas></div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="requestStatusChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-list-ul mr-2"></i>Request Details</span>
-        <a href="{{ url_for('download_filtered_technical_support', request_type=request.args.get('request_type'), request_status=request.args.get('request_status'), priority=request.args.get('priority'), presale_engineer=request.args.get('presale_engineer'), sales_engineer=request.args.get('sales_engineer')) }}" class="btn btn-success btn-sm"><i class="fas fa-file-excel mr-1"></i>Download</a>
+<div class="card table-card">
+    <div class="card-header">
+        <span><i class="fas fa-list-alt mr-2"></i>Request Details</span>
+        <a href="{{ url_for('download_filtered_technical_support', request_type=request.args.get('request_type'), request_status=request.args.get('request_status'), priority=request.args.get('priority'), presale_engineer=request.args.get('presale_engineer'), sales_engineer=request.args.get('sales_engineer')) }}" class="btn btn-download">
+            <i class="fas fa-file-excel mr-1"></i>Export Excel
+        </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Reference</th><th>Type</th><th>Project Name</th><th>Priority</th><th>Presale Eng.</th>
-                        <th>Sales Eng.</th><th>Status</th><th>Result</th><th>Deadline</th><th>Requested Time</th><th>Actions</th>
+                        <th>Reference</th>
+                        <th>Type</th>
+                        <th>Project Name</th>
+                        <th>Priority</th>
+                        <th>Presale Eng.</th>
+                        <th>Sales Eng.</th>
+                        <th>Status</th>
+                        <th>Result</th>
+                        <th>Deadline</th>
+                        <th>Requested</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for req in requests %}
                     <tr>
-                        <td>{{ req[1] }}</td><td>{{ req[2] }}</td><td>{{ req[3] }}</td><td>{{ req[4] }}</td>
-                        <td>{{ req[5] }}</td><td>{{ req[6] }}</td><td>{{ req[7] }}</td><td>{{ req[8] }}</td>
-                        <td>{{ req[9] }}</td><td>{{ req[11].split(' ')[0] }}</td>
+                        <td><strong class="text-primary">{{ req[1] }}</strong></td>
+                        <td><span class="type-badge"><i class="fas fa-file-alt"></i>{{ req[2] }}</span></td>
+                        <td><span class="project-link">{{ req[3] }}</span></td>
                         <td>
-                            <a href="{{ url_for('edit_request', request_id=req[0]) }}" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                            {% if req[4]|lower == 'high' %}
+                            <span class="badge-priority high"><i class="fas fa-arrow-up mr-1"></i>{{ req[4] }}</span>
+                            {% elif req[4]|lower == 'medium' %}
+                            <span class="badge-priority medium"><i class="fas fa-minus mr-1"></i>{{ req[4] }}</span>
+                            {% else %}
+                            <span class="badge-priority low"><i class="fas fa-arrow-down mr-1"></i>{{ req[4] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ req[5] }}</td>
+                        <td>{{ req[6] }}</td>
+                        <td>
+                            {% if req[7]|lower == 'done' %}
+                            <span class="badge-status done"><i class="fas fa-check mr-1"></i>{{ req[7] }}</span>
+                            {% elif req[7]|lower == 'pending' %}
+                            <span class="badge-status pending"><i class="fas fa-clock mr-1"></i>{{ req[7] }}</span>
+                            {% elif req[7]|lower == 'in progress' or req[7]|lower == 'in-progress' %}
+                            <span class="badge-status in-progress"><i class="fas fa-spinner mr-1"></i>{{ req[7] }}</span>
+                            {% else %}
+                            <span class="badge-status pending">{{ req[7] }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if req[8]|lower == 'approved' %}
+                            <span class="badge-result approved"><i class="fas fa-check-circle mr-1"></i>{{ req[8] }}</span>
+                            {% elif req[8]|lower == 'rejected' %}
+                            <span class="badge-result rejected"><i class="fas fa-times-circle mr-1"></i>{{ req[8] }}</span>
+                            {% else %}
+                            <span class="badge-result pending">{{ req[8] or 'Pending' }}</span>
+                            {% endif %}
+                        </td>
+                        <td><i class="fas fa-calendar-alt text-muted mr-1"></i>{{ req[9] }}</td>
+                        <td><i class="fas fa-clock text-muted mr-1"></i>{{ req[11].split(' ')[0] if req[11] else 'N/A' }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('view_request', request_id=req[0]) }}" class="btn btn-view btn-sm" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('edit_request', request_id=req[0]) }}" class="btn btn-edit btn-sm" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="11" class="text-center text-muted py-5">No requests found matching your criteria.</td></tr>
+                    <tr>
+                        <td colspan="11">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <h5>No Requests Found</h5>
+                                <p>There are no technical support requests matching your filter criteria.</p>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -103,30 +575,66 @@
 <script>
     Chart.register(ChartDataLabels);
     const ctx = document.getElementById('requestStatusChart').getContext('2d');
+    
+    const gradientColors = [
+        '#667eea',
+        '#11998e',
+        '#f093fb',
+        '#4facfe',
+        '#fa709a',
+        '#ffc107'
+    ];
+    
     const requestStatusChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: {{ status_labels|tojson }},
             datasets: [{
                 data: {{ status_counts|tojson }},
-                backgroundColor: ['#007bff', '#ffc107', '#28a745', '#dc3545', '#6c757d', '#17a2b8'],
+                backgroundColor: gradientColors,
                 borderColor: '#ffffff',
-                borderWidth: 2
+                borderWidth: 3,
+                hoverBorderWidth: 4,
+                hoverOffset: 8
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '65%',
             plugins: {
                 datalabels: {
-                    formatter: (value, ctx) => value,
+                    formatter: (value, ctx) => value > 0 ? value : '',
                     color: '#fff',
-                    font: { weight: 'bold', size: 14 }
+                    font: { weight: 'bold', size: 13 },
+                    textStrokeColor: 'rgba(0,0,0,0.3)',
+                    textStrokeWidth: 2
                 },
                 legend: {
                     position: 'bottom',
-                    labels: { boxWidth: 12, padding: 20 }
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        font: { size: 11, weight: '500' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(45, 55, 72, 0.95)',
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyFont: { size: 12 },
+                    padding: 12,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    boxWidth: 10,
+                    boxHeight: 10,
+                    boxPadding: 4
                 }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true
             }
         }
     });

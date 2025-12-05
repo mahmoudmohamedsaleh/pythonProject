@@ -7779,6 +7779,14 @@ def technical_support_summary():
     # Prepare data for the pie chart
     c.execute("SELECT request_status, COUNT(*) FROM technical_support_requests GROUP BY request_status")
     status_counts_raw = c.fetchall()
+    
+    # Calculate KPI counts for dashboard cards
+    c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(request_status) = 'done'")
+    done_count = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(request_status) = 'pending' OR LOWER(request_status) = 'in progress'")
+    pending_count = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(priority) = 'high'")
+    high_priority_count = c.fetchone()[0]
 
     # Fetch distinct values for filtering
     c.execute("SELECT DISTINCT request_type FROM technical_support_requests")
@@ -7799,7 +7807,10 @@ def technical_support_summary():
 
     return render_template('technical_support_summary.html',
                            requests=requests,
-                           total_requests=total_requests,  # Pass total to template
+                           total_requests=total_requests,
+                           done_count=done_count,
+                           pending_count=pending_count,
+                           high_priority_count=high_priority_count,
                            request_types=request_types,
                            request_statuses=request_statuses,
                            priorities=priorities,
