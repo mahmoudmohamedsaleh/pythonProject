@@ -7238,14 +7238,38 @@ def rfq_pipeline():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
+    # Get filter values from URL
+    filters = {
+        'presale_engineer': request.args.get('presale_engineer'),
+        'sales_engineer': request.args.get('sales_engineer'),
+    }
+
+    # Fetch data for filter dropdowns
+    c.execute("SELECT DISTINCT sales_engineer_presale FROM rfq_requests WHERE sales_engineer_presale IS NOT NULL AND sales_engineer_presale != ''")
+    presale_engineers = [row[0] for row in c.fetchall()]
+    c.execute("SELECT DISTINCT sales_engineer_sales FROM rfq_requests WHERE sales_engineer_sales IS NOT NULL AND sales_engineer_sales != ''")
+    sales_engineers = [row[0] for row in c.fetchall()]
+
     # Define the order of statuses for the pipeline columns
     status_ordered = ['Queue', 'Studying', 'Pricing', 'Quoted', 'Cancelled']
 
     # Initialize a dictionary to hold the structured pipeline data
     pipeline_data = {status: [] for status in status_ordered}
 
-    # Query to get all RFQs ordered by newest first
-    c.execute("SELECT * FROM rfq_requests ORDER BY requested_time DESC")
+    # Build query with filters
+    query = "SELECT * FROM rfq_requests WHERE 1=1"
+    params = []
+    
+    if filters['presale_engineer']:
+        query += " AND sales_engineer_presale = ?"
+        params.append(filters['presale_engineer'])
+    if filters['sales_engineer']:
+        query += " AND sales_engineer_sales = ?"
+        params.append(filters['sales_engineer'])
+    
+    query += " ORDER BY requested_time DESC"
+    
+    c.execute(query, params)
     rfqs = c.fetchall()
     conn.close()
 
@@ -7257,7 +7281,10 @@ def rfq_pipeline():
 
     return render_template('rfq_pipeline.html',
                            pipeline_data=pipeline_data,
-                           status_ordered=status_ordered)
+                           status_ordered=status_ordered,
+                           presale_engineers=presale_engineers,
+                           sales_engineers=sales_engineers,
+                           filters=filters)
 
 
 @app.route('/update_rfq_status', methods=['POST'])
