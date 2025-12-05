@@ -6694,7 +6694,7 @@ def request_for_quotation():
     sales_engineer_prefill = request.args.get('sales_engineer')
     c.execute("SELECT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = [engineer[0] for engineer in c.fetchall()]
-    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager')")
     sales_engineers = [engineer[0] for engineer in c.fetchall()]
     c.execute("SELECT project_name FROM register_project")
     projects = c.fetchall()
