@@ -6774,7 +6774,7 @@ def get_engineer_performance_rfqs():
             })
     else:  # quotes
         query = """
-            SELECT p.id, p.rfq_reference, p.name as project_name, p.registered_date,
+            SELECT p.id, p.rfq_reference, p.project_name, p.registered_date,
                    p.quotation_selling_price, r.system, r.sales_engineer_sales
             FROM projects p
             LEFT JOIN rfq_requests r ON p.rfq_reference = r.rfq_reference
@@ -8530,6 +8530,7 @@ def view_projects():
     # --- ACCESS CONTROL LOGIC ---
     # Sales Engineers: See only their own projects
     # All other roles (GM, TTL, PM, Project Coordinator, etc.): See ALL projects
+    sales_engineer_id = None
     if 'user_id' in session:
         c.execute("SELECT role FROM users WHERE id = ?", (session['user_id'],))
         user_role_result = c.fetchone()
@@ -8540,9 +8541,14 @@ def view_projects():
                 c.execute("SELECT id FROM engineers WHERE LOWER(username) = LOWER(?)", (session['username'],))
                 engineer_id_result = c.fetchone()
                 if engineer_id_result:
+                    sales_engineer_id = engineer_id_result[0]
                     # Filter the main query by their ID
                     query += " AND rp.sales_engineer_id = ?"
-                    params.append(engineer_id_result[0])
+                    params.append(sales_engineer_id)
+                else:
+                    # Sales Engineer not found in engineers table - show NO projects for security
+                    # Use an impossible condition to return empty result
+                    query += " AND 1 = 0"
 
     # Add other filters if they exist
     if sales_engineer_filter and user_role != 'Sales Engineer':
