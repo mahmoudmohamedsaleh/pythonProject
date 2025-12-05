@@ -7054,34 +7054,6 @@ def rfq_profile(rfq_id):
                          age_days=age_days,
                          is_overdue=is_overdue)
 
-@app.route('/rfq/<int:rfq_id>/comment', methods=['POST'])
-@login_required
-def add_rfq_comment(rfq_id):
-    """Add a comment to an RFQ"""
-    comment_text = request.form.get('comment', '').strip()
-    
-    if not comment_text:
-        flash('Comment cannot be empty', 'danger')
-        return redirect(url_for('rfq_profile', rfq_id=rfq_id))
-    
-    conn = sqlite3.connect('ProjectStatus.db')
-    c = conn.cursor()
-    
-    try:
-        c.execute("""
-            INSERT INTO rfq_comments (rfq_id, user_id, username, comment, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (rfq_id, session.get('user_id'), session.get('username', 'Unknown'), 
-              comment_text, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        conn.commit()
-        flash('Comment added successfully', 'success')
-    except Exception as e:
-        flash(f'Error adding comment: {str(e)}', 'danger')
-    finally:
-        conn.close()
-    
-    return redirect(url_for('rfq_profile', rfq_id=rfq_id))
-
 ##############3
 @app.route('/edit_rfq/<int:rfq_id>', methods=['GET', 'POST'])
 @role_required('Technical Team Leader', 'Presale Engineer')  # Define roles that can edit
@@ -9387,6 +9359,9 @@ def add_rfq_comment(rfq_id):
     finally:
         conn.close()
     
+    # Check if redirect to profile page was requested
+    if request.args.get('redirect') == 'profile':
+        return redirect(url_for('rfq_profile', rfq_id=rfq_id))
     return redirect(url_for('rfq_summary'))
 
 @app.route('/get_rfq_comments/<int:rfq_id>', methods=['GET'])
