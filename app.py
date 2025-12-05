@@ -6453,14 +6453,75 @@ def presales_performance():
 
     # --- Calculation 4: Presales Leaderboard ---
     # ... (This calculation remains the same)
-    leaderboard_query = "SELECT p.presale_eng, COUNT(p.id), SUM(CASE WHEN p.status = 'WON' THEN 1 ELSE 0 END), SUM(CASE WHEN p.status = 'WON' THEN p.quotation_selling_price ELSE 0 END), AVG(CASE WHEN p.status = 'WON' THEN p.margin ELSE NULL END) FROM projects p WHERE strftime('%Y', p.registered_date) = ?"
+    leaderboard_query = "SELECT p.presale_eng, COUNT(p.id), SUM(CASE WHEN p.status = 'Closed Won' THEN 1 ELSE 0 END), SUM(CASE WHEN p.status = 'Closed Won' THEN p.quotation_selling_price ELSE 0 END), AVG(CASE WHEN p.status = 'Closed Won' THEN p.margin ELSE NULL END) FROM projects p WHERE strftime('%Y', p.registered_date) = ?"
     leaderboard_params = [str(selected_year)]
     if presale_filter:
         leaderboard_query += " AND p.presale_eng = ?"
         leaderboard_params.append(presale_filter)
-    leaderboard_query += " GROUP BY p.presale_eng ORDER BY SUM(CASE WHEN p.status = 'WON' THEN p.quotation_selling_price ELSE 0 END) DESC"
+    leaderboard_query += " GROUP BY p.presale_eng ORDER BY SUM(CASE WHEN p.status = 'Closed Won' THEN p.quotation_selling_price ELSE 0 END) DESC"
     c.execute(leaderboard_query, leaderboard_params)
     leaderboard_data = c.fetchall()
+
+    # --- Calculation 5: Deadline Performance (Before vs After Deadline) ---
+    deadline_query = """
+        SELECT 
+            r.sales_engineer_presale,
+            SUM(CASE WHEN p.registered_date <= r.deadline THEN 1 ELSE 0 END) AS on_time,
+            SUM(CASE WHEN p.registered_date > r.deadline THEN 1 ELSE 0 END) AS late
+        FROM rfq_requests r
+        JOIN projects p ON r.rfq_reference = p.rfq_reference
+        WHERE strftime('%Y', r.requested_time) = ?
+        AND r.deadline IS NOT NULL
+        AND r.deadline != ''
+    """
+    deadline_params = [str(selected_year)]
+    if presale_filter:
+        deadline_query += " AND r.sales_engineer_presale = ?"
+        deadline_params.append(presale_filter)
+    deadline_query += " GROUP BY r.sales_engineer_presale"
+    c.execute(deadline_query, deadline_params)
+    deadline_results = c.fetchall()
+    
+    deadline_labels = [row[0] for row in deadline_results if row[0]]
+    deadline_on_time = [row[1] or 0 for row in deadline_results if row[0]]
+    deadline_late = [row[2] or 0 for row in deadline_results if row[0]]
+
+    # --- Calculation 6: KPI Statistics ---
+    # Total RFQs received
+    kpi_query = "SELECT COUNT(*) FROM rfq_requests WHERE strftime('%Y', requested_time) = ?"
+    kpi_params = [str(selected_year)]
+    if presale_filter:
+        kpi_query += " AND sales_engineer_presale = ?"
+        kpi_params.append(presale_filter)
+    c.execute(kpi_query, kpi_params)
+    total_rfqs = c.fetchone()[0] or 0
+
+    # Total Quotations Submitted
+    quote_query = "SELECT COUNT(*) FROM projects WHERE rfq_reference IS NOT NULL AND strftime('%Y', registered_date) = ?"
+    quote_params = [str(selected_year)]
+    if presale_filter:
+        quote_query += " AND presale_eng = ?"
+        quote_params.append(presale_filter)
+    c.execute(quote_query, quote_params)
+    total_quotations = c.fetchone()[0] or 0
+
+    # Total Quoted Value
+    total_quoted_value_query = "SELECT SUM(quotation_selling_price) FROM projects WHERE strftime('%Y', registered_date) = ?"
+    total_quoted_value_params = [str(selected_year)]
+    if presale_filter:
+        total_quoted_value_query += " AND presale_eng = ?"
+        total_quoted_value_params.append(presale_filter)
+    c.execute(total_quoted_value_query, total_quoted_value_params)
+    total_quoted_value = c.fetchone()[0] or 0
+
+    # Total Won Value
+    total_won_value_query = "SELECT SUM(quotation_selling_price) FROM projects WHERE status = 'Closed Won' AND strftime('%Y', registered_date) = ?"
+    total_won_value_params = [str(selected_year)]
+    if presale_filter:
+        total_won_value_query += " AND presale_eng = ?"
+        total_won_value_params.append(presale_filter)
+    c.execute(total_won_value_query, total_won_value_params)
+    total_won_value = c.fetchone()[0] or 0
 
     conn.close()
 
@@ -6483,7 +6544,14 @@ def presales_performance():
                            leaderboard_data=leaderboard_data,
                            value_labels=value_labels,
                            total_quoted_data=total_quoted_data,
-                           total_won_data=total_won_data)
+                           total_won_data=total_won_data,
+                           deadline_labels=deadline_labels,
+                           deadline_on_time=deadline_on_time,
+                           deadline_late=deadline_late,
+                           total_rfqs=total_rfqs,
+                           total_quotations=total_quotations,
+                           total_quoted_value=total_quoted_value,
+                           total_won_value=total_won_value)
 ###############
 @app.route('/sales_performance')
 @login_required

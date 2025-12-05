@@ -3,111 +3,346 @@
 
 {% block content %}
 <style>
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+    }
     .page-header h1 {
         font-weight: 700;
+        margin-bottom: 5px;
     }
-    .card {
-        border: none;
+    .page-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    .filter-card {
+        background: white;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        padding: 20px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
     }
-    .card-header {
-        background-color: #ffffff;
-        border-bottom: 1px solid #e9ecef;
+    .filter-card label {
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.85rem;
+    }
+    .filter-card .form-control {
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        padding: 10px 15px;
+    }
+    .filter-card .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
+    .btn-filter {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 10px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .kpi-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    .kpi-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .kpi-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        font-size: 1.5rem;
+    }
+    .kpi-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .kpi-icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
+    .kpi-icon.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+    .kpi-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+    .kpi-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+    .kpi-label {
+        color: #718096;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+        overflow: hidden;
+    }
+    .chart-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    .chart-header.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .chart-header.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .chart-header.orange { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
+    .chart-header.pink { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .chart-body {
+        padding: 20px;
+    }
+    
+    .leaderboard-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    .leaderboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
         font-weight: 600;
     }
     .table thead th {
-        background-color: #f8f9fa;
-        border-bottom-width: 2px;
+        background: #f8f9fa;
+        border-bottom: 2px solid #e2e8f0;
         font-weight: 600;
+        color: #4a5568;
+        padding: 15px;
         white-space: nowrap;
     }
-    .table td, .table th {
+    .table td {
+        padding: 15px;
         vertical-align: middle;
+        border-bottom: 1px solid #f1f1f1;
+    }
+    .table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .rank-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+    .rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #7c5800; }
+    .rank-2 { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #555; }
+    .rank-3 { background: linear-gradient(135deg, #cd7f32, #dba35c); color: #5a3d1a; }
+    .rank-default { background: #e2e8f0; color: #4a5568; }
+    
+    .win-rate-bar {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .win-rate-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #11998e, #38ef7d);
+        border-radius: 4px;
     }
 </style>
 
 <div class="page-header">
-    <h1>Presales Performance</h1>
-    <p class="text-muted">Analysis of RFQ requests versus quotations submitted per quarter.</p>
+    <h1><i class="fas fa-chart-line mr-2"></i>Presales Performance</h1>
+    <p>Comprehensive analysis of RFQ requests, quotations, and deadline performance for {{ selected_year }}</p>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="form-inline p-3">
-            <div class="form-group mr-3">
-                <label for="year" class="mr-2">Select Year</label>
-                <select class="form-control" id="year" name="year">
-                    {% for year in year_range %}
-                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group mr-3">
-                <label for="presale_engineer" class="mr-2">Presales Engineer</label>
-                <select class="form-control" id="presale_engineer" name="presale_engineer">
-                    <option value="">All</option>
-                    {% for engineer in presale_engineers %}
-                        <option value="{{ engineer }}" {% if engineer == presale_filter %}selected{% endif %}>{{ engineer }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn btn-info"><i class="fas fa-filter mr-1"></i> Filter</button>
-        </form>
+<div class="filter-card">
+    <form method="GET" class="row align-items-end">
+        <div class="col-md-3 mb-3 mb-md-0">
+            <label for="year"><i class="fas fa-calendar mr-1"></i>Select Year</label>
+            <select class="form-control" id="year" name="year">
+                {% for year in year_range %}
+                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4 mb-3 mb-md-0">
+            <label for="presale_engineer"><i class="fas fa-user-cog mr-1"></i>Presales Engineer</label>
+            <select class="form-control" id="presale_engineer" name="presale_engineer">
+                <option value="">All Engineers</option>
+                {% for engineer in presale_engineers %}
+                    <option value="{{ engineer }}" {% if engineer == presale_filter %}selected{% endif %}>{{ engineer }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-filter w-100">
+                <i class="fas fa-filter mr-1"></i> Apply Filter
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="kpi-icon purple"><i class="fas fa-file-alt"></i></div>
+            <div class="kpi-number">{{ total_rfqs }}</div>
+            <div class="kpi-label">RFQs Received</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="kpi-icon green"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="kpi-number">{{ total_quotations }}</div>
+            <div class="kpi-label">Quotations Submitted</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="kpi-icon blue"><i class="fas fa-coins"></i></div>
+            <div class="kpi-number">{{ "{:,.0f}".format(total_quoted_value) }}</div>
+            <div class="kpi-label">Total Quoted (SAR)</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="kpi-icon orange"><i class="fas fa-trophy"></i></div>
+            <div class="kpi-number">{{ "{:,.0f}".format(total_won_value) }}</div>
+            <div class="kpi-label">Total Won (SAR)</div>
+        </div>
     </div>
 </div>
 
 <div class="row">
     <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header"><i class="fas fa-chart-bar mr-2"></i>RFQ Performance for {{ selected_year }}</div>
-            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="performanceChart"></canvas></div></div>
+        <div class="chart-card">
+            <div class="chart-header">
+                <i class="fas fa-chart-bar mr-2"></i>RFQ Performance by Quarter
+            </div>
+            <div class="chart-body">
+                <div style="height: 300px;"><canvas id="performanceChart"></canvas></div>
+            </div>
         </div>
     </div>
     <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header"><i class="fas fa-clock mr-2"></i>Average RFQ Turnaround Time (Days)</div>
-            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="turnaroundChart"></canvas></div></div>
-        </div>
-    </div>
-    <div class="col-lg-12 mb-4"> <div class="card">
-            <div class="card-header"><i class="fas fa-balance-scale-right mr-2"></i>Quoted vs. Won Value Analysis (SAR)</div>
-            <div class="card-body p-4"><div style="height: 40vh;"><canvas id="valueChart"></canvas></div></div>
+        <div class="chart-card">
+            <div class="chart-header orange">
+                <i class="fas fa-clock mr-2"></i>Average Turnaround Time (Days)
+            </div>
+            <div class="chart-body">
+                <div style="height: 300px;"><canvas id="turnaroundChart"></canvas></div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header"><i class="fas fa-trophy mr-2"></i>Presales Leaderboard for {{ selected_year }}</div>
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Presales Engineer</th>
-                        <th>Quotations Submitted</th>
-                        <th>Deals Won</th>
-                        <th>Win Rate</th>
-                        <th>Total Won Value (SAR)</th>
-                        <th>Avg. Margin on Won Deals</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in leaderboard_data %}
-                    <tr>
-                        <td><strong>{{ row[0] }}</strong></td>
-                        <td>{{ row[1] }}</td>
-                        <td>{{ row[2] }}</td>
-                        <td>{{ "{:.1f}".format((row[2] / row[1] * 100)) if row[1] > 0 else '0.0' }}%</td>
-                        <td>{{ "{:,.2f}".format(row[3]) if row[3] else '0.00' }}</td>
-                        <td>{{ "{:.2f}".format(row[4]) if row[4] else 'N/A' }}%</td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">No performance data found for the selected criteria.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="chart-card">
+            <div class="chart-header green">
+                <i class="fas fa-calendar-check mr-2"></i>Deadline Performance by Engineer
+            </div>
+            <div class="chart-body">
+                <div style="height: 300px;"><canvas id="deadlineChart"></canvas></div>
+            </div>
         </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="chart-card">
+            <div class="chart-header blue">
+                <i class="fas fa-balance-scale-right mr-2"></i>Quoted vs Won Value (SAR)
+            </div>
+            <div class="chart-body">
+                <div style="height: 300px;"><canvas id="valueChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="leaderboard-card">
+    <div class="leaderboard-header">
+        <i class="fas fa-trophy mr-2"></i>Presales Leaderboard - {{ selected_year }}
+    </div>
+    <div class="table-responsive">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">Rank</th>
+                    <th>Presales Engineer</th>
+                    <th class="text-center">Quotations</th>
+                    <th class="text-center">Deals Won</th>
+                    <th>Win Rate</th>
+                    <th class="text-right">Won Value (SAR)</th>
+                    <th class="text-center">Avg Margin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in leaderboard_data %}
+                <tr>
+                    <td>
+                        {% if loop.index == 1 %}
+                            <span class="rank-badge rank-1"><i class="fas fa-crown"></i></span>
+                        {% elif loop.index == 2 %}
+                            <span class="rank-badge rank-2">2</span>
+                        {% elif loop.index == 3 %}
+                            <span class="rank-badge rank-3">3</span>
+                        {% else %}
+                            <span class="rank-badge rank-default">{{ loop.index }}</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ row[0] }}</strong></td>
+                    <td class="text-center">{{ row[1] }}</td>
+                    <td class="text-center">
+                        <span class="badge badge-success" style="font-size: 0.9rem;">{{ row[2] }}</span>
+                    </td>
+                    <td>
+                        {% set win_rate = (row[2] / row[1] * 100) if row[1] > 0 else 0 %}
+                        <div class="d-flex align-items-center">
+                            <div class="win-rate-bar flex-grow-1 mr-2">
+                                <div class="win-rate-fill" style="width: {{ win_rate }}%;"></div>
+                            </div>
+                            <span style="min-width: 45px;">{{ "{:.1f}".format(win_rate) }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-right"><strong>{{ "{:,.2f}".format(row[3]) if row[3] else '0.00' }}</strong></td>
+                    <td class="text-center">
+                        {% if row[4] %}
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">{{ "{:.1f}".format(row[4]) }}%</span>
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
+                        No performance data found for the selected criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -120,39 +355,38 @@
     Chart.register(ChartDataLabels);
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Chart 1: RFQ Performance
+        // Chart 1: RFQ Performance by Quarter
         const ctxPerf = document.getElementById('performanceChart').getContext('2d');
-        const performanceChart = new Chart(ctxPerf, {
+        new Chart(ctxPerf, {
             type: 'bar',
             data: {
                 labels: {{ labels|tojson }},
                 datasets: [
                     {
-                        label: 'RFQs Requested',
+                        label: 'RFQs Received',
                         data: {{ requested_data|tojson }},
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1, borderRadius: 5
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 0, borderRadius: 6
                     },
                     {
-                        label: 'RFQs Quoted',
+                        label: 'Quotations Submitted',
                         data: {{ quoted_data|tojson }},
-                        backgroundColor: 'rgba(40, 167, 69, 0.6)',
-                        borderColor: 'rgba(40, 167, 69, 1)',
-                        borderWidth: 1, borderRadius: 5
+                        backgroundColor: 'rgba(17, 153, 142, 0.8)',
+                        borderColor: 'rgba(17, 153, 142, 1)',
+                        borderWidth: 0, borderRadius: 6
                     }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 5 } } },
                 plugins: {
                     legend: { position: 'top' },
-                    tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.parsed.y}` } },
                     datalabels: {
                         anchor: 'end', align: 'end',
                         formatter: (value) => value > 0 ? value : null,
-                        font: { weight: 'bold' }, color: '#495057'
+                        font: { weight: 'bold', size: 11 }, color: '#495057'
                     }
                 }
             }
@@ -160,29 +394,28 @@
 
         // Chart 2: Turnaround Time
         const ctxTurn = document.getElementById('turnaroundChart').getContext('2d');
-        const turnaroundChart = new Chart(ctxTurn, {
+        new Chart(ctxTurn, {
             type: 'bar',
             data: {
                 labels: {{ turnaround_labels|tojson }},
                 datasets: [{
                     label: 'Average Days',
                     data: {{ turnaround_data|tojson }},
-                    backgroundColor: 'rgba(255, 159, 64, 0.6)',
-                    borderColor: 'rgba(255, 159, 64, 1)',
-                    borderWidth: 1, borderRadius: 5
+                    backgroundColor: function(context) {
+                        const value = context.dataset.data[context.dataIndex];
+                        if (value <= 5) return 'rgba(17, 153, 142, 0.8)';
+                        if (value <= 10) return 'rgba(255, 193, 7, 0.8)';
+                        return 'rgba(245, 87, 108, 0.8)';
+                    },
+                    borderWidth: 0, borderRadius: 6
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                indexAxis: 'y', // This makes the bar chart horizontal
+                indexAxis: 'y',
                 scales: { x: { beginAtZero: true, title: { display: true, text: 'Average Days to Quote' } } },
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: context => `Avg. ${context.parsed.x.toFixed(2)} days`
-                        }
-                    },
                     datalabels: {
                         anchor: 'end', align: 'end',
                         formatter: (value) => value > 0 ? value.toFixed(1) + 'd' : null,
@@ -192,35 +425,80 @@
             }
         });
 
-        // Chart 3: Win Rate & Value Analysis
-        const ctxValue = document.getElementById('valueChart').getContext('2d');
-        const valueChart = new Chart(ctxValue, {
+        // Chart 3: Deadline Performance
+        const ctxDeadline = document.getElementById('deadlineChart').getContext('2d');
+        new Chart(ctxDeadline, {
             type: 'bar',
             data: {
-                labels: {{ value_labels|tojson }},
+                labels: {{ deadline_labels|tojson }},
                 datasets: [
                     {
-                        label: 'Total Quoted Value',
-                        data: {{ total_quoted_data|tojson }},
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1, borderRadius: 5
+                        label: 'On Time',
+                        data: {{ deadline_on_time|tojson }},
+                        backgroundColor: 'rgba(17, 153, 142, 0.8)',
+                        borderWidth: 0, borderRadius: 6
                     },
                     {
-                        label: 'Total Won Value',
-                        data: {{ total_won_data|tojson }},
-                        backgroundColor: 'rgba(40, 167, 69, 0.6)',
-                        borderColor: 'rgba(40, 167, 69, 1)',
-                        borderWidth: 1, borderRadius: 5
+                        label: 'Late',
+                        data: {{ deadline_late|tojson }},
+                        backgroundColor: 'rgba(245, 87, 108, 0.8)',
+                        borderWidth: 0, borderRadius: 6
                     }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { callback: value => 'SAR ' + value.toLocaleString() } } },
+                scales: { 
+                    y: { beginAtZero: true, stacked: false, ticks: { stepSize: 1 } },
+                    x: { stacked: false }
+                },
                 plugins: {
                     legend: { position: 'top' },
-                    tooltip: { callbacks: { label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` } },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        formatter: (value) => value > 0 ? value : null,
+                        font: { weight: 'bold', size: 10 }, color: '#495057'
+                    }
+                }
+            }
+        });
+
+        // Chart 4: Value Analysis
+        const ctxValue = document.getElementById('valueChart').getContext('2d');
+        new Chart(ctxValue, {
+            type: 'bar',
+            data: {
+                labels: {{ value_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Quoted Value',
+                        data: {{ total_quoted_data|tojson }},
+                        backgroundColor: 'rgba(79, 172, 254, 0.8)',
+                        borderWidth: 0, borderRadius: 6
+                    },
+                    {
+                        label: 'Won Value',
+                        data: {{ total_won_data|tojson }},
+                        backgroundColor: 'rgba(17, 153, 142, 0.8)',
+                        borderWidth: 0, borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { callback: value => 'SAR ' + value.toLocaleString() } 
+                    } 
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { 
+                        callbacks: { 
+                            label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0})}` 
+                        } 
+                    },
                     datalabels: { display: false }
                 }
             }
