@@ -6796,7 +6796,7 @@ def get_presales_won_deals():
     c = conn.cursor()
     
     query = """
-        SELECT p.id, p.name as project_name, p.rfq_reference, p.registered_date,
+        SELECT p.id, p.project_name, p.rfq_reference, p.registered_date,
                p.quotation_selling_price, p.quotation_cost, p.status, p.sales_eng,
                r.system, r.sales_engineer_sales
         FROM projects p
