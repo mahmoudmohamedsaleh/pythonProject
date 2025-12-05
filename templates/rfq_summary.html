@@ -229,7 +229,7 @@
                     {% set days_old = ((None, None, None, None, None, None, None, None, None, None, None, rfq[11])|last|replace('-', '')|int - (None, None, None, None, None, None, None, None, None, None, None, rfq[11])|last|replace('-', '')|int)|abs if rfq[11] else 0 %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('edit_rfq', rfq_id=rfq[0]) }}" class="rfq-link" title="View RFQ Details">
+                            <a href="{{ url_for('rfq_profile', rfq_id=rfq[0]) }}" class="rfq-link" title="View RFQ Profile">
                                 {{ rfq[1] }}
                             </a>
                         </td>
@@ -337,6 +337,9 @@
                             {% endif %}
                         </td>
                         <td class="action-buttons">
+                            <a href="{{ url_for('rfq_profile', rfq_id=rfq[0]) }}" class="btn btn-info btn-sm" title="View RFQ Profile">
+                                <i class="fas fa-eye"></i>
+                            </a>
                             <a href="{{ url_for('edit_rfq', rfq_id=rfq[0]) }}" class="btn btn-warning btn-sm" title="Edit RFQ">
                                 <i class="fas fa-edit"></i>
                             </a>

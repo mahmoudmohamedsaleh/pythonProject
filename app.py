@@ -6980,6 +6980,108 @@ def download_filtered_rfqs():
 
     conn.close()
     return send_file(output, download_name='filtered_rfqs.xlsx', as_attachment=True)
+
+##############################################
+# RFQ Profile Page
+##############################################
+@app.route('/rfq_profile/<int:rfq_id>')
+@login_required
+def rfq_profile(rfq_id):
+    """
+    RFQ Profile page showing complete RFQ details, process timeline,
+    related quotations, and comments
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get RFQ details
+    c.execute("SELECT * FROM rfq_requests WHERE id = ?", (rfq_id,))
+    rfq = c.fetchone()
+    
+    if not rfq:
+        conn.close()
+        flash('RFQ not found', 'danger')
+        return redirect(url_for('rfq_summary'))
+    
+    # Get related project
+    c.execute("SELECT id, project_name FROM register_project WHERE project_name = ?", (rfq['project_name'],))
+    project = c.fetchone()
+    
+    # Get related quotations for this project
+    c.execute("""
+        SELECT quote_ref, created_by, created_date, total_value
+        FROM quotations 
+        WHERE project_name = ?
+        ORDER BY created_date DESC
+    """, (rfq['project_name'],))
+    quotations = c.fetchall()
+    
+    # Get RFQ comments
+    c.execute("""
+        SELECT id, username, comment, created_at 
+        FROM rfq_comments 
+        WHERE rfq_id = ?
+        ORDER BY created_at DESC
+    """, (rfq_id,))
+    comments = c.fetchall()
+    
+    # Calculate age in days
+    age_days = 0
+    if rfq['requested_time']:
+        try:
+            requested_date = datetime.strptime(rfq['requested_time'].split(' ')[0], '%Y-%m-%d')
+            age_days = (datetime.now() - requested_date).days
+        except:
+            age_days = 0
+    
+    # Check if overdue
+    is_overdue = False
+    if rfq['deadline']:
+        try:
+            deadline_date = datetime.strptime(rfq['deadline'], '%Y-%m-%d')
+            is_overdue = datetime.now() > deadline_date
+        except:
+            is_overdue = False
+    
+    conn.close()
+    
+    return render_template('rfq_profile.html',
+                         rfq=rfq,
+                         project=project,
+                         quotations=quotations,
+                         comments=comments,
+                         age_days=age_days,
+                         is_overdue=is_overdue)
+
+@app.route('/rfq/<int:rfq_id>/comment', methods=['POST'])
+@login_required
+def add_rfq_comment(rfq_id):
+    """Add a comment to an RFQ"""
+    comment_text = request.form.get('comment', '').strip()
+    
+    if not comment_text:
+        flash('Comment cannot be empty', 'danger')
+        return redirect(url_for('rfq_profile', rfq_id=rfq_id))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        c.execute("""
+            INSERT INTO rfq_comments (rfq_id, user_id, username, comment, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (rfq_id, session.get('user_id'), session.get('username', 'Unknown'), 
+              comment_text, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        conn.commit()
+        flash('Comment added successfully', 'success')
+    except Exception as e:
+        flash(f'Error adding comment: {str(e)}', 'danger')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('rfq_profile', rfq_id=rfq_id))
+
 ##############3
 @app.route('/edit_rfq/<int:rfq_id>', methods=['GET', 'POST'])
 @role_required('Technical Team Leader', 'Presale Engineer')  # Define roles that can edit
