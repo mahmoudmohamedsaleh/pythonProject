@@ -14470,6 +14470,40 @@ def api_calculate_deal_value(project_name):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/get_project_sales_engineer/<project_name>', methods=['GET'])
+@login_required
+def api_get_project_sales_engineer(project_name):
+    """
+    API endpoint to get the sales engineer assigned to a project
+    Returns JSON with sales engineer username
+    """
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        c.execute("""
+            SELECT e.username 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(rp.sales_engineer_id AS INTEGER) = e.id
+            WHERE rp.project_name = ?
+        """, (project_name,))
+        
+        result = c.fetchone()
+        conn.close()
+        
+        if result and result[0]:
+            return jsonify({
+                'success': True,
+                'sales_engineer': result[0]
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'sales_engineer': None
+            })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 ##############################################
 # ============ SMART CCTV PRODUCT SELECTOR ============
 ##############################################

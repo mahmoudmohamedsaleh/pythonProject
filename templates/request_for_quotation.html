@@ -182,6 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const hiddenInput = document.getElementById('system');
     const customInput = document.getElementById('custom_system');
     const addBtn = document.getElementById('add_custom_system');
+    const projectSelect = document.getElementById('project_name');
+    const salesEngineerSelect = document.getElementById('sales_engineer_sales');
     
     function updateHiddenInput() {
         const checked = document.querySelectorAll('.system-checkbox:checked');
@@ -216,6 +218,33 @@ document.addEventListener('DOMContentLoaded', function() {
             addBtn.click();
         }
     });
+    
+    // Auto-select sales engineer when project is selected
+    projectSelect.addEventListener('change', function() {
+        const projectName = this.value;
+        if (projectName) {
+            fetch(`/api/get_project_sales_engineer/${encodeURIComponent(projectName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.sales_engineer) {
+                        // Find and select the sales engineer in the dropdown
+                        const options = salesEngineerSelect.options;
+                        for (let i = 0; i < options.length; i++) {
+                            if (options[i].value === data.sales_engineer) {
+                                salesEngineerSelect.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching sales engineer:', error));
+        }
+    });
+    
+    // If project is pre-selected (from URL param), trigger the change event to auto-select sales engineer
+    if (projectSelect.value && !salesEngineerSelect.value) {
+        projectSelect.dispatchEvent(new Event('change'));
+    }
 });
 </script>
 {% endblock %}
