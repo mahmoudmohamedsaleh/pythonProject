@@ -1,0 +1,501 @@
+{% extends 'base.html' %}
+{% block title %}RFQ Profile - {{ rfq.rfq_reference }}{% endblock %}
+
+{% block content %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+    }
+    .profile-header h1 {
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .header-badge {
+        display: inline-block;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-right: 10px;
+    }
+    .badge-priority-high { background-color: #dc3545; }
+    .badge-priority-medium { background-color: #ffc107; color: #333; }
+    .badge-priority-low { background-color: #28a745; }
+    .badge-status { background-color: rgba(255,255,255,0.2); }
+    
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 15px 20px;
+    }
+    .card-header.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .card-header.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .card-header.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    
+    .info-row {
+        display: flex;
+        border-bottom: 1px solid #eee;
+        padding: 12px 0;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        min-width: 180px;
+    }
+    .info-value {
+        color: #333;
+        flex: 1;
+    }
+    
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, #667eea, #764ba2);
+        border-radius: 3px;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 55px;
+        margin-bottom: 25px;
+    }
+    .timeline-item:last-child { margin-bottom: 0; }
+    .timeline-dot {
+        position: absolute;
+        left: 12px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .timeline-dot.active { background: #28a745; }
+    .timeline-dot.pending { background: #ffc107; }
+    .timeline-dot.completed { background: #28a745; }
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .timeline-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .timeline-date {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        margin-bottom: 15px;
+    }
+    .stat-box.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .stat-box.orange { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
+    .stat-number { font-size: 2rem; font-weight: 700; }
+    .stat-label { font-size: 0.85rem; opacity: 0.9; text-transform: uppercase; }
+    
+    .system-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 3px;
+    }
+    .system-cctv { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .system-fire { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); color: white; }
+    .system-passive { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+    .system-access { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; }
+    .system-default { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; }
+    
+    .comment-box {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    .comment-user { font-weight: 600; color: #667eea; }
+    .comment-date { font-size: 0.85rem; color: #6c757d; }
+    .comment-text { color: #333; }
+    
+    .quotation-card {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.2s;
+    }
+    .quotation-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .action-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-right: 10px;
+        transition: all 0.2s;
+    }
+    .action-btn:hover { transform: translateY(-2px); }
+</style>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('rfq_summary') }}">RFQ Dashboard</a></li>
+        <li class="breadcrumb-item active">{{ rfq.rfq_reference }}</li>
+    </ol>
+</nav>
+
+<!-- Profile Header -->
+<div class="profile-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="fas fa-file-alt mr-2"></i>{{ rfq.rfq_reference }}</h1>
+            <p class="mb-3 opacity-75">{{ rfq.project_name }}</p>
+            <span class="header-badge badge-priority-{{ rfq.priority|lower }}">
+                <i class="fas fa-flag mr-1"></i>{{ rfq.priority }} Priority
+            </span>
+            <span class="header-badge badge-status">
+                <i class="fas fa-clipboard-check mr-1"></i>RFQ: {{ rfq.rfq_status }}
+            </span>
+            <span class="header-badge badge-status">
+                <i class="fas fa-file-invoice mr-1"></i>Quote: {{ rfq.quotation_status }}
+            </span>
+        </div>
+        <div class="text-right">
+            <a href="{{ url_for('edit_rfq', rfq_id=rfq.id) }}" class="btn btn-light action-btn">
+                <i class="fas fa-edit mr-1"></i>Edit RFQ
+            </a>
+            {% if rfq.rfq_status != 'Quoted' %}
+            <a href="{{ url_for('submit_quotation') }}?project_name={{ rfq.project_name|urlencode }}&rfq_reference={{ rfq.rfq_reference|urlencode }}" class="btn btn-success action-btn">
+                <i class="fas fa-paper-plane mr-1"></i>Submit Quotation
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column - RFQ Details -->
+    <div class="col-lg-8">
+        <!-- RFQ Information Card -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle mr-2"></i>RFQ Information
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-hashtag mr-2"></i>RFQ Reference</div>
+                    <div class="info-value"><strong>{{ rfq.rfq_reference }}</strong></div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-project-diagram mr-2"></i>Project Name</div>
+                    <div class="info-value">
+                        <a href="{{ url_for('project_detail', project_id=project.id) if project else '#' }}">{{ rfq.project_name }}</a>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-clipboard mr-2"></i>Project Status</div>
+                    <div class="info-value">{{ rfq.project_status }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-server mr-2"></i>System(s)</div>
+                    <div class="info-value">
+                        {% if rfq.system %}
+                            {% for sys in rfq.system.split(',') %}
+                                {% set sys_clean = sys.strip() %}
+                                {% if 'CCTV' in sys_clean %}
+                                    <span class="system-badge system-cctv"><i class="fas fa-video mr-1"></i>{{ sys_clean }}</span>
+                                {% elif 'Fire' in sys_clean %}
+                                    <span class="system-badge system-fire"><i class="fas fa-fire mr-1"></i>{{ sys_clean }}</span>
+                                {% elif 'Passive' in sys_clean %}
+                                    <span class="system-badge system-passive"><i class="fas fa-ethernet mr-1"></i>{{ sys_clean }}</span>
+                                {% elif 'Access' in sys_clean %}
+                                    <span class="system-badge system-access"><i class="fas fa-door-open mr-1"></i>{{ sys_clean }}</span>
+                                {% else %}
+                                    <span class="system-badge system-default"><i class="fas fa-cog mr-1"></i>{{ sys_clean }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Not specified</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-calendar-alt mr-2"></i>Deadline</div>
+                    <div class="info-value">
+                        {% if rfq.deadline %}
+                            <span class="{% if is_overdue %}text-danger font-weight-bold{% endif %}">
+                                {{ rfq.deadline }}
+                                {% if is_overdue %}
+                                    <span class="badge badge-danger ml-2">OVERDUE</span>
+                                {% endif %}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-clock mr-2"></i>Requested Time</div>
+                    <div class="info-value">{{ rfq.requested_time }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-sticky-note mr-2"></i>Notes</div>
+                    <div class="info-value">{{ rfq.note or 'No notes' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Engineers Card -->
+        <div class="card">
+            <div class="card-header green">
+                <i class="fas fa-users mr-2"></i>Assigned Engineers
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <div class="info-label"><i class="fas fa-user-tie mr-2"></i>Sales Engineer</div>
+                            <div class="info-value"><strong>{{ rfq.sales_engineer_sales or 'Not assigned' }}</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <div class="info-label"><i class="fas fa-user-cog mr-2"></i>Presale Engineer</div>
+                            <div class="info-value"><strong>{{ rfq.sales_engineer_presale or 'Not assigned' }}</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Quotations -->
+        <div class="card">
+            <div class="card-header blue">
+                <i class="fas fa-file-invoice-dollar mr-2"></i>Related Quotations ({{ quotations|length }})
+            </div>
+            <div class="card-body">
+                {% if quotations %}
+                    {% for q in quotations %}
+                    <div class="quotation-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}">
+                                        <i class="fas fa-file-alt mr-1"></i>{{ q.quote_ref }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    Created by {{ q.created_by }} on {{ q.created_date }}
+                                </small>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-weight-bold text-success">
+                                    {% if q.total_value %}
+                                        ${{ "{:,.2f}".format(q.total_value) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                                <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-sm btn-outline-primary mt-1">
+                                    <i class="fas fa-eye mr-1"></i>View
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>No quotations submitted yet</p>
+                        <a href="{{ url_for('submit_quotation') }}?project_name={{ rfq.project_name|urlencode }}&rfq_reference={{ rfq.rfq_reference|urlencode }}" class="btn btn-primary">
+                            <i class="fas fa-plus mr-1"></i>Submit First Quotation
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="card">
+            <div class="card-header orange">
+                <i class="fas fa-comments mr-2"></i>RFQ Comments ({{ comments|length }})
+            </div>
+            <div class="card-body">
+                {% if comments %}
+                    {% for comment in comments %}
+                    <div class="comment-box">
+                        <div class="comment-header">
+                            <span class="comment-user"><i class="fas fa-user mr-1"></i>{{ comment.username }}</span>
+                            <span class="comment-date">{{ comment.created_at }}</span>
+                        </div>
+                        <div class="comment-text">{{ comment.comment }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                        <p>No comments yet</p>
+                    </div>
+                {% endif %}
+                
+                <!-- Add Comment Form -->
+                <form method="POST" action="{{ url_for('add_rfq_comment', rfq_id=rfq.id) }}" class="mt-3">
+                    <div class="form-group">
+                        <textarea class="form-control" name="comment" rows="2" placeholder="Add a comment..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-paper-plane mr-1"></i>Post Comment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column - Timeline & Stats -->
+    <div class="col-lg-4">
+        <!-- Quick Stats -->
+        <div class="row">
+            <div class="col-6">
+                <div class="stat-box">
+                    <div class="stat-number">{{ age_days }}</div>
+                    <div class="stat-label">Days Old</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-box green">
+                    <div class="stat-number">{{ quotations|length }}</div>
+                    <div class="stat-label">Quotations</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Timeline -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-stream mr-2"></i>RFQ Process Timeline
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <!-- RFQ Created -->
+                    <div class="timeline-item">
+                        <div class="timeline-dot completed"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title"><i class="fas fa-plus-circle mr-1"></i>RFQ Created</div>
+                            <div class="timeline-date">{{ rfq.requested_time }}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- RFQ Status Steps -->
+                    {% set rfq_statuses = ['Queue', 'Studying', 'Pricing', 'Quoted'] %}
+                    {% for status in rfq_statuses %}
+                    <div class="timeline-item">
+                        {% if rfq.rfq_status == status %}
+                            <div class="timeline-dot active"></div>
+                        {% elif rfq_statuses.index(rfq.rfq_status) > rfq_statuses.index(status) if rfq.rfq_status in rfq_statuses else false %}
+                            <div class="timeline-dot completed"></div>
+                        {% else %}
+                            <div class="timeline-dot pending"></div>
+                        {% endif %}
+                        <div class="timeline-content">
+                            <div class="timeline-title">
+                                {% if status == 'Queue' %}
+                                    <i class="fas fa-clock mr-1"></i>In Queue
+                                {% elif status == 'Studying' %}
+                                    <i class="fas fa-search mr-1"></i>Studying Requirements
+                                {% elif status == 'Pricing' %}
+                                    <i class="fas fa-calculator mr-1"></i>Pricing
+                                {% elif status == 'Quoted' %}
+                                    <i class="fas fa-check-circle mr-1"></i>Quoted
+                                {% endif %}
+                            </div>
+                            {% if rfq.rfq_status == status %}
+                                <div class="timeline-date text-primary font-weight-bold">Current Stage</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Quotation Submitted -->
+                    <div class="timeline-item">
+                        {% if quotations|length > 0 %}
+                            <div class="timeline-dot completed"></div>
+                        {% else %}
+                            <div class="timeline-dot pending"></div>
+                        {% endif %}
+                        <div class="timeline-content">
+                            <div class="timeline-title"><i class="fas fa-file-invoice mr-1"></i>Quotation Submitted</div>
+                            {% if quotations|length > 0 %}
+                                <div class="timeline-date text-success">{{ quotations[0].created_date }}</div>
+                            {% else %}
+                                <div class="timeline-date text-muted">Pending</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-bolt mr-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('edit_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-primary btn-block mb-2">
+                    <i class="fas fa-edit mr-1"></i>Edit RFQ
+                </a>
+                {% if project %}
+                <a href="{{ url_for('project_detail', project_id=project.id) }}" class="btn btn-outline-info btn-block mb-2">
+                    <i class="fas fa-project-diagram mr-1"></i>View Project
+                </a>
+                {% endif %}
+                <a href="{{ url_for('submit_quotation') }}?project_name={{ rfq.project_name|urlencode }}&rfq_reference={{ rfq.rfq_reference|urlencode }}" class="btn btn-outline-success btn-block mb-2">
+                    <i class="fas fa-paper-plane mr-1"></i>Submit Quotation
+                </a>
+                <a href="{{ url_for('rfq_summary') }}" class="btn btn-outline-secondary btn-block">
+                    <i class="fas fa-arrow-left mr-1"></i>Back to RFQ Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
