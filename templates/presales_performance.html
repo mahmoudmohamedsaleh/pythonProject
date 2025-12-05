@@ -177,7 +177,7 @@
 
 <div class="filter-card">
     <form method="GET" class="row align-items-end">
-        <div class="col-md-2 mb-3 mb-md-0">
+        <div class="col-md-3 mb-3 mb-md-0">
             <label for="year"><i class="fas fa-calendar mr-1"></i>Select Year</label>
             <select class="form-control" id="year" name="year">
                 {% for year in year_range %}
@@ -185,7 +185,7 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-3 mb-3 mb-md-0">
+        <div class="col-md-4 mb-3 mb-md-0">
             <label for="presale_engineer"><i class="fas fa-user-cog mr-1"></i>Presales Engineer</label>
             <select class="form-control" id="presale_engineer" name="presale_engineer">
                 <option value="">All Engineers</option>
@@ -194,13 +194,7 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-3 mb-3 mb-md-0">
-            <label for="period"><i class="fas fa-clock mr-1"></i>Period (Engineer Chart)</label>
-            <select class="form-control" id="period" name="period">
-                <option value="week" {% if period_filter == 'week' %}selected{% endif %}>Last 7 Days</option>
-                <option value="month" {% if period_filter == 'month' %}selected{% endif %}>Last 30 Days</option>
-            </select>
-        </div>
+        <input type="hidden" id="period" name="period" value="{{ period_filter }}">
         <div class="col-md-2">
             <button type="submit" class="btn btn-primary btn-filter w-100">
                 <i class="fas fa-filter mr-1"></i> Apply Filter
@@ -279,11 +273,18 @@
 <div class="row">
     <div class="col-lg-12 mb-4">
         <div class="chart-card">
-            <div class="chart-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <i class="fas fa-users mr-2"></i>Engineer Performance - {{ period_label }}
-                <span class="badge badge-light ml-2" style="font-size: 0.75rem;">
-                    <i class="fas fa-clock mr-1"></i>{{ period_label }}
-                </span>
+            <div class="chart-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div>
+                    <i class="fas fa-users mr-2"></i>Engineer Performance - {{ period_label }}
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm period-btn {% if period_filter == 'week' %}active{% endif %}" data-period="week" style="background: {% if period_filter == 'week' %}white{% else %}rgba(255,255,255,0.2){% endif %}; color: {% if period_filter == 'week' %}#667eea{% else %}white{% endif %}; border: none; border-radius: 20px 0 0 20px; padding: 5px 15px; font-weight: 600;">
+                        <i class="fas fa-calendar-week mr-1"></i>Week
+                    </button>
+                    <button type="button" class="btn btn-sm period-btn {% if period_filter == 'month' %}active{% endif %}" data-period="month" style="background: {% if period_filter == 'month' %}white{% else %}rgba(255,255,255,0.2){% endif %}; color: {% if period_filter == 'month' %}#667eea{% else %}white{% endif %}; border: none; border-radius: 0 20px 20px 0; padding: 5px 15px; font-weight: 600;">
+                        <i class="fas fa-calendar-alt mr-1"></i>Month
+                    </button>
+                </div>
             </div>
             <div class="chart-body">
                 {% if engineer_chart_labels %}
@@ -608,6 +609,20 @@
             }
         });
         {% endif %}
+        
+        // Period button click handlers
+        document.querySelectorAll('.period-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const period = this.getAttribute('data-period');
+                document.getElementById('period').value = period;
+                this.closest('form') || document.querySelector('form').submit();
+                
+                // Build URL with current filters
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.set('period', period);
+                window.location.href = window.location.pathname + '?' + urlParams.toString();
+            });
+        });
     });
     
     // Function to show RFQ modal
