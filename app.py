@@ -6696,6 +6696,91 @@ def get_deadline_rfqs():
         'rfqs': result
     })
 
+@app.route('/api/engineer_performance_rfqs')
+@login_required
+def get_engineer_performance_rfqs():
+    """API endpoint to get RFQs/Quotations for engineer performance chart drill-down"""
+    engineer = request.args.get('engineer')
+    data_type = request.args.get('type')  # 'rfqs' or 'quotes'
+    period = request.args.get('period', 'month')  # 'week' or 'month'
+    
+    if not engineer or not data_type:
+        return jsonify({'error': 'Missing parameters'}), 400
+    
+    from datetime import timedelta
+    today = datetime.now()
+    if period == 'week':
+        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        period_label = 'Last 7 Days'
+    else:
+        start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        period_label = 'Last 30 Days'
+    end_date = today.strftime('%Y-%m-%d')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    result = []
+    
+    if data_type == 'rfqs':
+        query = """
+            SELECT id, rfq_reference, project_name, requested_time, deadline,
+                   sales_engineer_sales, system, priority
+            FROM rfq_requests
+            WHERE sales_engineer_presale = ?
+            AND date(requested_time) >= ? AND date(requested_time) <= ?
+            ORDER BY requested_time DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+        rfqs = c.fetchall()
+        
+        for rfq in rfqs:
+            result.append({
+                'id': rfq['id'],
+                'rfq_reference': rfq['rfq_reference'],
+                'project_name': rfq['project_name'],
+                'date': rfq['requested_time'][:10] if rfq['requested_time'] else None,
+                'deadline': rfq['deadline'],
+                'sales_engineer': rfq['sales_engineer_sales'],
+                'system': rfq['system'],
+                'priority': rfq['priority']
+            })
+    else:  # quotes
+        query = """
+            SELECT p.id, p.rfq_reference, p.name as project_name, p.registered_date,
+                   p.quotation_selling_price, r.system, r.sales_engineer_sales
+            FROM projects p
+            LEFT JOIN rfq_requests r ON p.rfq_reference = r.rfq_reference
+            WHERE p.presale_eng = ?
+            AND p.rfq_reference IS NOT NULL
+            AND date(p.registered_date) >= ? AND date(p.registered_date) <= ?
+            ORDER BY p.registered_date DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+        quotes = c.fetchall()
+        
+        for quote in quotes:
+            result.append({
+                'id': quote['id'],
+                'rfq_reference': quote['rfq_reference'],
+                'project_name': quote['project_name'],
+                'date': quote['registered_date'][:10] if quote['registered_date'] else None,
+                'value': quote['quotation_selling_price'],
+                'system': quote['system'],
+                'sales_engineer': quote['sales_engineer_sales']
+            })
+    
+    conn.close()
+    
+    return jsonify({
+        'engineer': engineer,
+        'type': data_type,
+        'period': period_label,
+        'count': len(result),
+        'items': result
+    })
+
 ###############
 @app.route('/sales_performance')
 @login_required
