@@ -219,9 +219,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Auto-select sales engineer when project is selected
-    projectSelect.addEventListener('change', function() {
-        const projectName = this.value;
+    // Function to fetch and select sales engineer for a project
+    function fetchAndSelectSalesEngineer(projectName) {
         if (projectName) {
             fetch(`/api/get_project_sales_engineer/${encodeURIComponent(projectName)}`)
                 .then(response => response.json())
@@ -239,11 +238,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => console.error('Error fetching sales engineer:', error));
         }
+    }
+    
+    // Auto-select sales engineer when project is changed
+    projectSelect.addEventListener('change', function() {
+        fetchAndSelectSalesEngineer(this.value);
     });
     
-    // If project is pre-selected (from URL param), trigger the change event to auto-select sales engineer
-    if (projectSelect.value && !salesEngineerSelect.value) {
-        projectSelect.dispatchEvent(new Event('change'));
+    // If project is pre-selected (from URL param), immediately fetch and select the correct sales engineer
+    if (projectSelect.value) {
+        fetchAndSelectSalesEngineer(projectSelect.value);
     }
 });
 </script>
