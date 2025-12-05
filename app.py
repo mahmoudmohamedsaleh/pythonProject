@@ -5794,6 +5794,30 @@ def register_project():
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (project_id, project_name, boq_data, boq_filename, spec_data, spec_filename, gdrive_link, updated_by))
             
+            # Auto-add the selected client to the Clients database with Sales Engineer assignment
+            if client_type and sales_engineer_id:
+                try:
+                    if client_type == 'End User' and end_user_id:
+                        c.execute('''
+                            UPDATE end_users 
+                            SET is_client = 1, assigned_sales_engineer_id = ?
+                            WHERE id = ?
+                        ''', (sales_engineer_id, end_user_id))
+                    elif client_type == 'Contractor' and contractor_id:
+                        c.execute('''
+                            UPDATE contractors 
+                            SET is_client = 1, assigned_sales_engineer_id = ?
+                            WHERE id = ?
+                        ''', (sales_engineer_id, contractor_id))
+                    elif client_type == 'Consultant' and consultant_id:
+                        c.execute('''
+                            UPDATE consultants 
+                            SET is_client = 1, assigned_sales_engineer_id = ?
+                            WHERE id = ?
+                        ''', (sales_engineer_id, consultant_id))
+                except Exception as e:
+                    print(f"Error updating client status: {e}")
+            
             conn.commit()
             flash('Project registered successfully! It is pending admin approval before appearing in the pipeline.', 'info')
             
@@ -5997,6 +6021,31 @@ def edit_project_pipeline(project_id):
         ''', (project_name, stage, probability, deal_value, expected_close_date,
               end_user_id, contractor_id, consultant_id, client_type, scope_of_work, note,
               sales_engineer_id, updated_time, updated_by, project_id))
+
+        # Auto-add the selected client to the Clients database with Sales Engineer assignment
+        if client_type and sales_engineer_id:
+            try:
+                # Determine which entity is the client and update their is_client flag
+                if client_type == 'End User' and end_user_id:
+                    c.execute('''
+                        UPDATE end_users 
+                        SET is_client = 1, assigned_sales_engineer_id = ?
+                        WHERE id = ?
+                    ''', (sales_engineer_id, end_user_id))
+                elif client_type == 'Contractor' and contractor_id:
+                    c.execute('''
+                        UPDATE contractors 
+                        SET is_client = 1, assigned_sales_engineer_id = ?
+                        WHERE id = ?
+                    ''', (sales_engineer_id, contractor_id))
+                elif client_type == 'Consultant' and consultant_id:
+                    c.execute('''
+                        UPDATE consultants 
+                        SET is_client = 1, assigned_sales_engineer_id = ?
+                        WHERE id = ?
+                    ''', (sales_engineer_id, consultant_id))
+            except Exception as e:
+                print(f"Error updating client status: {e}")
 
         conn.commit()
         conn.close()
