@@ -6384,10 +6384,74 @@ def presales_performance():
     current_year = datetime.now().year
     selected_year = request.args.get('year', default=current_year, type=int)
     presale_filter = request.args.get('presale_engineer')
+    period_filter = request.args.get('period', default='month')  # 'week' or 'month'
 
     # Fetch all presales engineers for the filter dropdown
     c.execute("SELECT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = [row[0] for row in c.fetchall()]
+    
+    # --- NEW: RFQs and Quotations per Engineer (for the new chart) ---
+    # Calculate date range based on period
+    from datetime import timedelta
+    today = datetime.now()
+    if period_filter == 'week':
+        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        period_label = 'Last 7 Days'
+    else:  # month
+        start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        period_label = 'Last 30 Days'
+    
+    end_date = today.strftime('%Y-%m-%d')
+    
+    # RFQs Received per engineer in period
+    rfq_per_eng_query = """
+        SELECT sales_engineer_presale, COUNT(*) as count
+        FROM rfq_requests
+        WHERE date(requested_time) >= ? AND date(requested_time) <= ?
+        AND sales_engineer_presale IS NOT NULL AND sales_engineer_presale != ''
+    """
+    rfq_per_eng_params = [start_date, end_date]
+    if presale_filter:
+        rfq_per_eng_query += " AND sales_engineer_presale = ?"
+        rfq_per_eng_params.append(presale_filter)
+    rfq_per_eng_query += " GROUP BY sales_engineer_presale ORDER BY count DESC"
+    c.execute(rfq_per_eng_query, rfq_per_eng_params)
+    rfq_per_eng_results = c.fetchall()
+    
+    # Quotations Submitted per engineer in period
+    quote_per_eng_query = """
+        SELECT presale_eng, COUNT(*) as count
+        FROM projects
+        WHERE rfq_reference IS NOT NULL
+        AND date(registered_date) >= ? AND date(registered_date) <= ?
+        AND presale_eng IS NOT NULL AND presale_eng != ''
+    """
+    quote_per_eng_params = [start_date, end_date]
+    if presale_filter:
+        quote_per_eng_query += " AND presale_eng = ?"
+        quote_per_eng_params.append(presale_filter)
+    quote_per_eng_query += " GROUP BY presale_eng ORDER BY count DESC"
+    c.execute(quote_per_eng_query, quote_per_eng_params)
+    quote_per_eng_results = c.fetchall()
+    
+    # Combine into a single dataset
+    engineer_performance = {}
+    for eng, count in rfq_per_eng_results:
+        if eng not in engineer_performance:
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0}
+        engineer_performance[eng]['rfqs'] = count
+    for eng, count in quote_per_eng_results:
+        if eng not in engineer_performance:
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0}
+        engineer_performance[eng]['quotes'] = count
+    
+    # Sort by total activity
+    sorted_engineers = sorted(engineer_performance.items(), 
+                              key=lambda x: x[1]['rfqs'] + x[1]['quotes'], reverse=True)
+    
+    engineer_chart_labels = [e[0] for e in sorted_engineers]
+    engineer_rfqs_data = [e[1]['rfqs'] for e in sorted_engineers]
+    engineer_quotes_data = [e[1]['quotes'] for e in sorted_engineers]
 
     # --- Calculation 1: RFQs Requested vs. Quoted (for chart) ---
     # ... (This calculation remains the same)
@@ -6551,7 +6615,12 @@ def presales_performance():
                            total_rfqs=total_rfqs,
                            total_quotations=total_quotations,
                            total_quoted_value=total_quoted_value,
-                           total_won_value=total_won_value)
+                           total_won_value=total_won_value,
+                           period_filter=period_filter,
+                           period_label=period_label,
+                           engineer_chart_labels=engineer_chart_labels,
+                           engineer_rfqs_data=engineer_rfqs_data,
+                           engineer_quotes_data=engineer_quotes_data)
 
 @app.route('/api/deadline_rfqs')
 @login_required

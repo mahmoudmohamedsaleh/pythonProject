@@ -177,7 +177,7 @@
 
 <div class="filter-card">
     <form method="GET" class="row align-items-end">
-        <div class="col-md-3 mb-3 mb-md-0">
+        <div class="col-md-2 mb-3 mb-md-0">
             <label for="year"><i class="fas fa-calendar mr-1"></i>Select Year</label>
             <select class="form-control" id="year" name="year">
                 {% for year in year_range %}
@@ -185,13 +185,20 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-4 mb-3 mb-md-0">
+        <div class="col-md-3 mb-3 mb-md-0">
             <label for="presale_engineer"><i class="fas fa-user-cog mr-1"></i>Presales Engineer</label>
             <select class="form-control" id="presale_engineer" name="presale_engineer">
                 <option value="">All Engineers</option>
                 {% for engineer in presale_engineers %}
                     <option value="{{ engineer }}" {% if engineer == presale_filter %}selected{% endif %}>{{ engineer }}</option>
                 {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <label for="period"><i class="fas fa-clock mr-1"></i>Period (Engineer Chart)</label>
+            <select class="form-control" id="period" name="period">
+                <option value="week" {% if period_filter == 'week' %}selected{% endif %}>Last 7 Days</option>
+                <option value="month" {% if period_filter == 'month' %}selected{% endif %}>Last 30 Days</option>
             </select>
         </div>
         <div class="col-md-2">
@@ -264,6 +271,29 @@
             </div>
             <div class="chart-body">
                 <div style="height: 350px;"><canvas id="deadlineChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="chart-card">
+            <div class="chart-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="fas fa-users mr-2"></i>Engineer Performance - {{ period_label }}
+                <span class="badge badge-light ml-2" style="font-size: 0.75rem;">
+                    <i class="fas fa-clock mr-1"></i>{{ period_label }}
+                </span>
+            </div>
+            <div class="chart-body">
+                {% if engineer_chart_labels %}
+                <div style="height: 350px;"><canvas id="engineerPerformanceChart"></canvas></div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
+                    <p>No activity data found for {{ period_label }}. Try selecting a different period.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -531,6 +561,53 @@
         
         // Make chart cursor pointer on hover
         document.getElementById('deadlineChart').style.cursor = 'pointer';
+        
+        // Chart 4: Engineer Performance (RFQs and Quotations per engineer)
+        {% if engineer_chart_labels %}
+        const ctxEngineerPerf = document.getElementById('engineerPerformanceChart').getContext('2d');
+        new Chart(ctxEngineerPerf, {
+            type: 'bar',
+            data: {
+                labels: {{ engineer_chart_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'RFQs Received',
+                        data: {{ engineer_rfqs_data|tojson }},
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        hoverBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 0, borderRadius: 6
+                    },
+                    {
+                        label: 'Quotations Submitted',
+                        data: {{ engineer_quotes_data|tojson }},
+                        backgroundColor: 'rgba(17, 153, 142, 0.8)',
+                        hoverBackgroundColor: 'rgba(17, 153, 142, 1)',
+                        borderWidth: 0, borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { title: { display: true, text: 'Presales Engineers' } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: {
+                        display: true,
+                        text: 'RFQs Received vs Quotations Submitted - {{ period_label }}',
+                        font: { size: 14 }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        formatter: (value) => value > 0 ? value : null,
+                        font: { weight: 'bold', size: 11 }, color: '#495057'
+                    }
+                }
+            }
+        });
+        {% endif %}
     });
     
     // Function to show RFQ modal
