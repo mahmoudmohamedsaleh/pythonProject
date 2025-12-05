@@ -980,15 +980,23 @@
                             ? `<span class="badge badge-warning">${deal.margin}%</span>`
                             : `<span class="badge badge-danger">${deal.margin}%</span>`);
                     
+                    const rfqLink = deal.rfq_id 
+                        ? `<a href="/rfq_profile/${deal.rfq_id}" target="_blank" style="color: #11998e; font-weight: 600;">${deal.rfq_reference || '-'}</a>`
+                        : (deal.rfq_reference || '-');
+                    
+                    const viewLink = deal.quote_ref 
+                        ? `/update_project/${encodeURIComponent(deal.quote_ref)}`
+                        : `/project_detail/${deal.project_id}`;
+                    
                     html += `
                         <tr>
                             <td><strong>${deal.project_name || '-'}</strong></td>
-                            <td><a href="/rfq_profile/${deal.id}" target="_blank" style="color: #11998e; font-weight: 600;">${deal.rfq_reference || '-'}</a></td>
+                            <td>${rfqLink}</td>
                             <td><small>${deal.system || '-'}</small></td>
                             <td>${deal.date || '-'}</td>
                             <td class="text-right"><strong>${valueFormatted}</strong></td>
                             <td class="text-center">${marginBadge}</td>
-                            <td><a href="/view_project/${deal.id}" class="btn btn-sm btn-outline-success" target="_blank"><i class="fas fa-eye"></i></a></td>
+                            <td><a href="${viewLink}" class="btn btn-sm btn-outline-success" target="_blank"><i class="fas fa-eye"></i></a></td>
                         </tr>
                     `;
                 });

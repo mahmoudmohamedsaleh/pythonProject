@@ -6798,7 +6798,7 @@ def get_presales_won_deals():
     query = """
         SELECT p.id, p.project_name, p.rfq_reference, p.registered_date,
                p.quotation_selling_price, p.quotation_cost, p.status, p.sales_eng,
-               r.system, r.sales_engineer_sales
+               p.quote_ref, r.id as rfq_id, r.system, r.sales_engineer_sales
         FROM projects p
         LEFT JOIN rfq_requests r ON p.rfq_reference = r.rfq_reference
         WHERE p.presale_eng = ?
@@ -6819,7 +6819,9 @@ def get_presales_won_deals():
         total_value += selling_price
         
         result.append({
-            'id': deal['id'],
+            'project_id': deal['id'],
+            'rfq_id': deal['rfq_id'],
+            'quote_ref': deal['quote_ref'],
             'project_name': deal['project_name'],
             'rfq_reference': deal['rfq_reference'],
             'date': deal['registered_date'][:10] if deal['registered_date'] else None,
