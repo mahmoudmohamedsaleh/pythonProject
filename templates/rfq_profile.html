@@ -422,8 +422,8 @@
         </div>
         {% endif %}
         
-        <!-- Overdue Alert Card -->
-        {% if is_overdue and days_overdue > 0 %}
+        <!-- Overdue Alert Card - Only show if quote NOT submitted AND deadline missed -->
+        {% if is_overdue and days_overdue > 0 and turnaround_days is none %}
         <div class="card mb-3 overdue-alert">
             <div class="card-body text-center" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); color: white; border-radius: 12px; animation: pulse-alert 2s infinite;">
                 <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
@@ -444,7 +444,7 @@
                 border: 2px solid #ff416c;
             }
         </style>
-        {% elif rfq.deadline and not is_overdue %}
+        {% elif rfq.deadline and (not is_overdue or turnaround_days is not none) %}
         <div class="card mb-3">
             <div class="card-body text-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 12px;">
                 <i class="fas fa-calendar-check fa-2x mb-2"></i>
