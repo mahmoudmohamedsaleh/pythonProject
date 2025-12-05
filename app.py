@@ -6552,6 +6552,81 @@ def presales_performance():
                            total_quotations=total_quotations,
                            total_quoted_value=total_quoted_value,
                            total_won_value=total_won_value)
+
+@app.route('/api/deadline_rfqs')
+@login_required
+def get_deadline_rfqs():
+    """API endpoint to get RFQs for deadline performance chart drill-down"""
+    engineer = request.args.get('engineer')
+    deadline_type = request.args.get('type')  # 'on_time' or 'late'
+    year = request.args.get('year', default=str(datetime.now().year))
+    
+    if not engineer or not deadline_type:
+        return jsonify({'error': 'Missing parameters'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    if deadline_type == 'on_time':
+        query = """
+            SELECT r.id, r.rfq_reference, r.project_name, r.deadline, p.registered_date as quote_date,
+                   r.sales_engineer_sales, r.system
+            FROM rfq_requests r
+            JOIN projects p ON r.rfq_reference = p.rfq_reference
+            WHERE r.sales_engineer_presale = ?
+            AND strftime('%Y', r.requested_time) = ?
+            AND r.deadline IS NOT NULL AND r.deadline != ''
+            AND p.registered_date <= r.deadline
+            ORDER BY r.deadline DESC
+        """
+    else:  # late
+        query = """
+            SELECT r.id, r.rfq_reference, r.project_name, r.deadline, p.registered_date as quote_date,
+                   r.sales_engineer_sales, r.system
+            FROM rfq_requests r
+            JOIN projects p ON r.rfq_reference = p.rfq_reference
+            WHERE r.sales_engineer_presale = ?
+            AND strftime('%Y', r.requested_time) = ?
+            AND r.deadline IS NOT NULL AND r.deadline != ''
+            AND p.registered_date > r.deadline
+            ORDER BY r.deadline DESC
+        """
+    
+    c.execute(query, (engineer, year))
+    rfqs = c.fetchall()
+    conn.close()
+    
+    result = []
+    for rfq in rfqs:
+        days_diff = 0
+        if rfq['deadline'] and rfq['quote_date']:
+            try:
+                from datetime import datetime as dt
+                deadline_date = dt.strptime(rfq['deadline'], '%Y-%m-%d')
+                quote_date = dt.strptime(rfq['quote_date'][:10], '%Y-%m-%d')
+                days_diff = (quote_date - deadline_date).days
+            except:
+                pass
+        
+        result.append({
+            'id': rfq['id'],
+            'rfq_reference': rfq['rfq_reference'],
+            'project_name': rfq['project_name'],
+            'deadline': rfq['deadline'],
+            'quote_date': rfq['quote_date'][:10] if rfq['quote_date'] else None,
+            'sales_engineer': rfq['sales_engineer_sales'],
+            'system': rfq['system'],
+            'days_diff': days_diff
+        })
+    
+    return jsonify({
+        'engineer': engineer,
+        'type': deadline_type,
+        'count': len(result),
+        'rfqs': result
+    })
+
 ###############
 @app.route('/sales_performance')
 @login_required

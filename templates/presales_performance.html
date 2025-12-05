@@ -336,6 +336,63 @@
     </div>
 </div>
 
+<!-- RFQ Details Modal -->
+<div class="modal fade" id="rfqModal" tabindex="-1" role="dialog" aria-labelledby="rfqModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header" id="rfqModalHeader" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h5 class="modal-title" id="rfqModalLabel">
+                    <i class="fas fa-list mr-2"></i><span id="modalTitle">RFQ Details</span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="rfqLoading" class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-3x" style="color: #667eea;"></i>
+                    <p class="mt-3">Loading RFQs...</p>
+                </div>
+                <div id="rfqContent" style="display: none;">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-user-cog mr-1"></i>Engineer:</strong> <span id="modalEngineer">-</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-clock mr-1"></i>Status:</strong> <span id="modalStatus">-</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-hashtag mr-1"></i>Count:</strong> <span id="modalCount">0</span> RFQs
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead style="position: sticky; top: 0; background: #f8f9fa;">
+                                <tr>
+                                    <th>RFQ Reference</th>
+                                    <th>Project Name</th>
+                                    <th>System</th>
+                                    <th>Deadline</th>
+                                    <th>Quote Date</th>
+                                    <th>Days Diff</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rfqTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -415,23 +472,28 @@
             }
         });
 
-        // Chart 3: Deadline Performance
+        // Chart 3: Deadline Performance (with click handler)
         const ctxDeadline = document.getElementById('deadlineChart').getContext('2d');
-        new Chart(ctxDeadline, {
+        const deadlineLabels = {{ deadline_labels|tojson }};
+        const selectedYear = {{ selected_year }};
+        
+        const deadlineChart = new Chart(ctxDeadline, {
             type: 'bar',
             data: {
-                labels: {{ deadline_labels|tojson }},
+                labels: deadlineLabels,
                 datasets: [
                     {
                         label: 'On Time',
                         data: {{ deadline_on_time|tojson }},
                         backgroundColor: 'rgba(17, 153, 142, 0.8)',
+                        hoverBackgroundColor: 'rgba(17, 153, 142, 1)',
                         borderWidth: 0, borderRadius: 6
                     },
                     {
                         label: 'Late',
                         data: {{ deadline_late|tojson }},
                         backgroundColor: 'rgba(245, 87, 108, 0.8)',
+                        hoverBackgroundColor: 'rgba(245, 87, 108, 1)',
                         borderWidth: 0, borderRadius: 6
                     }
                 ]
@@ -449,9 +511,99 @@
                         formatter: (value) => value > 0 ? value : null,
                         font: { weight: 'bold', size: 10 }, color: '#495057'
                     }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const element = elements[0];
+                        const datasetIndex = element.datasetIndex;
+                        const index = element.index;
+                        const engineer = deadlineLabels[index];
+                        const type = datasetIndex === 0 ? 'on_time' : 'late';
+                        const value = deadlineChart.data.datasets[datasetIndex].data[index];
+                        
+                        if (value > 0) {
+                            showRfqModal(engineer, type, selectedYear);
+                        }
+                    }
                 }
             }
         });
+        
+        // Make chart cursor pointer on hover
+        document.getElementById('deadlineChart').style.cursor = 'pointer';
     });
+    
+    // Function to show RFQ modal
+    function showRfqModal(engineer, type, year) {
+        const modal = $('#rfqModal');
+        const loading = document.getElementById('rfqLoading');
+        const content = document.getElementById('rfqContent');
+        const header = document.getElementById('rfqModalHeader');
+        const tableBody = document.getElementById('rfqTableBody');
+        
+        // Update modal header color based on type
+        if (type === 'on_time') {
+            header.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+            document.getElementById('modalTitle').textContent = 'On Time Quotations';
+            document.getElementById('modalStatus').innerHTML = '<span class="badge badge-success">On Time</span>';
+        } else {
+            header.style.background = 'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)';
+            document.getElementById('modalTitle').textContent = 'Late Quotations';
+            document.getElementById('modalStatus').innerHTML = '<span class="badge badge-danger">Late</span>';
+        }
+        
+        document.getElementById('modalEngineer').textContent = engineer;
+        
+        // Show loading, hide content
+        loading.style.display = 'block';
+        content.style.display = 'none';
+        tableBody.innerHTML = '';
+        
+        // Show modal
+        modal.modal('show');
+        
+        // Fetch data
+        fetch(`/api/deadline_rfqs?engineer=${encodeURIComponent(engineer)}&type=${type}&year=${year}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('modalCount').textContent = data.count;
+                
+                // Build table rows
+                let html = '';
+                data.rfqs.forEach(rfq => {
+                    const daysDiffBadge = type === 'late' 
+                        ? `<span class="badge badge-danger">+${rfq.days_diff} days</span>`
+                        : `<span class="badge badge-success">${rfq.days_diff} days</span>`;
+                    
+                    html += `
+                        <tr>
+                            <td><a href="/rfq_profile/${rfq.id}" target="_blank" style="color: #667eea; font-weight: 600;">${rfq.rfq_reference}</a></td>
+                            <td>${rfq.project_name || '-'}</td>
+                            <td><small>${rfq.system || '-'}</small></td>
+                            <td>${rfq.deadline || '-'}</td>
+                            <td>${rfq.quote_date || '-'}</td>
+                            <td>${daysDiffBadge}</td>
+                            <td><a href="/rfq_profile/${rfq.id}" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
+                        </tr>
+                    `;
+                });
+                
+                if (data.rfqs.length === 0) {
+                    html = '<tr><td colspan="7" class="text-center text-muted py-4">No RFQs found</td></tr>';
+                }
+                
+                tableBody.innerHTML = html;
+                
+                // Hide loading, show content
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading data</td></tr>';
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            });
+    }
 </script>
 {% endblock %}
