@@ -7008,13 +7008,13 @@ def rfq_profile(rfq_id):
     c.execute("SELECT id, project_name FROM register_project WHERE project_name = ?", (rfq['project_name'],))
     project = c.fetchone()
     
-    # Get related quotations for this project
+    # Get related quotations for this RFQ (from projects table linked by rfq_reference)
     c.execute("""
-        SELECT quote_ref, created_by, created_date, total_value
-        FROM quotations 
-        WHERE project_name = ?
-        ORDER BY created_date DESC
-    """, (rfq['project_name'],))
+        SELECT quote_ref, registered_by as created_by, registered_date as created_date, quotation_selling_price as total_value
+        FROM projects 
+        WHERE rfq_reference = ?
+        ORDER BY registered_date DESC
+    """, (rfq['rfq_reference'],))
     quotations = c.fetchall()
     
     # Get RFQ comments
