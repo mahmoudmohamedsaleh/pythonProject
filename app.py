@@ -6781,6 +6781,62 @@ def get_engineer_performance_rfqs():
         'items': result
     })
 
+@app.route('/api/presales_won_deals')
+@login_required
+def get_presales_won_deals():
+    """API endpoint to get won deals for presales engineer in leaderboard"""
+    engineer = request.args.get('engineer')
+    year = request.args.get('year', default=str(datetime.now().year))
+    
+    if not engineer:
+        return jsonify({'error': 'Missing engineer parameter'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    query = """
+        SELECT p.id, p.name as project_name, p.rfq_reference, p.registered_date,
+               p.quotation_selling_price, p.quotation_cost, p.status, p.sales_eng,
+               r.system, r.sales_engineer_sales
+        FROM projects p
+        LEFT JOIN rfq_requests r ON p.rfq_reference = r.rfq_reference
+        WHERE p.presale_eng = ?
+        AND p.status = 'Closed Won'
+        AND strftime('%Y', p.registered_date) = ?
+        ORDER BY p.registered_date DESC
+    """
+    c.execute(query, (engineer, year))
+    deals = c.fetchall()
+    conn.close()
+    
+    result = []
+    total_value = 0
+    for deal in deals:
+        selling_price = deal['quotation_selling_price'] or 0
+        cost_price = deal['quotation_cost'] or 0
+        margin = ((selling_price - cost_price) / selling_price * 100) if selling_price > 0 else 0
+        total_value += selling_price
+        
+        result.append({
+            'id': deal['id'],
+            'project_name': deal['project_name'],
+            'rfq_reference': deal['rfq_reference'],
+            'date': deal['registered_date'][:10] if deal['registered_date'] else None,
+            'value': selling_price,
+            'margin': round(margin, 1),
+            'system': deal['system'],
+            'sales_engineer': deal['sales_engineer_sales'] or deal['sales_eng']
+        })
+    
+    return jsonify({
+        'engineer': engineer,
+        'year': year,
+        'count': len(result),
+        'total_value': total_value,
+        'deals': result
+    })
+
 ###############
 @app.route('/sales_performance')
 @login_required
