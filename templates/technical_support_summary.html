@@ -332,7 +332,7 @@
             <p>Overview and management of all RFTS (Request for Technical Support) tickets</p>
         </div>
         <div>
-            <a href="{{ url_for('new_request') }}" class="btn btn-light btn-lg">
+            <a href="{{ url_for('request_technical_support') }}" class="btn btn-light btn-lg">
                 <i class="fas fa-plus mr-2"></i>New Request
             </a>
         </div>
@@ -541,14 +541,9 @@
                         <td><i class="fas fa-calendar-alt text-muted mr-1"></i>{{ req[9] }}</td>
                         <td><i class="fas fa-clock text-muted mr-1"></i>{{ req[11].split(' ')[0] if req[11] else 'N/A' }}</td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('view_request', request_id=req[0]) }}" class="btn btn-view btn-sm" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('edit_request', request_id=req[0]) }}" class="btn btn-edit btn-sm" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </div>
+                            <a href="{{ url_for('edit_request', request_id=req[0]) }}" class="btn btn-edit btn-sm" title="Edit">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
                         </td>
                     </tr>
                     {% else %}
