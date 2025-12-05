@@ -407,6 +407,52 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Turnaround Time Card -->
+        {% if turnaround_days is not none %}
+        <div class="card mb-3">
+            <div class="card-body text-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 12px;">
+                <i class="fas fa-tachometer-alt fa-2x mb-2"></i>
+                <h2 class="mb-0">{{ turnaround_days }} Day{{ 's' if turnaround_days != 1 else '' }}</h2>
+                <small>Turnaround Time</small>
+                <div class="mt-2" style="font-size: 0.8rem; opacity: 0.9;">
+                    <i class="fas fa-calendar-check mr-1"></i>Quote submitted on {{ quote_submitted_date }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Overdue Alert Card -->
+        {% if is_overdue and days_overdue > 0 %}
+        <div class="card mb-3 overdue-alert">
+            <div class="card-body text-center" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); color: white; border-radius: 12px; animation: pulse-alert 2s infinite;">
+                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <h2 class="mb-0">{{ days_overdue }} Day{{ 's' if days_overdue != 1 else '' }}</h2>
+                <small>Past Deadline</small>
+                <div class="mt-2" style="font-size: 0.8rem; opacity: 0.9;">
+                    <i class="fas fa-calendar-times mr-1"></i>Deadline was {{ rfq.deadline }}
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes pulse-alert {
+                0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); }
+                50% { transform: scale(1.02); box-shadow: 0 0 20px 5px rgba(255, 65, 108, 0.4); }
+                100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); }
+            }
+            .overdue-alert {
+                border: 2px solid #ff416c;
+            }
+        </style>
+        {% elif rfq.deadline and not is_overdue %}
+        <div class="card mb-3">
+            <div class="card-body text-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 12px;">
+                <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                <h6 class="mb-0">On Schedule</h6>
+                <small>Deadline: {{ rfq.deadline }}</small>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Process Timeline -->
         <div class="card">
@@ -466,7 +512,12 @@
                         <div class="timeline-content">
                             <div class="timeline-title"><i class="fas fa-file-invoice mr-1"></i>Quotation Submitted</div>
                             {% if quotations|length > 0 %}
-                                <div class="timeline-date text-success">{{ quotations[0].created_date }}</div>
+                                <div class="timeline-date text-success">
+                                    {{ quote_submitted_date }}
+                                    {% if turnaround_days is not none %}
+                                        <span class="badge badge-success ml-1">{{ turnaround_days }} day{{ 's' if turnaround_days != 1 else '' }}</span>
+                                    {% endif %}
+                                </div>
                             {% else %}
                                 <div class="timeline-date text-muted">Pending</div>
                             {% endif %}

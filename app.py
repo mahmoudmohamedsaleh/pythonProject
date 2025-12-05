@@ -1482,6 +1482,10 @@ def update_project(quote_ref):
     margin = (1 - (float(quotation_cost) / float(quotation_selling_price))) * 100 if float(
         quotation_selling_price) > 0 else 0
     progress = request.form.get('progress')  # Use .get()
+    
+    # Get the new quote reference (if changed by user)
+    new_quote_ref = request.form.get('quote_ref', quote_ref).strip()
+    original_quote_ref = request.form.get('original_quote_ref', quote_ref).strip()
 
     updated_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     updated_by = session.get('username')  # Get the signed-in user's username
@@ -1491,25 +1495,42 @@ def update_project(quote_ref):
 
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    # Check if new quote_ref already exists (if it was changed)
+    if new_quote_ref != original_quote_ref:
+        c.execute("SELECT COUNT(*) FROM projects WHERE quote_ref = ?", (new_quote_ref,))
+        if c.fetchone()[0] > 0:
+            conn.close()
+            flash(f'Quote Reference "{new_quote_ref}" already exists! Please use a different reference.', 'danger')
+            return redirect(url_for('project_summary'))
 
-    # Prepare the update query
+    # Prepare the update query - now includes quote_ref update
     update_query = '''
         UPDATE projects
-        SET project_name=?, presale_eng=?, sales_eng=?, system=?, sow=?, status=?, 
+        SET quote_ref=?, project_name=?, presale_eng=?, sales_eng=?, system=?, sow=?, status=?, 
             quotation_note=?, feedback=?, quarter=?, quotation_cost=?,quotation_selling_price=?, margin=?, progress=?, updated_time=?, updated_by=?
         WHERE quote_ref=?
     '''
-    c.execute(update_query, (project_name, presale_eng, sales_eng, system, sow, status,
-                             quotation_note, feedback, quarter, quotation_cost,quotation_selling_price, margin, progress, updated_time, updated_by, quote_ref))
+    c.execute(update_query, (new_quote_ref, project_name, presale_eng, sales_eng, system, sow, status,
+                             quotation_note, feedback, quarter, quotation_cost,quotation_selling_price, margin, progress, updated_time, updated_by, original_quote_ref))
 
     # Handle updated files if they are provided
     if updated_quotation_file:
         quotation_data = updated_quotation_file.read()
-        c.execute("UPDATE projects SET quotation=? WHERE quote_ref=?", (quotation_data, quote_ref))
+        c.execute("UPDATE projects SET quotation=? WHERE quote_ref=?", (quotation_data, new_quote_ref))
 
     if updated_cost_sheet_file:
         cost_sheet_data = updated_cost_sheet_file.read()
-        c.execute("UPDATE projects SET cost_sheet=? WHERE quote_ref=?", (cost_sheet_data, quote_ref))
+        c.execute("UPDATE projects SET cost_sheet=? WHERE quote_ref=?", (cost_sheet_data, new_quote_ref))
+    
+    # Update related tables if quote_ref was changed
+    if new_quote_ref != original_quote_ref:
+        # Update po_requests table
+        c.execute("UPDATE po_requests SET quote_ref = ? WHERE quote_ref = ?", (new_quote_ref, original_quote_ref))
+        # Update supplier_quotations table
+        c.execute("UPDATE supplier_quotations SET quote_ref = ? WHERE quote_ref = ?", (new_quote_ref, original_quote_ref))
+        # Update quotation_products table
+        c.execute("UPDATE quotation_products SET quote_ref = ? WHERE quote_ref = ?", (new_quote_ref, original_quote_ref))
 
     conn.commit()
     conn.close()
@@ -7026,8 +7047,9 @@ def rfq_profile(rfq_id):
     """, (rfq_id,))
     comments = c.fetchall()
     
-    # Calculate age in days
+    # Calculate age in days (from RFQ creation to now)
     age_days = 0
+    requested_date = None
     if rfq['requested_time']:
         try:
             requested_date = datetime.strptime(rfq['requested_time'].split(' ')[0], '%Y-%m-%d')
@@ -7035,14 +7057,36 @@ def rfq_profile(rfq_id):
         except:
             age_days = 0
     
-    # Check if overdue
+    # Calculate turnaround time (days from RFQ creation to first quotation submission)
+    turnaround_days = None
+    quote_submitted_date = None
+    if quotations and len(quotations) > 0 and requested_date:
+        try:
+            # Get the earliest quotation date (first submitted)
+            first_quote = quotations[-1] if len(quotations) > 1 else quotations[0]
+            quote_date_str = first_quote['created_date']
+            if quote_date_str:
+                quote_submitted_date = datetime.strptime(quote_date_str.split(' ')[0], '%Y-%m-%d')
+                turnaround_days = (quote_submitted_date - requested_date).days
+        except Exception as e:
+            turnaround_days = None
+    
+    # Check if overdue and calculate days overdue
     is_overdue = False
+    days_overdue = 0
+    deadline_date = None
     if rfq['deadline']:
         try:
             deadline_date = datetime.strptime(rfq['deadline'], '%Y-%m-%d')
-            is_overdue = datetime.now() > deadline_date
+            if datetime.now() > deadline_date:
+                is_overdue = True
+                days_overdue = (datetime.now() - deadline_date).days
+            # Check if quote was submitted after deadline
+            if quote_submitted_date and quote_submitted_date > deadline_date:
+                days_overdue = (quote_submitted_date - deadline_date).days
         except:
             is_overdue = False
+            days_overdue = 0
     
     conn.close()
     
@@ -7052,7 +7096,10 @@ def rfq_profile(rfq_id):
                          quotations=quotations,
                          comments=comments,
                          age_days=age_days,
-                         is_overdue=is_overdue)
+                         is_overdue=is_overdue,
+                         days_overdue=days_overdue,
+                         turnaround_days=turnaround_days,
+                         quote_submitted_date=quote_submitted_date.strftime('%Y-%m-%d') if quote_submitted_date else None)
 
 ##############3
 @app.route('/edit_rfq/<int:rfq_id>', methods=['GET', 'POST'])

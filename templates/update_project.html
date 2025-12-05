@@ -21,7 +21,8 @@
                     </div>
                     <div class="form-group col-md-6">
                         <label>Quote Reference</label>
-                        <input type="text" class="form-control" value="{{ project['quote_ref'] }}" readonly>
+                        <input type="text" class="form-control" name="quote_ref" value="{{ project['quote_ref'] }}" required>
+                        <input type="hidden" name="original_quote_ref" value="{{ project['quote_ref'] }}">
                     </div>
                 </div>
                 <hr class="my-4">
