@@ -426,11 +426,13 @@
                     
                     <!-- RFQ Status Steps -->
                     {% set rfq_statuses = ['Queue', 'Studying', 'Pricing', 'Quoted'] %}
+                    {% set current_status_index = rfq_statuses.index(rfq.rfq_status) if rfq.rfq_status in rfq_statuses else -1 %}
                     {% for status in rfq_statuses %}
+                    {% set status_index = loop.index0 %}
                     <div class="timeline-item">
                         {% if rfq.rfq_status == status %}
                             <div class="timeline-dot active"></div>
-                        {% elif rfq_statuses.index(rfq.rfq_status) > rfq_statuses.index(status) if rfq.rfq_status in rfq_statuses else false %}
+                        {% elif current_status_index > status_index %}
                             <div class="timeline-dot completed"></div>
                         {% else %}
                             <div class="timeline-dot pending"></div>
