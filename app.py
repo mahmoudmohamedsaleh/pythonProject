@@ -6391,17 +6391,37 @@ def presales_performance():
     presale_engineers = [row[0] for row in c.fetchall()]
     
     # --- NEW: RFQs and Quotations per Engineer (for the new chart) ---
-    # Calculate date range based on period
+    # Calculate date range based on period or custom dates
     from datetime import timedelta
     today = datetime.now()
-    if period_filter == 'week':
-        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
-        period_label = 'Last 7 Days'
-    else:  # month
-        start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
-        period_label = 'Last 30 Days'
     
-    end_date = today.strftime('%Y-%m-%d')
+    # Get custom date filters if provided
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    if date_from and date_to:
+        # Custom date range
+        start_date = date_from
+        end_date = date_to
+        try:
+            from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            to_dt = datetime.strptime(date_to, '%Y-%m-%d')
+            days_diff = (to_dt - from_dt).days
+            period_label = f"{from_dt.strftime('%b %d')} - {to_dt.strftime('%b %d, %Y')} ({days_diff + 1} days)"
+        except:
+            period_label = f"{date_from} to {date_to}"
+    elif period_filter == 'week':
+        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+        period_label = 'Last 7 Days'
+        date_from = start_date
+        date_to = end_date
+    else:  # month (default)
+        start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+        period_label = 'Last 30 Days'
+        date_from = start_date
+        date_to = end_date
     
     # RFQs Received per engineer in period
     rfq_per_eng_query = """
@@ -6618,6 +6638,8 @@ def presales_performance():
                            total_won_value=total_won_value,
                            period_filter=period_filter,
                            period_label=period_label,
+                           date_from=date_from,
+                           date_to=date_to,
                            engineer_chart_labels=engineer_chart_labels,
                            engineer_rfqs_data=engineer_rfqs_data,
                            engineer_quotes_data=engineer_quotes_data)
@@ -6702,20 +6724,24 @@ def get_engineer_performance_rfqs():
     """API endpoint to get RFQs/Quotations for engineer performance chart drill-down"""
     engineer = request.args.get('engineer')
     data_type = request.args.get('type')  # 'rfqs' or 'quotes'
-    period = request.args.get('period', 'month')  # 'week' or 'month'
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
     
     if not engineer or not data_type:
         return jsonify({'error': 'Missing parameters'}), 400
     
     from datetime import timedelta
     today = datetime.now()
-    if period == 'week':
-        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
-        period_label = 'Last 7 Days'
+    
+    # Use custom date range if provided, otherwise default to last 30 days
+    if date_from and date_to:
+        start_date = date_from
+        end_date = date_to
+        period_label = f'{date_from} to {date_to}'
     else:
         start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
         period_label = 'Last 30 Days'
-    end_date = today.strftime('%Y-%m-%d')
     
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
