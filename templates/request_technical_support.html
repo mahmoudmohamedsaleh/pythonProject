@@ -1,86 +1,481 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Request for Technical Support</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Request for Technical Support</h1>
-        <form method="POST">
-            <div class="form-group">
-                <label for="request_type">Request Type</label>
-                <select class="form-control" id="request_type" name="request_type" required>
-                    <option value="SLD">SLD</option>
-                    <option value="Rack Elevation">Rack Elevation</option>
-                    <option value="Technical Submittal">Technical Submittal</option>
-                    <option value="Information">Information</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="project_name">Project Name</label>
-                <select class="form-control" id="project_name" name="project_name" required>
-                    <option value="">Select Project</option>
-                    {% for project in project_names %}
-                        <option value="{{ project }}">{{ project }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="priority">Priority</label>
-                <select class="form-control" id="priority" name="priority" required>
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="presale_engineer">Presale Engineer</label>
-                <select class="form-control" id="presale_engineer" name="presale_engineer" required>
-                    <option value="">Select Presale Engineer</option>
-                    {% for engineer in presale_engineers %}
-                        <option value="{{ engineer }}">{{ engineer }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="sales_engineer">Sales Engineer</label>
-                <select class="form-control" id="sales_engineer" name="sales_engineer" required>
-                    <option value="">Select Sales Engineer</option>
-                    {% for engineer in sales_engineers %}
-                        <option value="{{ engineer }}">{{ engineer }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="request_status">Request Status</label>
-                <select class="form-control" id="request_status" name="request_status" required>
-                    <option value="Queue">Queue</option>
-                    <option value="Studying">Studying</option>
-                    <option value="Done">Done</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="request_result">Request Result</label>
-                <select class="form-control" id="request_result" name="request_result" required>
-                    <option value="Queue">Queue</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Dis Approved">Dis Approved</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="deadline">Deadline</label>
-                <input type="date" class="form-control" id="deadline" name="deadline" required>
-            </div>
-            <div class="form-group">
-                <label for="note">Note</label>
-                <textarea class="form-control" id="note" name="note" rows="3"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Submit Request</button>
-            <a href="{{ url_for('rfq_summary') }}" class="btn btn-secondary">Cancel</a>
-        </form>
+{% extends 'base.html' %}
+{% block title %}Request for Technical Support{% endblock %}
+
+{% block content %}
+<style>
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    .hero-header h1 {
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .hero-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+        font-size: 1.1rem;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        overflow: hidden;
+    }
+    .form-card .card-header {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+        padding: 1.25rem 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #2d3748;
+    }
+    .form-card .card-header i {
+        color: #667eea;
+        margin-right: 0.5rem;
+    }
+    .form-card .card-body {
+        padding: 2rem;
+    }
+    
+    .form-section {
+        background: #f8f9ff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(102, 126, 234, 0.1);
+    }
+    .form-section-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #667eea;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .form-section-title i {
+        font-size: 1rem;
+    }
+    
+    .form-group label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .form-group label i {
+        color: #667eea;
+        font-size: 0.85rem;
+    }
+    .form-group label .required {
+        color: #e53e3e;
+        margin-left: 2px;
+    }
+    
+    .form-control {
+        border-radius: 10px;
+        border: 2px solid #e2e8f0;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+        background-color: #fff;
+    }
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        background-color: #fff;
+    }
+    .form-control:hover {
+        border-color: #a0aec0;
+    }
+    
+    select.form-control {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23667eea' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+    
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .priority-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+    .priority-high {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        color: #c53030;
+        border: 1px solid #feb2b2;
+    }
+    .priority-medium {
+        background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%);
+        color: #c05621;
+        border: 1px solid #fbd38d;
+    }
+    .priority-low {
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        color: #276749;
+        border: 1px solid #9ae6b4;
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.85rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+    }
+    .btn-submit i {
+        margin-right: 0.5rem;
+    }
+    
+    .btn-cancel {
+        background: #e2e8f0;
+        color: #4a5568;
+        border: none;
+        border-radius: 10px;
+        padding: 0.85rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+    .btn-cancel:hover {
+        background: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    .info-card {
+        background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+        border-radius: 12px;
+        padding: 1.25rem;
+        border: 1px solid #90cdf4;
+        margin-bottom: 1.5rem;
+    }
+    .info-card h6 {
+        color: #2b6cb0;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .info-card p {
+        color: #2c5282;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+    .info-card ul {
+        margin-bottom: 0;
+        padding-left: 1.25rem;
+    }
+    .info-card li {
+        color: #2c5282;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .quick-stats {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .quick-stat {
+        flex: 1;
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+    }
+    .quick-stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.5rem;
+        font-size: 1rem;
+        color: white;
+    }
+    .quick-stat-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .quick-stat-icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .quick-stat-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .quick-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+    .quick-stat-label {
+        font-size: 0.8rem;
+        color: #718096;
+    }
+</style>
+
+<div class="hero-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-headset mr-2"></i>Request for Technical Support</h1>
+            <p>Submit a new RFTS (Request for Technical Support) ticket</p>
+        </div>
+        <a href="{{ url_for('technical_support_summary') }}" class="btn btn-light">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Summary
+        </a>
     </div>
-</body>
-</html>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card form-card">
+            <div class="card-header">
+                <i class="fas fa-file-alt"></i>New Support Request Form
+            </div>
+            <div class="card-body">
+                <form method="POST" id="rftsForm">
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-info-circle"></i>Request Information
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-tag"></i>Request Type <span class="required">*</span></label>
+                                    <select class="form-control" id="request_type" name="request_type" required>
+                                        <option value="SLD">SLD (Single Line Diagram)</option>
+                                        <option value="Rack Elevation">Rack Elevation</option>
+                                        <option value="Technical Submittal">Technical Submittal</option>
+                                        <option value="Information">Information Request</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-flag"></i>Priority <span class="required">*</span></label>
+                                    <select class="form-control" id="priority" name="priority" required onchange="updatePriorityIndicator()">
+                                        <option value="High">High</option>
+                                        <option value="Medium" selected>Medium</option>
+                                        <option value="Low">Low</option>
+                                    </select>
+                                    <div id="priorityIndicator" class="priority-indicator priority-medium">
+                                        <i class="fas fa-minus"></i> Medium Priority
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-project-diagram"></i>Project Name <span class="required">*</span></label>
+                            <select class="form-control" id="project_name" name="project_name" required>
+                                <option value="">-- Select Project --</option>
+                                {% for project in project_names %}
+                                    <option value="{{ project }}">{{ project }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-users"></i>Assignment
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-cog"></i>Presale Engineer <span class="required">*</span></label>
+                                    <select class="form-control" id="presale_engineer" name="presale_engineer" required>
+                                        <option value="">-- Select Presale Engineer --</option>
+                                        {% for engineer in presale_engineers %}
+                                            <option value="{{ engineer }}">{{ engineer }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-tie"></i>Sales Engineer <span class="required">*</span></label>
+                                    <select class="form-control" id="sales_engineer" name="sales_engineer" required>
+                                        <option value="">-- Select Sales Engineer --</option>
+                                        {% for engineer in sales_engineers %}
+                                            <option value="{{ engineer }}">{{ engineer }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-tasks"></i>Status & Timeline
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-spinner"></i>Request Status <span class="required">*</span></label>
+                                    <select class="form-control" id="request_status" name="request_status" required>
+                                        <option value="Queue">Queue</option>
+                                        <option value="Studying">Studying</option>
+                                        <option value="Done">Done</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-check-circle"></i>Request Result <span class="required">*</span></label>
+                                    <select class="form-control" id="request_result" name="request_result" required>
+                                        <option value="Queue">Pending</option>
+                                        <option value="Approved">Approved</option>
+                                        <option value="Dis Approved">Disapproved</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar-alt"></i>Deadline <span class="required">*</span></label>
+                                    <input type="date" class="form-control" id="deadline" name="deadline" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-sticky-note"></i>Additional Notes
+                        </div>
+                        <div class="form-group mb-0">
+                            <label><i class="fas fa-comment-alt"></i>Note (Optional)</label>
+                            <textarea class="form-control" id="note" name="note" rows="4" placeholder="Enter any additional details or requirements for this request..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{{ url_for('technical_support_summary') }}" class="btn btn-cancel">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-submit">
+                            <i class="fas fa-paper-plane"></i>Submit Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="info-card">
+            <h6><i class="fas fa-lightbulb"></i>Quick Tips</h6>
+            <ul>
+                <li>Select the correct <strong>Request Type</strong> for faster processing</li>
+                <li>Set <strong>High Priority</strong> for urgent requests only</li>
+                <li>Choose a realistic <strong>Deadline</strong></li>
+                <li>Add detailed <strong>Notes</strong> to help engineers understand requirements</li>
+            </ul>
+        </div>
+        
+        <div class="card form-card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i>Request Types Guide
+            </div>
+            <div class="card-body p-3">
+                <div class="mb-3">
+                    <strong class="text-primary"><i class="fas fa-sitemap mr-1"></i> SLD</strong>
+                    <p class="text-muted small mb-0">Single Line Diagram - Electrical system layout</p>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-success"><i class="fas fa-server mr-1"></i> Rack Elevation</strong>
+                    <p class="text-muted small mb-0">Equipment rack layout and positioning</p>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-warning"><i class="fas fa-file-invoice mr-1"></i> Technical Submittal</strong>
+                    <p class="text-muted small mb-0">Technical documentation for project approval</p>
+                </div>
+                <div class="mb-0">
+                    <strong class="text-info"><i class="fas fa-question-circle mr-1"></i> Information</strong>
+                    <p class="text-muted small mb-0">General technical queries and clarifications</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card form-card mt-3">
+            <div class="card-header">
+                <i class="fas fa-flag"></i>Priority Levels
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-danger mr-2" style="padding: 0.4rem 0.75rem;"><i class="fas fa-arrow-up"></i> High</span>
+                    <small class="text-muted">Urgent - Within 24 hours</small>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-warning mr-2" style="padding: 0.4rem 0.75rem;"><i class="fas fa-minus"></i> Medium</span>
+                    <small class="text-muted">Standard - Within 3 days</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge badge-success mr-2" style="padding: 0.4rem 0.75rem;"><i class="fas fa-arrow-down"></i> Low</span>
+                    <small class="text-muted">Non-urgent - Within 1 week</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function updatePriorityIndicator() {
+        const priority = document.getElementById('priority').value;
+        const indicator = document.getElementById('priorityIndicator');
+        
+        indicator.classList.remove('priority-high', 'priority-medium', 'priority-low');
+        
+        if (priority === 'High') {
+            indicator.className = 'priority-indicator priority-high';
+            indicator.innerHTML = '<i class="fas fa-arrow-up"></i> High Priority - Urgent';
+        } else if (priority === 'Medium') {
+            indicator.className = 'priority-indicator priority-medium';
+            indicator.innerHTML = '<i class="fas fa-minus"></i> Medium Priority - Standard';
+        } else {
+            indicator.className = 'priority-indicator priority-low';
+            indicator.innerHTML = '<i class="fas fa-arrow-down"></i> Low Priority - Non-urgent';
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        updatePriorityIndicator();
+        
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('deadline').min = tomorrow.toISOString().split('T')[0];
+    });
+</script>
+{% endblock %}
