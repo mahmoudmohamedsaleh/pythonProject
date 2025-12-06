@@ -9000,6 +9000,35 @@ def get_client_name(cursor, client_type, client_id):
     return 'Unknown Client'
 
 
+def get_rfq_info(cursor, rfq_id):
+    """Helper function to get RFQ reference number and project name"""
+    cursor.execute("""
+        SELECT rfq_reference, project_name 
+        FROM rfq_requests 
+        WHERE id = ?
+    """, (rfq_id,))
+    result = cursor.fetchone()
+    if result:
+        ref = result[0] if result[0] else f'RFQ-{rfq_id}'
+        project = result[1] if result[1] else 'Unknown Project'
+        return ref, project
+    return f'RFQ-{rfq_id}', 'Unknown Project'
+
+
+def get_rfts_info(cursor, rfts_id):
+    """Helper function to get RFTS reference number and project name"""
+    cursor.execute("""
+        SELECT project_name 
+        FROM projects 
+        WHERE id = ?
+    """, (rfts_id,))
+    result = cursor.fetchone()
+    if result:
+        project = result[0] if result[0] else 'Unknown Project'
+        return f'RFTS-{rfts_id}', project
+    return f'RFTS-{rfts_id}', 'Unknown Project'
+
+
 def create_task_from_follow_up(cursor, follow_up_id, client_type, client_id, client_name, 
                                 subject, notes, follow_up_date, priority, assigned_to, created_by):
     """Create a task record linked to a client follow-up"""
@@ -9029,7 +9058,7 @@ def create_task_from_follow_up(cursor, follow_up_id, client_type, client_id, cli
     return cursor.lastrowid
 
 
-def sync_follow_up_to_task(cursor, follow_up_id, new_status):
+def sync_follow_up_to_task(cursor, follow_up_id, new_status, source_type='client_follow_up'):
     """Sync follow-up status to linked task"""
     status_map = {
         'Pending': 'To Do',
@@ -9040,8 +9069,74 @@ def sync_follow_up_to_task(cursor, follow_up_id, new_status):
     
     cursor.execute("""
         UPDATE tasks SET status = ?
-        WHERE source_type = 'client_follow_up' AND source_id = ?
-    """, (task_status, follow_up_id))
+        WHERE source_type = ? AND source_id = ?
+    """, (task_status, source_type, follow_up_id))
+
+
+def create_task_from_rfq_follow_up(cursor, follow_up_id, rfq_id, subject, notes, 
+                                    follow_up_date, priority, assigned_to, created_by):
+    """Create a task record linked to an RFQ follow-up"""
+    cursor.execute("SELECT id FROM users WHERE username = ?", (assigned_to,))
+    assigned_user = cursor.fetchone()
+    assigned_to_id = assigned_user[0] if assigned_user else None
+    
+    cursor.execute("SELECT id FROM users WHERE username = ?", (created_by,))
+    creator = cursor.fetchone()
+    assigned_by_id = creator[0] if creator else None
+    
+    if not assigned_to_id:
+        print(f"Warning: Cannot create task for RFQ follow-up {follow_up_id} - assigned user '{assigned_to}' not found")
+        return None
+    
+    rfq_ref, project_name = get_rfq_info(cursor, rfq_id)
+    
+    task_title = f"[RFQ Follow-up] {subject}"
+    task_description = f"RFQ: {rfq_ref}\nProject: {project_name}"
+    if notes:
+        task_description += f"\n{notes}"
+    
+    cursor.execute("""
+        INSERT INTO tasks 
+        (title, description, assigned_to_id, due_date, priority, assigned_by_id, 
+         created_at, status, source_type, source_id, client_name, client_type)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 'To Do', 'rfq_follow_up', ?, ?, ?)
+    """, (task_title, task_description, assigned_to_id, follow_up_date, priority, 
+          assigned_by_id, follow_up_id, rfq_ref, 'RFQ'))
+    
+    return cursor.lastrowid
+
+
+def create_task_from_rfts_follow_up(cursor, follow_up_id, rfts_id, subject, notes, 
+                                     follow_up_date, priority, assigned_to, created_by):
+    """Create a task record linked to an RFTS follow-up"""
+    cursor.execute("SELECT id FROM users WHERE username = ?", (assigned_to,))
+    assigned_user = cursor.fetchone()
+    assigned_to_id = assigned_user[0] if assigned_user else None
+    
+    cursor.execute("SELECT id FROM users WHERE username = ?", (created_by,))
+    creator = cursor.fetchone()
+    assigned_by_id = creator[0] if creator else None
+    
+    if not assigned_to_id:
+        print(f"Warning: Cannot create task for RFTS follow-up {follow_up_id} - assigned user '{assigned_to}' not found")
+        return None
+    
+    rfts_ref, project_name = get_rfts_info(cursor, rfts_id)
+    
+    task_title = f"[RFTS Follow-up] {subject}"
+    task_description = f"RFTS: {rfts_ref}\nProject: {project_name}"
+    if notes:
+        task_description += f"\n{notes}"
+    
+    cursor.execute("""
+        INSERT INTO tasks 
+        (title, description, assigned_to_id, due_date, priority, assigned_by_id, 
+         created_at, status, source_type, source_id, client_name, client_type)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 'To Do', 'rfts_follow_up', ?, ?, ?)
+    """, (task_title, task_description, assigned_to_id, follow_up_date, priority, 
+          assigned_by_id, follow_up_id, rfts_ref, 'RFTS'))
+    
+    return cursor.lastrowid
 
 
 @app.route('/api/client_follow_up', methods=['POST'])
@@ -9397,6 +9492,12 @@ def add_rfq_follow_up():
     
     follow_up_id = cursor.lastrowid
     
+    # Create corresponding task
+    task_id = create_task_from_rfq_follow_up(
+        cursor, follow_up_id, rfq_id, subject, notes, 
+        follow_up_date, priority, assigned_to, session.get('username')
+    )
+    
     # Log activity
     cursor.execute("""
         INSERT INTO rfq_activity_log 
@@ -9407,7 +9508,7 @@ def add_rfq_follow_up():
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True, 'follow_up_id': follow_up_id})
+    return jsonify({'success': True, 'follow_up_id': follow_up_id, 'task_id': task_id})
 
 
 @app.route('/api/rfq_follow_up/<int:follow_up_id>/complete', methods=['POST'])
@@ -9430,6 +9531,9 @@ def complete_rfq_follow_up(follow_up_id):
         SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
         WHERE id = ?
     """, (session.get('username'), follow_up_id))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Completed', 'rfq_follow_up')
     
     cursor.execute("""
         INSERT INTO rfq_activity_log 
@@ -9464,6 +9568,9 @@ def cancel_rfq_follow_up(follow_up_id):
         SET status = 'Cancelled', updated_at = datetime('now')
         WHERE id = ?
     """, (follow_up_id,))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Cancelled', 'rfq_follow_up')
     
     cursor.execute("""
         INSERT INTO rfq_activity_log 
@@ -9545,6 +9652,12 @@ def add_rfts_follow_up():
     
     follow_up_id = cursor.lastrowid
     
+    # Create corresponding task
+    task_id = create_task_from_rfts_follow_up(
+        cursor, follow_up_id, rfts_id, subject, notes, 
+        follow_up_date, priority, assigned_to, session.get('username')
+    )
+    
     # Log activity
     cursor.execute("""
         INSERT INTO rfts_activity_log 
@@ -9555,7 +9668,7 @@ def add_rfts_follow_up():
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True, 'follow_up_id': follow_up_id})
+    return jsonify({'success': True, 'follow_up_id': follow_up_id, 'task_id': task_id})
 
 
 @app.route('/api/rfts_follow_up/<int:follow_up_id>/complete', methods=['POST'])
@@ -9578,6 +9691,9 @@ def complete_rfts_follow_up(follow_up_id):
         SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
         WHERE id = ?
     """, (session.get('username'), follow_up_id))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Completed', 'rfts_follow_up')
     
     cursor.execute("""
         INSERT INTO rfts_activity_log 
@@ -9612,6 +9728,9 @@ def cancel_rfts_follow_up(follow_up_id):
         SET status = 'Cancelled', updated_at = datetime('now')
         WHERE id = ?
     """, (follow_up_id,))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Cancelled', 'rfts_follow_up')
     
     cursor.execute("""
         INSERT INTO rfts_activity_log 
@@ -15040,19 +15159,28 @@ def sync_task_to_follow_up(cursor, task_id, new_status):
     }
     follow_up_status = status_map.get(new_status, 'Pending')
     
-    if source_type == 'client_follow_up':
-        if follow_up_status == 'Completed':
-            cursor.execute("""
-                UPDATE client_follow_ups 
-                SET status = ?, completed_at = datetime('now'), updated_at = datetime('now')
-                WHERE id = ?
-            """, (follow_up_status, source_id))
-        else:
-            cursor.execute("""
-                UPDATE client_follow_ups 
-                SET status = ?, updated_at = datetime('now')
-                WHERE id = ?
-            """, (follow_up_status, source_id))
+    table_map = {
+        'client_follow_up': 'client_follow_ups',
+        'rfq_follow_up': 'rfq_follow_ups',
+        'rfts_follow_up': 'rfts_follow_ups'
+    }
+    
+    table = table_map.get(source_type)
+    if not table:
+        return
+    
+    if follow_up_status == 'Completed':
+        cursor.execute(f"""
+            UPDATE {table} 
+            SET status = ?, completed_at = datetime('now'), updated_at = datetime('now')
+            WHERE id = ?
+        """, (follow_up_status, source_id))
+    else:
+        cursor.execute(f"""
+            UPDATE {table} 
+            SET status = ?, updated_at = datetime('now')
+            WHERE id = ?
+        """, (follow_up_status, source_id))
 
 
 ###################################33
