@@ -315,6 +315,49 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-lg-12 mb-4">
+        <div class="chart-card">
+            <div class="chart-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="mb-2 mb-md-0">
+                        <i class="fas fa-headset mr-2"></i>Technical Support Performance
+                        <span id="rftsDateRangeDisplay" class="badge badge-light ml-2" style="font-size: 0.75rem;">{{ period_label }}</span>
+                    </div>
+                    <div class="d-flex align-items-center flex-wrap">
+                        <div class="d-flex align-items-center mr-2 mb-1 mb-md-0">
+                            <label class="text-white mb-0 mr-1" style="font-size: 0.8rem;"><i class="fas fa-calendar mr-1"></i>From:</label>
+                            <input type="date" id="rftsDateFrom" class="form-control form-control-sm" style="width: 130px; border-radius: 15px; border: none; font-size: 0.8rem;" value="{{ date_from }}">
+                        </div>
+                        <div class="d-flex align-items-center mr-2 mb-1 mb-md-0">
+                            <label class="text-white mb-0 mr-1" style="font-size: 0.8rem;"><i class="fas fa-calendar mr-1"></i>To:</label>
+                            <input type="date" id="rftsDateTo" class="form-control form-control-sm" style="width: 130px; border-radius: 15px; border: none; font-size: 0.8rem;" value="{{ date_to }}">
+                        </div>
+                        <button type="button" id="applyRftsDateFilter" class="btn btn-sm" style="background: white; color: #11998e; border: none; border-radius: 15px; padding: 5px 15px; font-weight: 600;">
+                            <i class="fas fa-filter mr-1"></i>Apply
+                        </button>
+                        <div class="btn-group ml-2" role="group">
+                            <button type="button" class="btn btn-sm rfts-quick-period-btn" data-days="7" style="background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 15px 0 0 15px; padding: 5px 10px; font-size: 0.75rem;">7D</button>
+                            <button type="button" class="btn btn-sm rfts-quick-period-btn" data-days="30" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 5px 10px; font-size: 0.75rem;">30D</button>
+                            <button type="button" class="btn btn-sm rfts-quick-period-btn" data-days="90" style="background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 0 15px 15px 0; padding: 5px 10px; font-size: 0.75rem;">90D</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-body">
+                {% if rfts_chart_labels %}
+                <div style="height: 350px;"><canvas id="rftsPerformanceChart"></canvas></div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
+                    <p>No RFTS activity data found for {{ period_label }}. Try selecting a different period.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="leaderboard-card">
     <div class="leaderboard-header">
         <i class="fas fa-trophy mr-2"></i>Presales Leaderboard - {{ selected_year }}
@@ -557,6 +600,68 @@
     </div>
 </div>
 
+<!-- RFTS Performance Modal -->
+<div class="modal fade" id="rftsModal" tabindex="-1" role="dialog" aria-labelledby="rftsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header" id="rftsModalHeader" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h5 class="modal-title" id="rftsModalLabel">
+                    <i class="fas fa-headset mr-2"></i><span id="rftsModalTitle">RFTS Details</span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="rftsLoading" class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-3x" style="color: #11998e;"></i>
+                    <p class="mt-3">Loading RFTS...</p>
+                </div>
+                <div id="rftsContent" style="display: none;">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-user-cog mr-1"></i>Engineer:</strong> <span id="rftsModalEngineer">-</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-tasks mr-1"></i>Status:</strong> <span id="rftsModalStatus">-</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-hashtag mr-1"></i>Count:</strong> <span id="rftsModalCount">0</span> RFTS
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <strong><i class="fas fa-calendar mr-1"></i>Period:</strong> <span id="rftsModalPeriod">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead style="position: sticky; top: 0; background: #f8f9fa;">
+                                <tr>
+                                    <th>RFTS Reference</th>
+                                    <th>Project</th>
+                                    <th>Request Type</th>
+                                    <th>System</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rftsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -764,6 +869,119 @@
         // Make chart cursor pointer on hover
         document.getElementById('engineerPerformanceChart').style.cursor = 'pointer';
         {% endif %}
+        
+        // Chart 5: RFTS Performance (Requested vs Done per engineer)
+        {% if rfts_chart_labels %}
+        const ctxRftsPerf = document.getElementById('rftsPerformanceChart').getContext('2d');
+        const rftsLabels = {{ rfts_chart_labels|tojson }};
+        const rftsDateFrom = '{{ date_from }}';
+        const rftsDateTo = '{{ date_to }}';
+        
+        const rftsPerfChart = new Chart(ctxRftsPerf, {
+            type: 'bar',
+            data: {
+                labels: rftsLabels,
+                datasets: [
+                    {
+                        label: 'RFTS Requested',
+                        data: {{ rfts_requested_data|tojson }},
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        hoverBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 0, borderRadius: 6
+                    },
+                    {
+                        label: 'RFTS Done',
+                        data: {{ rfts_done_data|tojson }},
+                        backgroundColor: 'rgba(17, 153, 142, 0.8)',
+                        hoverBackgroundColor: 'rgba(17, 153, 142, 1)',
+                        borderWidth: 0, borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                    x: { title: { display: true, text: 'Presales Engineers' } }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: {
+                        display: true,
+                        text: 'RFTS Requested vs RFTS Done - {{ period_label }}',
+                        font: { size: 14 }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        formatter: (value) => value > 0 ? value : null,
+                        font: { weight: 'bold', size: 11 }, color: '#495057'
+                    }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const element = elements[0];
+                        const datasetIndex = element.datasetIndex;
+                        const index = element.index;
+                        const engineer = rftsLabels[index];
+                        const type = datasetIndex === 0 ? 'requested' : 'done';
+                        const value = rftsPerfChart.data.datasets[datasetIndex].data[index];
+                        
+                        if (value > 0) {
+                            showRftsModal(engineer, type, rftsDateFrom, rftsDateTo);
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Make chart cursor pointer on hover
+        document.getElementById('rftsPerformanceChart').style.cursor = 'pointer';
+        {% endif %}
+        
+        // Apply RFTS date filter button click handler
+        document.getElementById('applyRftsDateFilter').addEventListener('click', function() {
+            const dateFrom = document.getElementById('rftsDateFrom').value;
+            const dateTo = document.getElementById('rftsDateTo').value;
+            
+            if (!dateFrom || !dateTo) {
+                alert('Please select both From and To dates');
+                return;
+            }
+            
+            if (dateFrom > dateTo) {
+                alert('From date cannot be after To date');
+                return;
+            }
+            
+            // Build URL with current filters plus date range
+            const urlParams = new URLSearchParams(window.location.search);
+            urlParams.set('date_from', dateFrom);
+            urlParams.set('date_to', dateTo);
+            urlParams.delete('period');
+            window.location.href = window.location.pathname + '?' + urlParams.toString();
+        });
+        
+        // RFTS Quick period buttons (7D, 30D, 90D)
+        document.querySelectorAll('.rfts-quick-period-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const days = parseInt(this.getAttribute('data-days'));
+                const today = new Date();
+                const fromDate = new Date(today);
+                fromDate.setDate(today.getDate() - days);
+                
+                const formatDate = (d) => d.toISOString().split('T')[0];
+                
+                document.getElementById('rftsDateFrom').value = formatDate(fromDate);
+                document.getElementById('rftsDateTo').value = formatDate(today);
+                
+                // Build URL with date range
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.set('date_from', formatDate(fromDate));
+                urlParams.set('date_to', formatDate(today));
+                urlParams.delete('period');
+                window.location.href = window.location.pathname + '?' + urlParams.toString();
+            });
+        });
         
         // Apply date filter button click handler
         document.getElementById('applyDateFilter').addEventListener('click', function() {
@@ -1051,6 +1269,88 @@
                 
                 if (data.deals.length === 0) {
                     html = '<tr><td colspan="7" class="text-center text-muted py-4">No won deals found</td></tr>';
+                }
+                
+                tableBody.innerHTML = html;
+                
+                // Hide loading, show content
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Error loading data</td></tr>';
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            });
+    }
+    
+    // Function to show RFTS modal
+    function showRftsModal(engineer, type, dateFrom, dateTo) {
+        const modal = $('#rftsModal');
+        const loading = document.getElementById('rftsLoading');
+        const content = document.getElementById('rftsContent');
+        const header = document.getElementById('rftsModalHeader');
+        const tableBody = document.getElementById('rftsTableBody');
+        
+        // Update modal header color based on type
+        if (type === 'requested') {
+            header.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('rftsModalTitle').textContent = 'RFTS Requested';
+            document.getElementById('rftsModalStatus').innerHTML = '<span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">Requested</span>';
+        } else {
+            header.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+            document.getElementById('rftsModalTitle').textContent = 'RFTS Done';
+            document.getElementById('rftsModalStatus').innerHTML = '<span class="badge badge-success">Done</span>';
+        }
+        
+        document.getElementById('rftsModalEngineer').textContent = engineer;
+        document.getElementById('rftsModalPeriod').textContent = `${dateFrom} to ${dateTo}`;
+        
+        // Show loading, hide content
+        loading.style.display = 'block';
+        content.style.display = 'none';
+        tableBody.innerHTML = '';
+        
+        // Show modal
+        modal.modal('show');
+        
+        // Fetch data
+        fetch(`/api/rfts_performance?engineer=${encodeURIComponent(engineer)}&type=${type}&date_from=${dateFrom}&date_to=${dateTo}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('rftsModalCount').textContent = data.count;
+                
+                // Build table rows
+                let html = '';
+                data.items.forEach(item => {
+                    const statusBadge = item.status === 'Done' 
+                        ? '<span class="badge badge-success">Done</span>'
+                        : (item.status === 'Queue' 
+                            ? '<span class="badge badge-warning">Queue</span>'
+                            : `<span class="badge badge-info">${item.status}</span>`);
+                    
+                    const priorityBadge = item.priority === 'Urgent'
+                        ? '<span class="badge badge-danger ml-1">Urgent</span>'
+                        : (item.priority === 'High'
+                            ? '<span class="badge badge-warning ml-1">High</span>'
+                            : '');
+                    
+                    html += `
+                        <tr>
+                            <td><a href="/rfts_profile/${item.id}" target="_blank" style="color: #11998e; font-weight: 600;">${item.reference}${priorityBadge}</a></td>
+                            <td>${item.project || '-'}</td>
+                            <td><small>${item.request_type || '-'}</small></td>
+                            <td>${item.system || '-'}</td>
+                            <td>${item.date || '-'}</td>
+                            <td>${statusBadge}</td>
+                            <td><a href="/rfts_profile/${item.id}" class="btn btn-sm btn-outline-success" target="_blank"><i class="fas fa-eye"></i></a></td>
+                        </tr>
+                    `;
+                });
+                
+                if (data.items.length === 0) {
+                    html = '<tr><td colspan="7" class="text-center text-muted py-4">No RFTS found</td></tr>';
                 }
                 
                 tableBody.innerHTML = html;

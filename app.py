@@ -6636,6 +6636,57 @@ def presales_performance():
     c.execute(total_won_value_query, total_won_value_params)
     total_won_value = c.fetchone()[0] or 0
 
+    # --- NEW: RFTS Requested vs Done per Engineer (for the new RFTS chart) ---
+    # RFTS Requested per engineer in the selected date range
+    rfts_requested_query = """
+        SELECT presale_engineer, COUNT(*) as count
+        FROM technical_support_requests
+        WHERE date(requested_time) >= ? AND date(requested_time) <= ?
+        AND presale_engineer IS NOT NULL AND presale_engineer != ''
+    """
+    rfts_requested_params = [start_date, end_date]
+    if presale_filter:
+        rfts_requested_query += " AND presale_engineer = ?"
+        rfts_requested_params.append(presale_filter)
+    rfts_requested_query += " GROUP BY presale_engineer ORDER BY count DESC"
+    c.execute(rfts_requested_query, rfts_requested_params)
+    rfts_requested_results = c.fetchall()
+    
+    # RFTS Done per engineer in the selected date range
+    rfts_done_query = """
+        SELECT presale_engineer, COUNT(*) as count
+        FROM technical_support_requests
+        WHERE request_status = 'Done'
+        AND date(requested_time) >= ? AND date(requested_time) <= ?
+        AND presale_engineer IS NOT NULL AND presale_engineer != ''
+    """
+    rfts_done_params = [start_date, end_date]
+    if presale_filter:
+        rfts_done_query += " AND presale_engineer = ?"
+        rfts_done_params.append(presale_filter)
+    rfts_done_query += " GROUP BY presale_engineer ORDER BY count DESC"
+    c.execute(rfts_done_query, rfts_done_params)
+    rfts_done_results = c.fetchall()
+    
+    # Combine RFTS data into a single dataset
+    rfts_performance = {}
+    for eng, count in rfts_requested_results:
+        if eng not in rfts_performance:
+            rfts_performance[eng] = {'requested': 0, 'done': 0}
+        rfts_performance[eng]['requested'] = count
+    for eng, count in rfts_done_results:
+        if eng not in rfts_performance:
+            rfts_performance[eng] = {'requested': 0, 'done': 0}
+        rfts_performance[eng]['done'] = count
+    
+    # Sort by total activity
+    sorted_rfts_engineers = sorted(rfts_performance.items(), 
+                                   key=lambda x: x[1]['requested'] + x[1]['done'], reverse=True)
+    
+    rfts_chart_labels = [e[0] for e in sorted_rfts_engineers]
+    rfts_requested_data = [e[1]['requested'] for e in sorted_rfts_engineers]
+    rfts_done_data = [e[1]['done'] for e in sorted_rfts_engineers]
+
     conn.close()
 
     # --- Prepare all data for the template ---
@@ -6671,7 +6722,10 @@ def presales_performance():
                            date_to=date_to,
                            engineer_chart_labels=engineer_chart_labels,
                            engineer_rfqs_data=engineer_rfqs_data,
-                           engineer_quotes_data=engineer_quotes_data)
+                           engineer_quotes_data=engineer_quotes_data,
+                           rfts_chart_labels=rfts_chart_labels,
+                           rfts_requested_data=rfts_requested_data,
+                           rfts_done_data=rfts_done_data)
 
 @app.route('/api/deadline_rfqs')
 @login_required
@@ -6892,6 +6946,91 @@ def get_presales_won_deals():
         'count': len(result),
         'total_value': total_value,
         'deals': result
+    })
+
+@app.route('/api/rfts_performance')
+@login_required
+@permission_required('view_rfts')
+def get_rfts_performance():
+    """API endpoint to get RFTS data for performance chart drill-down"""
+    engineer = request.args.get('engineer')
+    data_type = request.args.get('type')  # 'requested' or 'done'
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    if not engineer or not data_type:
+        return jsonify({'error': 'Missing parameters'}), 400
+    
+    from datetime import timedelta
+    today = datetime.now()
+    
+    if date_from and date_to:
+        start_date = date_from
+        end_date = date_to
+        try:
+            from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+            to_dt = datetime.strptime(date_to, '%Y-%m-%d')
+            days_diff = (to_dt - from_dt).days
+            period_label = f"{from_dt.strftime('%b %d')} - {to_dt.strftime('%b %d, %Y')}"
+        except:
+            period_label = f"{date_from} to {date_to}"
+    else:
+        start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        end_date = today.strftime('%Y-%m-%d')
+        period_label = 'Last 30 Days'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    result = []
+    
+    if data_type == 'requested':
+        # Get all RFTS requested by the engineer
+        query = """
+            SELECT id, rfts_reference, project_name, request_type, system,
+                   requested_time, deadline, request_status, priority
+            FROM technical_support_requests
+            WHERE presale_engineer = ?
+            AND date(requested_time) >= ? AND date(requested_time) <= ?
+            ORDER BY requested_time DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+    else:
+        # Get only RFTS marked as 'Done' for the engineer
+        query = """
+            SELECT id, rfts_reference, project_name, request_type, system,
+                   requested_time, deadline, request_status, priority
+            FROM technical_support_requests
+            WHERE presale_engineer = ?
+            AND request_status = 'Done'
+            AND date(requested_time) >= ? AND date(requested_time) <= ?
+            ORDER BY requested_time DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+    
+    rfts_items = c.fetchall()
+    conn.close()
+    
+    for item in rfts_items:
+        result.append({
+            'id': item['id'],
+            'reference': item['rfts_reference'],
+            'project': item['project_name'],
+            'request_type': item['request_type'],
+            'system': item['system'],
+            'date': item['requested_time'][:10] if item['requested_time'] else None,
+            'deadline': item['deadline'],
+            'status': item['request_status'],
+            'priority': item['priority']
+        })
+    
+    return jsonify({
+        'engineer': engineer,
+        'type': data_type,
+        'period': period_label,
+        'count': len(result),
+        'items': result
     })
 
 ###############
