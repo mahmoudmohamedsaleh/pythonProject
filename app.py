@@ -719,6 +719,23 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # RFTS Deliverables table for storing submitted documents (Google Drive links)
+    c.execute('''CREATE TABLE IF NOT EXISTS rfts_deliverables (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rfts_id INTEGER NOT NULL,
+            document_type TEXT NOT NULL,
+            google_drive_link TEXT NOT NULL,
+            document_name TEXT,
+            notes TEXT,
+            submitted_by TEXT NOT NULL,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (rfts_id) REFERENCES technical_support_requests(id) ON DELETE CASCADE
+        )''')
+    
+    # Create indexes for rfts_deliverables table
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rfts_deliverables_rfts_id ON rfts_deliverables(rfts_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rfts_deliverables_submitted_at ON rfts_deliverables(submitted_at)')
+    
     # Product Price History table for tracking price changes
     c.execute('''CREATE TABLE IF NOT EXISTS product_price_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7912,6 +7929,15 @@ def rfts_profile(rfts_id):
     """, (rfts['project_name'], rfts_id))
     related_rfts = c.fetchall()
     
+    # Get submitted deliverables for this RFTS
+    c.execute("""
+        SELECT id, document_type, google_drive_link, document_name, notes, submitted_by, submitted_at
+        FROM rfts_deliverables
+        WHERE rfts_id = ?
+        ORDER BY submitted_at DESC
+    """, (rfts_id,))
+    deliverables = c.fetchall()
+    
     conn.close()
     
     return render_template('rfts_profile.html',
@@ -7919,9 +7945,82 @@ def rfts_profile(rfts_id):
                            project=project,
                            quotations=quotations,
                            related_rfts=related_rfts,
+                           deliverables=deliverables,
                            age_days=age_days,
                            days_until_deadline=days_until_deadline,
                            is_overdue=is_overdue)
+
+
+@app.route('/api/rfts/<int:rfts_id>/deliverable', methods=['POST'])
+@login_required
+@permission_required('view_rfts')
+def add_rfts_deliverable(rfts_id):
+    """Add a new deliverable (Google Drive link) to an RFTS"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Verify RFTS exists
+    c.execute("SELECT id FROM technical_support_requests WHERE id = ?", (rfts_id,))
+    if not c.fetchone():
+        conn.close()
+        return jsonify({'success': False, 'error': 'RFTS not found'}), 404
+    
+    data = request.get_json() if request.is_json else request.form
+    
+    document_type = data.get('document_type', '').strip()
+    google_drive_link = data.get('google_drive_link', '').strip()
+    document_name = data.get('document_name', '').strip()
+    notes = data.get('notes', '').strip()
+    
+    if not document_type or not google_drive_link:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Document type and Google Drive link are required'}), 400
+    
+    # Insert the deliverable
+    c.execute("""
+        INSERT INTO rfts_deliverables (rfts_id, document_type, google_drive_link, document_name, notes, submitted_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (rfts_id, document_type, google_drive_link, document_name, notes, session.get('username', 'Unknown')))
+    
+    deliverable_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True, 
+        'message': 'Deliverable added successfully',
+        'deliverable_id': deliverable_id
+    })
+
+
+@app.route('/api/rfts/deliverable/<int:deliverable_id>', methods=['DELETE'])
+@login_required
+@permission_required('view_rfts')
+def delete_rfts_deliverable(deliverable_id):
+    """Delete a deliverable from an RFTS"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get the deliverable to check if it exists and get rfts_id for redirect
+    c.execute("SELECT rfts_id, submitted_by FROM rfts_deliverables WHERE id = ?", (deliverable_id,))
+    deliverable = c.fetchone()
+    
+    if not deliverable:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Deliverable not found'}), 404
+    
+    rfts_id = deliverable[0]
+    
+    # Delete the deliverable
+    c.execute("DELETE FROM rfts_deliverables WHERE id = ?", (deliverable_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True, 
+        'message': 'Deliverable deleted successfully',
+        'rfts_id': rfts_id
+    })
 
 
 ######
