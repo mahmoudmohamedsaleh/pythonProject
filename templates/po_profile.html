@@ -455,6 +455,107 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Follow-ups Section -->
+        <div class="card info-card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 12px 12px 0 0;">
+                <span><i class="fas fa-calendar-check mr-2"></i>Follow-ups ({{ follow_ups|length if follow_ups else 0 }})</span>
+                <button class="btn btn-light btn-sm" data-toggle="modal" data-target="#addPoFollowUpModal">
+                    <i class="fas fa-plus"></i> Add Follow-up
+                </button>
+            </div>
+            <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                {% if follow_ups and follow_ups|length > 0 %}
+                {% for fu in follow_ups %}
+                <div class="mb-3 p-3 rounded" style="border-left: 4px solid {% if fu['status'] == 'Completed' %}#28a745{% elif fu['status'] == 'Cancelled' %}#6c757d{% elif fu['status'] == 'Pending' and fu['follow_up_date'] < current_date %}#dc3545{% else %}#ffc107{% endif %}; background-color: #f8f9fa;">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <strong>{{ fu['subject'] }}</strong>
+                            <span class="badge badge-{{ 'danger' if fu['priority'] == 'High' else 'warning' if fu['priority'] == 'Normal' else 'success' }} ml-2">{{ fu['priority'] }}</span>
+                        </div>
+                        <span class="badge badge-{{ 'success' if fu['status'] == 'Completed' else 'warning' if fu['status'] == 'Pending' else 'secondary' }}">{{ fu['status'] }}</span>
+                    </div>
+                    <div class="text-muted small mb-2">
+                        <i class="fas fa-calendar mr-1"></i> {{ fu['follow_up_date'] }}
+                        {% if fu['follow_up_time'] %}<span class="ml-2"><i class="fas fa-clock mr-1"></i> {{ fu['follow_up_time'] }}</span>{% endif %}
+                        <span class="ml-2"><i class="fas fa-tag mr-1"></i> {{ fu['follow_up_type'] }}</span>
+                        <span class="ml-2"><i class="fas fa-user-tag mr-1"></i> {{ fu['contact_type'] }}{% if fu['contact_name'] %}: {{ fu['contact_name'] }}{% endif %}</span>
+                    </div>
+                    {% if fu['notes'] %}
+                    <p class="mb-2 small">{{ fu['notes'] }}</p>
+                    {% endif %}
+                    {% if fu['status'] == 'Pending' %}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-success" onclick="completePoFollowUp({{ fu['id'] }})">
+                            <i class="fas fa-check"></i> Complete
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="cancelPoFollowUp({{ fu['id'] }})">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No follow-ups scheduled yet</p>
+                    <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addPoFollowUpModal">
+                        <i class="fas fa-plus"></i> Schedule First Follow-up
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Activity Log Section -->
+        <div class="card info-card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 12px 12px 0 0;">
+                <span><i class="fas fa-history mr-2"></i>Activity Log</span>
+                <button class="btn btn-light btn-sm" data-toggle="modal" data-target="#addPoActivityModal">
+                    <i class="fas fa-plus"></i> Log Activity
+                </button>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if activities and activities|length > 0 %}
+                {% for activity in activities %}
+                <div class="d-flex mb-3 p-2" style="border-bottom: 1px solid #eee;">
+                    <div class="mr-3">
+                        <span class="d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            {% if 'Follow-up' in activity['activity_type'] %}
+                            <i class="fas fa-calendar-check"></i>
+                            {% elif 'Call' in activity['activity_type'] %}
+                            <i class="fas fa-phone"></i>
+                            {% elif 'Email' in activity['activity_type'] %}
+                            <i class="fas fa-envelope"></i>
+                            {% elif 'Meeting' in activity['activity_type'] %}
+                            <i class="fas fa-users"></i>
+                            {% elif 'Delivery' in activity['activity_type'] %}
+                            <i class="fas fa-truck"></i>
+                            {% else %}
+                            <i class="fas fa-comment"></i>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <strong>{{ activity['activity_type'] }}</strong>
+                        {% if activity['contact_type'] %}<span class="badge badge-info ml-2">{{ activity['contact_type'] }}</span>{% endif %}
+                        <p class="mb-1 small">{{ activity['activity_description'] }}</p>
+                        <span class="text-muted" style="font-size: 0.8rem;">
+                            <i class="fas fa-user mr-1"></i> {{ activity['created_by'] }} 
+                            <span class="ml-2"><i class="fas fa-clock mr-1"></i> {{ activity['created_at'][:16] if activity['created_at'] else '' }}</span>
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No activity logged yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <!-- Right Column -->
@@ -728,7 +829,278 @@
     </div>
 </div>
 
+<!-- Add PO Follow-up Modal -->
+<div class="modal fade" id="addPoFollowUpModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-calendar-plus mr-2"></i>Schedule Follow-up</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addPoFollowUpForm">
+                    <input type="hidden" name="po_id" value="{{ po.id }}">
+                    <input type="hidden" name="po_number" value="{{ po_number }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Follow-up Type <span class="text-danger">*</span></label>
+                                <select name="follow_up_type" class="form-control" required>
+                                    <option value="">Select Type</option>
+                                    <option value="Call">Phone Call</option>
+                                    <option value="Email">Email</option>
+                                    <option value="Meeting">Meeting</option>
+                                    <option value="Site Visit">Site Visit</option>
+                                    <option value="Delivery Follow-up">Delivery Follow-up</option>
+                                    <option value="Payment Follow-up">Payment Follow-up</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Contact Type <span class="text-danger">*</span></label>
+                                <select name="contact_type" class="form-control" required>
+                                    <option value="">Select Contact Type</option>
+                                    <option value="Distributor">Distributor</option>
+                                    <option value="Vendor">Vendor</option>
+                                    <option value="Client">Client</option>
+                                    <option value="Internal">Internal</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Contact Name</label>
+                                <input type="text" name="contact_name" class="form-control" placeholder="Contact person name">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Assigned To</label>
+                                <select name="assigned_to" class="form-control">
+                                    {% for user in users %}
+                                    <option value="{{ user }}" {% if user == session.get('username') %}selected{% endif %}>{{ user }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Date <span class="text-danger">*</span></label>
+                                <input type="date" name="follow_up_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Time</label>
+                                <input type="time" name="follow_up_time" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Priority</label>
+                                <select name="priority" class="form-control">
+                                    <option value="Low">Low</option>
+                                    <option value="Normal" selected>Normal</option>
+                                    <option value="High">High</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject <span class="text-danger">*</span></label>
+                        <input type="text" name="subject" class="form-control" placeholder="Brief description of the follow-up" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes or details"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="submitPoFollowUp()">
+                    <i class="fas fa-calendar-check mr-1"></i>Schedule Follow-up
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add PO Activity Modal -->
+<div class="modal fade" id="addPoActivityModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-plus-circle mr-2"></i>Log Activity</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addPoActivityForm">
+                    <input type="hidden" name="po_id" value="{{ po.id }}">
+                    <input type="hidden" name="po_number" value="{{ po_number }}">
+                    <div class="form-group">
+                        <label>Activity Type <span class="text-danger">*</span></label>
+                        <select name="activity_type" class="form-control" required>
+                            <option value="">Select Activity Type</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Email Sent">Email Sent</option>
+                            <option value="Email Received">Email Received</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Site Visit">Site Visit</option>
+                            <option value="Delivery Update">Delivery Update</option>
+                            <option value="Payment Update">Payment Update</option>
+                            <option value="Note">Note</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Contact Type</label>
+                                <select name="contact_type" class="form-control">
+                                    <option value="">Select Contact Type</option>
+                                    <option value="Distributor">Distributor</option>
+                                    <option value="Vendor">Vendor</option>
+                                    <option value="Client">Client</option>
+                                    <option value="Internal">Internal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Contact Name</label>
+                                <input type="text" name="contact_name" class="form-control" placeholder="Contact person">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description <span class="text-danger">*</span></label>
+                        <textarea name="activity_description" class="form-control" rows="4" placeholder="Describe what happened..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitPoActivity()">
+                    <i class="fas fa-save mr-1"></i>Log Activity
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+function submitPoFollowUp() {
+    var form = document.getElementById('addPoFollowUpForm');
+    var formData = new FormData(form);
+    var data = {};
+    formData.forEach(function(value, key) {
+        data[key] = value;
+    });
+    
+    fetch('/api/po_follow_up', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Failed to add follow-up'));
+        }
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        alert('Error adding follow-up');
+    });
+}
+
+function completePoFollowUp(followUpId) {
+    if (!confirm('Mark this follow-up as completed?')) return;
+    
+    fetch('/api/po_follow_up/' + followUpId + '/complete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Failed to complete follow-up'));
+        }
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        alert('Error completing follow-up');
+    });
+}
+
+function cancelPoFollowUp(followUpId) {
+    if (!confirm('Cancel this follow-up?')) return;
+    
+    fetch('/api/po_follow_up/' + followUpId + '/cancel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Failed to cancel follow-up'));
+        }
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        alert('Error cancelling follow-up');
+    });
+}
+
+function submitPoActivity() {
+    var form = document.getElementById('addPoActivityForm');
+    var formData = new FormData(form);
+    var data = {};
+    formData.forEach(function(value, key) {
+        data[key] = value;
+    });
+    
+    fetch('/api/po_activity', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Failed to log activity'));
+        }
+    })
+    .catch(function(error) {
+        console.error('Error:', error);
+        alert('Error logging activity');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.edit-item-btn').forEach(function(button) {
         button.addEventListener('click', function() {

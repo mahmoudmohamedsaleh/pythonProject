@@ -886,6 +886,48 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_rfq_follow_ups_rfq ON rfq_follow_ups(rfq_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_rfq_follow_ups_status ON rfq_follow_ups(status)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_rfq_activity_log_rfq ON rfq_activity_log(rfq_id)')
+    
+    # PO Follow-ups table for tracking follow-ups on Purchase Orders
+    c.execute('''CREATE TABLE IF NOT EXISTS po_follow_ups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            po_id INTEGER NOT NULL,
+            po_number TEXT,
+            follow_up_type TEXT NOT NULL,
+            contact_type TEXT NOT NULL,
+            contact_name TEXT,
+            follow_up_date TEXT NOT NULL,
+            follow_up_time TEXT,
+            status TEXT DEFAULT 'Pending',
+            priority TEXT DEFAULT 'Normal',
+            subject TEXT NOT NULL,
+            notes TEXT,
+            assigned_to TEXT,
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            completed_by TEXT,
+            FOREIGN KEY (po_id) REFERENCES purchase_orders(id)
+        )''')
+    
+    # PO Activity Log table for tracking all PO interactions
+    c.execute('''CREATE TABLE IF NOT EXISTS po_activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            po_id INTEGER NOT NULL,
+            po_number TEXT,
+            activity_type TEXT NOT NULL,
+            activity_description TEXT NOT NULL,
+            contact_type TEXT,
+            contact_name TEXT,
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (po_id) REFERENCES purchase_orders(id)
+        )''')
+    
+    # Create indexes for PO tables
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_follow_ups_po ON po_follow_ups(po_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_follow_ups_status ON po_follow_ups(status)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_po_activity_log_po ON po_activity_log(po_id)')
 
     conn.commit()
     conn.close()
@@ -9139,6 +9181,56 @@ def create_task_from_rfts_follow_up(cursor, follow_up_id, rfts_id, subject, note
     return cursor.lastrowid
 
 
+def get_po_info(cursor, po_id):
+    """Helper function to get PO number and project name"""
+    cursor.execute("""
+        SELECT po_number, project_name 
+        FROM purchase_orders 
+        WHERE id = ?
+    """, (po_id,))
+    result = cursor.fetchone()
+    if result:
+        po_number = result[0] if result[0] else f'PO-{po_id}'
+        project = result[1] if result[1] else 'Unknown Project'
+        return po_number, project
+    return f'PO-{po_id}', 'Unknown Project'
+
+
+def create_task_from_po_follow_up(cursor, follow_up_id, po_id, po_number, subject, notes, 
+                                   follow_up_date, priority, assigned_to, created_by):
+    """Create a task record linked to a PO follow-up"""
+    cursor.execute("SELECT id FROM users WHERE username = ?", (assigned_to,))
+    assigned_user = cursor.fetchone()
+    assigned_to_id = assigned_user[0] if assigned_user else None
+    
+    cursor.execute("SELECT id FROM users WHERE username = ?", (created_by,))
+    creator = cursor.fetchone()
+    assigned_by_id = creator[0] if creator else None
+    
+    if not assigned_to_id:
+        print(f"Warning: Cannot create task for PO follow-up {follow_up_id} - assigned user '{assigned_to}' not found")
+        return None
+    
+    po_ref, project_name = get_po_info(cursor, po_id)
+    if not po_number:
+        po_number = po_ref
+    
+    task_title = f"[PO Follow-up] {subject}"
+    task_description = f"PO: {po_number}\nProject: {project_name}"
+    if notes:
+        task_description += f"\n{notes}"
+    
+    cursor.execute("""
+        INSERT INTO tasks 
+        (title, description, assigned_to_id, due_date, priority, assigned_by_id, 
+         created_at, status, source_type, source_id, client_name, client_type)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 'To Do', 'po_follow_up', ?, ?, ?)
+    """, (task_title, task_description, assigned_to_id, follow_up_date, priority, 
+          assigned_by_id, follow_up_id, po_number, 'PO'))
+    
+    return cursor.lastrowid
+
+
 @app.route('/api/client_follow_up', methods=['POST'])
 @login_required
 def add_client_follow_up():
@@ -9768,6 +9860,168 @@ def add_rfts_activity():
         (rfts_id, activity_type, activity_description, contact_type, contact_name, created_by)
         VALUES (?, ?, ?, ?, ?, ?)
     """, (rfts_id, activity_type, activity_description, contact_type, contact_name, session.get('username')))
+    
+    activity_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'activity_id': activity_id})
+
+
+##########
+# PO FOLLOW-UP ENDPOINTS
+##########
+@app.route('/api/po_follow_up', methods=['POST'])
+@login_required
+def add_po_follow_up():
+    """Add a new follow-up for a Purchase Order"""
+    data = request.get_json()
+    
+    po_id = data.get('po_id')
+    po_number = data.get('po_number', '')
+    follow_up_type = data.get('follow_up_type')
+    contact_type = data.get('contact_type')
+    contact_name = data.get('contact_name', '')
+    follow_up_date = data.get('follow_up_date')
+    follow_up_time = data.get('follow_up_time', '')
+    priority = data.get('priority', 'Normal')
+    subject = data.get('subject')
+    notes = data.get('notes', '')
+    assigned_to = data.get('assigned_to', session.get('username'))
+    
+    if not all([po_id, follow_up_type, contact_type, follow_up_date, subject]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO po_follow_ups 
+        (po_id, po_number, follow_up_type, contact_type, contact_name, follow_up_date, follow_up_time, 
+         priority, subject, notes, assigned_to, created_by, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+    """, (po_id, po_number, follow_up_type, contact_type, contact_name, follow_up_date, follow_up_time,
+          priority, subject, notes, assigned_to, session.get('username')))
+    
+    follow_up_id = cursor.lastrowid
+    
+    # Create corresponding task
+    task_id = create_task_from_po_follow_up(
+        cursor, follow_up_id, po_id, po_number, subject, notes, 
+        follow_up_date, priority, assigned_to, session.get('username')
+    )
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO po_activity_log 
+        (po_id, po_number, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, ?, 'Follow-up Created', ?, ?, ?, ?)
+    """, (po_id, po_number, f"New follow-up scheduled: {subject}", contact_type, contact_name, session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'follow_up_id': follow_up_id, 'task_id': task_id})
+
+
+@app.route('/api/po_follow_up/<int:follow_up_id>/complete', methods=['POST'])
+@login_required
+def complete_po_follow_up(follow_up_id):
+    """Mark a PO follow-up as completed"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM po_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE po_follow_ups 
+        SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
+        WHERE id = ?
+    """, (session.get('username'), follow_up_id))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Completed', 'po_follow_up')
+    
+    cursor.execute("""
+        INSERT INTO po_activity_log 
+        (po_id, po_number, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, ?, 'Follow-up Completed', ?, ?, ?, ?)
+    """, (follow_up['po_id'], follow_up['po_number'], f"Completed follow-up: {follow_up['subject']}", 
+          follow_up['contact_type'], follow_up['contact_name'], session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/po_follow_up/<int:follow_up_id>/cancel', methods=['POST'])
+@login_required
+def cancel_po_follow_up(follow_up_id):
+    """Cancel a PO follow-up"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM po_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE po_follow_ups 
+        SET status = 'Cancelled', updated_at = datetime('now')
+        WHERE id = ?
+    """, (follow_up_id,))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Cancelled', 'po_follow_up')
+    
+    cursor.execute("""
+        INSERT INTO po_activity_log 
+        (po_id, po_number, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, ?, 'Follow-up Cancelled', ?, ?, ?, ?)
+    """, (follow_up['po_id'], follow_up['po_number'], f"Cancelled follow-up: {follow_up['subject']}", 
+          follow_up['contact_type'], follow_up['contact_name'], session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/po_activity', methods=['POST'])
+@login_required
+def add_po_activity():
+    """Add an activity log entry for a PO"""
+    data = request.get_json()
+    
+    po_id = data.get('po_id')
+    po_number = data.get('po_number', '')
+    activity_type = data.get('activity_type')
+    activity_description = data.get('activity_description')
+    contact_type = data.get('contact_type', '')
+    contact_name = data.get('contact_name', '')
+    
+    if not all([po_id, activity_type, activity_description]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO po_activity_log 
+        (po_id, po_number, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (po_id, po_number, activity_type, activity_description, contact_type, contact_name, session.get('username')))
     
     activity_id = cursor.lastrowid
     conn.commit()
@@ -11959,6 +12213,31 @@ def po_profile(po_request_number):
     """, (po_request_number,))
     vat_invoices = cursor.fetchall()
     
+    # Fetch follow-ups for this PO
+    cursor.execute("""
+        SELECT * FROM po_follow_ups 
+        WHERE po_id = ?
+        ORDER BY 
+            CASE WHEN status = 'Pending' THEN 0 ELSE 1 END,
+            follow_up_date ASC
+    """, (po['id'],))
+    follow_ups = cursor.fetchall()
+    
+    # Fetch activity log for this PO
+    cursor.execute("""
+        SELECT * FROM po_activity_log 
+        WHERE po_id = ?
+        ORDER BY created_at DESC
+    """, (po['id'],))
+    activities = cursor.fetchall()
+    
+    # Get current date for overdue detection
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Get users for assignment dropdown
+    cursor.execute("SELECT username FROM users ORDER BY username")
+    users = [row['username'] for row in cursor.fetchall()]
+    
     delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
     partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
     not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
@@ -11972,6 +12251,10 @@ def po_profile(po_request_number):
                            po_items=po_items,
                            delivery_notes=delivery_notes,
                            vat_invoices=vat_invoices,
+                           follow_ups=follow_ups,
+                           activities=activities,
+                           current_date=current_date,
+                           users=users,
                            delivered_count=delivered_count,
                            partial_count=partial_count,
                            not_delivered_count=not_delivered_count)
@@ -15162,7 +15445,8 @@ def sync_task_to_follow_up(cursor, task_id, new_status):
     table_map = {
         'client_follow_up': 'client_follow_ups',
         'rfq_follow_up': 'rfq_follow_ups',
-        'rfts_follow_up': 'rfts_follow_ups'
+        'rfts_follow_up': 'rfts_follow_ups',
+        'po_follow_up': 'po_follow_ups'
     }
     
     table = table_map.get(source_type)

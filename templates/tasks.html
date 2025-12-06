@@ -209,6 +209,7 @@
     .source-badge.follow-up { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
     .source-badge.rfq { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
     .source-badge.rfts { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .source-badge.po { background: linear-gradient(135deg, #f5af19 0%, #f12711 100%); }
     
     .client-info {
         display: flex;
@@ -526,6 +527,10 @@
                     {% elif task.source_type == 'rfts_follow_up' %}
                     <span class="source-badge rfts">
                         <i class="fas fa-tools"></i> RFTS Follow-up
+                    </span>
+                    {% elif task.source_type == 'po_follow_up' %}
+                    <span class="source-badge po">
+                        <i class="fas fa-file-invoice-dollar"></i> PO Follow-up
                     </span>
                     {% endif %}
                     
