@@ -7791,6 +7791,9 @@ def technical_support_summary():
     if filters['priority']: query += " AND priority = ?"; params.append(filters['priority'])
     if filters['presale_engineer']: query += " AND presale_engineer = ?"; params.append(filters['presale_engineer'])
     if filters['sales_engineer']: query += " AND sales_engineer = ?"; params.append(filters['sales_engineer'])
+    
+    # Order by most recent first (by requested_time descending, then by id descending)
+    query += " ORDER BY requested_time DESC, id DESC"
 
     c.execute(query, params)
     requests = c.fetchall()
