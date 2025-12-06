@@ -46,11 +46,12 @@
     }
     
     .form-section {
-        background: #f8f9ff;
+        background: #ffffff;
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        border: 1px solid rgba(102, 126, 234, 0.1);
+        border: 2px solid #e8ecf4;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
     .form-section-title {
         font-weight: 600;
@@ -59,6 +60,8 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #f0f4ff;
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -86,39 +89,49 @@
     }
     
     .form-control {
-        border-radius: 10px;
-        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        border: 2px solid #d1d5db;
         padding: 0.75rem 1rem;
-        font-size: 0.95rem;
+        font-size: 1rem;
         transition: all 0.2s ease;
-        background-color: #fff;
-        color: #2d3748;
+        background-color: #ffffff !important;
+        color: #1a202c !important;
+        font-weight: 500;
+        height: auto;
     }
     .form-control:focus {
         border-color: #667eea;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
-        background-color: #fff;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        background-color: #ffffff !important;
+        outline: none;
     }
     .form-control:hover {
-        border-color: #a0aec0;
+        border-color: #9ca3af;
     }
     
     select.form-control {
         -webkit-appearance: none;
         -moz-appearance: none;
         appearance: none;
-        background-color: #fff;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23667eea' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-color: #ffffff !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23667eea' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
-        background-position: right 1rem center;
+        background-position: right 0.75rem center;
+        background-size: 16px;
         padding-right: 2.5rem;
-        color: #2d3748 !important;
+        color: #1a202c !important;
         cursor: pointer;
+        font-weight: 500;
     }
     select.form-control option {
-        color: #2d3748;
-        background-color: #fff;
-        padding: 10px;
+        color: #1a202c !important;
+        background-color: #ffffff !important;
+        padding: 12px;
+        font-weight: 500;
+    }
+    select.form-control:invalid,
+    select.form-control option[value=""] {
+        color: #6b7280 !important;
     }
     
     textarea.form-control {
