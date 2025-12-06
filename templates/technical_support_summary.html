@@ -82,11 +82,15 @@
     }
     
     .filter-card {
-        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        background: #ffffff;
+        border: 2px solid #e8ecf4;
     }
     .filter-card .card-header {
-        background: transparent;
-        border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border-bottom: 2px solid #e8ecf4;
+    }
+    .filter-card .card-body {
+        background: #ffffff;
     }
     .filter-card label {
         font-weight: 600;
@@ -96,14 +100,37 @@
     }
     .filter-card .form-control {
         border-radius: 8px;
-        border: 1px solid #e2e8f0;
+        border: 2px solid #d1d5db;
         padding: 0.6rem 0.85rem;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         transition: all 0.2s ease;
+        background-color: #ffffff !important;
+        color: #1a202c !important;
+        font-weight: 500;
     }
     .filter-card .form-control:focus {
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        background-color: #ffffff !important;
+    }
+    .filter-card select.form-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-color: #ffffff !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23667eea' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 14px;
+        padding-right: 2.25rem;
+        color: #1a202c !important;
+        cursor: pointer;
+    }
+    .filter-card select.form-control option {
+        color: #1a202c !important;
+        background-color: #ffffff !important;
+        padding: 10px;
+        font-weight: 500;
     }
     
     .btn-apply {
