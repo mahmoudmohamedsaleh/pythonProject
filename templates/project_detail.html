@@ -323,7 +323,11 @@
                             <tbody>
                                 {% for rfq in rfqs[:10] %}
                                 <tr>
-                                    <td><strong>{{ rfq['rfq_reference'] }}</strong></td>
+                                    <td>
+                                        <a href="{{ url_for('rfq_profile', rfq_id=rfq['id']) }}" class="text-primary font-weight-bold" title="View RFQ Profile">
+                                            <strong>{{ rfq['rfq_reference'] }}</strong>
+                                        </a>
+                                    </td>
                                     <td>{{ rfq['system'] or 'N/A' }}</td>
                                     <td>{{ rfq['sales_engineer_presale'] or 'N/A' }}</td>
                                     <td>
