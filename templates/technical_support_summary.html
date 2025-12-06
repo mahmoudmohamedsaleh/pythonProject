@@ -548,7 +548,7 @@
                 <tbody>
                     {% for req in requests %}
                     <tr>
-                        <td><strong class="text-primary">{{ req[1] }}</strong></td>
+                        <td><a href="{{ url_for('rfts_profile', rfts_id=req[0]) }}" class="text-primary font-weight-bold" style="text-decoration: none;">{{ req[1] }}</a></td>
                         <td><span class="type-badge"><i class="fas fa-file-alt"></i>{{ req[2] }}</span></td>
                         <td><span class="project-link">{{ req[3] }}</span></td>
                         <td>

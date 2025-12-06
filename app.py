@@ -7841,6 +7841,89 @@ def technical_support_summary():
                            sales_engineers=sales_engineers,
                            status_labels=status_labels,
                            status_counts=status_counts)
+
+
+@app.route('/rfts_profile/<int:rfts_id>', methods=['GET'])
+@login_required
+@permission_required('view_rfts')
+def rfts_profile(rfts_id):
+    """
+    RFTS Profile page showing complete technical support request details,
+    process timeline, and related information
+    """
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get RFTS details
+    c.execute("SELECT * FROM technical_support_requests WHERE id = ?", (rfts_id,))
+    rfts = c.fetchone()
+    
+    if not rfts:
+        conn.close()
+        flash('RFTS not found', 'danger')
+        return redirect(url_for('technical_support_summary'))
+    
+    # Get related project details
+    c.execute("""
+        SELECT rp.id, rp.project_name, e.username as sales_engineer_name
+        FROM register_project rp
+        LEFT JOIN engineers e ON CAST(rp.sales_engineer_id AS INTEGER) = e.id
+        WHERE rp.project_name = ?
+    """, (rfts['project_name'],))
+    project = c.fetchone()
+    
+    # Get related quotations for this project
+    c.execute("""
+        SELECT quote_ref, system, status, registered_date, quotation_selling_price
+        FROM projects 
+        WHERE project_name = ?
+        ORDER BY registered_date DESC
+    """, (rfts['project_name'],))
+    quotations = c.fetchall()
+    
+    # Calculate age in days (from RFTS creation to now)
+    age_days = 0
+    requested_date = None
+    if rfts['requested_time']:
+        try:
+            requested_date = datetime.strptime(rfts['requested_time'].split(' ')[0], '%Y-%m-%d')
+            age_days = (datetime.now() - requested_date).days
+        except:
+            age_days = 0
+    
+    # Calculate days until deadline
+    days_until_deadline = None
+    is_overdue = False
+    if rfts['deadline']:
+        try:
+            deadline_date = datetime.strptime(rfts['deadline'], '%Y-%m-%d')
+            days_until_deadline = (deadline_date - datetime.now()).days
+            is_overdue = days_until_deadline < 0 and rfts['request_status'] != 'Done'
+        except:
+            pass
+    
+    # Get other RFTS for same project
+    c.execute("""
+        SELECT id, rfts_reference, request_type, request_status, deadline
+        FROM technical_support_requests 
+        WHERE project_name = ? AND id != ?
+        ORDER BY requested_time DESC
+    """, (rfts['project_name'], rfts_id))
+    related_rfts = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('rfts_profile.html',
+                           rfts=rfts,
+                           project=project,
+                           quotations=quotations,
+                           related_rfts=related_rfts,
+                           age_days=age_days,
+                           days_until_deadline=days_until_deadline,
+                           is_overdue=is_overdue)
+
+
 ######
 @app.route('/download_filtered_technical_support', methods=['GET'])
 #@role_required('editor')

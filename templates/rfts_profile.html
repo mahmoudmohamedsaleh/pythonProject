@@ -1,0 +1,532 @@
+{% extends 'base.html' %}
+{% block title %}RFTS Profile - {{ rfts.rfts_reference }}{% endblock %}
+
+{% block content %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+    }
+    .profile-header h1 {
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .header-badge {
+        display: inline-block;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-right: 10px;
+    }
+    .badge-priority-high { background-color: #dc3545; }
+    .badge-priority-medium { background-color: #ffc107; color: #333; }
+    .badge-priority-low { background-color: #28a745; }
+    .badge-status { background-color: rgba(255,255,255,0.2); }
+    .badge-overdue { background-color: #dc3545; animation: pulse 1.5s infinite; }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
+    .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        margin-bottom: 25px;
+    }
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 15px 20px;
+    }
+    .card-header.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .card-header.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .card-header.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    
+    .info-row {
+        display: flex;
+        border-bottom: 1px solid #eee;
+        padding: 12px 0;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        min-width: 180px;
+    }
+    .info-value {
+        color: #333;
+        flex: 1;
+    }
+    
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, #667eea, #764ba2);
+        border-radius: 3px;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 55px;
+        margin-bottom: 25px;
+    }
+    .timeline-item:last-child { margin-bottom: 0; }
+    .timeline-dot {
+        position: absolute;
+        left: 12px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #667eea;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .timeline-dot.active { background: #ffc107; }
+    .timeline-dot.pending { background: #6c757d; }
+    .timeline-dot.completed { background: #28a745; }
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .timeline-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    .timeline-date {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .stat-box {
+        text-align: center;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        margin-bottom: 15px;
+    }
+    .stat-box.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .stat-box.orange { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
+    .stat-box.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .stat-number { font-size: 2rem; font-weight: 700; }
+    .stat-label { font-size: 0.85rem; opacity: 0.9; text-transform: uppercase; }
+    
+    .system-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 3px;
+    }
+    .system-cctv { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .system-fire { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); color: white; }
+    .system-passive { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+    .system-access { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; }
+    .system-default { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; }
+    
+    .quotation-card {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        transition: all 0.2s;
+    }
+    .quotation-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    
+    .action-btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-right: 10px;
+        transition: all 0.2s;
+    }
+    .action-btn:hover { transform: translateY(-2px); }
+    
+    .related-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        border-left: 4px solid #667eea;
+        transition: all 0.2s;
+    }
+    .related-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+    .related-item.done { border-left-color: #28a745; }
+    .related-item.queue { border-left-color: #ffc107; }
+</style>
+
+<div class="profile-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="fas fa-headset mr-2"></i>{{ rfts.rfts_reference }}</h1>
+            <p class="mb-3" style="opacity: 0.9;">{{ rfts.request_type }} - {{ rfts.project_name }}</p>
+            <div>
+                {% if rfts.priority == 'High' %}
+                    <span class="header-badge badge-priority-high"><i class="fas fa-arrow-up mr-1"></i>High Priority</span>
+                {% elif rfts.priority == 'Medium' %}
+                    <span class="header-badge badge-priority-medium"><i class="fas fa-minus mr-1"></i>Medium Priority</span>
+                {% else %}
+                    <span class="header-badge badge-priority-low"><i class="fas fa-arrow-down mr-1"></i>Low Priority</span>
+                {% endif %}
+                
+                <span class="header-badge badge-status"><i class="fas fa-tasks mr-1"></i>{{ rfts.request_status }}</span>
+                
+                {% if is_overdue %}
+                    <span class="header-badge badge-overdue"><i class="fas fa-exclamation-triangle mr-1"></i>Overdue</span>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <a href="{{ url_for('technical_support_summary') }}" class="btn btn-light">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Summary
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle mr-2"></i>Request Details
+            </div>
+            <div class="card-body">
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-hashtag mr-2"></i>Reference</div>
+                    <div class="info-value"><strong>{{ rfts.rfts_reference }}</strong></div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-tag mr-2"></i>Request Type</div>
+                    <div class="info-value">{{ rfts.request_type }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-project-diagram mr-2"></i>Project</div>
+                    <div class="info-value">
+                        {% if project %}
+                            <a href="{{ url_for('project_detail', project_id=project['id']) }}">{{ rfts.project_name }}</a>
+                        {% else %}
+                            {{ rfts.project_name }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-flag mr-2"></i>Priority</div>
+                    <div class="info-value">
+                        {% if rfts.priority == 'High' %}
+                            <span class="badge badge-danger">High</span>
+                        {% elif rfts.priority == 'Medium' %}
+                            <span class="badge badge-warning">Medium</span>
+                        {% else %}
+                            <span class="badge badge-success">Low</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if rfts.system %}
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-layer-group mr-2"></i>System(s)</div>
+                    <div class="info-value">
+                        {% for sys in rfts.system.split(', ') %}
+                            {% if 'CCTV' in sys %}
+                                <span class="system-badge system-cctv">{{ sys }}</span>
+                            {% elif 'Fire' in sys %}
+                                <span class="system-badge system-fire">{{ sys }}</span>
+                            {% elif 'Passive' in sys %}
+                                <span class="system-badge system-passive">{{ sys }}</span>
+                            {% elif 'Access' in sys %}
+                                <span class="system-badge system-access">{{ sys }}</span>
+                            {% else %}
+                                <span class="system-badge system-default">{{ sys }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if rfts.quotation_reference %}
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-file-invoice-dollar mr-2"></i>Quotation Ref</div>
+                    <div class="info-value">{{ rfts.quotation_reference }}</div>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-user-cog mr-2"></i>Presale Engineer</div>
+                    <div class="info-value">{{ rfts.presale_engineer }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-user-tie mr-2"></i>Sales Engineer</div>
+                    <div class="info-value">{{ rfts.sales_engineer }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-tasks mr-2"></i>Status</div>
+                    <div class="info-value">
+                        {% if rfts.request_status == 'Done' %}
+                            <span class="badge badge-success">{{ rfts.request_status }}</span>
+                        {% elif rfts.request_status == 'Queue' %}
+                            <span class="badge badge-warning">{{ rfts.request_status }}</span>
+                        {% elif rfts.request_status == 'Studying' %}
+                            <span class="badge badge-info">{{ rfts.request_status }}</span>
+                        {% else %}
+                            <span class="badge badge-secondary">{{ rfts.request_status }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-check-circle mr-2"></i>Result</div>
+                    <div class="info-value">
+                        {% if rfts.request_result == 'Approved' %}
+                            <span class="badge badge-success">{{ rfts.request_result }}</span>
+                        {% elif rfts.request_result == 'Dis Approved' %}
+                            <span class="badge badge-danger">{{ rfts.request_result }}</span>
+                        {% else %}
+                            <span class="badge badge-secondary">{{ rfts.request_result }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-calendar-alt mr-2"></i>Deadline</div>
+                    <div class="info-value">
+                        {{ rfts.deadline }}
+                        {% if is_overdue %}
+                            <span class="badge badge-danger ml-2">Overdue by {{ (-days_until_deadline)|abs }} days</span>
+                        {% elif days_until_deadline is not none and days_until_deadline >= 0 %}
+                            <span class="badge badge-info ml-2">{{ days_until_deadline }} days remaining</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-clock mr-2"></i>Requested Time</div>
+                    <div class="info-value">{{ rfts.requested_time }}</div>
+                </div>
+                {% if rfts.note %}
+                <div class="info-row">
+                    <div class="info-label"><i class="fas fa-sticky-note mr-2"></i>Note</div>
+                    <div class="info-value">{{ rfts.note }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header blue">
+                <i class="fas fa-clock mr-2"></i>Process Timeline
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot completed"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title"><i class="fas fa-plus-circle mr-2"></i>Request Created</div>
+                            <div class="timeline-date">{{ rfts.requested_time }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if rfts.request_status == 'Studying' or rfts.request_status == 'Done' %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot {% if rfts.request_status == 'Done' %}completed{% else %}active{% endif %}"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title"><i class="fas fa-search mr-2"></i>Under Review</div>
+                            <div class="timeline-date">Being studied by {{ rfts.presale_engineer }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if rfts.request_status == 'Done' %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot completed"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title"><i class="fas fa-check-circle mr-2"></i>Completed</div>
+                            <div class="timeline-date">
+                                Result: 
+                                {% if rfts.request_result == 'Approved' %}
+                                    <span class="badge badge-success">Approved</span>
+                                {% elif rfts.request_result == 'Dis Approved' %}
+                                    <span class="badge badge-danger">Disapproved</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ rfts.request_result }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% elif rfts.request_status == 'Queue' %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot pending"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title"><i class="fas fa-hourglass-half mr-2"></i>Awaiting Review</div>
+                            <div class="timeline-date">In queue - waiting to be picked up</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        {% if quotations %}
+        <div class="card">
+            <div class="card-header green">
+                <i class="fas fa-file-invoice-dollar mr-2"></i>Related Quotations ({{ quotations|length }})
+            </div>
+            <div class="card-body">
+                {% for q in quotations %}
+                <div class="quotation-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong class="text-primary">{{ q['quote_ref'] }}</strong>
+                            {% if q['system'] %}
+                                <span class="text-muted ml-2">- {{ q['system'] }}</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if q['status'] %}
+                                <span class="badge badge-info">{{ q['status'] }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <i class="fas fa-calendar mr-1"></i>{{ q['registered_date'] }}
+                        {% if q['quotation_selling_price'] %}
+                            <span class="ml-3"><i class="fas fa-money-bill mr-1"></i>SAR {{ '{:,.2f}'.format(q['quotation_selling_price']) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="row">
+            <div class="col-6">
+                <div class="stat-box">
+                    <div class="stat-number">{{ age_days }}</div>
+                    <div class="stat-label">Days Old</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="stat-box {% if is_overdue %}orange{% elif days_until_deadline is not none and days_until_deadline <= 2 %}orange{% else %}green{% endif %}">
+                    <div class="stat-number">
+                        {% if days_until_deadline is not none %}
+                            {% if days_until_deadline < 0 %}{{ (-days_until_deadline)|abs }}{% else %}{{ days_until_deadline }}{% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">{% if is_overdue %}Days Overdue{% else %}Days Left{% endif %}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-bolt mr-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('edit_request') }}?request_id={{ rfts.id }}" class="btn btn-primary btn-block mb-2">
+                    <i class="fas fa-edit mr-2"></i>Edit Request
+                </a>
+                {% if project %}
+                <a href="{{ url_for('project_detail', project_id=project['id']) }}" class="btn btn-outline-primary btn-block mb-2">
+                    <i class="fas fa-project-diagram mr-2"></i>View Project
+                </a>
+                {% endif %}
+                <a href="{{ url_for('request_technical_support') }}?project_name={{ rfts.project_name|urlencode }}&sales_engineer={{ rfts.sales_engineer|urlencode }}" class="btn btn-outline-success btn-block">
+                    <i class="fas fa-plus mr-2"></i>New RFTS for Project
+                </a>
+            </div>
+        </div>
+        
+        {% if related_rfts %}
+        <div class="card">
+            <div class="card-header orange">
+                <i class="fas fa-link mr-2"></i>Related RFTS ({{ related_rfts|length }})
+            </div>
+            <div class="card-body">
+                {% for r in related_rfts %}
+                <a href="{{ url_for('rfts_profile', rfts_id=r['id']) }}" class="text-decoration-none">
+                    <div class="related-item {% if r['request_status'] == 'Done' %}done{% elif r['request_status'] == 'Queue' %}queue{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="text-primary">{{ r['rfts_reference'] }}</strong>
+                            {% if r['request_status'] == 'Done' %}
+                                <span class="badge badge-success">Done</span>
+                            {% elif r['request_status'] == 'Queue' %}
+                                <span class="badge badge-warning">Queue</span>
+                            {% else %}
+                                <span class="badge badge-info">{{ r['request_status'] }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="small text-muted mt-1">
+                            {{ r['request_type'] }} | Due: {{ r['deadline'] }}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-info-circle mr-2"></i>Request Type Info
+            </div>
+            <div class="card-body">
+                {% if rfts.request_type == 'SLD' %}
+                    <div class="text-center mb-3">
+                        <i class="fas fa-sitemap fa-3x text-primary"></i>
+                    </div>
+                    <h6 class="text-primary">Single Line Diagram</h6>
+                    <p class="text-muted small mb-0">Electrical system layout showing the components and connections in a simplified single-line format.</p>
+                {% elif rfts.request_type == 'Rack Elevation' %}
+                    <div class="text-center mb-3">
+                        <i class="fas fa-server fa-3x text-success"></i>
+                    </div>
+                    <h6 class="text-success">Rack Elevation</h6>
+                    <p class="text-muted small mb-0">Equipment rack layout showing the vertical positioning and mounting of devices.</p>
+                {% elif rfts.request_type == 'Technical Submittal' %}
+                    <div class="text-center mb-3">
+                        <i class="fas fa-file-invoice fa-3x text-warning"></i>
+                    </div>
+                    <h6 class="text-warning">Technical Submittal</h6>
+                    <p class="text-muted small mb-0">Technical documentation package for project approval and specification compliance.</p>
+                {% elif rfts.request_type == 'Information' %}
+                    <div class="text-center mb-3">
+                        <i class="fas fa-question-circle fa-3x text-info"></i>
+                    </div>
+                    <h6 class="text-info">Information Request</h6>
+                    <p class="text-muted small mb-0">General technical queries, clarifications, and information gathering.</p>
+                {% else %}
+                    <div class="text-center mb-3">
+                        <i class="fas fa-cogs fa-3x text-secondary"></i>
+                    </div>
+                    <h6 class="text-secondary">{{ rfts.request_type }}</h6>
+                    <p class="text-muted small mb-0">Custom technical support request type.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
