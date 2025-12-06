@@ -881,7 +881,7 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Assigned To</label>
-                                {% if session.get('role') in ['General Manager', 'Technical Team Leader'] %}
+                                {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
                                 <select name="assigned_to" class="form-control">
                                     {% for user in users %}
                                     <option value="{{ user }}" {% if user == session.get('username') %}selected{% endif %}>{{ user }}</option>
