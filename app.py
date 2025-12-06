@@ -1439,6 +1439,8 @@ def upload():
 
             conn.commit()
             flash('Quotation submitted successfully!', 'success')
+            conn.close()
+            return redirect(url_for('quotation_profile', quote_ref=quote_ref))
         except sqlite3.IntegrityError:
             flash('Error: That Quote Reference already exists. Please use a unique reference.', 'danger')
         except Exception as e:
@@ -1446,7 +1448,7 @@ def upload():
         finally:
             conn.close()
 
-        return redirect(url_for('project_summary'))
+        return redirect(url_for('registered_quotations'))
 
     # --- GET request logic ---
 
@@ -3428,12 +3430,14 @@ def edit_project(quote_ref):
 
             conn.commit()
             flash('Project and linked RFQ status updated successfully!', 'success')
+            conn.close()
+            return redirect(url_for('quotation_profile', quote_ref=quote_ref))
         except Exception as e:
             flash(f"An error occurred: {e}", 'danger')
         finally:
             conn.close()
 
-        return redirect(url_for('project_summary'))
+        return redirect(url_for('registered_quotations'))
 
     # --- GET request logic (remains the same) ---
     c.execute('SELECT * FROM projects WHERE quote_ref = ?', (quote_ref,))
