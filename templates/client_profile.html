@@ -1,0 +1,610 @@
+{% extends 'base.html' %}
+{% block title %}Client Profile - {{ client['name'] }}{% endblock %}
+
+{% block content %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    .profile-header.end_user { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); box-shadow: 0 10px 30px rgba(17, 153, 142, 0.3); }
+    .profile-header.contractor { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); box-shadow: 0 10px 30px rgba(240, 147, 251, 0.3); }
+    .profile-header.consultant { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); box-shadow: 0 10px 30px rgba(79, 172, 254, 0.3); }
+    
+    .profile-header h1 { font-weight: 700; margin-bottom: 5px; }
+    .profile-header .subtitle { opacity: 0.9; font-size: 1.1rem; }
+    
+    .client-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        display: inline-block;
+        margin-bottom: 10px;
+    }
+    
+    .stat-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        text-align: center;
+        padding: 20px;
+        height: 100%;
+        transition: transform 0.2s ease;
+    }
+    .stat-card:hover { transform: translateY(-3px); }
+    .stat-card .stat-icon { font-size: 2rem; margin-bottom: 10px; }
+    .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; margin-bottom: 5px; }
+    .stat-card .stat-label { color: #6c757d; font-size: 0.9rem; }
+    .stat-card.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .stat-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
+    .stat-card.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+    .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+    .stat-card.purple .stat-label, .stat-card.green .stat-label, .stat-card.orange .stat-label, .stat-card.blue .stat-label { color: rgba(255,255,255,0.8); }
+    
+    .info-card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 25px; }
+    .info-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 15px 20px;
+    }
+    .info-card .card-header.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .info-card .card-header.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .info-card .card-header.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    
+    .info-row { display: flex; border-bottom: 1px solid #eee; padding: 12px 0; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-weight: 600; color: #6c757d; min-width: 150px; }
+    .info-label i { margin-right: 8px; color: #667eea; }
+    .info-value { color: #333; flex: 1; }
+    
+    .follow-up-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #667eea;
+        transition: all 0.2s ease;
+    }
+    .follow-up-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .follow-up-item.pending { border-left-color: #ffc107; }
+    .follow-up-item.completed { border-left-color: #28a745; background: #f1f8f4; }
+    .follow-up-item.cancelled { border-left-color: #dc3545; background: #fef5f5; opacity: 0.7; }
+    .follow-up-item.overdue { border-left-color: #dc3545; background: #fff5f5; }
+    
+    .activity-item {
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: flex-start;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+    .activity-content { flex: 1; }
+    .activity-time { color: #6c757d; font-size: 0.85rem; }
+    
+    .quick-action-btn {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .quick-action-btn:hover { transform: translateY(-2px); }
+    
+    .badge-priority-high { background-color: #dc3545; color: white; }
+    .badge-priority-normal { background-color: #ffc107; color: #333; }
+    .badge-priority-low { background-color: #28a745; color: white; }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="profile-header {{ client_type }}">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <span class="client-badge">
+                    {% if client_type == 'end_user' %}
+                    <i class="fas fa-user-tie"></i> End User
+                    {% elif client_type == 'contractor' %}
+                    <i class="fas fa-hard-hat"></i> Contractor
+                    {% else %}
+                    <i class="fas fa-user-graduate"></i> Consultant
+                    {% endif %}
+                    {% if client['is_client'] %}
+                    <span class="ml-2"><i class="fas fa-star"></i> Client</span>
+                    {% endif %}
+                </span>
+                <h1><i class="fas fa-building mr-2"></i>{{ client['name'] }}</h1>
+                <p class="subtitle mb-0">
+                    <i class="fas fa-user mr-1"></i> {{ client['contact_person'] or 'No contact person' }}
+                    {% if client['assigned_engineer_name'] %}
+                    <span class="ml-3"><i class="fas fa-user-cog mr-1"></i> Managed by: {{ client['assigned_engineer_name'] }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-md-right mt-3 mt-md-0">
+                <a href="{{ url_for(edit_url, **{client_type + '_id': client_id}) }}" class="btn btn-light quick-action-btn mr-2">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{{ url_for(view_url) }}" class="btn btn-outline-light quick-action-btn">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="stat-card purple">
+                <div class="stat-icon"><i class="fas fa-project-diagram"></i></div>
+                <div class="stat-value">{{ total_projects }}</div>
+                <div class="stat-label">Total Projects</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card green">
+                <div class="stat-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div class="stat-value">{{ total_quotations }}</div>
+                <div class="stat-label">Quotations</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card orange">
+                <div class="stat-icon"><i class="fas fa-coins"></i></div>
+                <div class="stat-value">{{ "{:,.0f}".format(total_deal_value) }}</div>
+                <div class="stat-label">Total Deal Value (SAR)</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="stat-card blue">
+                <div class="stat-icon"><i class="fas fa-bell"></i></div>
+                <div class="stat-value">{{ pending_follow_ups }}</div>
+                <div class="stat-label">Pending Follow-ups</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card info-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-address-card mr-2"></i>Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <div class="info-label"><i class="fas fa-building"></i> Company</div>
+                        <div class="info-value">{{ client['name'] }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label"><i class="fas fa-user"></i> Contact</div>
+                        <div class="info-value">{{ client['contact_person'] or 'N/A' }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label"><i class="fas fa-phone"></i> Phone</div>
+                        <div class="info-value">
+                            {% if client['phone'] %}
+                            <a href="tel:{{ client['phone'] }}">{{ client['phone'] }}</a>
+                            {% else %}N/A{% endif %}
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label"><i class="fas fa-envelope"></i> Email</div>
+                        <div class="info-value">
+                            {% if client['email'] %}
+                            <a href="mailto:{{ client['email'] }}">{{ client['email'] }}</a>
+                            {% else %}N/A{% endif %}
+                        </div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label"><i class="fas fa-sticky-note"></i> Notes</div>
+                        <div class="info-value">{{ client['note'] or 'No notes' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card info-card">
+                <div class="card-header orange">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie mr-2"></i>Pipeline Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    {% if stage_counts %}
+                    {% for stage, count in stage_counts.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ stage }}</span>
+                        <span class="badge badge-primary">{{ count }}</span>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No projects yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card info-card">
+                <div class="card-header green d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-calendar-check mr-2"></i>Follow-ups ({{ follow_ups|length }})</h5>
+                    <button class="btn btn-light btn-sm" data-toggle="modal" data-target="#addFollowUpModal">
+                        <i class="fas fa-plus"></i> Add Follow-up
+                    </button>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if follow_ups %}
+                    {% for fu in follow_ups %}
+                    <div class="follow-up-item {{ fu['status']|lower }}{% if fu['status'] == 'Pending' and fu['follow_up_date'] < now().strftime('%Y-%m-%d') %} overdue{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <strong>{{ fu['subject'] }}</strong>
+                                <span class="badge badge-{{ 'danger' if fu['priority'] == 'High' else 'warning' if fu['priority'] == 'Normal' else 'success' }} ml-2">{{ fu['priority'] }}</span>
+                            </div>
+                            <span class="badge badge-{{ 'success' if fu['status'] == 'Completed' else 'warning' if fu['status'] == 'Pending' else 'secondary' }}">{{ fu['status'] }}</span>
+                        </div>
+                        <div class="text-muted small mb-2">
+                            <i class="fas fa-calendar mr-1"></i> {{ fu['follow_up_date'] }}
+                            {% if fu['follow_up_time'] %}<span class="ml-2"><i class="fas fa-clock mr-1"></i> {{ fu['follow_up_time'] }}</span>{% endif %}
+                            <span class="ml-2"><i class="fas fa-tag mr-1"></i> {{ fu['follow_up_type'] }}</span>
+                        </div>
+                        {% if fu['notes'] %}
+                        <p class="mb-2 small">{{ fu['notes'] }}</p>
+                        {% endif %}
+                        {% if fu['status'] == 'Pending' %}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-success" onclick="completeFollowUp({{ fu['id'] }})">
+                                <i class="fas fa-check"></i> Complete
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="cancelFollowUp({{ fu['id'] }})">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No follow-ups scheduled yet</p>
+                        <button class="btn btn-primary" data-toggle="modal" data-target="#addFollowUpModal">
+                            <i class="fas fa-plus"></i> Schedule First Follow-up
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card info-card">
+                <div class="card-header blue d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history mr-2"></i>Activity Log</h5>
+                    <button class="btn btn-light btn-sm" data-toggle="modal" data-target="#addActivityModal">
+                        <i class="fas fa-plus"></i> Log Activity
+                    </button>
+                </div>
+                <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                    {% if activities %}
+                    {% for activity in activities %}
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            {% if 'Follow-up' in activity['activity_type'] %}
+                            <i class="fas fa-calendar-check"></i>
+                            {% elif 'Call' in activity['activity_type'] %}
+                            <i class="fas fa-phone"></i>
+                            {% elif 'Email' in activity['activity_type'] %}
+                            <i class="fas fa-envelope"></i>
+                            {% elif 'Meeting' in activity['activity_type'] %}
+                            <i class="fas fa-users"></i>
+                            {% else %}
+                            <i class="fas fa-comment"></i>
+                            {% endif %}
+                        </div>
+                        <div class="activity-content">
+                            <strong>{{ activity['activity_type'] }}</strong>
+                            <p class="mb-1 small">{{ activity['activity_description'] }}</p>
+                            <span class="activity-time">
+                                <i class="fas fa-user mr-1"></i> {{ activity['created_by'] }} 
+                                <span class="ml-2"><i class="fas fa-clock mr-1"></i> {{ activity['created_at'][:16] }}</span>
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No activity logged yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card info-card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-project-diagram mr-2"></i>Projects ({{ projects|length }})</h5>
+        </div>
+        <div class="card-body">
+            {% if projects %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Stage</th>
+                            <th>Deal Value</th>
+                            <th>Probability</th>
+                            <th>Expected Close</th>
+                            <th>Registered</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects[:10] %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('project_detail', project_id=project['id']) }}" class="font-weight-bold">
+                                    {{ project['project_name'] }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ 'success' if project['stage'] == 'Won' else 'danger' if project['stage'] == 'Lost' else 'primary' }}">
+                                    {{ project['stage'] or 'N/A' }}
+                                </span>
+                            </td>
+                            <td>{{ "{:,.0f}".format(project['deal_value'] or 0) }} SAR</td>
+                            <td>{{ project['probability'] or 0 }}%</td>
+                            <td>{{ project['expected_close_date'][:10] if project['expected_close_date'] else 'N/A' }}</td>
+                            <td>{{ project['registered_date'][:10] if project['registered_date'] else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('project_detail', project_id=project['id']) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if projects|length > 10 %}
+            <div class="text-center mt-3">
+                <span class="text-muted">Showing 10 of {{ projects|length }} projects</span>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No projects associated with this client yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addFollowUpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-calendar-plus mr-2"></i>Schedule Follow-up</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="followUpForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-tag text-primary mr-1"></i> Follow-up Type <span class="text-danger">*</span></label>
+                                <select class="form-control" id="follow_up_type" required>
+                                    <option value="">Select Type</option>
+                                    <option value="Phone Call">Phone Call</option>
+                                    <option value="Email">Email</option>
+                                    <option value="Meeting">Meeting</option>
+                                    <option value="Site Visit">Site Visit</option>
+                                    <option value="Quotation Follow-up">Quotation Follow-up</option>
+                                    <option value="Payment Follow-up">Payment Follow-up</option>
+                                    <option value="Project Update">Project Update</option>
+                                    <option value="General">General</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-exclamation-circle text-warning mr-1"></i> Priority <span class="text-danger">*</span></label>
+                                <select class="form-control" id="priority" required>
+                                    <option value="Normal">Normal</option>
+                                    <option value="High">High</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-calendar text-success mr-1"></i> Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="follow_up_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-clock text-info mr-1"></i> Time</label>
+                                <input type="time" class="form-control" id="follow_up_time">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-heading text-primary mr-1"></i> Subject <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="subject" placeholder="Brief description of the follow-up" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-sticky-note text-secondary mr-1"></i> Notes</label>
+                        <textarea class="form-control" id="notes" rows="3" placeholder="Additional details..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveFollowUp()">
+                    <i class="fas fa-save mr-1"></i> Schedule Follow-up
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addActivityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                <h5 class="modal-title"><i class="fas fa-plus-circle mr-2"></i>Log Activity</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="activityForm">
+                    <div class="form-group">
+                        <label><i class="fas fa-tag text-primary mr-1"></i> Activity Type <span class="text-danger">*</span></label>
+                        <select class="form-control" id="activity_type" required>
+                            <option value="">Select Type</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Email Sent">Email Sent</option>
+                            <option value="Email Received">Email Received</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Site Visit">Site Visit</option>
+                            <option value="Quotation Sent">Quotation Sent</option>
+                            <option value="Proposal Submitted">Proposal Submitted</option>
+                            <option value="Contract Signed">Contract Signed</option>
+                            <option value="Payment Received">Payment Received</option>
+                            <option value="Note">Note</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-comment text-secondary mr-1"></i> Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="activity_description" rows="4" placeholder="Describe the activity..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" onclick="saveActivity()">
+                    <i class="fas fa-save mr-1"></i> Log Activity
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function saveFollowUp() {
+    const data = {
+        client_type: '{{ client_type }}',
+        client_id: {{ client_id }},
+        follow_up_type: document.getElementById('follow_up_type').value,
+        follow_up_date: document.getElementById('follow_up_date').value,
+        follow_up_time: document.getElementById('follow_up_time').value,
+        priority: document.getElementById('priority').value,
+        subject: document.getElementById('subject').value,
+        notes: document.getElementById('notes').value
+    };
+    
+    if (!data.follow_up_type || !data.follow_up_date || !data.subject) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    fetch('/api/client_follow_up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    });
+}
+
+function completeFollowUp(followUpId) {
+    if (confirm('Mark this follow-up as completed?')) {
+        fetch('/api/client_follow_up/' + followUpId + '/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        });
+    }
+}
+
+function cancelFollowUp(followUpId) {
+    if (confirm('Cancel this follow-up?')) {
+        fetch('/api/client_follow_up/' + followUpId + '/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        });
+    }
+}
+
+function saveActivity() {
+    const data = {
+        client_type: '{{ client_type }}',
+        client_id: {{ client_id }},
+        activity_type: document.getElementById('activity_type').value,
+        activity_description: document.getElementById('activity_description').value
+    };
+    
+    if (!data.activity_type || !data.activity_description) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    fetch('/api/client_activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('follow_up_date').value = today;
+});
+</script>
+{% endblock %}

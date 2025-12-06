@@ -808,6 +808,44 @@ def init_db():
     # Create index for faster session lookups
     c.execute('CREATE INDEX IF NOT EXISTS idx_active_sessions_user_id ON active_sessions(user_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_active_sessions_session_id ON active_sessions(session_id)')
+    
+    # Client Follow-ups table for tracking follow-up activities with clients
+    c.execute('''CREATE TABLE IF NOT EXISTS client_follow_ups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_type TEXT NOT NULL,
+            client_id INTEGER NOT NULL,
+            follow_up_type TEXT NOT NULL,
+            follow_up_date TEXT NOT NULL,
+            follow_up_time TEXT,
+            status TEXT DEFAULT 'Pending',
+            priority TEXT DEFAULT 'Normal',
+            subject TEXT NOT NULL,
+            notes TEXT,
+            reminder_date TEXT,
+            assigned_to TEXT,
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            completed_by TEXT
+        )''')
+    
+    # Client Activity Log table for tracking all interactions with clients
+    c.execute('''CREATE TABLE IF NOT EXISTS client_activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_type TEXT NOT NULL,
+            client_id INTEGER NOT NULL,
+            activity_type TEXT NOT NULL,
+            activity_description TEXT NOT NULL,
+            related_project TEXT,
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+    
+    # Create indexes for client tables
+    c.execute('CREATE INDEX IF NOT EXISTS idx_client_follow_ups_client ON client_follow_ups(client_type, client_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_client_follow_ups_status ON client_follow_ups(status)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_client_activity_log_client ON client_activity_log(client_type, client_id)')
 
     conn.commit()
     conn.close()
@@ -8702,6 +8740,281 @@ def view_all_clients():
                            clients=all_clients,
                            sales_engineers=sales_engineers,
                            search_query=search_query)
+
+##########
+# CLIENT PROFILE
+##########
+@app.route('/client_profile/<client_type>/<int:client_id>')
+@login_required
+def client_profile(client_type, client_id):
+    """Comprehensive client profile page with follow-up tracking"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get client details based on type
+    if client_type == 'end_user':
+        cursor.execute("""
+            SELECT eu.*, e.username as assigned_engineer_name
+            FROM end_users eu
+            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+            WHERE eu.id = ?
+        """, (client_id,))
+        client = cursor.fetchone()
+        client_table = 'end_users'
+        projects_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+        edit_url = 'edit_end_user'
+        view_url = 'view_end_users'
+    elif client_type == 'contractor':
+        cursor.execute("""
+            SELECT c.*, e.username as assigned_engineer_name
+            FROM contractors c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.id = ?
+        """, (client_id,))
+        client = cursor.fetchone()
+        client_table = 'contractors'
+        projects_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+        edit_url = 'edit_contractor'
+        view_url = 'view_contractors'
+    elif client_type == 'consultant':
+        cursor.execute("""
+            SELECT c.*, e.username as assigned_engineer_name
+            FROM consultants c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.id = ?
+        """, (client_id,))
+        client = cursor.fetchone()
+        client_table = 'consultants'
+        projects_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+        edit_url = 'edit_consultant'
+        view_url = 'view_consultants'
+    else:
+        flash('Invalid client type!', 'danger')
+        conn.close()
+        return redirect(url_for('view_all_clients'))
+    
+    if not client:
+        flash('Client not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_all_clients'))
+    
+    # Get projects for this client
+    cursor.execute(projects_query, (client_id,))
+    projects = cursor.fetchall()
+    
+    # Get follow-ups for this client
+    cursor.execute("""
+        SELECT * FROM client_follow_ups
+        WHERE client_type = ? AND client_id = ?
+        ORDER BY follow_up_date DESC, created_at DESC
+    """, (client_type, client_id))
+    follow_ups = cursor.fetchall()
+    
+    # Get activity log for this client
+    cursor.execute("""
+        SELECT * FROM client_activity_log
+        WHERE client_type = ? AND client_id = ?
+        ORDER BY created_at DESC
+        LIMIT 20
+    """, (client_type, client_id))
+    activities = cursor.fetchall()
+    
+    # Get quotations for projects associated with this client
+    project_names = [p['project_name'] for p in projects]
+    quotations = []
+    if project_names:
+        placeholders = ','.join('?' * len(project_names))
+        cursor.execute(f"""
+            SELECT * FROM projects
+            WHERE project_name IN ({placeholders})
+            ORDER BY registered_date DESC
+        """, project_names)
+        quotations = cursor.fetchall()
+    
+    # Calculate statistics
+    total_projects = len(projects)
+    total_quotations = len(quotations)
+    total_deal_value = sum(p['deal_value'] or 0 for p in projects)
+    pending_follow_ups = len([f for f in follow_ups if f['status'] == 'Pending'])
+    
+    # Stage breakdown
+    stage_counts = {}
+    for project in projects:
+        stage = project['stage'] if project['stage'] else 'Unknown'
+        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+    
+    # Get sales engineers for assignment
+    cursor.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    sales_engineers = cursor.fetchall()
+    
+    conn.close()
+    
+    return render_template('client_profile.html',
+                         client=client,
+                         client_type=client_type,
+                         client_id=client_id,
+                         projects=projects,
+                         follow_ups=follow_ups,
+                         activities=activities,
+                         quotations=quotations,
+                         total_projects=total_projects,
+                         total_quotations=total_quotations,
+                         total_deal_value=total_deal_value,
+                         pending_follow_ups=pending_follow_ups,
+                         stage_counts=stage_counts,
+                         sales_engineers=sales_engineers,
+                         edit_url=edit_url,
+                         view_url=view_url)
+
+
+@app.route('/api/client_follow_up', methods=['POST'])
+@login_required
+def add_client_follow_up():
+    """Add a new follow-up for a client"""
+    data = request.get_json()
+    
+    client_type = data.get('client_type')
+    client_id = data.get('client_id')
+    follow_up_type = data.get('follow_up_type')
+    follow_up_date = data.get('follow_up_date')
+    follow_up_time = data.get('follow_up_time', '')
+    priority = data.get('priority', 'Normal')
+    subject = data.get('subject')
+    notes = data.get('notes', '')
+    assigned_to = data.get('assigned_to', session.get('username'))
+    
+    if not all([client_type, client_id, follow_up_type, follow_up_date, subject]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO client_follow_ups 
+        (client_type, client_id, follow_up_type, follow_up_date, follow_up_time, 
+         priority, subject, notes, assigned_to, created_by, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+    """, (client_type, client_id, follow_up_type, follow_up_date, follow_up_time,
+          priority, subject, notes, assigned_to, session.get('username')))
+    
+    follow_up_id = cursor.lastrowid
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO client_activity_log 
+        (client_type, client_id, activity_type, activity_description, created_by)
+        VALUES (?, ?, 'Follow-up Created', ?, ?)
+    """, (client_type, client_id, f"New follow-up scheduled: {subject}", session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'follow_up_id': follow_up_id})
+
+
+@app.route('/api/client_follow_up/<int:follow_up_id>/complete', methods=['POST'])
+@login_required
+def complete_client_follow_up(follow_up_id):
+    """Mark a follow-up as completed"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get the follow-up
+    cursor.execute("SELECT * FROM client_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    # Update status
+    cursor.execute("""
+        UPDATE client_follow_ups 
+        SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
+        WHERE id = ?
+    """, (session.get('username'), follow_up_id))
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO client_activity_log 
+        (client_type, client_id, activity_type, activity_description, created_by)
+        VALUES (?, ?, 'Follow-up Completed', ?, ?)
+    """, (follow_up['client_type'], follow_up['client_id'], 
+          f"Completed follow-up: {follow_up['subject']}", session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/client_follow_up/<int:follow_up_id>/cancel', methods=['POST'])
+@login_required
+def cancel_client_follow_up(follow_up_id):
+    """Cancel a follow-up"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM client_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE client_follow_ups 
+        SET status = 'Cancelled', updated_at = datetime('now')
+        WHERE id = ?
+    """, (follow_up_id,))
+    
+    cursor.execute("""
+        INSERT INTO client_activity_log 
+        (client_type, client_id, activity_type, activity_description, created_by)
+        VALUES (?, ?, 'Follow-up Cancelled', ?, ?)
+    """, (follow_up['client_type'], follow_up['client_id'], 
+          f"Cancelled follow-up: {follow_up['subject']}", session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/client_activity', methods=['POST'])
+@login_required
+def add_client_activity():
+    """Add an activity log entry for a client"""
+    data = request.get_json()
+    
+    client_type = data.get('client_type')
+    client_id = data.get('client_id')
+    activity_type = data.get('activity_type')
+    activity_description = data.get('activity_description')
+    related_project = data.get('related_project', '')
+    
+    if not all([client_type, client_id, activity_type, activity_description]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO client_activity_log 
+        (client_type, client_id, activity_type, activity_description, related_project, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (client_type, client_id, activity_type, activity_description, 
+          related_project, session.get('username')))
+    
+    activity_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'activity_id': activity_id})
+
 
 ##########33
 @app.route('/view_contractors')
