@@ -823,6 +823,9 @@
                     <a href="{{ url_for('request_for_quotation') }}?project_name={{ project['project_name'] }}&sales_engineer={{ project['sales_engineer_name'] }}" class="btn btn-primary btn-block mb-2">
                         <i class="fas fa-tasks"></i> Create RFQ
                     </a>
+                    <a href="{{ url_for('request_technical_support') }}?project_name={{ project['project_name'] }}&sales_engineer={{ project['sales_engineer_name'] }}" class="btn btn-warning btn-block mb-2">
+                        <i class="fas fa-headset"></i> Create RFTS
+                    </a>
                     <a href="{{ url_for('show_project_history', project_name=project['project_name']) }}" class="btn btn-info btn-block">
                         <i class="fas fa-history"></i> View History
                     </a>

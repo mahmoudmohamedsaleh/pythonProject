@@ -7740,11 +7740,17 @@ def request_technical_support():
     # Fetching options for the dropdowns
     c.execute("SELECT DISTINCT project_name FROM register_project")
     project_names = [row[0] for row in c.fetchall()]
+    
+    # Get pre-populated values from query parameters (from project profile)
+    selected_project_name = request.args.get('project_name', '')
+    selected_sales_engineer = request.args.get('sales_engineer', '')
 
     return render_template('request_technical_support.html',
                            project_names=project_names,
                            presale_engineers=presale_engineers,
-                           sales_engineers=sales_engineers)
+                           sales_engineers=sales_engineers,
+                           selected_project_name=selected_project_name,
+                           selected_sales_engineer=selected_sales_engineer)
 ###########
 @app.route('/technical_support_summary', methods=['GET'])
 @login_required

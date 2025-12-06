@@ -322,7 +322,7 @@
                             <select class="form-control" id="project_name" name="project_name" required>
                                 <option value="">-- Select Project --</option>
                                 {% for project in project_names %}
-                                    <option value="{{ project }}">{{ project }}</option>
+                                    <option value="{{ project }}" {% if project == selected_project_name %}selected{% endif %}>{{ project }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -350,7 +350,7 @@
                                     <select class="form-control" id="sales_engineer" name="sales_engineer" required>
                                         <option value="">-- Select Sales Engineer --</option>
                                         {% for engineer in sales_engineers %}
-                                            <option value="{{ engineer }}">{{ engineer }}</option>
+                                            <option value="{{ engineer }}" {% if engineer == selected_sales_engineer %}selected{% endif %}>{{ engineer }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -500,6 +500,38 @@
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         document.getElementById('deadline').min = tomorrow.toISOString().split('T')[0];
+        
+        // Auto-select sales engineer when project is selected
+        const projectSelect = document.getElementById('project_name');
+        const salesEngineerSelect = document.getElementById('sales_engineer');
+        
+        projectSelect.addEventListener('change', function() {
+            const projectName = this.value;
+            if (projectName) {
+                // Fetch the sales engineer for this project
+                fetch('/api/get_project_sales_engineer/' + encodeURIComponent(projectName))
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.sales_engineer) {
+                            // Find and select the matching option
+                            for (let option of salesEngineerSelect.options) {
+                                if (option.value === data.sales_engineer) {
+                                    option.selected = true;
+                                    break;
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching sales engineer:', error);
+                    });
+            }
+        });
+        
+        // Trigger the change event on page load if a project is already selected
+        if (projectSelect.value) {
+            projectSelect.dispatchEvent(new Event('change'));
+        }
     });
 </script>
 {% endblock %}
