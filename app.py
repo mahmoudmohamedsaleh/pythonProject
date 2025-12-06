@@ -15590,6 +15590,10 @@ def delete_task(task_id):
     task = c.fetchone()
 
     if task and (task['assigned_by_id'] == session['user_id'] or session.get('user_role') == 'General Manager'):
+        # Delete associated comments and history first
+        c.execute("DELETE FROM task_comments WHERE task_id = ?", (task_id,))
+        c.execute("DELETE FROM task_history WHERE task_id = ?", (task_id,))
+        # Then delete the task
         c.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
         conn.commit()
         flash('Task deleted successfully.', 'success')
