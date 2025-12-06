@@ -133,6 +133,23 @@
         font-weight: 500;
     }
     
+    .filter-select,
+    .filter-select * {
+        text-decoration: none !important;
+        -webkit-text-decoration: none !important;
+        color: #1a202c !important;
+        background-color: #fff !important;
+    }
+    .filter-select:focus {
+        outline: 2px solid #667eea;
+        outline-offset: 1px;
+    }
+    .filter-select option {
+        color: #1a202c !important;
+        background: #fff !important;
+        text-decoration: none !important;
+    }
+    
     .btn-apply {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
@@ -432,7 +449,7 @@
                     <div class="row">
                         <div class="col-md-4 mb-3">
                             <label><i class="fas fa-user-cog mr-1"></i>Presale Engineer</label>
-                            <select name="presale_engineer" class="form-control">
+                            <select name="presale_engineer" class="filter-select" style="width:100%; padding:10px 12px; border:2px solid #d1d5db; border-radius:8px; background:#fff; color:#1a202c; font-size:14px; font-weight:500; text-decoration:none !important;">
                                 <option value="">All Engineers</option>
                                 {% for e in presale_engineers %}
                                 <option value="{{ e }}" {% if request.args.get('presale_engineer') == e %}selected{% endif %}>{{ e }}</option>
@@ -441,7 +458,7 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label><i class="fas fa-user-tie mr-1"></i>Sales Engineer</label>
-                            <select name="sales_engineer" class="form-control">
+                            <select name="sales_engineer" class="filter-select" style="width:100%; padding:10px 12px; border:2px solid #d1d5db; border-radius:8px; background:#fff; color:#1a202c; font-size:14px; font-weight:500; text-decoration:none !important;">
                                 <option value="">All Engineers</option>
                                 {% for e in sales_engineers %}
                                 <option value="{{ e }}" {% if request.args.get('sales_engineer') == e %}selected{% endif %}>{{ e }}</option>
@@ -450,7 +467,7 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label><i class="fas fa-tag mr-1"></i>Request Type</label>
-                            <select name="request_type" class="form-control">
+                            <select name="request_type" class="filter-select" style="width:100%; padding:10px 12px; border:2px solid #d1d5db; border-radius:8px; background:#fff; color:#1a202c; font-size:14px; font-weight:500; text-decoration:none !important;">
                                 <option value="">All Types</option>
                                 {% for t in request_types %}
                                 <option value="{{ t }}" {% if request.args.get('request_type') == t %}selected{% endif %}>{{ t }}</option>
@@ -459,7 +476,7 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label><i class="fas fa-info-circle mr-1"></i>Request Status</label>
-                            <select name="request_status" class="form-control">
+                            <select name="request_status" class="filter-select" style="width:100%; padding:10px 12px; border:2px solid #d1d5db; border-radius:8px; background:#fff; color:#1a202c; font-size:14px; font-weight:500; text-decoration:none !important;">
                                 <option value="">All Statuses</option>
                                 {% for s in request_statuses %}
                                 <option value="{{ s }}" {% if request.args.get('request_status') == s %}selected{% endif %}>{{ s }}</option>
@@ -468,7 +485,7 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label><i class="fas fa-flag mr-1"></i>Priority</label>
-                            <select name="priority" class="form-control">
+                            <select name="priority" class="filter-select" style="width:100%; padding:10px 12px; border:2px solid #d1d5db; border-radius:8px; background:#fff; color:#1a202c; font-size:14px; font-weight:500; text-decoration:none !important;">
                                 <option value="">All Priorities</option>
                                 {% for p in priorities %}
                                 <option value="{{ p }}" {% if request.args.get('priority') == p %}selected{% endif %}>{{ p }}</option>
