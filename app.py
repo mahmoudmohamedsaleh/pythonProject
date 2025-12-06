@@ -7806,7 +7806,7 @@ def technical_support_summary():
     # Calculate KPI counts for dashboard cards
     c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(request_status) = 'done'")
     done_count = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(request_status) = 'pending' OR LOWER(request_status) = 'in progress'")
+    c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(request_status) IN ('pending', 'in progress', 'queue', 'studying')")
     pending_count = c.fetchone()[0]
     c.execute("SELECT COUNT(*) FROM technical_support_requests WHERE LOWER(priority) = 'high'")
     high_priority_count = c.fetchone()[0]
