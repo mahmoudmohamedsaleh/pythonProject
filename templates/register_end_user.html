@@ -1,43 +1,177 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register End User</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
-    {% include 'navbar.html' %}
+{% extends 'base.html' %}
+{% block title %}Register End User{% endblock %}
 
-    <div class="container mt-4">
-        <h2>Register End User</h2>
-        <form method="POST">
-            <div class="form-group">
-                <label for="name">Name:</label>
-                <input type="text" class="form-control" name="name" required>
+{% block content %}
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(17, 153, 142, 0.3);
+    }
+    .profile-header h1 {
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    .profile-header .subtitle {
+        opacity: 0.9;
+        font-size: 1.1rem;
+    }
+    .register-card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    .register-card .card-header {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        font-weight: 600;
+        padding: 18px 25px;
+        border: none;
+    }
+    .register-card .card-header i {
+        margin-right: 10px;
+    }
+    .register-card .card-body {
+        padding: 30px;
+    }
+    .form-group label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+    .form-group label i {
+        margin-right: 8px;
+        color: #11998e;
+    }
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e9ecef;
+        padding: 12px 15px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    .form-control:focus {
+        border-color: #11998e;
+        box-shadow: 0 0 0 0.2rem rgba(17, 153, 142, 0.15);
+    }
+    .form-control:hover {
+        border-color: #ced4da;
+    }
+    textarea.form-control {
+        min-height: 120px;
+    }
+    .btn-register {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border: none;
+        padding: 12px 30px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .btn-register:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        color: white;
+    }
+    .btn-cancel {
+        background: #6c757d;
+        border: none;
+        padding: 12px 30px;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .btn-cancel:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+    .required-star {
+        color: #dc3545;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="profile-header">
+        <div class="d-flex align-items-center">
+            <div class="mr-4">
+                <i class="fas fa-user-tie fa-3x"></i>
             </div>
-            <div class="form-group">
-                <label for="contact_person">Contact Person:</label>
-                <input type="text" class="form-control" name="contact_person" required>
+            <div>
+                <h1><i class="fas fa-plus-circle"></i> Register End User</h1>
+                <p class="subtitle mb-0">Add a new end user to your CRM database</p>
             </div>
-            <div class="form-group">
-                <label for="phone">Phone:</label>
-                <input type="text" class="form-control" name="phone" required>
-            </div>
-            <div class="form-group">
-                <label for="email">Email:</label>
-                <input type="email" class="form-control" name="email" required>
-            </div>
-            <div class="form-group">
-                <label for="note">Note:</label>
-                <textarea class="form-control" name="note"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Register End User</button>
-        </form>
+        </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.1/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card register-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> End User Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="name"><i class="fas fa-building"></i> Company Name <span class="required-star">*</span></label>
+                                    <input type="text" class="form-control" id="name" name="name" placeholder="Enter company name" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="contact_person"><i class="fas fa-user"></i> Contact Person <span class="required-star">*</span></label>
+                                    <input type="text" class="form-control" id="contact_person" name="contact_person" placeholder="Enter contact person name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="phone"><i class="fas fa-phone"></i> Phone Number <span class="required-star">*</span></label>
+                                    <input type="text" class="form-control" id="phone" name="phone" placeholder="Enter phone number" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="email"><i class="fas fa-envelope"></i> Email Address <span class="required-star">*</span></label>
+                                    <input type="email" class="form-control" id="email" name="email" placeholder="Enter email address" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="note"><i class="fas fa-sticky-note"></i> Notes <span class="text-muted">(Optional)</span></label>
+                                    <textarea class="form-control" id="note" name="note" placeholder="Add any additional notes about this end user..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('view_end_users') }}" class="btn btn-cancel text-white">
+                                <i class="fas fa-arrow-left mr-2"></i> Back to List
+                            </a>
+                            <button type="submit" class="btn btn-register">
+                                <i class="fas fa-save mr-2"></i> Register End User
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
