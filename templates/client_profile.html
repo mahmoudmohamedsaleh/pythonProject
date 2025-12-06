@@ -437,16 +437,31 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-group">
                                 <label><i class="fas fa-calendar text-success mr-1"></i> Date <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="follow_up_date" required>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="form-group">
                                 <label><i class="fas fa-clock text-info mr-1"></i> Time</label>
                                 <input type="time" class="form-control" id="follow_up_time">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-user-check text-purple mr-1"></i> Assigned To</label>
+                                {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
+                                <select class="form-control" id="assigned_to">
+                                    {% for user in users %}
+                                    <option value="{{ user }}" {% if user == session.get('username') %}selected{% endif %}>{{ user }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
+                                <input type="text" class="form-control" id="assigned_to_display" value="{{ session.get('username') }}" readonly style="background-color: #f8f9fa;">
+                                <input type="hidden" id="assigned_to" value="{{ session.get('username') }}">
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -514,6 +529,7 @@
 
 <script>
 function saveFollowUp() {
+    const assignedToEl = document.getElementById('assigned_to');
     const data = {
         client_type: '{{ client_type }}',
         client_id: {{ client_id }},
@@ -522,7 +538,8 @@ function saveFollowUp() {
         follow_up_time: document.getElementById('follow_up_time').value,
         priority: document.getElementById('priority').value,
         subject: document.getElementById('subject').value,
-        notes: document.getElementById('notes').value
+        notes: document.getElementById('notes').value,
+        assigned_to: assignedToEl ? assignedToEl.value : '{{ session.get("username") }}'
     };
     
     if (!data.follow_up_type || !data.follow_up_date || !data.subject) {

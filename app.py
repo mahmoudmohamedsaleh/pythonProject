@@ -9012,6 +9012,10 @@ def client_profile(client_type, client_id):
     cursor.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
     sales_engineers = cursor.fetchall()
     
+    # Get users for assignment dropdown
+    cursor.execute("SELECT username FROM users ORDER BY username")
+    users = [row['username'] for row in cursor.fetchall()]
+    
     conn.close()
     
     # Get current date for overdue checking
@@ -9032,6 +9036,7 @@ def client_profile(client_type, client_id):
                          pending_follow_ups=pending_follow_ups,
                          stage_counts=stage_counts,
                          sales_engineers=sales_engineers,
+                         users=users,
                          edit_url=edit_url,
                          view_url=view_url,
                          current_date=current_date)
