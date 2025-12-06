@@ -7,53 +7,6 @@
     .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; font-size: 1.25rem; padding: 1.5rem; }
     .card-body { padding: 2rem; }
     .form-control:disabled { background-color: #e9ecef; }
-    
-    .system-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-        gap: 0.75rem;
-    }
-    .system-checkbox-item {
-        background: white;
-        border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .system-checkbox-item:hover {
-        border-color: #667eea;
-        background: #f7f8fc;
-    }
-    .system-checkbox-item.checked {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-color: transparent;
-        color: white;
-    }
-    .system-checkbox-item input {
-        display: none;
-    }
-    .system-checkbox-item i {
-        font-size: 0.9rem;
-    }
-    .system-checkbox-item span {
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-    .add-system-input {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-    .add-system-input input {
-        flex: 1;
-    }
-    .add-system-input .btn {
-        white-space: nowrap;
-    }
 </style>
 
 <div class="container" style="max-width: 900px;">
@@ -102,53 +55,39 @@
                         </select>
                     </div>
                     <div class="form-group col-md-6">
-                        <label><i class="fas fa-layer-group mr-1" style="color: #667eea;"></i>System(s)</label>
+                        <label>System(s)</label>
                         {% set selected_systems = rfq['system'].split(', ') if rfq['system'] else [] %}
-                        <div class="system-grid" id="systemGrid">
-                            <label class="system-checkbox-item {% if 'CCTV' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="CCTV" {% if 'CCTV' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-video"></i>
-                                <span>CCTV</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'Fire Alarm' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="Fire Alarm" {% if 'Fire Alarm' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-fire-extinguisher"></i>
-                                <span>Fire Alarm</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'Passive' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="Passive" {% if 'Passive' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-ethernet"></i>
-                                <span>Passive</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'Access Control' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="Access Control" {% if 'Access Control' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-id-card"></i>
-                                <span>Access Control</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'MATV' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="MATV" {% if 'MATV' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-tv"></i>
-                                <span>MATV</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'Intercom' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="Intercom" {% if 'Intercom' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-phone-alt"></i>
-                                <span>Intercom</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'BMS' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="BMS" {% if 'BMS' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-building"></i>
-                                <span>BMS</span>
-                            </label>
-                            <label class="system-checkbox-item {% if 'PA System' in selected_systems %}checked{% endif %}">
-                                <input class="system-checkbox" type="checkbox" value="PA System" {% if 'PA System' in selected_systems %}checked{% endif %}>
-                                <i class="fas fa-bullhorn"></i>
-                                <span>PA System</span>
-                            </label>
+                        <div class="system-checkbox-group border rounded p-2" id="systemGroup" style="max-height: 150px; overflow-y: auto; background: #f8f9fa;">
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="CCTV" id="sys_cctv" {% if 'CCTV' in selected_systems %}checked{% endif %}>
+                                <label class="form-check-label" for="sys_cctv">CCTV</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Fire Alarm" id="sys_fire" {% if 'Fire Alarm' in selected_systems %}checked{% endif %}>
+                                <label class="form-check-label" for="sys_fire">Fire Alarm</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Passive" id="sys_passive" {% if 'Passive' in selected_systems %}checked{% endif %}>
+                                <label class="form-check-label" for="sys_passive">Passive</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Access Control" id="sys_access" {% if 'Access Control' in selected_systems %}checked{% endif %}>
+                                <label class="form-check-label" for="sys_access">Access Control</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="MATV" id="sys_matv" {% if 'MATV' in selected_systems %}checked{% endif %}>
+                                <label class="form-check-label" for="sys_matv">MATV</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input system-checkbox" type="checkbox" value="Intercom" id="sys_intercom" {% if 'Intercom' in selected_systems %}checked{% endif %}>
+                                <label class="form-check-label" for="sys_intercom">Intercom</label>
+                            </div>
                         </div>
-                        <div class="add-system-input">
+                        <div class="input-group mt-2">
                             <input type="text" class="form-control" id="custom_system" placeholder="Add custom system...">
-                            <button class="btn btn-outline-primary" type="button" id="add_custom_system"><i class="fas fa-plus"></i> Add</button>
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-primary" type="button" id="add_custom_system"><i class="fas fa-plus"></i> Add</button>
+                            </div>
                         </div>
                         <input type="hidden" id="system" name="system" value="{{ rfq['system'] or '' }}">
                     </div>
@@ -212,7 +151,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const systemGrid = document.getElementById('systemGrid');
+    const systemGroup = document.getElementById('systemGroup');
     const hiddenInput = document.getElementById('system');
     const customInput = document.getElementById('custom_system');
     const addBtn = document.getElementById('add_custom_system');
@@ -223,44 +162,22 @@ document.addEventListener('DOMContentLoaded', function() {
         hiddenInput.value = values.join(', ');
     }
     
-    document.querySelectorAll('.system-checkbox-item').forEach(item => {
-        item.addEventListener('click', function(e) {
-            if (e.target.tagName !== 'INPUT') {
-                const checkbox = this.querySelector('input');
-                checkbox.checked = !checkbox.checked;
-            }
-            this.classList.toggle('checked', this.querySelector('input').checked);
-            updateHiddenInput();
-        });
-        
-        const checkbox = item.querySelector('input');
-        checkbox.addEventListener('change', function() {
-            item.classList.toggle('checked', this.checked);
-            updateHiddenInput();
-        });
+    document.querySelectorAll('.system-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateHiddenInput);
     });
     
     addBtn.addEventListener('click', function() {
         const customValue = customInput.value.trim();
         if (customValue && !document.querySelector(`.system-checkbox[value="${customValue}"]`)) {
-            const newItem = document.createElement('label');
-            newItem.className = 'system-checkbox-item checked';
-            newItem.innerHTML = `
-                <input class="system-checkbox" type="checkbox" value="${customValue}" checked>
-                <i class="fas fa-plus-circle"></i>
-                <span>${customValue}</span>
+            const newId = 'sys_custom_' + Date.now();
+            const newCheck = document.createElement('div');
+            newCheck.className = 'form-check';
+            newCheck.innerHTML = `
+                <input class="form-check-input system-checkbox" type="checkbox" value="${customValue}" id="${newId}" checked>
+                <label class="form-check-label" for="${newId}">${customValue}</label>
             `;
-            systemGrid.appendChild(newItem);
-            
-            newItem.addEventListener('click', function(e) {
-                if (e.target.tagName !== 'INPUT') {
-                    const checkbox = this.querySelector('input');
-                    checkbox.checked = !checkbox.checked;
-                }
-                this.classList.toggle('checked', this.querySelector('input').checked);
-                updateHiddenInput();
-            });
-            
+            systemGroup.appendChild(newCheck);
+            newCheck.querySelector('input').addEventListener('change', updateHiddenInput);
             customInput.value = '';
             updateHiddenInput();
         }
