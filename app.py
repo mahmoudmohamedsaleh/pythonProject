@@ -846,6 +846,46 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_client_follow_ups_client ON client_follow_ups(client_type, client_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_client_follow_ups_status ON client_follow_ups(status)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_client_activity_log_client ON client_activity_log(client_type, client_id)')
+    
+    # RFQ Follow-ups table for tracking follow-ups on RFQs
+    c.execute('''CREATE TABLE IF NOT EXISTS rfq_follow_ups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rfq_id INTEGER NOT NULL,
+            follow_up_type TEXT NOT NULL,
+            contact_type TEXT NOT NULL,
+            contact_name TEXT,
+            follow_up_date TEXT NOT NULL,
+            follow_up_time TEXT,
+            status TEXT DEFAULT 'Pending',
+            priority TEXT DEFAULT 'Normal',
+            subject TEXT NOT NULL,
+            notes TEXT,
+            assigned_to TEXT,
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            completed_by TEXT,
+            FOREIGN KEY (rfq_id) REFERENCES rfq_requests(id)
+        )''')
+    
+    # RFQ Activity Log table for tracking all RFQ interactions
+    c.execute('''CREATE TABLE IF NOT EXISTS rfq_activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rfq_id INTEGER NOT NULL,
+            activity_type TEXT NOT NULL,
+            activity_description TEXT NOT NULL,
+            contact_type TEXT,
+            contact_name TEXT,
+            created_by TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (rfq_id) REFERENCES rfq_requests(id)
+        )''')
+    
+    # Create indexes for RFQ tables
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rfq_follow_ups_rfq ON rfq_follow_ups(rfq_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rfq_follow_ups_status ON rfq_follow_ups(status)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rfq_activity_log_rfq ON rfq_activity_log(rfq_id)')
 
     conn.commit()
     conn.close()
@@ -7688,6 +7728,36 @@ def rfq_profile(rfq_id):
             is_overdue = False
             days_overdue = 0
     
+    # Get RFQ follow-ups
+    c.execute("""
+        SELECT * FROM rfq_follow_ups
+        WHERE rfq_id = ?
+        ORDER BY follow_up_date DESC, created_at DESC
+    """, (rfq_id,))
+    follow_ups = c.fetchall()
+    
+    # Get RFQ activity log
+    c.execute("""
+        SELECT * FROM rfq_activity_log
+        WHERE rfq_id = ?
+        ORDER BY created_at DESC
+        LIMIT 20
+    """, (rfq_id,))
+    activities = c.fetchall()
+    
+    # Get vendors and distributors for follow-up form
+    c.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = c.fetchall()
+    
+    c.execute("SELECT id, name FROM distributors ORDER BY name")
+    distributors = c.fetchall()
+    
+    # Get current date for overdue checking
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Count pending follow-ups
+    pending_follow_ups = len([f for f in follow_ups if f['status'] == 'Pending'])
+    
     conn.close()
     
     return render_template('rfq_profile.html',
@@ -7699,7 +7769,13 @@ def rfq_profile(rfq_id):
                          is_overdue=is_overdue,
                          days_overdue=days_overdue,
                          turnaround_days=turnaround_days,
-                         quote_submitted_date=quote_submitted_date.strftime('%Y-%m-%d') if quote_submitted_date else None)
+                         quote_submitted_date=quote_submitted_date.strftime('%Y-%m-%d') if quote_submitted_date else None,
+                         follow_ups=follow_ups,
+                         activities=activities,
+                         vendors=vendors,
+                         distributors=distributors,
+                         current_date=current_date,
+                         pending_follow_ups=pending_follow_ups)
 
 ##############3
 @app.route('/edit_rfq/<int:rfq_id>', methods=['GET', 'POST'])
@@ -9172,6 +9248,154 @@ def send_follow_up_email_reminders():
             
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+##########
+# RFQ FOLLOW-UP ENDPOINTS
+##########
+@app.route('/api/rfq_follow_up', methods=['POST'])
+@login_required
+def add_rfq_follow_up():
+    """Add a new follow-up for an RFQ"""
+    data = request.get_json()
+    
+    rfq_id = data.get('rfq_id')
+    follow_up_type = data.get('follow_up_type')
+    contact_type = data.get('contact_type')
+    contact_name = data.get('contact_name', '')
+    follow_up_date = data.get('follow_up_date')
+    follow_up_time = data.get('follow_up_time', '')
+    priority = data.get('priority', 'Normal')
+    subject = data.get('subject')
+    notes = data.get('notes', '')
+    assigned_to = data.get('assigned_to', session.get('username'))
+    
+    if not all([rfq_id, follow_up_type, contact_type, follow_up_date, subject]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO rfq_follow_ups 
+        (rfq_id, follow_up_type, contact_type, contact_name, follow_up_date, follow_up_time, 
+         priority, subject, notes, assigned_to, created_by, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+    """, (rfq_id, follow_up_type, contact_type, contact_name, follow_up_date, follow_up_time,
+          priority, subject, notes, assigned_to, session.get('username')))
+    
+    follow_up_id = cursor.lastrowid
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO rfq_activity_log 
+        (rfq_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, 'Follow-up Created', ?, ?, ?, ?)
+    """, (rfq_id, f"New follow-up scheduled: {subject}", contact_type, contact_name, session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'follow_up_id': follow_up_id})
+
+
+@app.route('/api/rfq_follow_up/<int:follow_up_id>/complete', methods=['POST'])
+@login_required
+def complete_rfq_follow_up(follow_up_id):
+    """Mark an RFQ follow-up as completed"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM rfq_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE rfq_follow_ups 
+        SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
+        WHERE id = ?
+    """, (session.get('username'), follow_up_id))
+    
+    cursor.execute("""
+        INSERT INTO rfq_activity_log 
+        (rfq_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, 'Follow-up Completed', ?, ?, ?, ?)
+    """, (follow_up['rfq_id'], f"Completed follow-up: {follow_up['subject']}", 
+          follow_up['contact_type'], follow_up['contact_name'], session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/rfq_follow_up/<int:follow_up_id>/cancel', methods=['POST'])
+@login_required
+def cancel_rfq_follow_up(follow_up_id):
+    """Cancel an RFQ follow-up"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM rfq_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE rfq_follow_ups 
+        SET status = 'Cancelled', updated_at = datetime('now')
+        WHERE id = ?
+    """, (follow_up_id,))
+    
+    cursor.execute("""
+        INSERT INTO rfq_activity_log 
+        (rfq_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, 'Follow-up Cancelled', ?, ?, ?, ?)
+    """, (follow_up['rfq_id'], f"Cancelled follow-up: {follow_up['subject']}", 
+          follow_up['contact_type'], follow_up['contact_name'], session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/rfq_activity', methods=['POST'])
+@login_required
+def add_rfq_activity():
+    """Add an activity log entry for an RFQ"""
+    data = request.get_json()
+    
+    rfq_id = data.get('rfq_id')
+    activity_type = data.get('activity_type')
+    activity_description = data.get('activity_description')
+    contact_type = data.get('contact_type', '')
+    contact_name = data.get('contact_name', '')
+    
+    if not all([rfq_id, activity_type, activity_description]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO rfq_activity_log 
+        (rfq_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (rfq_id, activity_type, activity_description, contact_type, contact_name, session.get('username')))
+    
+    activity_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'activity_id': activity_id})
 
 
 ##########33
