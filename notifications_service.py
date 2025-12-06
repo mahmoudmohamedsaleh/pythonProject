@@ -435,5 +435,122 @@ class NotificationService:
         return list(set(stakeholders))
 
 
+    def check_follow_up_reminders(self, user_id: int) -> List[Dict[str, Any]]:
+        """Check for due follow-ups for a user and return list of reminders"""
+        from datetime import datetime, timedelta
+        
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        today = datetime.now().strftime('%Y-%m-%d')
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # Get username for this user
+        cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+        user_result = cursor.fetchone()
+        if not user_result:
+            conn.close()
+            return []
+        
+        username = user_result['username']
+        
+        # Find pending follow-ups that are due today, tomorrow, or overdue
+        cursor.execute("""
+            SELECT cf.*, 
+                   CASE 
+                       WHEN cf.client_type = 'end_user' THEN (SELECT name FROM end_users WHERE id = cf.client_id)
+                       WHEN cf.client_type = 'contractor' THEN (SELECT name FROM contractors WHERE id = cf.client_id)
+                       WHEN cf.client_type = 'consultant' THEN (SELECT name FROM consultants WHERE id = cf.client_id)
+                   END as client_name
+            FROM client_follow_ups cf
+            WHERE cf.status = 'Pending'
+            AND (cf.assigned_to = ? OR cf.created_by = ?)
+            AND cf.follow_up_date <= ?
+            ORDER BY cf.follow_up_date ASC, cf.priority DESC
+        """, (username, username, tomorrow))
+        
+        follow_ups = cursor.fetchall()
+        conn.close()
+        
+        reminders = []
+        for fu in follow_ups:
+            is_overdue = fu['follow_up_date'] < today
+            is_today = fu['follow_up_date'] == today
+            
+            reminders.append({
+                'id': fu['id'],
+                'subject': fu['subject'],
+                'client_name': fu['client_name'],
+                'client_type': fu['client_type'],
+                'client_id': fu['client_id'],
+                'follow_up_date': fu['follow_up_date'],
+                'follow_up_time': fu['follow_up_time'],
+                'follow_up_type': fu['follow_up_type'],
+                'priority': fu['priority'],
+                'is_overdue': is_overdue,
+                'is_today': is_today,
+                'urgency': 'overdue' if is_overdue else 'today' if is_today else 'upcoming'
+            })
+        
+        return reminders
+    
+    def create_follow_up_notifications(self, user_id: int, reminders: List[Dict[str, Any]]) -> int:
+        """Create in-app notifications for follow-up reminders"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        created_count = 0
+        
+        for reminder in reminders:
+            # Check if notification already exists for this follow-up today
+            cursor.execute("""
+                SELECT id FROM notifications
+                WHERE user_id = ?
+                AND event_code = 'followup.reminder'
+                AND context_data LIKE ?
+                AND DATE(created_at) = DATE('now')
+            """, (user_id, f'%"follow_up_id": {reminder["id"]}%'))
+            
+            if cursor.fetchone():
+                continue  # Already notified today
+            
+            # Create notification
+            if reminder['is_overdue']:
+                title = "Overdue Follow-up!"
+                message = f"Follow-up '{reminder['subject']}' with {reminder['client_name']} was due on {reminder['follow_up_date']}"
+                priority = 'high'
+            elif reminder['is_today']:
+                title = "Follow-up Due Today"
+                time_str = f" at {reminder['follow_up_time']}" if reminder['follow_up_time'] else ""
+                message = f"Follow-up '{reminder['subject']}' with {reminder['client_name']} is due today{time_str}"
+                priority = 'high' if reminder['priority'] == 'High' else 'normal'
+            else:
+                title = "Upcoming Follow-up Tomorrow"
+                message = f"Follow-up '{reminder['subject']}' with {reminder['client_name']} is due tomorrow"
+                priority = 'normal'
+            
+            context_data = json.dumps({
+                'follow_up_id': reminder['id'],
+                'client_type': reminder['client_type'],
+                'client_id': reminder['client_id'],
+                'subject': reminder['subject']
+            })
+            
+            url = f"/client_profile/{reminder['client_type']}/{reminder['client_id']}"
+            
+            cursor.execute("""
+                INSERT INTO notifications 
+                (user_id, event_type, event_code, title, message, context_data, priority, url, is_read, created_at)
+                VALUES (?, 'reminder', 'followup.reminder', ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+            """, (user_id, title, message, context_data, priority, url))
+            
+            created_count += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return created_count
+
+
 # Global instance
 notification_service = NotificationService()

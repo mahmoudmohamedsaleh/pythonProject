@@ -23,6 +23,56 @@ $(document).ready(function() {
 function initializeNotifications() {
     // Load initial notification count
     updateNotificationCount();
+    
+    // Check for follow-up reminders (creates in-app notifications)
+    checkFollowUpReminders();
+}
+
+function checkFollowUpReminders() {
+    $.ajax({
+        url: '/api/check_follow_up_reminders',
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.reminders && response.reminders.length > 0) {
+                // Show browser notification for urgent follow-ups
+                const overdue = response.reminders.filter(r => r.is_overdue).length;
+                const today = response.reminders.filter(r => r.is_today).length;
+                
+                if ((overdue > 0 || today > 0) && 'Notification' in window) {
+                    if (Notification.permission === 'granted') {
+                        showFollowUpBrowserNotification(overdue, today);
+                    } else if (Notification.permission === 'default') {
+                        Notification.requestPermission().then(function(permission) {
+                            if (permission === 'granted') {
+                                showFollowUpBrowserNotification(overdue, today);
+                            }
+                        });
+                    }
+                }
+                
+                // Refresh notification count since new notifications may have been created
+                setTimeout(function() {
+                    updateNotificationCount();
+                }, 1000);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('Follow-up reminder check failed:', error);
+        }
+    });
+}
+
+function showFollowUpBrowserNotification(overdue, today) {
+    let message = '';
+    if (overdue > 0) message += overdue + ' overdue follow-up' + (overdue > 1 ? 's' : '') + '. ';
+    if (today > 0) message += today + ' due today.';
+    
+    new Notification('Follow-up Reminder', {
+        body: message.trim(),
+        icon: '/static/ejt.png',
+        tag: 'followup-reminder-' + new Date().toDateString(),
+        requireInteraction: true
+    });
 }
 
 function startNotificationPolling() {

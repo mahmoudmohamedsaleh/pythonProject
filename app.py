@@ -9021,6 +9021,159 @@ def add_client_activity():
     return jsonify({'success': True, 'activity_id': activity_id})
 
 
+@app.route('/api/check_follow_up_reminders', methods=['GET'])
+@login_required
+def check_follow_up_reminders():
+    """Check and create notifications for due follow-ups"""
+    user_id = session.get('user_id')
+    
+    # Get reminders
+    reminders = notification_service.check_follow_up_reminders(user_id)
+    
+    # Create in-app notifications
+    created_count = notification_service.create_follow_up_notifications(user_id, reminders)
+    
+    return jsonify({
+        'success': True,
+        'reminders': reminders,
+        'notifications_created': created_count
+    })
+
+
+@app.route('/api/send_follow_up_email_reminders', methods=['POST'])
+@login_required
+def send_follow_up_email_reminders():
+    """Send email reminders for due follow-ups"""
+    user_id = session.get('user_id')
+    
+    # Get user email
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT email, username FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user or not user['email']:
+        return jsonify({'success': False, 'error': 'User email not found'}), 400
+    
+    # Get reminders
+    reminders = notification_service.check_follow_up_reminders(user_id)
+    
+    if not reminders:
+        return jsonify({'success': True, 'message': 'No pending follow-ups', 'emails_sent': 0})
+    
+    # Send email via Resend
+    api_key = os.environ.get('RESEND_API_KEY')
+    sender_email = os.environ.get('SENDER_EMAIL', 'noreply@example.com')
+    
+    if not api_key:
+        return jsonify({'success': False, 'error': 'Email service not configured'}), 500
+    
+    # Build email content
+    overdue = [r for r in reminders if r['is_overdue']]
+    today_due = [r for r in reminders if r['is_today']]
+    upcoming = [r for r in reminders if not r['is_overdue'] and not r['is_today']]
+    
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0;">
+                <h2 style="margin: 0;">Follow-up Reminders</h2>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">Hello {user['username']}, here are your pending follow-ups</p>
+            </div>
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 0 0 10px 10px;">
+    """
+    
+    if overdue:
+        html_body += """
+                <div style="background-color: #fff5f5; border-left: 4px solid #dc3545; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+                    <h3 style="color: #dc3545; margin: 0 0 10px 0;">Overdue Follow-ups</h3>
+        """
+        for r in overdue:
+            html_body += f"""
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ffe0e0;">
+                        <strong>{r['subject']}</strong><br>
+                        <span style="color: #666;">Client: {r['client_name']} | Due: {r['follow_up_date']} | Type: {r['follow_up_type']}</span>
+                    </div>
+            """
+        html_body += "</div>"
+    
+    if today_due:
+        html_body += """
+                <div style="background-color: #fff8e6; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+                    <h3 style="color: #856404; margin: 0 0 10px 0;">Due Today</h3>
+        """
+        for r in today_due:
+            time_str = f" at {r['follow_up_time']}" if r['follow_up_time'] else ""
+            html_body += f"""
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #fff0c2;">
+                        <strong>{r['subject']}</strong>{time_str}<br>
+                        <span style="color: #666;">Client: {r['client_name']} | Type: {r['follow_up_type']}</span>
+                    </div>
+            """
+        html_body += "</div>"
+    
+    if upcoming:
+        html_body += """
+                <div style="background-color: #e8f4fd; border-left: 4px solid #17a2b8; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+                    <h3 style="color: #0c5460; margin: 0 0 10px 0;">Coming Up Tomorrow</h3>
+        """
+        for r in upcoming:
+            html_body += f"""
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #bee5eb;">
+                        <strong>{r['subject']}</strong><br>
+                        <span style="color: #666;">Client: {r['client_name']} | Due: {r['follow_up_date']} | Type: {r['follow_up_type']}</span>
+                    </div>
+            """
+        html_body += "</div>"
+    
+    html_body += """
+                <p style="color: #666; font-size: 12px; margin-top: 20px;">
+                    This is an automated reminder from your CRM system.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    
+    try:
+        import requests
+        
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        subject = f"Follow-up Reminders: {len(overdue)} overdue, {len(today_due)} due today"
+        
+        payload = {
+            "from": sender_email,
+            "to": [user['email']],
+            "subject": subject,
+            "html": html_body
+        }
+        
+        response = requests.post(url, headers=headers, json=payload)
+        
+        if response.status_code in [200, 201]:
+            return jsonify({
+                'success': True, 
+                'message': 'Email reminder sent',
+                'emails_sent': 1,
+                'overdue_count': len(overdue),
+                'today_count': len(today_due),
+                'upcoming_count': len(upcoming)
+            })
+        else:
+            return jsonify({'success': False, 'error': f'Email send failed: {response.text}'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 ##########33
 @app.route('/view_contractors')
 @permission_required('view_contractors')
