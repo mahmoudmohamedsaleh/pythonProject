@@ -8204,6 +8204,36 @@ def rfts_profile(rfts_id):
     """, (rfts_id,))
     deliverables = c.fetchall()
     
+    # Get RFTS follow-ups
+    c.execute("""
+        SELECT * FROM rfts_follow_ups
+        WHERE rfts_id = ?
+        ORDER BY follow_up_date DESC, created_at DESC
+    """, (rfts_id,))
+    follow_ups = c.fetchall()
+    
+    # Get RFTS activity log
+    c.execute("""
+        SELECT * FROM rfts_activity_log
+        WHERE rfts_id = ?
+        ORDER BY created_at DESC
+        LIMIT 20
+    """, (rfts_id,))
+    activities = c.fetchall()
+    
+    # Get vendors and distributors for follow-up form
+    c.execute("SELECT id, name FROM vendors ORDER BY name")
+    vendors = c.fetchall()
+    
+    c.execute("SELECT id, name FROM distributors ORDER BY name")
+    distributors = c.fetchall()
+    
+    # Get current date for overdue checking
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Count pending follow-ups
+    pending_follow_ups = len([f for f in follow_ups if f['status'] == 'Pending'])
+    
     conn.close()
     
     return render_template('rfts_profile.html',
@@ -8214,7 +8244,13 @@ def rfts_profile(rfts_id):
                            deliverables=deliverables,
                            age_days=age_days,
                            days_until_deadline=days_until_deadline,
-                           is_overdue=is_overdue)
+                           is_overdue=is_overdue,
+                           follow_ups=follow_ups,
+                           activities=activities,
+                           vendors=vendors,
+                           distributors=distributors,
+                           current_date=current_date,
+                           pending_follow_ups=pending_follow_ups)
 
 
 @app.route('/api/rfts/<int:rfts_id>/deliverable', methods=['POST'])
@@ -9390,6 +9426,154 @@ def add_rfq_activity():
         (rfq_id, activity_type, activity_description, contact_type, contact_name, created_by)
         VALUES (?, ?, ?, ?, ?, ?)
     """, (rfq_id, activity_type, activity_description, contact_type, contact_name, session.get('username')))
+    
+    activity_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'activity_id': activity_id})
+
+
+##########
+# RFTS FOLLOW-UP ENDPOINTS
+##########
+@app.route('/api/rfts_follow_up', methods=['POST'])
+@login_required
+def add_rfts_follow_up():
+    """Add a new follow-up for an RFTS"""
+    data = request.get_json()
+    
+    rfts_id = data.get('rfts_id')
+    follow_up_type = data.get('follow_up_type')
+    contact_type = data.get('contact_type')
+    contact_name = data.get('contact_name', '')
+    follow_up_date = data.get('follow_up_date')
+    follow_up_time = data.get('follow_up_time', '')
+    priority = data.get('priority', 'Normal')
+    subject = data.get('subject')
+    notes = data.get('notes', '')
+    assigned_to = data.get('assigned_to', session.get('username'))
+    
+    if not all([rfts_id, follow_up_type, contact_type, follow_up_date, subject]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO rfts_follow_ups 
+        (rfts_id, follow_up_type, contact_type, contact_name, follow_up_date, follow_up_time, 
+         priority, subject, notes, assigned_to, created_by, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')
+    """, (rfts_id, follow_up_type, contact_type, contact_name, follow_up_date, follow_up_time,
+          priority, subject, notes, assigned_to, session.get('username')))
+    
+    follow_up_id = cursor.lastrowid
+    
+    # Log activity
+    cursor.execute("""
+        INSERT INTO rfts_activity_log 
+        (rfts_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, 'Follow-up Created', ?, ?, ?, ?)
+    """, (rfts_id, f"New follow-up scheduled: {subject}", contact_type, contact_name, session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'follow_up_id': follow_up_id})
+
+
+@app.route('/api/rfts_follow_up/<int:follow_up_id>/complete', methods=['POST'])
+@login_required
+def complete_rfts_follow_up(follow_up_id):
+    """Mark an RFTS follow-up as completed"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM rfts_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE rfts_follow_ups 
+        SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
+        WHERE id = ?
+    """, (session.get('username'), follow_up_id))
+    
+    cursor.execute("""
+        INSERT INTO rfts_activity_log 
+        (rfts_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, 'Follow-up Completed', ?, ?, ?, ?)
+    """, (follow_up['rfts_id'], f"Completed follow-up: {follow_up['subject']}", 
+          follow_up['contact_type'], follow_up['contact_name'], session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/rfts_follow_up/<int:follow_up_id>/cancel', methods=['POST'])
+@login_required
+def cancel_rfts_follow_up(follow_up_id):
+    """Cancel an RFTS follow-up"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM rfts_follow_ups WHERE id = ?", (follow_up_id,))
+    follow_up = cursor.fetchone()
+    
+    if not follow_up:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Follow-up not found'}), 404
+    
+    cursor.execute("""
+        UPDATE rfts_follow_ups 
+        SET status = 'Cancelled', updated_at = datetime('now')
+        WHERE id = ?
+    """, (follow_up_id,))
+    
+    cursor.execute("""
+        INSERT INTO rfts_activity_log 
+        (rfts_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, 'Follow-up Cancelled', ?, ?, ?, ?)
+    """, (follow_up['rfts_id'], f"Cancelled follow-up: {follow_up['subject']}", 
+          follow_up['contact_type'], follow_up['contact_name'], session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/api/rfts_activity', methods=['POST'])
+@login_required
+def add_rfts_activity():
+    """Add an activity log entry for an RFTS"""
+    data = request.get_json()
+    
+    rfts_id = data.get('rfts_id')
+    activity_type = data.get('activity_type')
+    activity_description = data.get('activity_description')
+    contact_type = data.get('contact_type', '')
+    contact_name = data.get('contact_name', '')
+    
+    if not all([rfts_id, activity_type, activity_description]):
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        INSERT INTO rfts_activity_log 
+        (rfts_id, activity_type, activity_description, contact_type, contact_name, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (rfts_id, activity_type, activity_description, contact_type, contact_name, session.get('username')))
     
     activity_id = cursor.lastrowid
     conn.commit()

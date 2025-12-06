@@ -129,6 +129,41 @@
     .stat-number { font-size: 2rem; font-weight: 700; }
     .stat-label { font-size: 0.85rem; opacity: 0.9; text-transform: uppercase; }
     
+    .follow-up-item {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #667eea;
+        transition: all 0.2s ease;
+    }
+    .follow-up-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .follow-up-item.pending { border-left-color: #ffc107; }
+    .follow-up-item.completed { border-left-color: #28a745; background: #f1f8f4; }
+    .follow-up-item.cancelled { border-left-color: #dc3545; background: #fef5f5; opacity: 0.7; }
+    .follow-up-item.overdue { border-left-color: #dc3545; background: #fff5f5; }
+    
+    .activity-item {
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: flex-start;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+    .activity-content { flex: 1; }
+    
     .system-badge {
         display: inline-block;
         padding: 5px 12px;
@@ -469,6 +504,105 @@
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Follow-ups Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);">
+                <span><i class="fas fa-calendar-check mr-2"></i>Follow-ups ({{ follow_ups|length if follow_ups else 0 }})</span>
+                <button class="btn btn-light btn-sm" data-toggle="modal" data-target="#addRftsFollowUpModal">
+                    <i class="fas fa-plus"></i> Add Follow-up
+                </button>
+            </div>
+            <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                {% if follow_ups and follow_ups|length > 0 %}
+                {% for fu in follow_ups %}
+                <div class="follow-up-item {% if fu['status'] == 'Completed' %}completed{% elif fu['status'] == 'Cancelled' %}cancelled{% elif fu['status'] == 'Pending' and fu['follow_up_date'] < current_date %}overdue{% else %}pending{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <strong>{{ fu['subject'] }}</strong>
+                            <span class="badge badge-{{ 'danger' if fu['priority'] == 'High' else 'warning' if fu['priority'] == 'Normal' else 'success' }} ml-2">{{ fu['priority'] }}</span>
+                        </div>
+                        <span class="badge badge-{{ 'success' if fu['status'] == 'Completed' else 'warning' if fu['status'] == 'Pending' else 'secondary' }}">{{ fu['status'] }}</span>
+                    </div>
+                    <div class="text-muted small mb-2">
+                        <i class="fas fa-calendar mr-1"></i> {{ fu['follow_up_date'] }}
+                        {% if fu['follow_up_time'] %}<span class="ml-2"><i class="fas fa-clock mr-1"></i> {{ fu['follow_up_time'] }}</span>{% endif %}
+                        <span class="ml-2"><i class="fas fa-tag mr-1"></i> {{ fu['follow_up_type'] }}</span>
+                        <span class="ml-2"><i class="fas fa-user-tag mr-1"></i> {{ fu['contact_type'] }}{% if fu['contact_name'] %}: {{ fu['contact_name'] }}{% endif %}</span>
+                    </div>
+                    {% if fu['notes'] %}
+                    <p class="mb-2 small">{{ fu['notes'] }}</p>
+                    {% endif %}
+                    {% if fu['status'] == 'Pending' %}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-success" onclick="completeRftsFollowUp({{ fu['id'] }})">
+                            <i class="fas fa-check"></i> Complete
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="cancelRftsFollowUp({{ fu['id'] }})">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No follow-ups scheduled yet</p>
+                    <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addRftsFollowUpModal">
+                        <i class="fas fa-plus"></i> Schedule First Follow-up
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Activity Log Section -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <span><i class="fas fa-history mr-2"></i>Activity Log</span>
+                <button class="btn btn-light btn-sm" data-toggle="modal" data-target="#addRftsActivityModal">
+                    <i class="fas fa-plus"></i> Log Activity
+                </button>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                {% if activities and activities|length > 0 %}
+                {% for activity in activities %}
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        {% if 'Follow-up' in activity['activity_type'] %}
+                        <i class="fas fa-calendar-check"></i>
+                        {% elif 'Call' in activity['activity_type'] %}
+                        <i class="fas fa-phone"></i>
+                        {% elif 'Email' in activity['activity_type'] %}
+                        <i class="fas fa-envelope"></i>
+                        {% elif 'Meeting' in activity['activity_type'] %}
+                        <i class="fas fa-users"></i>
+                        {% elif 'Document' in activity['activity_type'] %}
+                        <i class="fas fa-file"></i>
+                        {% else %}
+                        <i class="fas fa-comment"></i>
+                        {% endif %}
+                    </div>
+                    <div class="activity-content">
+                        <strong>{{ activity['activity_type'] }}</strong>
+                        {% if activity['contact_type'] %}<span class="badge badge-info ml-2">{{ activity['contact_type'] }}</span>{% endif %}
+                        <p class="mb-1 small">{{ activity['activity_description'] }}</p>
+                        <span class="text-muted" style="font-size: 0.8rem;">
+                            <i class="fas fa-user mr-1"></i> {{ activity['created_by'] }} 
+                            <span class="ml-2"><i class="fas fa-clock mr-1"></i> {{ activity['created_at'][:16] }}</span>
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No activity logged yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
     
     <div class="col-lg-4">
@@ -725,5 +859,296 @@ function deleteDeliverable(deliverableId) {
         alert('An error occurred while deleting the deliverable.');
     });
 }
+
+// RFTS Follow-up Functions
+const vendorsData = [
+    {% for v in vendors %}{ id: {{ v.id }}, name: "{{ v.name }}" }{% if not loop.last %},{% endif %}{% endfor %}
+];
+const distributorsData = [
+    {% for d in distributors %}{ id: {{ d.id }}, name: "{{ d.name }}" }{% if not loop.last %},{% endif %}{% endfor %}
+];
+
+function updateRftsContactNameOptions() {
+    const contactType = document.getElementById('rftsContactType').value;
+    const contactNameSelect = document.getElementById('rftsContactName');
+    contactNameSelect.innerHTML = '<option value="">Select contact name...</option>';
+    
+    let options = [];
+    if (contactType === 'Vendor') {
+        options = vendorsData;
+    } else if (contactType === 'Distributor') {
+        options = distributorsData;
+    }
+    
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.name;
+        option.textContent = opt.name;
+        contactNameSelect.appendChild(option);
+    });
+}
+
+function submitRftsFollowUp() {
+    const form = document.getElementById('addRftsFollowUpForm');
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => data[key] = value);
+    
+    if (!data.follow_up_type || !data.contact_type || !data.follow_up_date || !data.subject) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    fetch('/api/rfts_follow_up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function completeRftsFollowUp(followUpId) {
+    if (!confirm('Mark this follow-up as completed?')) return;
+    
+    fetch(`/api/rfts_follow_up/${followUpId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function cancelRftsFollowUp(followUpId) {
+    if (!confirm('Cancel this follow-up?')) return;
+    
+    fetch(`/api/rfts_follow_up/${followUpId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
+
+function submitRftsActivity() {
+    const form = document.getElementById('addRftsActivityForm');
+    const formData = new FormData(form);
+    const data = {};
+    formData.forEach((value, key) => data[key] = value);
+    
+    if (!data.activity_type || !data.activity_description) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    fetch('/api/rfts_activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+}
 </script>
+
+<!-- Add RFTS Follow-up Modal -->
+<div class="modal fade" id="addRftsFollowUpModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);">
+                <h5 class="modal-title text-white"><i class="fas fa-calendar-plus mr-2"></i>Schedule Follow-up</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addRftsFollowUpForm">
+                    <input type="hidden" name="rfts_id" value="{{ rfts.id }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-tag mr-1"></i>Follow-up Type *</label>
+                                <select name="follow_up_type" class="form-control" required>
+                                    <option value="">Select type...</option>
+                                    <option value="Call">Phone Call</option>
+                                    <option value="Email">Email</option>
+                                    <option value="Meeting">Meeting</option>
+                                    <option value="Site Visit">Site Visit</option>
+                                    <option value="Technical Review">Technical Review</option>
+                                    <option value="Design Discussion">Design Discussion</option>
+                                    <option value="Document Request">Document Request</option>
+                                    <option value="Status Update">Status Update</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-user-tag mr-1"></i>Contact Type *</label>
+                                <select name="contact_type" class="form-control" id="rftsContactType" required onchange="updateRftsContactNameOptions()">
+                                    <option value="">Select contact type...</option>
+                                    <option value="End User">End User</option>
+                                    <option value="Contractor">Contractor</option>
+                                    <option value="Consultant">Consultant</option>
+                                    <option value="Vendor">Vendor</option>
+                                    <option value="Distributor">Distributor</option>
+                                    <option value="Internal">Internal Team</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-user mr-1"></i>Contact Name</label>
+                        <select name="contact_name" class="form-control" id="rftsContactName">
+                            <option value="">Select or type contact name...</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-calendar mr-1"></i>Date *</label>
+                                <input type="date" name="follow_up_date" class="form-control" required value="{{ current_date }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-clock mr-1"></i>Time</label>
+                                <input type="time" name="follow_up_time" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><i class="fas fa-exclamation-circle mr-1"></i>Priority *</label>
+                                <select name="priority" class="form-control" required>
+                                    <option value="Normal" selected>Normal</option>
+                                    <option value="High">High</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-heading mr-1"></i>Subject *</label>
+                        <input type="text" name="subject" class="form-control" placeholder="Brief description of the follow-up..." required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-sticky-note mr-1"></i>Notes</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Additional details..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="submitRftsFollowUp()">
+                    <i class="fas fa-save mr-1"></i>Schedule Follow-up
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add RFTS Activity Modal -->
+<div class="modal fade" id="addRftsActivityModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <h5 class="modal-title text-white"><i class="fas fa-plus-circle mr-2"></i>Log Activity</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addRftsActivityForm">
+                    <input type="hidden" name="rfts_id" value="{{ rfts.id }}">
+                    <div class="form-group">
+                        <label><i class="fas fa-tag mr-1"></i>Activity Type *</label>
+                        <select name="activity_type" class="form-control" required>
+                            <option value="">Select type...</option>
+                            <option value="Phone Call">Phone Call</option>
+                            <option value="Email Sent">Email Sent</option>
+                            <option value="Email Received">Email Received</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Site Visit">Site Visit</option>
+                            <option value="Technical Discussion">Technical Discussion</option>
+                            <option value="Document Submitted">Document Submitted</option>
+                            <option value="Document Received">Document Received</option>
+                            <option value="Design Review">Design Review</option>
+                            <option value="Note">Note</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-user-tag mr-1"></i>Contact Type</label>
+                                <select name="contact_type" class="form-control">
+                                    <option value="">None</option>
+                                    <option value="End User">End User</option>
+                                    <option value="Contractor">Contractor</option>
+                                    <option value="Consultant">Consultant</option>
+                                    <option value="Vendor">Vendor</option>
+                                    <option value="Distributor">Distributor</option>
+                                    <option value="Internal">Internal Team</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-user mr-1"></i>Contact Name</label>
+                                <input type="text" name="contact_name" class="form-control" placeholder="Enter contact name...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-comment mr-1"></i>Description *</label>
+                        <textarea name="activity_description" class="form-control" rows="4" placeholder="Describe the activity..." required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitRftsActivity()">
+                    <i class="fas fa-save mr-1"></i>Log Activity
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
