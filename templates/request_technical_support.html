@@ -295,12 +295,15 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label><i class="fas fa-tag"></i>Request Type <span class="required">*</span></label>
-                                    <select class="form-control" id="request_type" name="request_type" required>
+                                    <select class="form-control" id="request_type_select" onchange="toggleCustomRequestType()">
                                         <option value="SLD">SLD (Single Line Diagram)</option>
                                         <option value="Rack Elevation">Rack Elevation</option>
                                         <option value="Technical Submittal">Technical Submittal</option>
                                         <option value="Information">Information Request</option>
+                                        <option value="__other__">+ Add Custom Type...</option>
                                     </select>
+                                    <input type="text" class="form-control mt-2" id="custom_request_type" placeholder="Enter custom request type..." style="display: none;">
+                                    <input type="hidden" id="request_type" name="request_type" value="SLD" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -492,6 +495,34 @@
             indicator.innerHTML = '<i class="fas fa-arrow-down"></i> Low Priority - Non-urgent';
         }
     }
+    
+    function toggleCustomRequestType() {
+        const select = document.getElementById('request_type_select');
+        const customInput = document.getElementById('custom_request_type');
+        const hiddenInput = document.getElementById('request_type');
+        
+        if (select.value === '__other__') {
+            customInput.style.display = 'block';
+            customInput.required = true;
+            customInput.focus();
+            hiddenInput.value = '';
+        } else {
+            customInput.style.display = 'none';
+            customInput.required = false;
+            customInput.value = '';
+            hiddenInput.value = select.value;
+        }
+    }
+    
+    // Update hidden input when custom type is entered
+    document.addEventListener('DOMContentLoaded', function() {
+        const customInput = document.getElementById('custom_request_type');
+        const hiddenInput = document.getElementById('request_type');
+        
+        customInput.addEventListener('input', function() {
+            hiddenInput.value = this.value;
+        });
+    });
     
     document.addEventListener('DOMContentLoaded', function() {
         updatePriorityIndicator();
