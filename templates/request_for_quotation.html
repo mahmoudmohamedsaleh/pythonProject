@@ -294,7 +294,7 @@
                             <div class="col-md-8">
                                 <div class="form-group">
                                     <label><i class="fas fa-building"></i>Project Name <span class="required">*</span></label>
-                                    <select class="form-control" id="project_name" name="project_name" required>
+                                    <select class="rfq-select" id="project_name" name="project_name" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         <option value="" disabled {% if not project_name_prefill %}selected{% endif %}>Select a Project...</option>
                                         {% for project in projects %}
                                             <option value="{{ project[0] }}" {% if project[0] == project_name_prefill %}selected{% endif %}>{{ project[0] }}</option>
@@ -305,7 +305,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label><i class="fas fa-info-circle"></i>Project Status <span class="required">*</span></label>
-                                    <select class="form-control" id="project_status" name="project_status" required>
+                                    <select class="rfq-select" id="project_status" name="project_status" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         <option value="On hand">On hand</option>
                                         <option value="Tender">Tender</option>
                                     </select>
@@ -322,7 +322,7 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label><i class="fas fa-flag"></i>Priority <span class="required">*</span></label>
-                                    <select class="form-control" id="priority" name="priority" required onchange="updatePriorityBadge()">
+                                    <select class="rfq-select" id="priority" name="priority" required onchange="updatePriorityBadge()" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         {% for option in priority_options %}
                                             <option value="{{ option }}" {% if option == 'Medium' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
@@ -401,7 +401,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label><i class="fas fa-user-cog"></i>Pre-Sales Engineer <span class="required">*</span></label>
-                                    <select class="form-control" id="sales_engineer_presale" name="sales_engineer_presale" required>
+                                    <select class="rfq-select" id="sales_engineer_presale" name="sales_engineer_presale" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         <option value="" disabled selected>Select a Pre-Sales Engineer...</option>
                                         {% for engineer in presale_engineers %}
                                             <option value="{{ engineer }}">{{ engineer }}</option>
@@ -412,7 +412,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label><i class="fas fa-user-tie"></i>Sales Engineer <span class="required">*</span></label>
-                                    <select class="form-control" id="sales_engineer_sales" name="sales_engineer_sales" required>
+                                    <select class="rfq-select" id="sales_engineer_sales" name="sales_engineer_sales" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         <option value="" disabled {% if not sales_engineer_prefill %}selected{% endif %}>Select a Sales Engineer...</option>
                                         {% for engineer in sales_engineers %}
                                             <option value="{{ engineer }}" {% if engineer == sales_engineer_prefill %}selected{% endif %}>{{ engineer }}</option>
@@ -431,7 +431,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label><i class="fas fa-clipboard-list"></i>RFQ Status <span class="required">*</span></label>
-                                    <select class="form-control" id="rfq_status" name="rfq_status" required>
+                                    <select class="rfq-select" id="rfq_status" name="rfq_status" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         {% for option in rfq_status_options %}
                                             <option value="{{ option }}">{{ option }}</option>
                                         {% endfor %}
@@ -441,7 +441,7 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label><i class="fas fa-file-invoice-dollar"></i>Quotation Status <span class="required">*</span></label>
-                                    <select class="form-control" id="quotation_status" name="quotation_status" required>
+                                    <select class="rfq-select" id="quotation_status" name="quotation_status" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; background-color: #fff; color: #1a202c; font-size: 1rem;">
                                         {% for option in quotation_status_options %}
                                             <option value="{{ option }}">{{ option }}</option>
                                         {% endfor %}
