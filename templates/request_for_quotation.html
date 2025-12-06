@@ -3,187 +3,561 @@
 
 {% block content %}
 <style>
-    .card {
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    .hero-header h1 {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .hero-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    .form-card {
         border: none;
-        border-radius: 12px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
     }
-    .card-header {
-        background-color: #ffffff;
-        border-bottom: 1px solid #e9ecef;
+    .form-card .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
         font-weight: 600;
-        font-size: 1.25rem;
-        padding: 1.5rem;
+        padding: 1rem 1.5rem;
+        border: none;
     }
-    .card-body {
+    .form-card .card-header i {
+        margin-right: 0.5rem;
+    }
+    .form-card .card-body {
         padding: 2rem;
     }
+    .form-section {
+        background: #f8f9fc;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+    .form-section-title {
+        font-weight: 600;
+        color: #5a67d8;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .form-section-title i {
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+    }
+    .form-group label {
+        font-weight: 500;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .form-group label i {
+        color: #667eea;
+        width: 16px;
+    }
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
     .form-control:read-only {
-        background-color: #e9ecef;
-        opacity: 1;
+        background-color: #edf2f7;
+        color: #718096;
+    }
+    .required {
+        color: #e53e3e;
     }
     .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        padding: 1rem 2rem;
         font-weight: 600;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
+        border-radius: 10px;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    .system-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+    }
+    .system-checkbox-item {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .system-checkbox-item:hover {
+        border-color: #667eea;
+        background: #f7f8fc;
+    }
+    .system-checkbox-item.checked {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-color: transparent;
+        color: white;
+    }
+    .system-checkbox-item input {
+        display: none;
+    }
+    .system-checkbox-item i {
+        font-size: 0.9rem;
+    }
+    .system-checkbox-item span {
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    .add-system-input {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    .add-system-input input {
+        flex: 1;
+    }
+    .add-system-input .btn {
+        white-space: nowrap;
+    }
+    .priority-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+    .priority-high { background: #fed7d7; color: #c53030; }
+    .priority-medium { background: #fefcbf; color: #d69e2e; }
+    .priority-low { background: #c6f6d5; color: #2f855a; }
+    .sidebar-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+    .sidebar-card .card-header {
+        background: #f8f9fc;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e9ecef;
+        color: #4a5568;
+    }
+    .sidebar-card .card-body {
+        padding: 1.25rem;
+    }
+    .rfq-ref-display {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .tip-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .tip-item:last-child {
+        border-bottom: none;
+    }
+    .tip-item i {
+        color: #667eea;
+        margin-top: 3px;
+    }
+    .tip-item p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #4a5568;
+    }
+    .quick-stat {
+        text-align: center;
+        padding: 1rem;
+    }
+    .quick-stat-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.75rem;
+        font-size: 1.1rem;
+        color: white;
+    }
+    .quick-stat-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .quick-stat-icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .quick-stat-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .quick-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2d3748;
+    }
+    .quick-stat-label {
+        font-size: 0.8rem;
+        color: #718096;
+    }
+    select.form-control {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23667eea' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
     }
 </style>
 
-<div class="container" style="max-width: 900px;">
-    <div class="card">
-        <div class="card-header">
-            <i class="fas fa-file-alt mr-2"></i>Request for Quotation (RFQ)
+<div class="hero-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-file-invoice mr-2"></i>Request for Quotation (RFQ)</h1>
+            <p>Create a new RFQ to request pricing from the presales team</p>
         </div>
-        <div class="card-body">
-            <form method="POST">
-                <div class="form-group">
-                    <label for="rfq_reference">RFQ Reference</label>
-                    <input type="text" class="form-control" id="rfq_reference" name="rfq_reference" value="RFQ-{{ current_datetime }}" readonly>
-                </div>
-
-                <hr class="my-4">
-
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="project_name">Project Name</label>
-                        <select class="form-control" id="project_name" name="project_name" required>
-                            <option value="" disabled {% if not project_name_prefill %}selected{% endif %}>Select a Project...</option>
-                            {% for project in projects %}
-                                <option value="{{ project[0] }}" {% if project[0] == project_name_prefill %}selected{% endif %}>{{ project[0] }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="project_status">Project Status</label>
-                        <select class="form-control" id="project_status" name="project_status" required>
-                            <option value="On hand">On hand</option>
-                            <option value="Tender">Tender</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group col-md-3">
-                        <label for="priority">Priority</label>
-                        <select class="form-control" id="priority" name="priority" required>
-                            {% for option in priority_options %}
-                                <option value="{{ option }}">{{ option }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label>System(s)</label>
-                        <div class="system-checkbox-group border rounded p-2" style="max-height: 150px; overflow-y: auto; background: #f8f9fa;">
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="CCTV" id="sys_cctv">
-                                <label class="form-check-label" for="sys_cctv">CCTV</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="Fire Alarm" id="sys_fire">
-                                <label class="form-check-label" for="sys_fire">Fire Alarm</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="Passive" id="sys_passive">
-                                <label class="form-check-label" for="sys_passive">Passive</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="Access Control" id="sys_access">
-                                <label class="form-check-label" for="sys_access">Access Control</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="MATV" id="sys_matv">
-                                <label class="form-check-label" for="sys_matv">MATV</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="Intercom" id="sys_intercom">
-                                <label class="form-check-label" for="sys_intercom">Intercom</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="BMS" id="sys_bms">
-                                <label class="form-check-label" for="sys_bms">BMS</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input system-checkbox" type="checkbox" value="PA System" id="sys_pa">
-                                <label class="form-check-label" for="sys_pa">PA System</label>
-                            </div>
-                        </div>
-                        <div class="input-group mt-2">
-                            <input type="text" class="form-control" id="custom_system" placeholder="Add custom system...">
-                            <div class="input-group-append">
-                                <button class="btn btn-outline-primary" type="button" id="add_custom_system"><i class="fas fa-plus"></i> Add</button>
-                            </div>
-                        </div>
-                        <input type="hidden" id="system" name="system" value="">
-                    </div>
-                    <div class="form-group col-md-3">
-                        <label for="deadline">Deadline</label>
-                        <input type="date" class="form-control" id="deadline" name="deadline" required>
-                    </div>
-                </div>
-
-                <hr class="my-4">
-
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="sales_engineer_presale">Pre-Sales Engineer</label>
-                        <select class="form-control" id="sales_engineer_presale" name="sales_engineer_presale" required>
-                            <option value="" disabled selected>Select a Pre-Sales Engineer...</option>
-                            {% for engineer in presale_engineers %}
-                                <option value="{{ engineer }}">{{ engineer }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="sales_engineer_sales">Sales Engineer</label>
-                        <select class="form-control" id="sales_engineer_sales" name="sales_engineer_sales" required>
-                            <option value="" disabled {% if not sales_engineer_prefill %}selected{% endif %}>Select a Sales Engineer...</option>
-                            {% for engineer in sales_engineers %}
-                                <option value="{{ engineer }}" {% if engineer == sales_engineer_prefill %}selected{% endif %}>{{ engineer }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group col-md-6">
-                        <label for="rfq_status">RFQ Status</label>
-                        <select class="form-control" id="rfq_status" name="rfq_status" required>
-                            {% for option in rfq_status_options %}
-                                <option value="{{ option }}">{{ option }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group col-md-6">
-                        <label for="quotation_status">Quotation Status</label>
-                        <select class="form-control" id="quotation_status" name="quotation_status" required>
-                            {% for option in quotation_status_options %}
-                                <option value="{{ option }}">{{ option }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="note">Note</label>
-                    <textarea class="form-control" id="note" name="note" rows="4" placeholder="Add any additional notes here..."></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-submit mt-3">
-                    <i class="fas fa-paper-plane mr-2"></i>Submit RFQ
-                </button>
-            </form>
-        </div>
+        <a href="{{ url_for('rfq_dashboard') }}" class="btn btn-light">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+        </a>
     </div>
 </div>
 
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card form-card">
+            <div class="card-header">
+                <i class="fas fa-edit"></i>New RFQ Form
+            </div>
+            <div class="card-body">
+                <form method="POST" id="rfqForm">
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-hashtag"></i>Reference
+                        </div>
+                        <div class="rfq-ref-display">
+                            RFQ-{{ current_datetime }}
+                        </div>
+                        <input type="hidden" id="rfq_reference" name="rfq_reference" value="RFQ-{{ current_datetime }}">
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-project-diagram"></i>Project Details
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label><i class="fas fa-building"></i>Project Name <span class="required">*</span></label>
+                                    <select class="form-control" id="project_name" name="project_name" required>
+                                        <option value="" disabled {% if not project_name_prefill %}selected{% endif %}>Select a Project...</option>
+                                        {% for project in projects %}
+                                            <option value="{{ project[0] }}" {% if project[0] == project_name_prefill %}selected{% endif %}>{{ project[0] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-info-circle"></i>Project Status <span class="required">*</span></label>
+                                    <select class="form-control" id="project_status" name="project_status" required>
+                                        <option value="On hand">On hand</option>
+                                        <option value="Tender">Tender</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-cogs"></i>Systems & Priority
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-flag"></i>Priority <span class="required">*</span></label>
+                                    <select class="form-control" id="priority" name="priority" required onchange="updatePriorityBadge()">
+                                        {% for option in priority_options %}
+                                            <option value="{{ option }}" {% if option == 'Medium' %}selected{% endif %}>{{ option }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="priorityBadge" class="priority-badge priority-medium">
+                                        <i class="fas fa-minus"></i> Medium
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar-alt"></i>Deadline <span class="required">*</span></label>
+                                    <input type="date" class="form-control" id="deadline" name="deadline" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label><i class="fas fa-layer-group"></i>System(s) <span class="required">*</span></label>
+                            <div class="system-grid" id="systemGrid">
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="CCTV">
+                                    <i class="fas fa-video"></i>
+                                    <span>CCTV</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="Fire Alarm">
+                                    <i class="fas fa-fire-extinguisher"></i>
+                                    <span>Fire Alarm</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="Passive">
+                                    <i class="fas fa-ethernet"></i>
+                                    <span>Passive</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="Access Control">
+                                    <i class="fas fa-id-card"></i>
+                                    <span>Access Control</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="MATV">
+                                    <i class="fas fa-tv"></i>
+                                    <span>MATV</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="Intercom">
+                                    <i class="fas fa-phone-alt"></i>
+                                    <span>Intercom</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="BMS">
+                                    <i class="fas fa-building"></i>
+                                    <span>BMS</span>
+                                </label>
+                                <label class="system-checkbox-item">
+                                    <input class="system-checkbox" type="checkbox" value="PA System">
+                                    <i class="fas fa-bullhorn"></i>
+                                    <span>PA System</span>
+                                </label>
+                            </div>
+                            <div class="add-system-input">
+                                <input type="text" class="form-control" id="custom_system" placeholder="Add custom system...">
+                                <button class="btn btn-outline-primary" type="button" id="add_custom_system">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <input type="hidden" id="system" name="system" value="">
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-users"></i>Assignment
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-cog"></i>Pre-Sales Engineer <span class="required">*</span></label>
+                                    <select class="form-control" id="sales_engineer_presale" name="sales_engineer_presale" required>
+                                        <option value="" disabled selected>Select a Pre-Sales Engineer...</option>
+                                        {% for engineer in presale_engineers %}
+                                            <option value="{{ engineer }}">{{ engineer }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-tie"></i>Sales Engineer <span class="required">*</span></label>
+                                    <select class="form-control" id="sales_engineer_sales" name="sales_engineer_sales" required>
+                                        <option value="" disabled {% if not sales_engineer_prefill %}selected{% endif %}>Select a Sales Engineer...</option>
+                                        {% for engineer in sales_engineers %}
+                                            <option value="{{ engineer }}" {% if engineer == sales_engineer_prefill %}selected{% endif %}>{{ engineer }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-tasks"></i>Status Tracking
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-clipboard-list"></i>RFQ Status <span class="required">*</span></label>
+                                    <select class="form-control" id="rfq_status" name="rfq_status" required>
+                                        {% for option in rfq_status_options %}
+                                            <option value="{{ option }}">{{ option }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-file-invoice-dollar"></i>Quotation Status <span class="required">*</span></label>
+                                    <select class="form-control" id="quotation_status" name="quotation_status" required>
+                                        {% for option in quotation_status_options %}
+                                            <option value="{{ option }}">{{ option }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-sticky-note"></i>Additional Notes
+                        </div>
+                        <div class="form-group mb-0">
+                            <textarea class="form-control" id="note" name="note" rows="4" placeholder="Add any additional notes, special requirements, or instructions here..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{{ url_for('rfq_dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-submit">
+                            <i class="fas fa-paper-plane mr-2"></i>Submit RFQ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card sidebar-card mb-4">
+            <div class="card-header">
+                <i class="fas fa-lightbulb mr-2"></i>Quick Tips
+            </div>
+            <div class="card-body">
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Select Systems:</strong> Click on system tiles to select multiple systems for this RFQ.</p>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Custom Systems:</strong> Add any system not in the list using the "Add" button.</p>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Priority:</strong> High priority RFQs are highlighted for urgent attention.</p>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <p><strong>Deadline:</strong> Set realistic deadlines to ensure timely delivery.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card sidebar-card mb-4">
+            <div class="card-header">
+                <i class="fas fa-layer-group mr-2"></i>Available Systems
+            </div>
+            <div class="card-body p-3">
+                <div class="mb-3">
+                    <strong class="text-primary"><i class="fas fa-video mr-1"></i> CCTV</strong>
+                    <p class="text-muted small mb-0">Surveillance cameras and recording systems</p>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-danger"><i class="fas fa-fire-extinguisher mr-1"></i> Fire Alarm</strong>
+                    <p class="text-muted small mb-0">Detection, notification, and suppression systems</p>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-success"><i class="fas fa-ethernet mr-1"></i> Passive</strong>
+                    <p class="text-muted small mb-0">Cabling, racks, and infrastructure components</p>
+                </div>
+                <div class="mb-3">
+                    <strong class="text-warning"><i class="fas fa-id-card mr-1"></i> Access Control</strong>
+                    <p class="text-muted small mb-0">Door access, readers, and biometric systems</p>
+                </div>
+                <div class="mb-0">
+                    <strong class="text-info"><i class="fas fa-building mr-1"></i> BMS</strong>
+                    <p class="text-muted small mb-0">Building management and automation systems</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card sidebar-card">
+            <div class="card-header">
+                <i class="fas fa-flag mr-2"></i>Priority Levels
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-danger mr-2" style="padding: 0.4rem 0.75rem;"><i class="fas fa-arrow-up"></i> High</span>
+                    <small class="text-muted">Urgent - Within 24-48 hours</small>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge badge-warning mr-2" style="padding: 0.4rem 0.75rem;"><i class="fas fa-minus"></i> Medium</span>
+                    <small class="text-muted">Standard - Within 3-5 days</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge badge-success mr-2" style="padding: 0.4rem 0.75rem;"><i class="fas fa-arrow-down"></i> Low</span>
+                    <small class="text-muted">Non-urgent - Within 1 week</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const checkboxGroup = document.querySelector('.system-checkbox-group');
+    const systemGrid = document.getElementById('systemGrid');
     const hiddenInput = document.getElementById('system');
     const customInput = document.getElementById('custom_system');
     const addBtn = document.getElementById('add_custom_system');
     const projectSelect = document.getElementById('project_name');
     const salesEngineerSelect = document.getElementById('sales_engineer_sales');
+    
+    // Set minimum deadline to tomorrow
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('deadline').min = tomorrow.toISOString().split('T')[0];
     
     function updateHiddenInput() {
         const checked = document.querySelectorAll('.system-checkbox:checked');
@@ -191,22 +565,46 @@ document.addEventListener('DOMContentLoaded', function() {
         hiddenInput.value = values.join(', ');
     }
     
-    document.querySelectorAll('.system-checkbox').forEach(cb => {
-        cb.addEventListener('change', updateHiddenInput);
+    // Handle system checkbox clicks
+    document.querySelectorAll('.system-checkbox-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'INPUT') {
+                const checkbox = this.querySelector('input');
+                checkbox.checked = !checkbox.checked;
+            }
+            this.classList.toggle('checked', this.querySelector('input').checked);
+            updateHiddenInput();
+        });
+        
+        const checkbox = item.querySelector('input');
+        checkbox.addEventListener('change', function() {
+            item.classList.toggle('checked', this.checked);
+            updateHiddenInput();
+        });
     });
     
+    // Add custom system
     addBtn.addEventListener('click', function() {
         const customValue = customInput.value.trim();
         if (customValue && !document.querySelector(`.system-checkbox[value="${customValue}"]`)) {
-            const newId = 'sys_custom_' + Date.now();
-            const newCheck = document.createElement('div');
-            newCheck.className = 'form-check';
-            newCheck.innerHTML = `
-                <input class="form-check-input system-checkbox" type="checkbox" value="${customValue}" id="${newId}" checked>
-                <label class="form-check-label" for="${newId}">${customValue}</label>
+            const newItem = document.createElement('label');
+            newItem.className = 'system-checkbox-item checked';
+            newItem.innerHTML = `
+                <input class="system-checkbox" type="checkbox" value="${customValue}" checked>
+                <i class="fas fa-plus-circle"></i>
+                <span>${customValue}</span>
             `;
-            checkboxGroup.appendChild(newCheck);
-            newCheck.querySelector('input').addEventListener('change', updateHiddenInput);
+            systemGrid.appendChild(newItem);
+            
+            newItem.addEventListener('click', function(e) {
+                if (e.target.tagName !== 'INPUT') {
+                    const checkbox = this.querySelector('input');
+                    checkbox.checked = !checkbox.checked;
+                }
+                this.classList.toggle('checked', this.querySelector('input').checked);
+                updateHiddenInput();
+            });
+            
             customInput.value = '';
             updateHiddenInput();
         }
@@ -226,7 +624,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.sales_engineer) {
-                        // Find and select the sales engineer in the dropdown
                         const options = salesEngineerSelect.options;
                         for (let i = 0; i < options.length; i++) {
                             if (options[i].value === data.sales_engineer) {
@@ -245,10 +642,33 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchAndSelectSalesEngineer(this.value);
     });
     
-    // If project is pre-selected (from URL param), immediately fetch and select the correct sales engineer
+    // If project is pre-selected, immediately fetch and select the correct sales engineer
     if (projectSelect.value) {
         fetchAndSelectSalesEngineer(projectSelect.value);
     }
+});
+
+function updatePriorityBadge() {
+    const priority = document.getElementById('priority').value;
+    const badge = document.getElementById('priorityBadge');
+    
+    badge.classList.remove('priority-high', 'priority-medium', 'priority-low');
+    
+    if (priority === 'High') {
+        badge.className = 'priority-badge priority-high';
+        badge.innerHTML = '<i class="fas fa-arrow-up"></i> High - Urgent';
+    } else if (priority === 'Medium') {
+        badge.className = 'priority-badge priority-medium';
+        badge.innerHTML = '<i class="fas fa-minus"></i> Medium - Standard';
+    } else {
+        badge.className = 'priority-badge priority-low';
+        badge.innerHTML = '<i class="fas fa-arrow-down"></i> Low - Non-urgent';
+    }
+}
+
+// Initialize priority badge
+document.addEventListener('DOMContentLoaded', function() {
+    updatePriorityBadge();
 });
 </script>
 {% endblock %}
