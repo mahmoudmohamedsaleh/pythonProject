@@ -8850,6 +8850,10 @@ def client_profile(client_type, client_id):
     
     conn.close()
     
+    # Get current date for overdue checking
+    from datetime import datetime
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    
     return render_template('client_profile.html',
                          client=client,
                          client_type=client_type,
@@ -8865,7 +8869,8 @@ def client_profile(client_type, client_id):
                          stage_counts=stage_counts,
                          sales_engineers=sales_engineers,
                          edit_url=edit_url,
-                         view_url=view_url)
+                         view_url=view_url,
+                         current_date=current_date)
 
 
 @app.route('/api/client_follow_up', methods=['POST'])

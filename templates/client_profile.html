@@ -248,7 +248,7 @@
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                     {% if follow_ups %}
                     {% for fu in follow_ups %}
-                    <div class="follow-up-item {{ fu['status']|lower }}{% if fu['status'] == 'Pending' and fu['follow_up_date'] < now().strftime('%Y-%m-%d') %} overdue{% endif %}">
+                    <div class="follow-up-item {{ fu['status']|lower }}{% if fu['status'] == 'Pending' and fu['follow_up_date'] < current_date %} overdue{% endif %}">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
                                 <strong>{{ fu['subject'] }}</strong>
