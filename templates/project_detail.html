@@ -630,6 +630,86 @@
                 </div>
             </div>
 
+            <!-- Request For Technical Support Section -->
+            <div class="card mb-4">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-headset"></i> Request For Technical Support ({{ rfts_requests|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if rfts_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>RFTS Reference</th>
+                                    <th>System</th>
+                                    <th>Request Type</th>
+                                    <th>Presale Eng.</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Deadline</th>
+                                    <th>Requested Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rfts in rfts_requests[:10] %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('rfts_profile', rfts_id=rfts['id']) }}" class="text-primary font-weight-bold" title="View RFTS Profile">
+                                            <strong>{{ rfts['rfts_reference'] }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>{{ rfts['system'] or 'N/A' }}</td>
+                                    <td>{{ rfts['request_type'] or 'N/A' }}</td>
+                                    <td>{{ rfts['presale_engineer'] or 'N/A' }}</td>
+                                    <td>
+                                        {% if rfts['priority'] == 'High' %}
+                                        <span class="badge badge-danger">{{ rfts['priority'] }}</span>
+                                        {% elif rfts['priority'] == 'Medium' %}
+                                        <span class="badge badge-warning">{{ rfts['priority'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-info">{{ rfts['priority'] or 'Normal' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if rfts['request_status'] == 'Done' %}
+                                        <span class="badge badge-success">{{ rfts['request_status'] }}</span>
+                                        {% elif rfts['request_status'] == 'In Progress' %}
+                                        <span class="badge badge-warning">{{ rfts['request_status'] }}</span>
+                                        {% elif rfts['request_status'] == 'Studying' %}
+                                        <span class="badge badge-info">{{ rfts['request_status'] }}</span>
+                                        {% elif rfts['request_status'] == 'Queue' %}
+                                        <span class="badge badge-secondary">{{ rfts['request_status'] }}</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ rfts['request_status'] or 'Pending' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rfts['deadline'][:10] if rfts['deadline'] else 'N/A' }}</td>
+                                    <td>{{ rfts['requested_time'][:10] if rfts['requested_time'] else 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if rfts_requests|length > 10 %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary" id="showAllRFTSBtn">
+                            <i class="fas fa-chevron-down"></i> Show All {{ rfts_requests|length }} RFTS
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-headset fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No technical support requests for this project.</p>
+                        <p class="text-muted"><small>Technical support requests will appear here when created for this project.</small></p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- PO Requests Section -->
             <div class="card mb-4">
                 <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">

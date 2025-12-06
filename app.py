@@ -1768,6 +1768,14 @@ def project_detail(project_id):
     """, (project_id,))
     project_documents = cursor.fetchone()
     
+    # Get all RFTS (Request For Technical Support) for this project
+    cursor.execute("""
+        SELECT * FROM technical_support_requests
+        WHERE project_name = ?
+        ORDER BY requested_time DESC
+    """, (project['project_name'],))
+    rfts_requests = cursor.fetchall()
+    
     # Calculate statistics
     total_quotation_value = sum(q['quotation_selling_price'] or 0 for q in quotations)
     total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
@@ -1785,7 +1793,8 @@ def project_detail(project_id):
                          vendors=vendors,
                          total_quotation_value=total_quotation_value,
                          total_po_value=total_po_value,
-                         project_documents=project_documents)
+                         project_documents=project_documents,
+                         rfts_requests=rfts_requests)
 
 ##############
 # PROJECT CHAT ROUTES
