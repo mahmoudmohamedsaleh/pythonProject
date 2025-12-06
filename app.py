@@ -8985,6 +8985,65 @@ def client_profile(client_type, client_id):
                          current_date=current_date)
 
 
+def get_client_name(cursor, client_type, client_id):
+    """Helper function to get client name based on type"""
+    table_map = {
+        'end_user': 'end_users',
+        'contractor': 'contractors', 
+        'consultant': 'consultants'
+    }
+    table = table_map.get(client_type.lower().replace(' ', '_'))
+    if table:
+        cursor.execute(f"SELECT name FROM {table} WHERE id = ?", (client_id,))
+        result = cursor.fetchone()
+        return result[0] if result else 'Unknown Client'
+    return 'Unknown Client'
+
+
+def create_task_from_follow_up(cursor, follow_up_id, client_type, client_id, client_name, 
+                                subject, notes, follow_up_date, priority, assigned_to, created_by):
+    """Create a task record linked to a client follow-up"""
+    cursor.execute("SELECT id FROM users WHERE username = ?", (assigned_to,))
+    assigned_user = cursor.fetchone()
+    assigned_to_id = assigned_user[0] if assigned_user else None
+    
+    cursor.execute("SELECT id FROM users WHERE username = ?", (created_by,))
+    creator = cursor.fetchone()
+    assigned_by_id = creator[0] if creator else None
+    
+    if not assigned_to_id:
+        print(f"Warning: Cannot create task for follow-up {follow_up_id} - assigned user '{assigned_to}' not found")
+        return None
+    
+    task_title = f"[Follow-up] {subject}"
+    task_description = f"Client: {client_name} ({client_type})\n{notes}" if notes else f"Client: {client_name} ({client_type})"
+    
+    cursor.execute("""
+        INSERT INTO tasks 
+        (title, description, assigned_to_id, due_date, priority, assigned_by_id, 
+         created_at, status, source_type, source_id, client_name, client_type)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 'To Do', 'client_follow_up', ?, ?, ?)
+    """, (task_title, task_description, assigned_to_id, follow_up_date, priority, 
+          assigned_by_id, follow_up_id, client_name, client_type))
+    
+    return cursor.lastrowid
+
+
+def sync_follow_up_to_task(cursor, follow_up_id, new_status):
+    """Sync follow-up status to linked task"""
+    status_map = {
+        'Pending': 'To Do',
+        'Completed': 'Done',
+        'Cancelled': 'Done'
+    }
+    task_status = status_map.get(new_status, 'To Do')
+    
+    cursor.execute("""
+        UPDATE tasks SET status = ?
+        WHERE source_type = 'client_follow_up' AND source_id = ?
+    """, (task_status, follow_up_id))
+
+
 @app.route('/api/client_follow_up', methods=['POST'])
 @login_required
 def add_client_follow_up():
@@ -9005,7 +9064,11 @@ def add_client_follow_up():
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
     conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    
+    # Get client name for task
+    client_name = get_client_name(cursor, client_type, client_id)
     
     cursor.execute("""
         INSERT INTO client_follow_ups 
@@ -9017,6 +9080,12 @@ def add_client_follow_up():
     
     follow_up_id = cursor.lastrowid
     
+    # Create corresponding task
+    task_id = create_task_from_follow_up(
+        cursor, follow_up_id, client_type, client_id, client_name,
+        subject, notes, follow_up_date, priority, assigned_to, session.get('username')
+    )
+    
     # Log activity
     cursor.execute("""
         INSERT INTO client_activity_log 
@@ -9027,7 +9096,7 @@ def add_client_follow_up():
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True, 'follow_up_id': follow_up_id})
+    return jsonify({'success': True, 'follow_up_id': follow_up_id, 'task_id': task_id})
 
 
 @app.route('/api/client_follow_up/<int:follow_up_id>/complete', methods=['POST'])
@@ -9052,6 +9121,9 @@ def complete_client_follow_up(follow_up_id):
         SET status = 'Completed', completed_at = datetime('now'), completed_by = ?, updated_at = datetime('now')
         WHERE id = ?
     """, (session.get('username'), follow_up_id))
+    
+    # Sync to linked task
+    sync_follow_up_to_task(cursor, follow_up_id, 'Completed')
     
     # Log activity
     cursor.execute("""
@@ -9087,6 +9159,9 @@ def cancel_client_follow_up(follow_up_id):
         SET status = 'Cancelled', updated_at = datetime('now')
         WHERE id = ?
     """, (follow_up_id,))
+    
+    # Sync to linked task (cancelled follow-ups move task to Done)
+    sync_follow_up_to_task(cursor, follow_up_id, 'Cancelled')
     
     cursor.execute("""
         INSERT INTO client_activity_log 
@@ -14865,7 +14940,11 @@ def tasks():
     query = '''
         SELECT t.*,
                assignee.username as assigned_to_name,
-               assigner.username as assigned_by_name
+               assigner.username as assigned_by_name,
+               t.source_type,
+               t.source_id,
+               t.client_name,
+               t.client_type
         FROM tasks t
         JOIN users assignee ON t.assigned_to_id = assignee.id
         JOIN users assigner ON t.assigned_by_id = assigner.id
@@ -14943,6 +15022,39 @@ def tasks():
                            current_filters=current_filters,
                            filter_assignee_list=filter_assignee_list)
 
+def sync_task_to_follow_up(cursor, task_id, new_status):
+    """Sync task status back to linked follow-up"""
+    cursor.execute("SELECT source_type, source_id FROM tasks WHERE id = ?", (task_id,))
+    task = cursor.fetchone()
+    
+    if not task or not task[0]:
+        return
+    
+    source_type = task[0]
+    source_id = task[1]
+    
+    status_map = {
+        'To Do': 'Pending',
+        'In Progress': 'Pending',
+        'Done': 'Completed'
+    }
+    follow_up_status = status_map.get(new_status, 'Pending')
+    
+    if source_type == 'client_follow_up':
+        if follow_up_status == 'Completed':
+            cursor.execute("""
+                UPDATE client_follow_ups 
+                SET status = ?, completed_at = datetime('now'), updated_at = datetime('now')
+                WHERE id = ?
+            """, (follow_up_status, source_id))
+        else:
+            cursor.execute("""
+                UPDATE client_follow_ups 
+                SET status = ?, updated_at = datetime('now')
+                WHERE id = ?
+            """, (follow_up_status, source_id))
+
+
 ###################################33
 @app.route('/update_task_with_comment', methods=['POST'])
 @login_required
@@ -14967,7 +15079,10 @@ def update_task_with_comment():
         c.execute("UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?",
                   (new_status, created_at, task_id))
 
-        # 2. Insert the new comment
+        # 2. Sync status to linked follow-up (if any)
+        sync_task_to_follow_up(c, task_id, new_status)
+
+        # 3. Insert the new comment
         c.execute('''
             INSERT INTO task_comments (task_id, user_id, comment, created_at)
             VALUES (?, ?, ?, ?)

@@ -191,6 +191,49 @@
     .priority-badge.medium { background: linear-gradient(135deg, #f5af19 0%, #f12711 100%); color: white; }
     .priority-badge.low { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; }
     
+    .source-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        gap: 5px;
+    }
+    .source-badge i {
+        font-size: 0.75rem;
+    }
+    .source-badge.follow-up { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    
+    .client-info {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+        padding: 5px 10px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .client-info i {
+        color: #667eea;
+    }
+    .client-info strong {
+        color: #333;
+    }
+    .client-type-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 10px;
+        background: #e9ecef;
+        color: #495057;
+        text-transform: capitalize;
+    }
+    
     .task-description {
         color: #6c757d;
         font-size: 0.9rem;
@@ -470,12 +513,28 @@
             {% if status_tasks|length > 0 %}
                 {% for task in status_tasks %}
                 <div class="task-card priority-{{ task.priority }} {% if task.due_date and task.due_date < (now().strftime('%Y-%m-%d') if now is defined else '') and status != 'Done' %}overdue{% endif %}" data-task-id="{{ task.id }}">
+                    {% if task.source_type == 'client_follow_up' %}
+                    <span class="source-badge follow-up">
+                        <i class="fas fa-phone-alt"></i> Client Follow-up
+                    </span>
+                    {% endif %}
+                    
                     <div class="task-header">
                         <h6 class="task-title">{{ task.title }}</h6>
                         <span class="priority-badge {% if task.priority == 'High' %}high{% elif task.priority == 'Medium' %}medium{% else %}low{% endif %}">
                             {{ task.priority }}
                         </span>
                     </div>
+                    
+                    {% if task.client_name %}
+                    <div class="client-info">
+                        <i class="fas fa-building"></i>
+                        <strong>{{ task.client_name }}</strong>
+                        {% if task.client_type %}
+                        <span class="client-type-badge">{{ task.client_type|replace('_', ' ') }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                     
                     {% if task.description %}
                     <p class="task-description">{{ task.description }}</p>
