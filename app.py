@@ -7794,6 +7794,10 @@ def rfq_profile(rfq_id):
     c.execute("SELECT id, name FROM distributors ORDER BY name")
     distributors = c.fetchall()
     
+    # Get users for assignment dropdown
+    c.execute("SELECT username FROM users ORDER BY username")
+    users = [row['username'] for row in c.fetchall()]
+    
     # Get current date for overdue checking
     current_date = datetime.now().strftime('%Y-%m-%d')
     
@@ -7816,6 +7820,7 @@ def rfq_profile(rfq_id):
                          activities=activities,
                          vendors=vendors,
                          distributors=distributors,
+                         users=users,
                          current_date=current_date,
                          pending_follow_ups=pending_follow_ups)
 
@@ -8270,6 +8275,10 @@ def rfts_profile(rfts_id):
     c.execute("SELECT id, name FROM distributors ORDER BY name")
     distributors = c.fetchall()
     
+    # Get users for assignment dropdown
+    c.execute("SELECT username FROM users ORDER BY username")
+    users = [row['username'] for row in c.fetchall()]
+    
     # Get current date for overdue checking
     current_date = datetime.now().strftime('%Y-%m-%d')
     
@@ -8291,6 +8300,7 @@ def rfts_profile(rfts_id):
                            activities=activities,
                            vendors=vendors,
                            distributors=distributors,
+                           users=users,
                            current_date=current_date,
                            pending_follow_ups=pending_follow_ups)
 

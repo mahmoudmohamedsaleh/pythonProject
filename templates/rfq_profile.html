@@ -733,11 +733,30 @@
                             </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-user mr-1"></i>Contact Name</label>
-                        <select name="contact_name" class="form-control" id="rfqContactName">
-                            <option value="">Select or type contact name...</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-user mr-1"></i>Contact Name</label>
+                                <select name="contact_name" class="form-control" id="rfqContactName">
+                                    <option value="">Select or type contact name...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fas fa-user-check mr-1"></i>Assigned To</label>
+                                {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
+                                <select name="assigned_to" class="form-control">
+                                    {% for user in users %}
+                                    <option value="{{ user }}" {% if user == session.get('username') %}selected{% endif %}>{{ user }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% else %}
+                                <input type="text" class="form-control" value="{{ session.get('username') }}" readonly style="background-color: #f8f9fa;">
+                                <input type="hidden" name="assigned_to" value="{{ session.get('username') }}">
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-md-4">
