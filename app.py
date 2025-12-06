@@ -8041,7 +8041,7 @@ def edit_request():
     # Fetch quotations for the selected project
     quotations = []
     if rfts_dict.get('project_name'):
-        c.execute("SELECT quotation_reference FROM quotations WHERE project_name = ? ORDER BY quotation_reference", 
+        c.execute("SELECT quote_ref FROM quotations WHERE project_name = ? ORDER BY quote_ref", 
                   (rfts_dict['project_name'],))
         quotations = [row[0] for row in c.fetchall()]
 
