@@ -329,6 +329,55 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-layer-group"></i>System(s)</label>
+                                    <div class="system-checkbox-group border rounded p-2" id="systemGroup" style="max-height: 150px; overflow-y: auto; background: #f8f9fa;">
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="CCTV" id="sys_cctv">
+                                            <label class="form-check-label" for="sys_cctv">CCTV</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="Fire Alarm" id="sys_fire">
+                                            <label class="form-check-label" for="sys_fire">Fire Alarm</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="Passive" id="sys_passive">
+                                            <label class="form-check-label" for="sys_passive">Passive</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="Access Control" id="sys_access">
+                                            <label class="form-check-label" for="sys_access">Access Control</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="MATV" id="sys_matv">
+                                            <label class="form-check-label" for="sys_matv">MATV</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="Intercom" id="sys_intercom">
+                                            <label class="form-check-label" for="sys_intercom">Intercom</label>
+                                        </div>
+                                    </div>
+                                    <div class="input-group mt-2">
+                                        <input type="text" class="form-control form-control-sm" id="custom_system" placeholder="Add custom system...">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-primary btn-sm" type="button" id="add_custom_system"><i class="fas fa-plus"></i> Add</button>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="system" name="system" value="">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-file-invoice-dollar"></i>Quotation Reference</label>
+                                    <select class="form-control" id="quotation_reference" name="quotation_reference">
+                                        <option value="">-- Select Quotation (Optional) --</option>
+                                    </select>
+                                    <small class="form-text text-muted">Select a project first to see available quotations</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="form-section">
@@ -532,9 +581,50 @@
         tomorrow.setDate(tomorrow.getDate() + 1);
         document.getElementById('deadline').min = tomorrow.toISOString().split('T')[0];
         
-        // Auto-select sales engineer when project is selected
+        // System checkbox functionality
+        const systemGroup = document.getElementById('systemGroup');
+        const systemHiddenInput = document.getElementById('system');
+        const customSystemInput = document.getElementById('custom_system');
+        const addCustomSystemBtn = document.getElementById('add_custom_system');
+        
+        function updateSystemHiddenInput() {
+            const checked = document.querySelectorAll('.system-checkbox:checked');
+            const values = Array.from(checked).map(cb => cb.value);
+            systemHiddenInput.value = values.join(', ');
+        }
+        
+        document.querySelectorAll('.system-checkbox').forEach(cb => {
+            cb.addEventListener('change', updateSystemHiddenInput);
+        });
+        
+        addCustomSystemBtn.addEventListener('click', function() {
+            const customValue = customSystemInput.value.trim();
+            if (customValue && !document.querySelector(`.system-checkbox[value="${customValue}"]`)) {
+                const newId = 'sys_custom_' + Date.now();
+                const newCheck = document.createElement('div');
+                newCheck.className = 'form-check';
+                newCheck.innerHTML = `
+                    <input class="form-check-input system-checkbox" type="checkbox" value="${customValue}" id="${newId}" checked>
+                    <label class="form-check-label" for="${newId}">${customValue}</label>
+                `;
+                systemGroup.appendChild(newCheck);
+                newCheck.querySelector('input').addEventListener('change', updateSystemHiddenInput);
+                customSystemInput.value = '';
+                updateSystemHiddenInput();
+            }
+        });
+        
+        customSystemInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomSystemBtn.click();
+            }
+        });
+        
+        // Auto-select sales engineer and fetch quotations when project is selected
         const projectSelect = document.getElementById('project_name');
         const salesEngineerSelect = document.getElementById('sales_engineer');
+        const quotationSelect = document.getElementById('quotation_reference');
         
         projectSelect.addEventListener('change', function() {
             const projectName = this.value;
@@ -556,6 +646,29 @@
                     .catch(error => {
                         console.error('Error fetching sales engineer:', error);
                     });
+                
+                // Fetch quotations for this project
+                fetch('/api/get_project_quotations/' + encodeURIComponent(projectName))
+                    .then(response => response.json())
+                    .then(data => {
+                        // Clear existing options
+                        quotationSelect.innerHTML = '<option value="">-- Select Quotation (Optional) --</option>';
+                        
+                        if (data.success && data.quotations && data.quotations.length > 0) {
+                            data.quotations.forEach(q => {
+                                const option = document.createElement('option');
+                                option.value = q.quote_ref;
+                                option.textContent = q.quote_ref + (q.system ? ' - ' + q.system : '') + (q.status ? ' (' + q.status + ')' : '');
+                                quotationSelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching quotations:', error);
+                    });
+            } else {
+                // Clear quotation dropdown if no project selected
+                quotationSelect.innerHTML = '<option value="">-- Select Quotation (Optional) --</option>';
             }
         });
         

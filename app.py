@@ -707,6 +707,18 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # Add system column to technical_support_requests table
+    try:
+        c.execute("ALTER TABLE technical_support_requests ADD COLUMN system TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add quotation_reference column to technical_support_requests table
+    try:
+        c.execute("ALTER TABLE technical_support_requests ADD COLUMN quotation_reference TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     # Product Price History table for tracking price changes
     c.execute('''CREATE TABLE IF NOT EXISTS product_price_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7714,6 +7726,8 @@ def request_technical_support():
         request_status = request.form['request_status']
         request_result = request.form['request_result']
         deadline = request.form['deadline']
+        system = request.form.get('system', '')
+        quotation_reference = request.form.get('quotation_reference', '')
 
         # Automatically set Requested Time to the current time
         requested_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -7726,11 +7740,11 @@ def request_technical_support():
         c.execute('''INSERT INTO technical_support_requests 
                      (rfts_reference, request_type, project_name, priority, 
                       presale_engineer, sales_engineer, request_status, 
-                      request_result, deadline, note, requested_time) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                      request_result, deadline, note, requested_time, system, quotation_reference) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                   (rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
-                   request_result, deadline, request.form['note'], requested_time))
+                   request_result, deadline, request.form['note'], requested_time, system, quotation_reference))
 
         conn.commit()
         conn.close()
@@ -15105,6 +15119,43 @@ def api_get_project_sales_engineer(project_name):
                 'success': True,
                 'sales_engineer': None
             })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/get_project_quotations/<project_name>', methods=['GET'])
+@login_required
+def api_get_project_quotations(project_name):
+    """
+    API endpoint to get all quotations (quote_ref) for a project
+    Returns JSON with list of quotation references
+    """
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        
+        c.execute("""
+            SELECT quote_ref, system, status, registered_date
+            FROM projects
+            WHERE project_name = ?
+            ORDER BY registered_date DESC
+        """, (project_name,))
+        
+        quotations = []
+        for row in c.fetchall():
+            quotations.append({
+                'quote_ref': row[0],
+                'system': row[1] or '',
+                'status': row[2] or '',
+                'date': row[3] or ''
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'quotations': quotations
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
