@@ -7986,28 +7986,81 @@ def edit_request():
 
     if request.method == 'POST':
         request_id = request.form['request_id']
-        new_status = request.form['request_status']
-        new_result = request.form['request_result']
+        request_type = request.form['request_type']
+        priority = request.form['priority']
+        project_name = request.form['project_name']
+        system = request.form.get('system', '')
+        quotation_reference = request.form.get('quotation_reference', '')
+        presale_engineer = request.form['presale_engineer']
+        sales_engineer = request.form['sales_engineer']
+        request_status = request.form['request_status']
+        request_result = request.form['request_result']
+        deadline = request.form['deadline']
+        note = request.form.get('note', '')
 
-        # Update the request in the database
-        c.execute("UPDATE technical_support_requests SET request_status = ?, request_result = ? WHERE id = ?",
-                  (new_status, new_result, request_id))
+        # Update all fields in the database
+        c.execute("""UPDATE technical_support_requests SET 
+                     request_type = ?, priority = ?, project_name = ?, system = ?,
+                     quotation_reference = ?, presale_engineer = ?, sales_engineer = ?,
+                     request_status = ?, request_result = ?, deadline = ?, note = ?
+                     WHERE id = ?""",
+                  (request_type, priority, project_name, system, quotation_reference,
+                   presale_engineer, sales_engineer, request_status, request_result,
+                   deadline, note, request_id))
         conn.commit()
         conn.close()
-        return redirect(url_for('technical_support_summary'))
+        return redirect(url_for('rfts_profile', rfts_id=request_id))
 
     # If GET, retrieve the request details to edit
     request_id = request.args.get('request_id')
     c.execute("SELECT * FROM technical_support_requests WHERE id = ?", (request_id,))
     request_details = c.fetchone()
+    
+    if not request_details:
+        conn.close()
+        flash('Request not found.', 'error')
+        return redirect(url_for('technical_support_summary'))
+
+    # Get column names for the request
+    c.execute("PRAGMA table_info(technical_support_requests)")
+    columns = [col[1] for col in c.fetchall()]
+    rfts_dict = dict(zip(columns, request_details))
+
+    # Fetch project names
+    c.execute("SELECT DISTINCT project_name FROM projects ORDER BY project_name")
+    project_names = [row[0] for row in c.fetchall()]
+
+    # Fetch presale engineers (Presale, TTL roles)
+    c.execute("SELECT DISTINCT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader') ORDER BY username")
+    presale_engineers = [row[0] for row in c.fetchall()]
+
+    # Fetch sales engineers
+    c.execute("SELECT DISTINCT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader') ORDER BY username")
+    sales_engineers = [row[0] for row in c.fetchall()]
+
+    # Fetch quotations for the selected project
+    quotations = []
+    if rfts_dict.get('project_name'):
+        c.execute("SELECT quotation_reference FROM quotations WHERE project_name = ? ORDER BY quotation_reference", 
+                  (rfts_dict['project_name'],))
+        quotations = [row[0] for row in c.fetchall()]
 
     # Define selectable options
-    request_status_options = ["Queue", "Studying", "Done", "Cancelled"]  # Adjust as needed
-    request_result_options = ["Queue","Approved", "Dis Approved", "Cancelled"]  # Adjust as needed
+    request_type_options = ["SLD", "Rack Elevation", "Technical Submittal", "Information"]
+    priority_options = ["High", "Medium", "Low"]
+    request_status_options = ["Queue", "Studying", "Done", "Cancelled"]
+    request_result_options = ["Queue", "Approved", "Dis Approved", "Cancelled"]
 
     conn.close()
 
-    return render_template('edit_request.html', request_details=request_details,
+    return render_template('edit_request.html', 
+                           rfts=rfts_dict,
+                           project_names=project_names,
+                           presale_engineers=presale_engineers,
+                           sales_engineers=sales_engineers,
+                           quotations=quotations,
+                           request_type_options=request_type_options,
+                           priority_options=priority_options,
                            request_status_options=request_status_options,
                            request_result_options=request_result_options)
 #######3

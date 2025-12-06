@@ -1,43 +1,689 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Request</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-</head>
-<body>
+{% extends 'base.html' %}
+{% block title %}Edit Technical Support Request{% endblock %}
 
-<div class="container">
-    <h1>Edit Technical Support Request</h1>
-    <form method="POST" action="{{ url_for('edit_request') }}">
-        <input type="hidden" name="request_id" value="{{ request_details[0] }}">
+{% block content %}
+<style>
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+    .hero-header h1 {
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .hero-header p {
+        opacity: 0.9;
+        margin-bottom: 0;
+        font-size: 1.1rem;
+    }
+    .reference-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255,255,255,0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        overflow: hidden;
+    }
+    .form-card .card-header {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+        padding: 1.25rem 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #2d3748;
+    }
+    .form-card .card-header i {
+        color: #667eea;
+        margin-right: 0.5rem;
+    }
+    .form-card .card-body {
+        padding: 2rem;
+    }
+    
+    .form-section {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 2px solid #e8ecf4;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .form-section-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #667eea;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #f0f4ff;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .form-section-title i {
+        font-size: 1rem;
+    }
+    
+    .form-group label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #4a5568;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .form-group label i {
+        color: #667eea;
+        font-size: 0.85rem;
+    }
+    .form-group label .required {
+        color: #e53e3e;
+        margin-left: 2px;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        border: 2px solid #d1d5db;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background-color: #ffffff !important;
+        color: #1a202c !important;
+        font-weight: 500;
+        height: auto;
+    }
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        background-color: #ffffff !important;
+        outline: none;
+    }
+    .form-control:hover {
+        border-color: #9ca3af;
+    }
+    
+    select.form-control {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-color: #ffffff !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23667eea' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px;
+        padding-right: 2.5rem;
+        color: #1a202c !important;
+        cursor: pointer;
+        font-weight: 500;
+    }
+    select.form-control option {
+        color: #1a202c !important;
+        background-color: #ffffff !important;
+        padding: 12px;
+        font-weight: 500;
+    }
+    
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .priority-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+    .priority-high {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        color: #c53030;
+        border: 1px solid #feb2b2;
+    }
+    .priority-medium {
+        background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%);
+        color: #c05621;
+        border: 1px solid #fbd38d;
+    }
+    .priority-low {
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        color: #276749;
+        border: 1px solid #9ae6b4;
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 10px;
+        padding: 0.85rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+        color: white;
+    }
+    .btn-submit i {
+        margin-right: 0.5rem;
+    }
+    
+    .btn-cancel {
+        background: #e2e8f0;
+        color: #4a5568;
+        border: none;
+        border-radius: 10px;
+        padding: 0.85rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+    .btn-cancel:hover {
+        background: #cbd5e0;
+        color: #2d3748;
+    }
+    
+    .system-checkbox-group {
+        background: #f8f9fa;
+        border: 2px solid #e8ecf4;
+        border-radius: 8px;
+        padding: 0.75rem;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    .system-checkbox-group .form-check {
+        margin-bottom: 0.5rem;
+    }
+    .system-checkbox-group .form-check:last-child {
+        margin-bottom: 0;
+    }
+    .system-checkbox-group .form-check-input {
+        margin-top: 0.25rem;
+    }
+    .system-checkbox-group .form-check-label {
+        font-weight: 500;
+        color: #4a5568;
+        cursor: pointer;
+    }
+    
+    .sidebar-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        border: none;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    .sidebar-card .card-header {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+        border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+        padding: 1rem 1.25rem;
+        font-weight: 600;
+        font-size: 1rem;
+        color: #2d3748;
+    }
+    .sidebar-card .card-header i {
+        color: #667eea;
+        margin-right: 0.5rem;
+    }
+    .sidebar-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    .current-value {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f4ff;
+    }
+    .current-value:last-child {
+        border-bottom: none;
+    }
+    .current-value-label {
+        font-size: 0.85rem;
+        color: #718096;
+    }
+    .current-value-data {
+        font-weight: 600;
+        color: #2d3748;
+    }
+</style>
 
-        <div class="form-group">
-            <label for="request_status">Request Status</label>
-            <select name="request_status" class="form-control" required>
-                {% for status in request_status_options %}
-                    <option value="{{ status }}" {% if status == request_details[7] %}selected{% endif %}>{{ status }}</option>
-                {% endfor %}
-            </select>
+<div class="hero-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h1><i class="fas fa-edit mr-2"></i>Edit Technical Support Request</h1>
+            <p>Modify the details of this RFTS ticket</p>
         </div>
-
-        <div class="form-group">
-            <label for="request_result">Request Result</label>
-            <select name="request_result" class="form-control" required>
-                {% for result in request_result_options %}
-                    <option value="{{ result }}" {% if result == request_details[8] %}selected{% endif %}>{{ result }}</option>
-                {% endfor %}
-            </select>
+        <div class="d-flex align-items-center gap-3 mt-2 mt-md-0">
+            <span class="reference-badge">
+                <i class="fas fa-hashtag"></i>{{ rfts.rfts_reference }}
+            </span>
+            <a href="{{ url_for('rfts_profile', rfts_id=rfts.id) }}" class="btn btn-light">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Profile
+            </a>
         </div>
-
-        <button type="submit" class="btn btn-primary">Update Request</button>
-        <a href="{{ url_for('technical_support_summary') }}" class="btn btn-secondary">Cancel</a>
-    </form>
+    </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card form-card">
+            <div class="card-header">
+                <i class="fas fa-file-alt"></i>Edit Request Details
+            </div>
+            <div class="card-body">
+                <form method="POST" id="editRftsForm">
+                    <input type="hidden" name="request_id" value="{{ rfts.id }}">
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-info-circle"></i>Request Information
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-tag"></i>Request Type <span class="required">*</span></label>
+                                    <select class="form-control" id="request_type_select" name="request_type_select" onchange="toggleCustomRequestType()">
+                                        {% for option in request_type_options %}
+                                            <option value="{{ option }}" {% if rfts.request_type == option %}selected{% endif %}>{{ option }}</option>
+                                        {% endfor %}
+                                        <option value="__other__" {% if rfts.request_type not in request_type_options %}selected{% endif %}>+ Add Custom Type...</option>
+                                    </select>
+                                    <input type="text" class="form-control mt-2" id="custom_request_type" placeholder="Enter custom request type..." 
+                                           value="{% if rfts.request_type not in request_type_options %}{{ rfts.request_type }}{% endif %}"
+                                           style="{% if rfts.request_type in request_type_options %}display: none;{% endif %}">
+                                    <input type="hidden" id="request_type" name="request_type" value="{{ rfts.request_type }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-flag"></i>Priority <span class="required">*</span></label>
+                                    <select class="form-control" id="priority" name="priority" required onchange="updatePriorityIndicator()">
+                                        {% for option in priority_options %}
+                                            <option value="{{ option }}" {% if rfts.priority == option %}selected{% endif %}>{{ option }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div id="priorityIndicator" class="priority-indicator priority-{{ rfts.priority|lower }}">
+                                        {% if rfts.priority == 'High' %}
+                                            <i class="fas fa-arrow-up"></i> High Priority
+                                        {% elif rfts.priority == 'Medium' %}
+                                            <i class="fas fa-minus"></i> Medium Priority
+                                        {% else %}
+                                            <i class="fas fa-arrow-down"></i> Low Priority
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-project-diagram"></i>Project Name <span class="required">*</span></label>
+                            <select class="form-control" id="project_name" name="project_name" required onchange="loadQuotations()">
+                                <option value="">-- Select Project --</option>
+                                {% for project in project_names %}
+                                    <option value="{{ project }}" {% if rfts.project_name == project %}selected{% endif %}>{{ project }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-layer-group"></i>System(s)</label>
+                                    <div class="system-checkbox-group" id="systemGroup">
+                                        {% set current_systems = rfts.system.split(',') if rfts.system else [] %}
+                                        {% set default_systems = ['CCTV', 'Fire Alarm', 'Passive', 'Access Control', 'MATV', 'Intercom', 'BMS', 'PA System'] %}
+                                        {% for sys in default_systems %}
+                                        <div class="form-check">
+                                            <input class="form-check-input system-checkbox" type="checkbox" value="{{ sys }}" id="sys_{{ loop.index }}"
+                                                   {% if sys in current_systems %}checked{% endif %}>
+                                            <label class="form-check-label" for="sys_{{ loop.index }}">{{ sys }}</label>
+                                        </div>
+                                        {% endfor %}
+                                        {% for sys in current_systems %}
+                                            {% if sys and sys not in default_systems %}
+                                            <div class="form-check">
+                                                <input class="form-check-input system-checkbox" type="checkbox" value="{{ sys }}" id="sys_custom_{{ loop.index }}" checked>
+                                                <label class="form-check-label" for="sys_custom_{{ loop.index }}">{{ sys }}</label>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <div class="input-group mt-2">
+                                        <input type="text" class="form-control form-control-sm" id="custom_system" placeholder="Add custom system...">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-outline-primary btn-sm" type="button" id="add_custom_system"><i class="fas fa-plus"></i> Add</button>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="system" name="system" value="{{ rfts.system or '' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-file-invoice-dollar"></i>Quotation Reference</label>
+                                    <select class="form-control" id="quotation_reference" name="quotation_reference">
+                                        <option value="">-- Select Quotation (Optional) --</option>
+                                        {% for quot in quotations %}
+                                            <option value="{{ quot }}" {% if rfts.quotation_reference == quot %}selected{% endif %}>{{ quot }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="form-text text-muted">Change project to see its quotations</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-users"></i>Assignment
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-cog"></i>Presale Engineer <span class="required">*</span></label>
+                                    <select class="form-control" id="presale_engineer" name="presale_engineer" required>
+                                        <option value="">-- Select Presale Engineer --</option>
+                                        {% for engineer in presale_engineers %}
+                                            <option value="{{ engineer }}" {% if rfts.presale_engineer == engineer %}selected{% endif %}>{{ engineer }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label><i class="fas fa-user-tie"></i>Sales Engineer <span class="required">*</span></label>
+                                    <select class="form-control" id="sales_engineer" name="sales_engineer" required>
+                                        <option value="">-- Select Sales Engineer --</option>
+                                        {% for engineer in sales_engineers %}
+                                            <option value="{{ engineer }}" {% if rfts.sales_engineer == engineer %}selected{% endif %}>{{ engineer }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-tasks"></i>Status & Timeline
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-spinner"></i>Request Status <span class="required">*</span></label>
+                                    <select class="form-control" id="request_status" name="request_status" required>
+                                        {% for status in request_status_options %}
+                                            <option value="{{ status }}" {% if rfts.request_status == status %}selected{% endif %}>{{ status }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-check-circle"></i>Request Result <span class="required">*</span></label>
+                                    <select class="form-control" id="request_result" name="request_result" required>
+                                        {% for result in request_result_options %}
+                                            <option value="{{ result }}" {% if rfts.request_result == result %}selected{% endif %}>{{ result }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label><i class="fas fa-calendar-alt"></i>Deadline <span class="required">*</span></label>
+                                    <input type="date" class="form-control" id="deadline" name="deadline" value="{{ rfts.deadline }}" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-section-title">
+                            <i class="fas fa-sticky-note"></i>Additional Notes
+                        </div>
+                        <div class="form-group mb-0">
+                            <label><i class="fas fa-comment-alt"></i>Note (Optional)</label>
+                            <textarea class="form-control" id="note" name="note" rows="4" placeholder="Enter any additional details or requirements for this request...">{{ rfts.note or '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-4">
+                        <a href="{{ url_for('rfts_profile', rfts_id=rfts.id) }}" class="btn btn-cancel">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-submit">
+                            <i class="fas fa-save"></i>Update Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="sidebar-card">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i>Current Values
+            </div>
+            <div class="card-body">
+                <div class="current-value">
+                    <span class="current-value-label">Reference</span>
+                    <span class="current-value-data text-primary">{{ rfts.rfts_reference }}</span>
+                </div>
+                <div class="current-value">
+                    <span class="current-value-label">Created</span>
+                    <span class="current-value-data">{{ rfts.requested_time }}</span>
+                </div>
+                <div class="current-value">
+                    <span class="current-value-label">Project</span>
+                    <span class="current-value-data">{{ rfts.project_name }}</span>
+                </div>
+                <div class="current-value">
+                    <span class="current-value-label">Type</span>
+                    <span class="current-value-data">{{ rfts.request_type }}</span>
+                </div>
+                <div class="current-value">
+                    <span class="current-value-label">Priority</span>
+                    <span class="current-value-data">
+                        {% if rfts.priority == 'High' %}
+                            <span class="badge badge-danger">{{ rfts.priority }}</span>
+                        {% elif rfts.priority == 'Medium' %}
+                            <span class="badge badge-warning">{{ rfts.priority }}</span>
+                        {% else %}
+                            <span class="badge badge-success">{{ rfts.priority }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="current-value">
+                    <span class="current-value-label">Status</span>
+                    <span class="current-value-data">
+                        {% if rfts.request_status == 'Done' %}
+                            <span class="badge badge-success">{{ rfts.request_status }}</span>
+                        {% elif rfts.request_status == 'Studying' %}
+                            <span class="badge badge-info">{{ rfts.request_status }}</span>
+                        {% else %}
+                            <span class="badge badge-secondary">{{ rfts.request_status }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar-card">
+            <div class="card-header">
+                <i class="fas fa-lightbulb"></i>Quick Tips
+            </div>
+            <div class="card-body">
+                <ul class="mb-0 pl-3">
+                    <li class="text-muted small mb-2">Change the <strong>Status</strong> to track progress</li>
+                    <li class="text-muted small mb-2">Update <strong>Result</strong> when request is completed</li>
+                    <li class="text-muted small mb-2">Add <strong>Notes</strong> for any updates or findings</li>
+                    <li class="text-muted small">Modify <strong>Deadline</strong> if timeline changes</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="sidebar-card">
+            <div class="card-header">
+                <i class="fas fa-link"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('technical_support_summary') }}" class="btn btn-outline-primary btn-block mb-2">
+                    <i class="fas fa-list mr-2"></i>View All Requests
+                </a>
+                <a href="{{ url_for('request_technical_support') }}" class="btn btn-outline-success btn-block">
+                    <i class="fas fa-plus mr-2"></i>New Request
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleCustomRequestType() {
+    const select = document.getElementById('request_type_select');
+    const customInput = document.getElementById('custom_request_type');
+    const hiddenInput = document.getElementById('request_type');
+    
+    if (select.value === '__other__') {
+        customInput.style.display = 'block';
+        customInput.focus();
+        hiddenInput.value = customInput.value;
+    } else {
+        customInput.style.display = 'none';
+        hiddenInput.value = select.value;
+    }
+}
+
+document.getElementById('custom_request_type').addEventListener('input', function() {
+    document.getElementById('request_type').value = this.value;
+});
+
+function updatePriorityIndicator() {
+    const priority = document.getElementById('priority').value;
+    const indicator = document.getElementById('priorityIndicator');
+    
+    indicator.className = 'priority-indicator priority-' + priority.toLowerCase();
+    
+    if (priority === 'High') {
+        indicator.innerHTML = '<i class="fas fa-arrow-up"></i> High Priority';
+    } else if (priority === 'Medium') {
+        indicator.innerHTML = '<i class="fas fa-minus"></i> Medium Priority';
+    } else {
+        indicator.innerHTML = '<i class="fas fa-arrow-down"></i> Low Priority';
+    }
+}
+
+function loadQuotations() {
+    const projectName = document.getElementById('project_name').value;
+    const quotationSelect = document.getElementById('quotation_reference');
+    
+    quotationSelect.innerHTML = '<option value="">-- Loading... --</option>';
+    
+    if (!projectName) {
+        quotationSelect.innerHTML = '<option value="">-- Select Quotation (Optional) --</option>';
+        return;
+    }
+    
+    fetch('/api/get_project_quotations/' + encodeURIComponent(projectName))
+        .then(response => response.json())
+        .then(data => {
+            quotationSelect.innerHTML = '<option value="">-- Select Quotation (Optional) --</option>';
+            data.quotations.forEach(quot => {
+                const option = document.createElement('option');
+                option.value = quot;
+                option.textContent = quot;
+                quotationSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading quotations:', error);
+            quotationSelect.innerHTML = '<option value="">-- Select Quotation (Optional) --</option>';
+        });
+}
+
+function updateSystemHiddenInput() {
+    const checkboxes = document.querySelectorAll('.system-checkbox:checked');
+    const values = Array.from(checkboxes).map(cb => cb.value);
+    document.getElementById('system').value = values.join(',');
+}
+
+document.querySelectorAll('.system-checkbox').forEach(cb => {
+    cb.addEventListener('change', updateSystemHiddenInput);
+});
+
+document.getElementById('add_custom_system').addEventListener('click', function() {
+    const input = document.getElementById('custom_system');
+    const value = input.value.trim();
+    
+    if (value) {
+        const group = document.getElementById('systemGroup');
+        const id = 'sys_custom_' + Date.now();
+        
+        const div = document.createElement('div');
+        div.className = 'form-check';
+        div.innerHTML = `
+            <input class="form-check-input system-checkbox" type="checkbox" value="${value}" id="${id}" checked>
+            <label class="form-check-label" for="${id}">${value}</label>
+        `;
+        group.appendChild(div);
+        
+        div.querySelector('.system-checkbox').addEventListener('change', updateSystemHiddenInput);
+        updateSystemHiddenInput();
+        
+        input.value = '';
+    }
+});
+
+document.getElementById('editRftsForm').addEventListener('submit', function(e) {
+    updateSystemHiddenInput();
+    
+    const select = document.getElementById('request_type_select');
+    const customInput = document.getElementById('custom_request_type');
+    const hiddenInput = document.getElementById('request_type');
+    
+    if (select.value === '__other__') {
+        hiddenInput.value = customInput.value;
+    } else {
+        hiddenInput.value = select.value;
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateSystemHiddenInput();
+    
+    const select = document.getElementById('request_type_select');
+    const customInput = document.getElementById('custom_request_type');
+    const hiddenInput = document.getElementById('request_type');
+    
+    if (select.value === '__other__') {
+        hiddenInput.value = customInput.value;
+    } else {
+        hiddenInput.value = select.value;
+    }
+});
+</script>
+{% endblock %}
