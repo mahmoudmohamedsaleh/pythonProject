@@ -3,50 +3,149 @@
 
 {% block content %}
 <style>
-    .page-header h1 { font-weight: 700; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); margin-bottom: 30px; }
-    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
-    .table thead th { background-color: #f8f9fa; border-bottom-width: 2px; font-weight: 600; white-space: nowrap; }
-    .table td, .table th { vertical-align: middle; }
-    .badge { font-size: 85%; font-weight: 600; padding: 0.4em 0.7em; }
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .page-header h1 { font-weight: 700; margin-bottom: 0.5rem; }
+    .page-header p { opacity: 0.9; margin-bottom: 0; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); margin-bottom: 25px; }
+    .card-header { 
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); 
+        border-bottom: 1px solid #e9ecef; 
+        font-weight: 600; 
+        padding: 1rem 1.25rem;
+    }
+    .table thead th { 
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+        border-bottom-width: 2px; 
+        font-weight: 600; 
+        white-space: nowrap; 
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #495057;
+    }
+    .table td { vertical-align: middle; font-size: 0.9rem; }
+    .table tbody tr:hover { background-color: #f8f9fc; }
+    .badge { font-size: 80%; font-weight: 600; padding: 0.45em 0.8em; border-radius: 6px; }
+    .badge-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+    .badge-danger { background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%); }
+    .badge-warning { background: linear-gradient(135deg, #ffc107 0%, #f39c12 100%); color: #212529; }
+    .badge-info { background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%); }
+    .badge-secondary { background: linear-gradient(135deg, #6c757d 0%, #868e96 100%); }
+    .project-link { 
+        color: #667eea; 
+        font-weight: 600; 
+        text-decoration: none; 
+        transition: all 0.2s;
+    }
+    .project-link:hover { color: #764ba2; text-decoration: underline; }
+    .quote-link { 
+        color: #28a745; 
+        font-weight: 500; 
+        text-decoration: none; 
+        transition: all 0.2s;
+        font-size: 0.85rem;
+    }
+    .quote-link:hover { color: #20c997; text-decoration: underline; }
+    .rfq-link { 
+        color: #17a2b8; 
+        font-weight: 500; 
+        text-decoration: none; 
+        transition: all 0.2s;
+        font-size: 0.85rem;
+    }
+    .rfq-link:hover { color: #138496; text-decoration: underline; }
+    .btn-action { 
+        padding: 0.35rem 0.65rem; 
+        font-size: 0.8rem; 
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    .btn-action:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .filter-card .form-control, .filter-card .form-select { 
+        border-radius: 8px; 
+        border: 1px solid #dee2e6;
+    }
+    .filter-card .form-control:focus, .filter-card .form-select:focus { 
+        border-color: #667eea; 
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
+    .stats-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .money-positive { color: #28a745; font-weight: 600; }
+    .money-value { font-family: 'Consolas', monospace; }
+    .date-cell { font-size: 0.85rem; color: #6c757d; }
 </style>
 
 <div class="page-header">
-    <h1>All Submitted Quotations</h1>
-    <p class="text-muted">A detailed log of all quotations submitted through the system.</p>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-file-invoice-dollar mr-2"></i>All Submitted Quotations</h1>
+            <p>A detailed log of all quotations submitted through the system</p>
+        </div>
+        <span class="stats-badge"><i class="fas fa-list mr-1"></i>{{ quotations|length }} Quotations</span>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-header"><i class="fas fa-filter mr-2"></i>Filter Report</div>
+<div class="card filter-card">
+    <div class="card-header"><i class="fas fa-filter mr-2 text-primary"></i>Filter Report</div>
     <div class="card-body">
         <form method="GET">
             <div class="form-row">
-                <div class="form-group col-md-3"><label>Registered From</label><input type="date" class="form-control" name="start_registered_date" value="{{ current_filters.start_registered or '' }}"></div>
-                <div class="form-group col-md-3"><label>Registered To</label><input type="date" class="form-control" name="end_registered_date" value="{{ current_filters.end_registered or '' }}"></div>
-                <div class="form-group col-md-3"><label>Updated From</label><input type="date" class="form-control" name="start_updated_date" value="{{ current_filters.start_updated or '' }}"></div>
-                <div class="form-group col-md-3"><label>Updated To</label><input type="date" class="form-control" name="end_updated_date" value="{{ current_filters.end_updated or '' }}"></div>
-                <div class="form-group col-md-6"><label>Presales Engineer</label>
+                <div class="form-group col-md-3">
+                    <label class="small text-muted font-weight-bold">Registered From</label>
+                    <input type="date" class="form-control" name="start_registered_date" value="{{ current_filters.start_registered or '' }}">
+                </div>
+                <div class="form-group col-md-3">
+                    <label class="small text-muted font-weight-bold">Registered To</label>
+                    <input type="date" class="form-control" name="end_registered_date" value="{{ current_filters.end_registered or '' }}">
+                </div>
+                <div class="form-group col-md-3">
+                    <label class="small text-muted font-weight-bold">Updated From</label>
+                    <input type="date" class="form-control" name="start_updated_date" value="{{ current_filters.start_updated or '' }}">
+                </div>
+                <div class="form-group col-md-3">
+                    <label class="small text-muted font-weight-bold">Updated To</label>
+                    <input type="date" class="form-control" name="end_updated_date" value="{{ current_filters.end_updated or '' }}">
+                </div>
+                <div class="form-group col-md-6">
+                    <label class="small text-muted font-weight-bold">Presales Engineer</label>
                     <select name="presale_eng" class="form-control">
-                        <option value="">All</option>
+                        <option value="">All Engineers</option>
                         {% for engineer in presale_engineers %}<option value="{{ engineer }}" {% if engineer == current_filters.presale_eng %}selected{% endif %}>{{ engineer }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="form-group col-md-6"><label>Sales Engineer</label>
+                <div class="form-group col-md-6">
+                    <label class="small text-muted font-weight-bold">Sales Engineer</label>
                     <select name="sales_eng" class="form-control">
-                        <option value="">All</option>
+                        <option value="">All Engineers</option>
                         {% for engineer in sales_engineers %}<option value="{{ engineer }}" {% if engineer == current_filters.sales_eng %}selected{% endif %}>{{ engineer }}</option>{% endfor %}
                     </select>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-search mr-1"></i>Apply</button>
-            <a href="{{ url_for('registered_quotations') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i>Clear</a>
+            <div class="mt-2">
+                <button type="submit" class="btn btn-primary mr-2"><i class="fas fa-search mr-1"></i>Apply Filters</button>
+                <a href="{{ url_for('registered_quotations') }}" class="btn btn-outline-secondary"><i class="fas fa-times mr-1"></i>Clear</a>
+            </div>
         </form>
     </div>
 </div>
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-list-ul mr-2"></i>Quotation Details</span>
+        <span><i class="fas fa-list-ul mr-2 text-primary"></i>Quotation Details</span>
         <a href="{{ url_for('download_quotations_excel', **request.args) }}" class="btn btn-success btn-sm"><i class="fas fa-file-excel mr-1"></i>Download Report</a>
     </div>
     <div class="card-body p-0">
@@ -56,42 +155,91 @@
                     <tr>
                         <th>Project Name</th>
                         <th>Quote Reference</th>
+                        <th>RFQ Reference</th>
                         <th>Presale Eng.</th>
                         <th>Sales Eng.</th>
                         <th>Status</th>
-                        <th>Cost Price (SAR)</th>
-                        <th>Selling Price (SAR)</th>
-                        <th>Margin</th>
-                        <th>Registered Date</th>
-                        <th>Last Update</th>
-                        <th>Actions</th>
+                        <th class="text-right">Cost (SAR)</th>
+                        <th class="text-right">Selling (SAR)</th>
+                        <th class="text-right">Margin</th>
+                        <th>Registered</th>
+                        <th>Updated</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for q in quotations %}
                     <tr>
-                        <td><strong>{{ q[1] }}</strong></td>
-                        <td>{{ q[2] }}</td>
+                        <td>
+                            {% if q[12] %}
+                            <a href="{{ url_for('project_detail', project_id=q[12]) }}" class="project-link">
+                                <i class="fas fa-project-diagram mr-1"></i>{{ q[1] }}
+                            </a>
+                            {% else %}
+                            <strong>{{ q[1] }}</strong>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('quotation_profile', quote_ref=q[2]) }}" class="quote-link">
+                                <i class="fas fa-file-alt mr-1"></i>{{ q[2] }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if q[11] %}
+                            <a href="{{ url_for('rfq_profile', rfq_reference=q[11]) }}" class="rfq-link">
+                                <i class="fas fa-clipboard-list mr-1"></i>{{ q[11] }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>{{ q[3] }}</td>
                         <td>{{ q[4] }}</td>
                         <td>
                             {% set status = q[5] %}
-                            {% if status == 'WON' %}<span class="badge badge-success">{{ status }}</span>
-                            {% elif status == 'LOST' %}<span class="badge badge-danger">{{ status }}</span>
-                            {% else %}<span class="badge badge-secondary">{{ status }}</span>
+                            {% if status == 'Closed Won' or status == 'WON' %}
+                                <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>{{ status }}</span>
+                            {% elif status == 'Closed Lost' or status == 'LOST' %}
+                                <span class="badge badge-danger"><i class="fas fa-times-circle mr-1"></i>{{ status }}</span>
+                            {% elif status == 'Negotiation' %}
+                                <span class="badge badge-warning"><i class="fas fa-handshake mr-1"></i>{{ status }}</span>
+                            {% elif status == 'Technical Discussion' %}
+                                <span class="badge badge-info"><i class="fas fa-comments mr-1"></i>{{ status }}</span>
+                            {% elif status == 'Quotation Sent' %}
+                                <span class="badge badge-primary"><i class="fas fa-paper-plane mr-1"></i>{{ status }}</span>
+                            {% elif status == 'Customer Pending' %}
+                                <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>{{ status }}</span>
+                            {% else %}
+                                <span class="badge badge-secondary">{{ status }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ "{:,.2f}".format(q[10]) if q[10] is not none else 'N/A' }}</td>
-                        <td>{{ "{:,.2f}".format(q[6]) if q[6] is not none else 'N/A' }}</td>
-                        <td>{{ "%.1f"|format(q[7]) if q[7] is not none else 'N/A' }}%</td>
-                        <td>{{ q[8].split(' ')[0] if q[8] else 'N/A' }}</td>
-                        <td>{{ q[9].split(' ')[0] if q[9] else 'N/A' }}</td>
-                        <td>
-                            <a href="{{ url_for('edit_project', quote_ref=q[2]) }}" class="btn btn-warning btn-sm" title="Edit Quotation"><i class="fas fa-edit"></i></a>
+                        <td class="text-right money-value">{{ "{:,.2f}".format(q[10]) if q[10] is not none else '-' }}</td>
+                        <td class="text-right money-value">{{ "{:,.2f}".format(q[6]) if q[6] is not none else '-' }}</td>
+                        <td class="text-right">
+                            {% if q[7] is not none %}
+                                <span class="{% if q[7] > 0 %}money-positive{% endif %}">{{ "%.1f"|format(q[7]) }}%</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="date-cell">{{ q[8].split(' ')[0] if q[8] else '-' }}</td>
+                        <td class="date-cell">{{ q[9].split(' ')[0] if q[9] else '-' }}</td>
+                        <td class="text-center">
+                            <a href="{{ url_for('quotation_profile', quote_ref=q[2]) }}" class="btn btn-info btn-action mr-1" title="View Profile">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('edit_project', quote_ref=q[2]) }}" class="btn btn-warning btn-action" title="Edit Quotation">
+                                <i class="fas fa-edit"></i>
+                            </a>
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="11" class="text-center text-muted py-5">No quotations found matching your criteria.</td></tr>
+                    <tr>
+                        <td colspan="12" class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p class="text-muted mb-0">No quotations found matching your criteria.</p>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>

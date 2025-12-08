@@ -3616,12 +3616,13 @@ def registered_quotations():
         'presale_eng': request.args.get('presale_eng')
     }
 
-    # Base query updated to select quotation_cost
+    # Base query updated to select quotation_cost and rfq_reference
     query = """
-        SELECT id, project_name, quote_ref, presale_eng, sales_eng, status, 
-               quotation_selling_price, margin, registered_date, updated_time,
-               quotation_cost 
-        FROM projects 
+        SELECT p.id, p.project_name, p.quote_ref, p.presale_eng, p.sales_eng, p.status, 
+               p.quotation_selling_price, p.margin, p.registered_date, p.updated_time,
+               p.quotation_cost, p.rfq_reference,
+               (SELECT rp.id FROM register_project rp WHERE rp.project_name = p.project_name LIMIT 1) as project_id
+        FROM projects p
         WHERE 1=1
     """
     params = []
