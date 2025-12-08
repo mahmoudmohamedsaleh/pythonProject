@@ -1604,14 +1604,24 @@ def upload():
 def search_quote():
     quote_ref = request.form['quote_ref']
     conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM projects WHERE quote_ref=?", (quote_ref,))
     project = c.fetchone()
-    conn.close()
-
+    
     if project:
-        return render_template('update_project.html', project=project)
+        # Fetch presale and sales engineers for dropdowns
+        c.execute("SELECT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
+        presale_engineers = [{'username': row['username']} for row in c.fetchall()]
+        c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager', 'Implementation Engineer')")
+        sales_engineers = [{'username': row['username']} for row in c.fetchall()]
+        conn.close()
+        
+        status_options = ['Quotation Sent', 'Customer Pending', 'Technical Discussion', 'Negotiation', 'Closed Won', 'Closed Lost', 'Cancelled']
+        
+        return render_template('update_project.html', project=project, presale_engineers=presale_engineers, sales_engineers=sales_engineers, status_options=status_options)
     else:
+        conn.close()
         flash('No project found with that quote reference!', 'danger')
         return redirect(url_for('index'))
 
