@@ -146,16 +146,36 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="fas fa-list-ul mr-2 text-primary"></i>Quotation Details</span>
-        <a href="{{ url_for('download_quotations_excel', **request.args) }}" class="btn btn-success btn-sm"><i class="fas fa-file-excel mr-1"></i>Download Report</a>
+        <div class="btn-group">
+            <div class="dropdown mr-2">
+                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                    <i class="fas fa-calendar-alt mr-1"></i>Period Reports
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="{{ url_for('download_quotations_report', period='weekly') }}">
+                        <i class="fas fa-calendar-week mr-2 text-info"></i>Weekly Report
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('download_quotations_report', period='monthly') }}">
+                        <i class="fas fa-calendar-alt mr-2 text-primary"></i>Monthly Report
+                    </a>
+                    <a class="dropdown-item" href="{{ url_for('download_quotations_report', period='quarterly') }}">
+                        <i class="fas fa-calendar mr-2 text-success"></i>Quarterly Report
+                    </a>
+                </div>
+            </div>
+            <a href="{{ url_for('download_quotations_excel', **request.args) }}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel mr-1"></i>Download Full Report
+            </a>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Project Name</th>
-                        <th>Quote Reference</th>
                         <th>RFQ Reference</th>
+                        <th>Quote Reference</th>
+                        <th>Project Name</th>
                         <th>Presale Eng.</th>
                         <th>Sales Eng.</th>
                         <th>Status</th>
@@ -171,20 +191,6 @@
                     {% for q in quotations %}
                     <tr>
                         <td>
-                            {% if q[12] %}
-                            <a href="{{ url_for('project_detail', project_id=q[12]) }}" class="project-link">
-                                <i class="fas fa-project-diagram mr-1"></i>{{ q[1] }}
-                            </a>
-                            {% else %}
-                            <strong>{{ q[1] }}</strong>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('quotation_profile', quote_ref=q[2]) }}" class="quote-link">
-                                <i class="fas fa-file-alt mr-1"></i>{{ q[2] }}
-                            </a>
-                        </td>
-                        <td>
                             {% if q[13] %}
                             <a href="{{ url_for('rfq_profile', rfq_id=q[13]) }}" class="rfq-link">
                                 <i class="fas fa-clipboard-list mr-1"></i>{{ q[11] }}
@@ -193,6 +199,20 @@
                             <span class="text-muted">{{ q[11] }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('quotation_profile', quote_ref=q[2]) }}" class="quote-link">
+                                <i class="fas fa-file-alt mr-1"></i>{{ q[2] }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if q[12] %}
+                            <a href="{{ url_for('project_detail', project_id=q[12]) }}" class="project-link">
+                                <i class="fas fa-project-diagram mr-1"></i>{{ q[1] }}
+                            </a>
+                            {% else %}
+                            <strong>{{ q[1] }}</strong>
                             {% endif %}
                         </td>
                         <td>{{ q[3] }}</td>

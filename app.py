@@ -3694,6 +3694,111 @@ def download_quotations_excel():
 
     return send_file(output, download_name='quotations_report.xlsx', as_attachment=True)
 
+
+@app.route('/download_quotations_report/<period>')
+@login_required
+def download_quotations_report(period):
+    """Generate Weekly, Monthly, or Quarterly quotation reports"""
+    from datetime import timedelta
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    today = datetime.now()
+    
+    # Calculate date range based on period
+    if period == 'weekly':
+        start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        report_title = f'Weekly Quotations Report ({start_date} to {today.strftime("%Y-%m-%d")})'
+        filename = f'quotations_weekly_{today.strftime("%Y%m%d")}.xlsx'
+    elif period == 'monthly':
+        start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        report_title = f'Monthly Quotations Report ({start_date} to {today.strftime("%Y-%m-%d")})'
+        filename = f'quotations_monthly_{today.strftime("%Y%m%d")}.xlsx'
+    elif period == 'quarterly':
+        start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        report_title = f'Quarterly Quotations Report ({start_date} to {today.strftime("%Y-%m-%d")})'
+        filename = f'quotations_quarterly_{today.strftime("%Y%m%d")}.xlsx'
+    else:
+        flash('Invalid report period specified.', 'danger')
+        return redirect(url_for('registered_quotations'))
+    
+    # Query quotations within the date range
+    query = """
+        SELECT p.rfq_reference, p.quote_ref, p.project_name, p.presale_eng, p.sales_eng, 
+               p.status, p.quotation_cost, p.quotation_selling_price, p.margin, 
+               p.registered_date, p.updated_time, p.system, p.sow, p.quotation_note
+        FROM projects p
+        WHERE date(p.registered_date) >= ?
+        ORDER BY p.registered_date DESC
+    """
+    
+    df = pd.read_sql_query(query, conn, params=[start_date])
+    conn.close()
+    
+    # Rename columns for better readability
+    df.columns = ['RFQ Reference', 'Quote Reference', 'Project Name', 'Presale Engineer', 
+                  'Sales Engineer', 'Status', 'Cost (SAR)', 'Selling Price (SAR)', 
+                  'Margin (%)', 'Registered Date', 'Last Updated', 'System', 'SOW', 'Notes']
+    
+    # Create Excel with formatting
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Quotations', startrow=2)
+        
+        workbook = writer.book
+        worksheet = writer.sheets['Quotations']
+        
+        # Add title
+        title_format = workbook.add_format({
+            'bold': True, 'font_size': 14, 'font_color': '#667eea'
+        })
+        worksheet.write('A1', report_title, title_format)
+        
+        # Format header row
+        header_format = workbook.add_format({
+            'bold': True, 'bg_color': '#667eea', 'font_color': 'white', 
+            'border': 1, 'text_wrap': True, 'valign': 'vcenter'
+        })
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(2, col_num, value, header_format)
+        
+        # Set column widths
+        worksheet.set_column('A:A', 20)  # RFQ Reference
+        worksheet.set_column('B:B', 30)  # Quote Reference
+        worksheet.set_column('C:C', 35)  # Project Name
+        worksheet.set_column('D:E', 15)  # Engineers
+        worksheet.set_column('F:F', 15)  # Status
+        worksheet.set_column('G:I', 15)  # Financial columns
+        worksheet.set_column('J:K', 12)  # Dates
+        worksheet.set_column('L:M', 15)  # System, SOW
+        worksheet.set_column('N:N', 30)  # Notes
+        
+        # Add summary section
+        summary_row = len(df) + 5
+        summary_format = workbook.add_format({'bold': True, 'font_size': 11})
+        money_format = workbook.add_format({'num_format': '#,##0.00', 'bold': True})
+        
+        worksheet.write(summary_row, 0, 'Summary Statistics:', summary_format)
+        worksheet.write(summary_row + 1, 0, 'Total Quotations:')
+        worksheet.write(summary_row + 1, 1, len(df))
+        worksheet.write(summary_row + 2, 0, 'Total Cost Value:')
+        worksheet.write(summary_row + 2, 1, df['Cost (SAR)'].sum() if not df.empty else 0, money_format)
+        worksheet.write(summary_row + 3, 0, 'Total Selling Value:')
+        worksheet.write(summary_row + 3, 1, df['Selling Price (SAR)'].sum() if not df.empty else 0, money_format)
+        
+        # Status breakdown
+        if not df.empty:
+            worksheet.write(summary_row + 5, 0, 'Status Breakdown:', summary_format)
+            status_counts = df['Status'].value_counts()
+            row_offset = summary_row + 6
+            for status, count in status_counts.items():
+                worksheet.write(row_offset, 0, status)
+                worksheet.write(row_offset, 1, count)
+                row_offset += 1
+    
+    output.seek(0)
+    return send_file(output, download_name=filename, as_attachment=True)
+
+
 #################
 @app.route('/aging_dashboard')
 @permission_required('view_aging_dashboard')
