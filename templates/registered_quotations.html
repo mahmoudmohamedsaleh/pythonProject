@@ -185,10 +185,12 @@
                             </a>
                         </td>
                         <td>
-                            {% if q[11] %}
-                            <a href="{{ url_for('rfq_profile', rfq_reference=q[11]) }}" class="rfq-link">
+                            {% if q[13] %}
+                            <a href="{{ url_for('rfq_profile', rfq_id=q[13]) }}" class="rfq-link">
                                 <i class="fas fa-clipboard-list mr-1"></i>{{ q[11] }}
                             </a>
+                            {% elif q[11] %}
+                            <span class="text-muted">{{ q[11] }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
