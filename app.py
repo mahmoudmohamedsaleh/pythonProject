@@ -3641,10 +3641,10 @@ def registered_quotations():
     c.execute(query, params)
     quotations = c.fetchall()
 
-    # Fetch engineers for filter dropdowns
-    c.execute("SELECT DISTINCT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    # Fetch engineers for filter dropdowns based on registered quotation data
+    c.execute("SELECT DISTINCT sales_eng FROM projects WHERE sales_eng IS NOT NULL AND sales_eng != '' ORDER BY sales_eng")
     sales_engineers = [row[0] for row in c.fetchall()]
-    c.execute("SELECT DISTINCT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
+    c.execute("SELECT DISTINCT presale_eng FROM projects WHERE presale_eng IS NOT NULL AND presale_eng != '' ORDER BY presale_eng")
     presale_engineers = [row[0] for row in c.fetchall()]
     conn.close()
 
