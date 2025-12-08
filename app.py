@@ -1696,8 +1696,8 @@ def update_project(quote_ref):
     conn.commit()
     conn.close()
 
-    flash('Project updated successfully!', 'success')
-    return redirect(url_for('project_summary'))
+    flash('Quotation updated successfully!', 'success')
+    return redirect(url_for('quotation_profile', quote_ref=new_quote_ref))
 
 ##########33
 ##########
