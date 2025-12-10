@@ -7435,6 +7435,29 @@ def sales_performance():
     leaderboard_query += " GROUP BY p.sales_eng ORDER BY won_value DESC"
     c.execute(leaderboard_query, leaderboard_params)
     leaderboard_data = c.fetchall()
+    
+    # --- Calculation 3: Total Quoted Value and Total Lost Value ---
+    totals_query = """
+        SELECT 
+            SUM(quotation_selling_price) AS total_quoted_value,
+            SUM(CASE WHEN status IN ('Closed Lost', 'LOST') THEN quotation_selling_price ELSE 0 END) AS total_lost_value
+        FROM projects
+        WHERE strftime('%Y', registered_date) = ? AND sales_eng IS NOT NULL
+    """
+    totals_params = [str(selected_year)]
+    
+    if is_sales_engineer and user_sales_eng_name:
+        totals_query += " AND sales_eng = ?"
+        totals_params.append(user_sales_eng_name)
+    elif sales_filter:
+        totals_query += " AND sales_eng = ?"
+        totals_params.append(sales_filter)
+    
+    c.execute(totals_query, totals_params)
+    totals_result = c.fetchone()
+    total_quoted_value = totals_result[0] or 0 if totals_result else 0
+    total_lost_value = totals_result[1] or 0 if totals_result else 0
+    
     conn.close()
 
     # Prepare data for the charts
@@ -7450,6 +7473,8 @@ def sales_performance():
                            value_labels=value_labels,
                            total_quoted_data=total_quoted_data,
                            total_won_data=total_won_data,
+                           total_quoted_value=total_quoted_value,
+                           total_lost_value=total_lost_value,
                            is_sales_engineer=is_sales_engineer)
 ##########################
 @app.route('/quotation_profile/<quote_ref>')

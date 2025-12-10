@@ -146,10 +146,10 @@
 <div class="row mb-4">
     {% set total_quotes = leaderboard_data|sum(attribute=1) if leaderboard_data else 0 %}
     {% set total_won = leaderboard_data|sum(attribute=2) if leaderboard_data else 0 %}
-    {% set total_value = leaderboard_data|sum(attribute=3) if leaderboard_data else 0 %}
+    {% set total_won_value = leaderboard_data|sum(attribute=3) if leaderboard_data else 0 %}
     {% set overall_win_rate = (total_won / total_quotes * 100) if total_quotes > 0 else 0 %}
     
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 col-lg-2 mb-3">
         <div class="kpi-card">
             <div class="d-flex align-items-center">
                 <div class="kpi-icon purple mr-3"><i class="fas fa-file-invoice"></i></div>
@@ -160,7 +160,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 col-lg-2 mb-3">
         <div class="kpi-card">
             <div class="d-flex align-items-center">
                 <div class="kpi-icon green mr-3"><i class="fas fa-trophy"></i></div>
@@ -171,7 +171,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 col-lg-2 mb-3">
         <div class="kpi-card">
             <div class="d-flex align-items-center">
                 <div class="kpi-icon blue mr-3"><i class="fas fa-percentage"></i></div>
@@ -182,13 +182,35 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 col-lg-2 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #667eea 0%, #3498db 100%);"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div class="ml-3">
+                    <div class="kpi-value" style="font-size: 1.4rem;">{{ "{:,.0f}".format(total_quoted_value) }}</div>
+                    <div class="kpi-label">Quoted Value (SAR)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2 mb-3">
         <div class="kpi-card">
             <div class="d-flex align-items-center">
                 <div class="kpi-icon orange mr-3"><i class="fas fa-coins"></i></div>
                 <div>
-                    <div class="kpi-value">{{ "{:,.0f}".format(total_value) }}</div>
+                    <div class="kpi-value" style="font-size: 1.4rem;">{{ "{:,.0f}".format(total_won_value) }}</div>
                     <div class="kpi-label">Won Value (SAR)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-lg-2 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon" style="background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);"><i class="fas fa-times-circle"></i></div>
+                <div class="ml-3">
+                    <div class="kpi-value" style="font-size: 1.4rem; color: #dc3545;">{{ "{:,.0f}".format(total_lost_value) }}</div>
+                    <div class="kpi-label">Lost Value (SAR)</div>
                 </div>
             </div>
         </div>
