@@ -7308,7 +7308,7 @@ def get_sales_engineer_quotations():
     if data_type == 'won':
         query = """
             SELECT p.id, p.rfq_reference, p.quote_ref, p.project_name, p.system,
-                   p.registered_date, p.quotation_selling_price, p.presale_eng, p.status
+                   p.registered_date, p.quotation_selling_price, p.presale_eng, p.status, p.quarter
             FROM projects p
             WHERE p.sales_eng = ?
             AND strftime('%Y', p.registered_date) = ?
@@ -7318,7 +7318,7 @@ def get_sales_engineer_quotations():
     else:  # 'quoted' or 'all'
         query = """
             SELECT p.id, p.rfq_reference, p.quote_ref, p.project_name, p.system,
-                   p.registered_date, p.quotation_selling_price, p.presale_eng, p.status
+                   p.registered_date, p.quotation_selling_price, p.presale_eng, p.status, p.quarter
             FROM projects p
             WHERE p.sales_eng = ?
             AND strftime('%Y', p.registered_date) = ?
@@ -7339,7 +7339,8 @@ def get_sales_engineer_quotations():
             'date': q['registered_date'][:10] if q['registered_date'] else None,
             'value': float(q['quotation_selling_price']) if q['quotation_selling_price'] else 0,
             'presale_eng': q['presale_eng'],
-            'status': q['status']
+            'status': q['status'],
+            'quarter': q['quarter']
         })
     
     return jsonify({

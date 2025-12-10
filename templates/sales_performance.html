@@ -337,6 +337,7 @@
                                 <th>Project Name</th>
                                 <th>System</th>
                                 <th>Date Submitted</th>
+                                <th>Quarter</th>
                                 <th>Value (SAR)</th>
                                 <th>Presale Engineer</th>
                                 <th>Status</th>
@@ -419,6 +420,7 @@
                                 <td><strong>${item.project_name}</strong></td>
                                 <td>${item.system || '-'}</td>
                                 <td>${item.date || '-'}</td>
+                                <td><span class="badge badge-info">${item.quarter || '-'}</span></td>
                                 <td class="text-right text-success font-weight-bold">${item.value ? item.value.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</td>
                                 <td>${item.presale_eng || '-'}</td>
                                 <td>${statusBadge}</td>
@@ -432,7 +434,7 @@
                     });
                     
                     if (data.items.length === 0) {
-                        html = '<tr><td colspan="8" class="text-center text-muted py-4">No quotations found.</td></tr>';
+                        html = '<tr><td colspan="9" class="text-center text-muted py-4">No quotations found.</td></tr>';
                     }
                     
                     tableBody.innerHTML = html;
@@ -441,7 +443,7 @@
                 })
                 .catch(error => {
                     console.error('Error fetching quotations:', error);
-                    tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Error loading data.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Error loading data.</td></tr>';
                     loading.style.display = 'none';
                     content.style.display = 'block';
                 });
