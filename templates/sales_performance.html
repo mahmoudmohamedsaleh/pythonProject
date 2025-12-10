@@ -362,6 +362,16 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const engineerName = {{ value_labels|tojson }}[index];
+                        window.location.href = '/registered_quotations?sales_eng=' + encodeURIComponent(engineerName);
+                    }
+                },
+                onHover: function(event, elements) {
+                    event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                },
                 scales: {
                     x: {
                         grid: { display: false },
@@ -392,7 +402,8 @@
                         bodyFont: { size: 13 },
                         cornerRadius: 8,
                         callbacks: {
-                            label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                            label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+                            footer: () => 'Click to view quotations'
                         }
                     },
                     datalabels: {
