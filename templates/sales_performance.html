@@ -3,54 +3,301 @@
 
 {% block content %}
 <style>
-    .page-header h1 { font-weight: 700; }
-    .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
-    .card-header { background-color: #ffffff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
-    .table thead th { background-color: #f8f9fa; border-bottom-width: 2px; font-weight: 600; }
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .page-header h1 { font-weight: 700; margin-bottom: 0.5rem; }
+    .page-header p { opacity: 0.9; margin-bottom: 0; }
+    
+    .kpi-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        border: none;
+        transition: transform 0.2s, box-shadow 0.2s;
+        height: 100%;
+    }
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+    .kpi-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        color: white;
+    }
+    .kpi-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .kpi-icon.green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+    .kpi-icon.blue { background: linear-gradient(135deg, #17a2b8 0%, #3498db 100%); }
+    .kpi-icon.orange { background: linear-gradient(135deg, #fd7e14 0%, #f39c12 100%); }
+    .kpi-value { font-size: 1.8rem; font-weight: 700; color: #2c3e50; }
+    .kpi-label { font-size: 0.85rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    .card { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); margin-bottom: 1.5rem; }
+    .card-header { 
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); 
+        border-bottom: 1px solid #e9ecef; 
+        font-weight: 600; 
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+    }
+    .card-header i { color: #667eea; }
+    
+    .filter-section {
+        background: white;
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+    }
+    .filter-section .form-control, .filter-section .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    .filter-section .form-control:focus, .filter-section .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .table thead th { 
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+        border-bottom-width: 2px; 
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.5px;
+        color: #495057;
+        white-space: nowrap;
+    }
+    .table td { vertical-align: middle; }
+    .table tbody tr:hover { background-color: #f8f9fc; }
+    
+    .rank-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    .rank-1 { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: white; }
+    .rank-2 { background: linear-gradient(135deg, #C0C0C0 0%, #A0A0A0 100%); color: white; }
+    .rank-3 { background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%); color: white; }
+    .rank-other { background: #e9ecef; color: #495057; }
+    
+    .engineer-name { font-weight: 600; color: #2c3e50; }
+    .win-rate-badge {
+        padding: 0.35em 0.65em;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    .win-rate-high { background: rgba(40, 167, 69, 0.15); color: #28a745; }
+    .win-rate-medium { background: rgba(255, 193, 7, 0.15); color: #d39e00; }
+    .win-rate-low { background: rgba(220, 53, 69, 0.15); color: #dc3545; }
+    
+    .money-value { font-family: 'Segoe UI', monospace; font-weight: 600; color: #28a745; }
+    .margin-value { font-weight: 600; }
+    .margin-positive { color: #28a745; }
+    .margin-negative { color: #dc3545; }
+    
+    .chart-container {
+        position: relative;
+        height: 45vh;
+        min-height: 350px;
+    }
+    
+    .stats-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
 </style>
 
-<div class="page-header">
-    <h1>Sales Performance</h1>
-    <p class="text-muted">Analysis of sales outcomes and team performance.</p>
-</div>
-
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="form-inline p-3">
-            <div class="form-group mr-3"><label for="year" class="mr-2">Select Year</label><select class="form-control" id="year" name="year">{% for year in year_range %}<option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>{% endfor %}</select></div>
-            {% if not is_sales_engineer %}
-            <div class="form-group mr-3"><label for="sales_engineer" class="mr-2">Sales Engineer</label><select class="form-control" id="sales_engineer" name="sales_engineer"><option value="">All</option>{% for engineer in sales_engineers %}<option value="{{ engineer }}" {% if engineer == sales_filter %}selected{% endif %}>{{ engineer }}</option>{% endfor %}</select></div>
-            {% endif %}
-            <button type="submit" class="btn btn-info"><i class="fas fa-filter mr-1"></i> Filter</button>
-        </form>
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="fas fa-chart-line mr-2"></i>Sales Performance</h1>
+        <p>Analysis of sales outcomes and team performance for {{ selected_year }}</p>
+    </div>
+    <div class="stats-badge">
+        <i class="fas fa-calendar-alt mr-1"></i> Year: {{ selected_year }}
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header"><i class="fas fa-balance-scale-right mr-2"></i>Quoted vs. Won Value Analysis (SAR)</div>
-    <div class="card-body p-4"><div style="height: 40vh;"><canvas id="valueChart"></canvas></div></div>
+<!-- KPI Summary Cards -->
+<div class="row mb-4">
+    {% set total_quotes = leaderboard_data|sum(attribute=1) if leaderboard_data else 0 %}
+    {% set total_won = leaderboard_data|sum(attribute=2) if leaderboard_data else 0 %}
+    {% set total_value = leaderboard_data|sum(attribute=3) if leaderboard_data else 0 %}
+    {% set overall_win_rate = (total_won / total_quotes * 100) if total_quotes > 0 else 0 %}
+    
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon purple mr-3"><i class="fas fa-file-invoice"></i></div>
+                <div>
+                    <div class="kpi-value">{{ total_quotes }}</div>
+                    <div class="kpi-label">Total Quotations</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon green mr-3"><i class="fas fa-trophy"></i></div>
+                <div>
+                    <div class="kpi-value">{{ total_won }}</div>
+                    <div class="kpi-label">Deals Won</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon blue mr-3"><i class="fas fa-percentage"></i></div>
+                <div>
+                    <div class="kpi-value">{{ "{:.1f}".format(overall_win_rate) }}%</div>
+                    <div class="kpi-label">Win Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="kpi-card">
+            <div class="d-flex align-items-center">
+                <div class="kpi-icon orange mr-3"><i class="fas fa-coins"></i></div>
+                <div>
+                    <div class="kpi-value">{{ "{:,.0f}".format(total_value) }}</div>
+                    <div class="kpi-label">Won Value (SAR)</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Filter Section -->
+<div class="filter-section">
+    <form method="GET" class="row align-items-end">
+        <div class="col-md-3 mb-2 mb-md-0">
+            <label class="small text-muted font-weight-bold mb-1">Select Year</label>
+            <select class="form-control" id="year" name="year">
+                {% for year in year_range %}
+                <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if not is_sales_engineer %}
+        <div class="col-md-4 mb-2 mb-md-0">
+            <label class="small text-muted font-weight-bold mb-1">Sales Engineer</label>
+            <select class="form-control" id="sales_engineer" name="sales_engineer">
+                <option value="">All Engineers</option>
+                {% for engineer in sales_engineers %}
+                <option value="{{ engineer }}" {% if engineer == sales_filter %}selected{% endif %}>{{ engineer }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-filter mr-1"></i> Apply Filter
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Chart Section -->
 <div class="card">
-    <div class="card-header"><i class="fas fa-trophy mr-2"></i>Sales Leaderboard for {{ selected_year }}</div>
+    <div class="card-header">
+        <i class="fas fa-chart-bar mr-2"></i>Quoted vs. Won Value Analysis (SAR)
+    </div>
+    <div class="card-body">
+        <div class="chart-container">
+            <canvas id="valueChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Leaderboard Section -->
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-trophy mr-2"></i>Sales Leaderboard for {{ selected_year }}
+    </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
-                        <th>Sales Engineer</th><th>Quotations Submitted</th><th>Deals Won</th><th>Win Rate</th><th>Total Won Value (SAR)</th><th>Avg. Margin on Won Deals</th>
+                        <th class="text-center" style="width: 60px;">Rank</th>
+                        <th>Sales Engineer</th>
+                        <th class="text-center">Quotations</th>
+                        <th class="text-center">Won</th>
+                        <th class="text-center">Win Rate</th>
+                        <th class="text-right">Won Value (SAR)</th>
+                        <th class="text-center">Avg. Margin</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in leaderboard_data %}
+                    {% set rank = loop.index %}
+                    {% set win_rate = (row[2] / row[1] * 100) if row[1] > 0 else 0 %}
                     <tr>
-                        <td><strong>{{ row[0] }}</strong></td><td>{{ row[1] }}</td><td>{{ row[2] }}</td>
-                        <td>{{ "{:.1f}".format((row[2] / row[1] * 100)) if row[1] > 0 else '0.0' }}%</td>
-                        <td>{{ "{:,.2f}".format(row[3]) if row[3] else '0.00' }}</td>
-                        <td>{{ "{:.2f}".format(row[4]) if row[4] else 'N/A' }}%</td>
+                        <td class="text-center">
+                            <span class="rank-badge {% if rank == 1 %}rank-1{% elif rank == 2 %}rank-2{% elif rank == 3 %}rank-3{% else %}rank-other{% endif %}">
+                                {% if rank == 1 %}<i class="fas fa-crown"></i>{% elif rank <= 3 %}{{ rank }}{% else %}{{ rank }}{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="engineer-name">
+                                <i class="fas fa-user-tie mr-2 text-primary"></i>{{ row[0] }}
+                            </span>
+                        </td>
+                        <td class="text-center"><strong>{{ row[1] }}</strong></td>
+                        <td class="text-center">
+                            <span class="badge badge-success">{{ row[2] }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="win-rate-badge {% if win_rate >= 30 %}win-rate-high{% elif win_rate >= 15 %}win-rate-medium{% else %}win-rate-low{% endif %}">
+                                {{ "{:.1f}".format(win_rate) }}%
+                            </span>
+                        </td>
+                        <td class="text-right money-value">{{ "{:,.2f}".format(row[3]) if row[3] else '0.00' }}</td>
+                        <td class="text-center">
+                            {% if row[4] %}
+                            <span class="margin-value {% if row[4] > 0 %}margin-positive{% else %}margin-negative{% endif %}">
+                                {{ "{:.1f}".format(row[4]) }}%
+                            </span>
+                            {% else %}
+                            <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">No performance data found for the selected criteria.</td></tr>
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="fas fa-chart-pie fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
+                            No performance data found for the selected criteria.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -66,7 +313,6 @@
     Chart.register(ChartDataLabels);
 
     document.addEventListener('DOMContentLoaded', function () {
-        // Helper function to format large numbers
         function formatLargeNumber(num) {
             if (num === 0) return null;
             if (Math.abs(num) >= 1.0e+6) {
@@ -79,6 +325,15 @@
         }
 
         const ctxValue = document.getElementById('valueChart').getContext('2d');
+        
+        const gradientQuoted = ctxValue.createLinearGradient(0, 0, 0, 400);
+        gradientQuoted.addColorStop(0, 'rgba(102, 126, 234, 0.8)');
+        gradientQuoted.addColorStop(1, 'rgba(102, 126, 234, 0.4)');
+        
+        const gradientWon = ctxValue.createLinearGradient(0, 0, 0, 400);
+        gradientWon.addColorStop(0, 'rgba(40, 167, 69, 0.8)');
+        gradientWon.addColorStop(1, 'rgba(40, 167, 69, 0.4)');
+
         const valueChart = new Chart(ctxValue, {
             type: 'bar',
             data: {
@@ -87,36 +342,68 @@
                     {
                         label: 'Total Quoted Value',
                         data: {{ total_quoted_data|tojson }},
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1, borderRadius: 5
+                        backgroundColor: gradientQuoted,
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false
                     },
                     {
                         label: 'Total Won Value',
                         data: {{ total_won_data|tojson }},
-                        backgroundColor: 'rgba(40, 167, 69, 0.6)',
+                        backgroundColor: gradientWon,
                         borderColor: 'rgba(40, 167, 69, 1)',
-                        borderWidth: 1, borderRadius: 5
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false
                     }
                 ]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, ticks: { callback: value => 'SAR ' + value.toLocaleString() } } },
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { weight: 'bold' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: {
+                            callback: value => 'SAR ' + value.toLocaleString(),
+                            font: { size: 11 }
+                        }
+                    }
+                },
                 plugins: {
-                    legend: { position: 'top' },
-                    tooltip: { callbacks: { label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}` } },
-                    // Configure the datalabels plugin
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { size: 12, weight: 'bold' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 13 },
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: context => `${context.dataset.label}: SAR ${context.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                        }
+                    },
                     datalabels: {
                         anchor: 'end',
                         align: 'end',
                         formatter: function(value, context) {
                             return formatLargeNumber(value);
                         },
-                        font: {
-                            weight: 'bold'
-                        },
-                        color: '#555'
+                        font: { weight: 'bold', size: 11 },
+                        color: '#495057',
+                        padding: { bottom: 4 }
                     }
                 }
             }
