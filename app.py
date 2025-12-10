@@ -7283,6 +7283,74 @@ def get_rfts_performance():
         'items': result
     })
 
+
+@app.route('/api/sales_engineer_quotations')
+@login_required
+def get_sales_engineer_quotations():
+    """API endpoint to get quotations for a sales engineer - for chart drill-down"""
+    engineer = request.args.get('engineer')
+    data_type = request.args.get('type', 'all')  # 'quoted', 'won', or 'all'
+    year = request.args.get('year', type=int)
+    
+    if not engineer:
+        return jsonify({'error': 'Missing engineer parameter'}), 400
+    
+    if not year:
+        year = datetime.now().year
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    result = []
+    
+    # Build query based on type
+    if data_type == 'won':
+        query = """
+            SELECT p.id, p.rfq_reference, p.quote_ref, p.project_name, p.system,
+                   p.registered_date, p.quotation_selling_price, p.presale_eng, p.status
+            FROM projects p
+            WHERE p.sales_eng = ?
+            AND strftime('%Y', p.registered_date) = ?
+            AND p.status IN ('Closed Won', 'WON')
+            ORDER BY p.registered_date DESC
+        """
+    else:  # 'quoted' or 'all'
+        query = """
+            SELECT p.id, p.rfq_reference, p.quote_ref, p.project_name, p.system,
+                   p.registered_date, p.quotation_selling_price, p.presale_eng, p.status
+            FROM projects p
+            WHERE p.sales_eng = ?
+            AND strftime('%Y', p.registered_date) = ?
+            ORDER BY p.registered_date DESC
+        """
+    
+    c.execute(query, (engineer, str(year)))
+    quotations = c.fetchall()
+    conn.close()
+    
+    for q in quotations:
+        result.append({
+            'id': q['id'],
+            'rfq_reference': q['rfq_reference'],
+            'quote_ref': q['quote_ref'],
+            'project_name': q['project_name'],
+            'system': q['system'],
+            'date': q['registered_date'][:10] if q['registered_date'] else None,
+            'value': float(q['quotation_selling_price']) if q['quotation_selling_price'] else 0,
+            'presale_eng': q['presale_eng'],
+            'status': q['status']
+        })
+    
+    return jsonify({
+        'engineer': engineer,
+        'type': data_type,
+        'year': year,
+        'count': len(result),
+        'items': result
+    })
+
+
 ###############
 @app.route('/sales_performance')
 @login_required
