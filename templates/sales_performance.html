@@ -130,6 +130,17 @@
         font-weight: 600;
         font-size: 0.9rem;
     }
+    
+    .won-badge {
+        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        padding: 0.4em 0.8em;
+    }
+    .won-badge:hover {
+        transform: scale(1.15);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        background-color: #1e7e34 !important;
+    }
 </style>
 
 <div class="page-header d-flex justify-content-between align-items-center">
@@ -295,7 +306,7 @@
                         </td>
                         <td class="text-center"><strong>{{ row[1] }}</strong></td>
                         <td class="text-center">
-                            <span class="badge badge-success">{{ row[2] }}</span>
+                            <span class="badge badge-success won-badge" style="cursor: pointer;" onclick="showQuotationsModal('{{ row[0] }}', 'won', {{ selected_year }})" title="Click to view won deals">{{ row[2] }}</span>
                         </td>
                         <td class="text-center">
                             <span class="win-rate-badge {% if win_rate >= 30 %}win-rate-high{% elif win_rate >= 15 %}win-rate-medium{% else %}win-rate-low{% endif %}">
@@ -383,6 +394,84 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <script>
     Chart.register(ChartDataLabels);
+    
+    function getStatusBadge(status) {
+        const badges = {
+            'Closed Won': '<span class="badge badge-success">Closed Won</span>',
+            'Closed Lost': '<span class="badge badge-danger">Closed Lost</span>',
+            'LOST': '<span class="badge badge-danger">Lost</span>',
+            'Open': '<span class="badge badge-primary">Open</span>',
+            'Pending': '<span class="badge badge-warning">Pending</span>'
+        };
+        return badges[status] || `<span class="badge badge-secondary">${status}</span>`;
+    }
+    
+    function showQuotationsModal(engineer, type, year) {
+        const modal = $('#quotationsModal');
+        const loading = document.getElementById('quotationsLoading');
+        const content = document.getElementById('quotationsContent');
+        const header = document.getElementById('quotationsModalHeader');
+        const tableBody = document.getElementById('quotationsTableBody');
+        
+        if (type === 'won') {
+            header.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+            document.getElementById('modalTitle').textContent = 'Won Deals';
+        } else {
+            header.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            document.getElementById('modalTitle').textContent = 'Quotations Submitted';
+        }
+        
+        document.getElementById('modalEngineer').textContent = engineer;
+        document.getElementById('modalYear').textContent = year;
+        
+        loading.style.display = 'block';
+        content.style.display = 'none';
+        tableBody.innerHTML = '';
+        
+        modal.modal('show');
+        
+        fetch(`/api/sales_engineer_quotations?engineer=${encodeURIComponent(engineer)}&type=${type}&year=${year}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('modalCount').textContent = data.count;
+                
+                let html = '';
+                data.items.forEach(item => {
+                    const statusBadge = getStatusBadge(item.status);
+                    html += `
+                        <tr>
+                            <td><a href="/rfq_profile/${item.rfq_id}" class="text-info">${item.rfq_reference || '-'}</a></td>
+                            <td><strong>${item.project_name}</strong></td>
+                            <td>${item.system || '-'}</td>
+                            <td>${item.date || '-'}</td>
+                            <td><span class="badge badge-info">${item.quarter || '-'}</span></td>
+                            <td class="text-right text-success font-weight-bold">${item.value ? item.value.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</td>
+                            <td>${item.presale_eng || '-'}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <a href="/quotation_profile/${encodeURIComponent(item.quote_ref)}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                if (data.items.length === 0) {
+                    html = '<tr><td colspan="9" class="text-center text-muted py-4">No quotations found.</td></tr>';
+                }
+                
+                tableBody.innerHTML = html;
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error fetching quotations:', error);
+                tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Error loading data.</td></tr>';
+                loading.style.display = 'none';
+                content.style.display = 'block';
+            });
+    }
 
     document.addEventListener('DOMContentLoaded', function () {
         const chartLabels = {{ value_labels|tojson }};
@@ -399,93 +488,6 @@
             return num.toFixed(0);
         }
         
-        function showQuotationsModal(engineer, type, year) {
-            const modal = $('#quotationsModal');
-            const loading = document.getElementById('quotationsLoading');
-            const content = document.getElementById('quotationsContent');
-            const header = document.getElementById('quotationsModalHeader');
-            const tableBody = document.getElementById('quotationsTableBody');
-            
-            // Update modal header based on type
-            if (type === 'won') {
-                header.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
-                document.getElementById('modalTitle').textContent = 'Won Deals';
-            } else {
-                header.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                document.getElementById('modalTitle').textContent = 'Quotations Submitted';
-            }
-            
-            document.getElementById('modalEngineer').textContent = engineer;
-            document.getElementById('modalYear').textContent = year;
-            
-            // Show loading, hide content
-            loading.style.display = 'block';
-            content.style.display = 'none';
-            tableBody.innerHTML = '';
-            
-            // Show modal
-            modal.modal('show');
-            
-            // Fetch data
-            fetch(`/api/sales_engineer_quotations?engineer=${encodeURIComponent(engineer)}&type=${type}&year=${year}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('modalCount').textContent = data.count;
-                    
-                    // Build table rows
-                    let html = '';
-                    data.items.forEach(item => {
-                        const statusBadge = getStatusBadge(item.status);
-                        html += `
-                            <tr>
-                                <td><a href="/rfq_profile/${item.id}" class="text-info">${item.rfq_reference || '-'}</a></td>
-                                <td><strong>${item.project_name}</strong></td>
-                                <td>${item.system || '-'}</td>
-                                <td>${item.date || '-'}</td>
-                                <td><span class="badge badge-info">${item.quarter || '-'}</span></td>
-                                <td class="text-right text-success font-weight-bold">${item.value ? item.value.toLocaleString(undefined, {minimumFractionDigits: 2}) : '-'}</td>
-                                <td>${item.presale_eng || '-'}</td>
-                                <td>${statusBadge}</td>
-                                <td>
-                                    <a href="/quotation_profile/${encodeURIComponent(item.quote_ref)}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                    
-                    if (data.items.length === 0) {
-                        html = '<tr><td colspan="9" class="text-center text-muted py-4">No quotations found.</td></tr>';
-                    }
-                    
-                    tableBody.innerHTML = html;
-                    loading.style.display = 'none';
-                    content.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error fetching quotations:', error);
-                    tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Error loading data.</td></tr>';
-                    loading.style.display = 'none';
-                    content.style.display = 'block';
-                });
-        }
-        
-        function getStatusBadge(status) {
-            const statusClasses = {
-                'Closed Won': 'badge-success',
-                'WON': 'badge-success',
-                'Closed Lost': 'badge-danger',
-                'LOST': 'badge-danger',
-                'Negotiation': 'badge-warning',
-                'Technical Discussion': 'badge-info',
-                'Quotation Sent': 'badge-primary',
-                'Customer Pending': 'badge-warning'
-            };
-            const badgeClass = statusClasses[status] || 'badge-secondary';
-            return `<span class="badge ${badgeClass}">${status}</span>`;
-        }
-
         const ctxValue = document.getElementById('valueChart').getContext('2d');
         
         const gradientQuoted = ctxValue.createLinearGradient(0, 0, 0, 400);

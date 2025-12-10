@@ -1585,7 +1585,7 @@ def upload():
     projects = [row[0] for row in c.fetchall()]
     c.execute("SELECT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = [row[0] for row in c.fetchall()]
-    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager')")
     sales_engineers = [row[0] for row in c.fetchall()]
     conn.close()
 
@@ -3583,7 +3583,7 @@ def edit_project(quote_ref):
     project = c.fetchone()
     c.execute("SELECT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = c.fetchall()
-    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager')")
     sales_engineers = c.fetchall()
     conn.close()
 
