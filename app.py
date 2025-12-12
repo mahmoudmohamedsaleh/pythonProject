@@ -1414,9 +1414,16 @@ def company_profile():
             icon TEXT NOT NULL,
             color_class TEXT DEFAULT 'purple',
             display_order INTEGER DEFAULT 0,
+            image_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # Add image_url column if it doesn't exist
+    try:
+        c.execute("ALTER TABLE company_solutions ADD COLUMN image_url TEXT")
+        conn.commit()
+    except:
+        pass  # Column already exists
     conn.commit()
     
     # Get all content sections

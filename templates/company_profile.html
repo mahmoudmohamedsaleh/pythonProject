@@ -533,6 +533,15 @@
     .solution-card {
         position: relative;
     }
+    .solution-image {
+        width: 80px;
+        height: 80px;
+        border-radius: 12px;
+        background-size: cover;
+        background-position: center;
+        margin: 0 auto 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
     .solution-actions {
         position: absolute;
         top: 8px;
@@ -840,7 +849,11 @@
     <div class="solutions-grid" id="solutionsGrid">
         {% for solution in solutions %}
         <div class="solution-card" data-id="{{ solution.id }}">
-            <div class="solution-icon {{ solution.color_class }}"><i class="fas {{ solution.icon }}"></i></div>
+            {% if solution.image_url %}
+            <div class="solution-image" style="background-image: url('{{ solution.image_url }}')"></div>
+            {% else %}
+            <div class="solution-image" style="background-image: url('https://source.unsplash.com/200x150/?{{ solution.name | urlencode }},technology')"></div>
+            {% endif %}
             <h5>{{ solution.name }}</h5>
             {% if can_edit and solution.id != 0 %}
             <div class="solution-actions">
