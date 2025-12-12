@@ -1535,6 +1535,37 @@ def get_company_solutions():
     
     return jsonify({'success': True, 'solutions': solutions})
 
+def get_solution_image_url(solution_name):
+    """
+    AI-powered image matching: Automatically select pre-generated image based on solution name
+    Returns the best matching image URL or None if no match found
+    """
+    name_lower = solution_name.lower()
+    
+    # Keyword to image mapping (pre-generated images)
+    image_mappings = [
+        (['ict', 'infrastructure', 'network', 'data center', 'server'], '/static/solutions/ict_infrastructure_data_center.png'),
+        (['access', 'biometric', 'fingerprint', 'rfid', 'door'], '/static/solutions/access_control_security_system.png'),
+        (['fire', 'alarm', 'smoke', 'detection'], '/static/solutions/fire_alarm_safety_system.png'),
+        (['public address', 'pa ', 'speaker', 'audio', 'sound'], '/static/solutions/public_address_speaker_system.png'),
+        (['building management', 'bms', 'hvac', 'automation'], '/static/solutions/building_management_system.png'),
+        (['lighting', 'light control', 'led', 'illumination'], '/static/solutions/lighting_control_technology.png'),
+        (['cctv', 'camera', 'surveillance', 'video', 'monitoring'], '/static/solutions/ip_cctv_security_camera.png'),
+        (['nurse', 'call', 'patient', 'hospital', 'healthcare'], '/static/solutions/nurse_call_hospital_system.png'),
+        (['intercom', 'door phone', 'entry', 'doorbell'], '/static/solutions/intercom_door_entry_system.png'),
+        (['ups', 'power', 'backup', 'battery', 'uninterruptible'], '/static/solutions/ups_power_backup_system.png'),
+        (['queue', 'ticket', 'waiting', 'customer service'], '/static/solutions/queue_management_display.png'),
+        (['cabling', 'cable', 'structured', 'patch', 'wiring'], '/static/solutions/structured_cabling_network.png'),
+        (['conference', 'video call', 'meeting', 'collaboration', 'webinar'], '/static/solutions/video_conferencing_system.png'),
+    ]
+    
+    for keywords, image_url in image_mappings:
+        for keyword in keywords:
+            if keyword in name_lower:
+                return image_url
+    
+    return None  # No match found, will fallback to icon
+
 @app.route('/api/company_profile/solutions', methods=['POST'])
 @login_required
 def add_company_solution():
@@ -1550,6 +1581,9 @@ def add_company_solution():
     if not name or not icon:
         return jsonify({'success': False, 'error': 'Name and icon are required'}), 400
     
+    # AI-powered image selection based on solution name
+    image_url = get_solution_image_url(name)
+    
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     
@@ -1558,15 +1592,15 @@ def add_company_solution():
     max_order = c.fetchone()[0] or 0
     
     c.execute("""
-        INSERT INTO company_solutions (name, icon, color_class, display_order)
-        VALUES (?, ?, ?, ?)
-    """, (name, icon, color_class, max_order + 1))
+        INSERT INTO company_solutions (name, icon, color_class, display_order, image_url)
+        VALUES (?, ?, ?, ?, ?)
+    """, (name, icon, color_class, max_order + 1, image_url))
     
     solution_id = c.lastrowid
     conn.commit()
     conn.close()
     
-    return jsonify({'success': True, 'id': solution_id, 'message': 'Solution added successfully'})
+    return jsonify({'success': True, 'id': solution_id, 'message': 'Solution added successfully', 'image_url': image_url})
 
 @app.route('/api/company_profile/solutions/<int:solution_id>', methods=['PUT'])
 @login_required
