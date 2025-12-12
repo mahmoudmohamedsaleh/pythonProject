@@ -12,17 +12,6 @@
         position: relative;
         overflow: hidden;
     }
-    .solution-hero::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 300px;
-        height: 100%;
-        background-size: cover;
-        background-position: center;
-        opacity: 0.3;
-    }
     .solution-hero-content {
         position: relative;
         z-index: 1;
@@ -93,6 +82,7 @@
     }
     .stat-card .stat-icon.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
     .stat-card .stat-icon.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .stat-card .stat-icon.green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
     .stat-card .stat-number { font-size: 2rem; font-weight: 800; color: #1a1a2e; }
     .stat-card .stat-label { color: #6c757d; font-size: 0.9rem; }
     .section-card {
@@ -125,6 +115,7 @@
         gap: 6px;
     }
     .section-title .add-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
+    .section-title .add-btn.green { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
     .vendors-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -165,20 +156,6 @@
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
     }
-    .active-section .section-title i { color: #28a745; }
-    .passive-section .section-title i { color: #6f42c1; }
-    .active-section .add-btn { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
-    .passive-section .add-btn { background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); }
-    .category-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    .category-badge.active { background: #d4edda; color: #155724; }
-    .category-badge.passive { background: #e2d9f3; color: #6f42c1; }
     .vendor-card h5 { font-weight: 600; color: #1a1a2e; margin-bottom: 5px; }
     .vendor-card .vendor-type { color: #667eea; font-size: 0.85rem; margin-bottom: 10px; }
     .vendor-card .vendor-desc { color: #6c757d; font-size: 0.9rem; }
@@ -197,47 +174,6 @@
         transition: opacity 0.3s ease;
     }
     .vendor-card:hover .delete-btn { opacity: 1; }
-    .products-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 20px;
-    }
-    .product-card {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 20px;
-        position: relative;
-        transition: all 0.3s ease;
-    }
-    .product-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
-    .product-card h5 { font-weight: 600; color: #1a1a2e; margin-bottom: 8px; }
-    .product-card .product-category {
-        display: inline-block;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 3px 12px;
-        border-radius: 15px;
-        font-size: 0.75rem;
-        margin-bottom: 10px;
-    }
-    .product-card .product-vendor { color: #28a745; font-size: 0.85rem; margin-bottom: 8px; }
-    .product-card .product-desc { color: #6c757d; font-size: 0.9rem; }
-    .product-card .delete-btn {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: #dc3545;
-        color: white;
-        border: none;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    .product-card:hover .delete-btn { opacity: 1; }
     .empty-state {
         text-align: center;
         padding: 40px;
@@ -320,6 +256,36 @@
         border-radius: 25px;
         cursor: pointer;
     }
+    .category-header {
+        display: flex;
+        align-items: center;
+        padding: 15px 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        color: white;
+    }
+    .category-header i { margin-right: 12px; font-size: 1.2rem; }
+    .category-header h4 { margin: 0; font-weight: 600; flex: 1; }
+    .category-header .category-actions { display: flex; gap: 10px; }
+    .category-header .add-vendor-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 6px 15px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 0.85rem;
+    }
+    .category-header .delete-category-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+    .category-section { margin-bottom: 30px; }
 </style>
 
 <div class="solution-hero">
@@ -341,108 +307,84 @@
     </div>
 </div>
 
-{% if is_ict_solution %}
-<div class="stats-row">
-    <div class="stat-card">
-        <div class="stat-icon purple"><i class="fas fa-bolt"></i></div>
-        <div class="stat-number">{{ active_vendors|length }}</div>
-        <div class="stat-label">Active Vendors</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon blue"><i class="fas fa-network-wired"></i></div>
-        <div class="stat-number">{{ passive_vendors|length }}</div>
-        <div class="stat-label">Passive Vendors</div>
-    </div>
-</div>
-
-<div class="section-card active-section">
-    <h3 class="section-title">
-        <i class="fas fa-bolt"></i>Active
-        {% if can_edit %}
-        <button class="add-btn" onclick="openVendorModal('Active')"><i class="fas fa-plus"></i> Add Active Vendor</button>
-        {% endif %}
-    </h3>
-    {% if active_vendors %}
-    <div class="vendors-grid">
-        {% for vendor in active_vendors %}
-        <div class="vendor-card">
-            {% if vendor.logo_url %}
-            <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
-            {% else %}
-            <div class="vendor-logo fallback">{{ vendor.vendor_name[:2].upper() }}</div>
-            {% endif %}
-            <h5>{{ vendor.vendor_name }}</h5>
-            <div class="vendor-type">{{ vendor.vendor_type }}</div>
-            {% if vendor.description %}
-            <div class="vendor-desc">{{ vendor.description }}</div>
-            {% endif %}
-            {% if can_edit %}
-            <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state">
-        <i class="fas fa-bolt"></i>
-        <p>No active vendors added yet</p>
-    </div>
-    {% endif %}
-</div>
-
-<div class="section-card passive-section">
-    <h3 class="section-title">
-        <i class="fas fa-network-wired"></i>Passive
-        {% if can_edit %}
-        <button class="add-btn" onclick="openVendorModal('Passive')"><i class="fas fa-plus"></i> Add Passive Vendor</button>
-        {% endif %}
-    </h3>
-    {% if passive_vendors %}
-    <div class="vendors-grid">
-        {% for vendor in passive_vendors %}
-        <div class="vendor-card">
-            {% if vendor.logo_url %}
-            <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
-            {% else %}
-            <div class="vendor-logo fallback">{{ vendor.vendor_name[:2].upper() }}</div>
-            {% endif %}
-            <h5>{{ vendor.vendor_name }}</h5>
-            <div class="vendor-type">{{ vendor.vendor_type }}</div>
-            {% if vendor.description %}
-            <div class="vendor-desc">{{ vendor.description }}</div>
-            {% endif %}
-            {% if can_edit %}
-            <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state">
-        <i class="fas fa-network-wired"></i>
-        <p>No passive vendors added yet</p>
-    </div>
-    {% endif %}
-</div>
-{% else %}
 <div class="stats-row">
     <div class="stat-card">
         <div class="stat-icon purple"><i class="fas fa-building"></i></div>
         <div class="stat-number">{{ vendors|length }}</div>
-        <div class="stat-label">Vendors</div>
+        <div class="stat-label">Total Vendors</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-folder"></i></div>
+        <div class="stat-number">{{ categories|length }}</div>
+        <div class="stat-label">Categories</div>
     </div>
 </div>
 
+{% if can_edit %}
 <div class="section-card">
     <h3 class="section-title">
-        <i class="fas fa-building"></i>Vendors & Partners
+        <i class="fas fa-folder-plus"></i>Manage Categories
+        <button class="add-btn green" onclick="openCategoryModal()"><i class="fas fa-plus"></i> Add Category</button>
+    </h3>
+    <p style="color: #6c757d; margin: 0;">Add categories to organize vendors (e.g., Active, Passive, etc.)</p>
+</div>
+{% endif %}
+
+{% if categories %}
+    {% for category in categories %}
+    <div class="category-section">
+        <div class="category-header" style="background: {{ category.color or '#667eea' }};">
+            <i class="fas {{ category.icon or 'fa-folder' }}"></i>
+            <h4>{{ category.category_name }}</h4>
+            {% if can_edit %}
+            <div class="category-actions">
+                <button class="add-vendor-btn" onclick="openVendorModal({{ category.id }})"><i class="fas fa-plus"></i> Add Vendor</button>
+                <button class="delete-category-btn" onclick="deleteCategory({{ category.id }})"><i class="fas fa-trash"></i></button>
+            </div>
+            {% endif %}
+        </div>
+        {% set cat_vendors = vendors_by_category.get(category.id, []) %}
+        {% if cat_vendors %}
+        <div class="vendors-grid">
+            {% for vendor in cat_vendors %}
+            <div class="vendor-card">
+                {% if vendor.logo_url %}
+                <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
+                {% else %}
+                <div class="vendor-logo fallback">{{ vendor.vendor_name[:2].upper() }}</div>
+                {% endif %}
+                <h5>{{ vendor.vendor_name }}</h5>
+                <div class="vendor-type">{{ vendor.vendor_type }}</div>
+                {% if vendor.description %}
+                <div class="vendor-desc">{{ vendor.description }}</div>
+                {% endif %}
+                {% if can_edit %}
+                <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-building"></i>
+            <p>No vendors in this category yet</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% endif %}
+
+{% if uncategorized_vendors or not categories %}
+<div class="section-card">
+    <h3 class="section-title">
+        <i class="fas fa-building"></i>{% if categories %}Uncategorized Vendors{% else %}Vendors & Partners{% endif %}
         {% if can_edit %}
-        <button class="add-btn" onclick="openVendorModal()"><i class="fas fa-plus"></i> Add Vendor</button>
+        <button class="add-btn" onclick="openVendorModal(null)"><i class="fas fa-plus"></i> Add Vendor</button>
         {% endif %}
     </h3>
-    {% if vendors %}
+    {% if uncategorized_vendors or (not categories and vendors) %}
     <div class="vendors-grid">
-        {% for vendor in vendors %}
+        {% for vendor in (uncategorized_vendors if categories else vendors) %}
         <div class="vendor-card">
             {% if vendor.logo_url %}
             <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
@@ -472,12 +414,12 @@
 {% if can_edit %}
 <div class="modal-overlay" id="vendorModal">
     <div class="modal">
-        <div class="modal-header" id="vendorModalHeader">
-            <h4><i class="fas fa-building"></i> <span id="vendorModalTitle">Add Vendor</span></h4>
+        <div class="modal-header">
+            <h4><i class="fas fa-building"></i> Add Vendor</h4>
             <button class="modal-close" onclick="closeVendorModal()">&times;</button>
         </div>
         <div class="modal-body">
-            <input type="hidden" id="vendorCategory" value="Active">
+            <input type="hidden" id="vendorCategoryId" value="">
             <div class="form-group">
                 <label>Vendor Name *</label>
                 <input type="text" id="vendorName" placeholder="e.g., Hikvision, Cisco, Honeywell">
@@ -512,40 +454,57 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="categoryModal">
+    <div class="modal">
+        <div class="modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <h4><i class="fas fa-folder-plus"></i> Add Category</h4>
+            <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Category Name *</label>
+                <input type="text" id="categoryName" placeholder="e.g., Active, Passive, Network">
+            </div>
+            <div class="form-group">
+                <label>Icon (FontAwesome class)</label>
+                <input type="text" id="categoryIcon" placeholder="fa-bolt" value="fa-folder">
+            </div>
+            <div class="form-group">
+                <label>Color</label>
+                <input type="color" id="categoryColor" value="#667eea" style="height: 45px;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeCategoryModal()">Cancel</button>
+            <button class="btn-save" onclick="saveCategory()">Save Category</button>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <script>
 const solutionId = {{ solution.id }};
 
-function openVendorModal(category) {
-    category = category || 'Active';
-    document.getElementById('vendorCategory').value = category;
-    document.getElementById('vendorModalTitle').textContent = 'Add ' + category + ' Vendor';
-    
-    const header = document.getElementById('vendorModalHeader');
-    if (category === 'Active') {
-        header.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
-    } else {
-        header.style.background = 'linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%)';
-    }
-    
+function openVendorModal(categoryId) {
+    document.getElementById('vendorCategoryId').value = categoryId || '';
     document.getElementById('vendorName').value = '';
     document.getElementById('vendorLogoUrl').value = '';
     document.getElementById('vendorType').value = 'Vendor';
     document.getElementById('vendorWebsite').value = '';
     document.getElementById('vendorDesc').value = '';
-    
     document.getElementById('vendorModal').classList.add('active');
 }
 function closeVendorModal() { document.getElementById('vendorModal').classList.remove('active'); }
-function openProductModal() { document.getElementById('productModal').classList.add('active'); }
-function closeProductModal() { document.getElementById('productModal').classList.remove('active'); }
+
+function openCategoryModal() { document.getElementById('categoryModal').classList.add('active'); }
+function closeCategoryModal() { document.getElementById('categoryModal').classList.remove('active'); }
 
 function saveVendor() {
+    const categoryId = document.getElementById('vendorCategoryId').value;
     const data = {
         vendor_name: document.getElementById('vendorName').value,
         vendor_type: document.getElementById('vendorType').value,
-        vendor_category: document.getElementById('vendorCategory').value,
+        category_id: categoryId ? parseInt(categoryId) : null,
         logo_url: document.getElementById('vendorLogoUrl').value,
         website: document.getElementById('vendorWebsite').value,
         description: document.getElementById('vendorDesc').value
@@ -563,23 +522,22 @@ function saveVendor() {
     });
 }
 
-function saveProduct() {
+function saveCategory() {
     const data = {
-        product_name: document.getElementById('productName').value,
-        product_category: document.getElementById('productCategory').value,
-        vendor_id: document.getElementById('productVendor').value || null,
-        description: document.getElementById('productDesc').value
+        category_name: document.getElementById('categoryName').value,
+        icon: document.getElementById('categoryIcon').value || 'fa-folder',
+        color: document.getElementById('categoryColor').value || '#667eea'
     };
     
-    if (!data.product_name) { alert('Product name is required'); return; }
+    if (!data.category_name) { alert('Category name is required'); return; }
     
-    fetch(`/api/solution/${solutionId}/products`, {
+    fetch(`/api/solution/${solutionId}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     }).then(r => r.json()).then(result => {
         if (result.success) { location.reload(); }
-        else { alert(result.error || 'Error adding product'); }
+        else { alert(result.error || 'Error adding category'); }
     });
 }
 
@@ -589,9 +547,9 @@ function deleteVendor(vendorId) {
         .then(r => r.json()).then(result => { if (result.success) location.reload(); });
 }
 
-function deleteProduct(productId) {
-    if (!confirm('Delete this product?')) return;
-    fetch(`/api/solution/products/${productId}`, { method: 'DELETE' })
+function deleteCategory(categoryId) {
+    if (!confirm('Delete this category? Vendors will become uncategorized.')) return;
+    fetch(`/api/solution/categories/${categoryId}`, { method: 'DELETE' })
         .then(r => r.json()).then(result => { if (result.success) location.reload(); });
 }
 </script>

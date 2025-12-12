@@ -1652,6 +1652,20 @@ def solution_profile(solution_id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
+    # Create solution_vendor_categories table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS solution_vendor_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            solution_id INTEGER NOT NULL,
+            category_name TEXT NOT NULL,
+            icon TEXT DEFAULT 'fa-folder',
+            color TEXT DEFAULT '#667eea',
+            display_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (solution_id) REFERENCES company_solutions(id)
+        )
+    """)
+    
     # Create solution_vendors table if not exists
     c.execute("""
         CREATE TABLE IF NOT EXISTS solution_vendors (
@@ -1659,18 +1673,19 @@ def solution_profile(solution_id):
             solution_id INTEGER NOT NULL,
             vendor_name TEXT NOT NULL,
             vendor_type TEXT DEFAULT 'Vendor',
-            vendor_category TEXT DEFAULT 'Active',
+            category_id INTEGER,
             logo_url TEXT,
             website TEXT,
             description TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (solution_id) REFERENCES company_solutions(id)
+            FOREIGN KEY (solution_id) REFERENCES company_solutions(id),
+            FOREIGN KEY (category_id) REFERENCES solution_vendor_categories(id)
         )
     """)
     
-    # Add vendor_category column if it doesn't exist
+    # Add category_id column if it doesn't exist (migration)
     try:
-        c.execute("ALTER TABLE solution_vendors ADD COLUMN vendor_category TEXT DEFAULT 'Active'")
+        c.execute("ALTER TABLE solution_vendors ADD COLUMN category_id INTEGER")
         conn.commit()
     except:
         pass
@@ -1702,14 +1717,27 @@ def solution_profile(solution_id):
     
     solution = dict(solution)
     
-    # Get vendors for this solution - separate by category
-    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? AND (vendor_category = 'Active' OR vendor_category IS NULL) ORDER BY vendor_name", (solution_id,))
-    active_vendors = [dict(row) for row in c.fetchall()]
+    # Get categories for this solution
+    c.execute("SELECT * FROM solution_vendor_categories WHERE solution_id = ? ORDER BY display_order, category_name", (solution_id,))
+    categories = [dict(row) for row in c.fetchall()]
     
-    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? AND vendor_category = 'Passive' ORDER BY vendor_name", (solution_id,))
-    passive_vendors = [dict(row) for row in c.fetchall()]
+    # Get all vendors for this solution
+    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? ORDER BY vendor_name", (solution_id,))
+    all_vendors = [dict(row) for row in c.fetchall()]
     
-    vendors = active_vendors + passive_vendors
+    # Group vendors by category
+    vendors_by_category = {}
+    uncategorized_vendors = []
+    for vendor in all_vendors:
+        cat_id = vendor.get('category_id')
+        if cat_id:
+            if cat_id not in vendors_by_category:
+                vendors_by_category[cat_id] = []
+            vendors_by_category[cat_id].append(vendor)
+        else:
+            uncategorized_vendors.append(vendor)
+    
+    vendors = all_vendors
     
     # Get products for this solution
     c.execute("""
@@ -1725,17 +1753,14 @@ def solution_profile(solution_id):
     
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
-    # Check if this is the ICT solution (only ICT gets Active/Passive vendor categories)
-    is_ict_solution = 'ict' in solution.get('name', '').lower()
-    
     return render_template('solution_profile.html', 
                          solution=solution, 
                          vendors=vendors,
-                         active_vendors=active_vendors,
-                         passive_vendors=passive_vendors,
+                         categories=categories,
+                         vendors_by_category=vendors_by_category,
+                         uncategorized_vendors=uncategorized_vendors,
                          products=products,
-                         can_edit=can_edit,
-                         is_ict_solution=is_ict_solution)
+                         can_edit=can_edit)
 
 @app.route('/api/solution/<int:solution_id>/vendors', methods=['POST'])
 @login_required
@@ -1749,10 +1774,10 @@ def add_solution_vendor(solution_id):
     c = conn.cursor()
     
     c.execute("""
-        INSERT INTO solution_vendors (solution_id, vendor_name, vendor_type, vendor_category, logo_url, website, description)
+        INSERT INTO solution_vendors (solution_id, vendor_name, vendor_type, category_id, logo_url, website, description)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (solution_id, data.get('vendor_name'), data.get('vendor_type', 'Vendor'),
-          data.get('vendor_category', 'Active'), data.get('logo_url'),
+          data.get('category_id'), data.get('logo_url'),
           data.get('website'), data.get('description')))
     
     vendor_id = c.lastrowid
@@ -1809,6 +1834,48 @@ def delete_solution_product(product_id):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute("DELETE FROM solution_products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/solution/<int:solution_id>/categories', methods=['POST'])
+@login_required
+def add_solution_category(solution_id):
+    """Add a category to a solution"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT MAX(display_order) FROM solution_vendor_categories WHERE solution_id = ?", (solution_id,))
+    max_order = c.fetchone()[0] or 0
+    
+    c.execute("""
+        INSERT INTO solution_vendor_categories (solution_id, category_name, icon, color, display_order)
+        VALUES (?, ?, ?, ?, ?)
+    """, (solution_id, data.get('category_name'), data.get('icon', 'fa-folder'),
+          data.get('color', '#667eea'), max_order + 1))
+    
+    category_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': category_id})
+
+@app.route('/api/solution/categories/<int:category_id>', methods=['DELETE'])
+@login_required
+def delete_solution_category(category_id):
+    """Delete a category"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("UPDATE solution_vendors SET category_id = NULL WHERE category_id = ?", (category_id,))
+    c.execute("DELETE FROM solution_vendor_categories WHERE id = ?", (category_id,))
     conn.commit()
     conn.close()
     
