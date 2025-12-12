@@ -848,7 +848,7 @@
     </h3>
     <div class="solutions-grid" id="solutionsGrid">
         {% for solution in solutions %}
-        <div class="solution-card" data-id="{{ solution.id }}">
+        <div class="solution-card" data-id="{{ solution.id }}" onclick="window.location.href='/solution/{{ solution.id }}'" style="cursor: pointer;">
             {% if solution.image_url %}
             <div class="solution-image" style="background-image: url('{{ solution.image_url }}')"></div>
             {% else %}
@@ -859,10 +859,10 @@
             <h5>{{ solution.name }}</h5>
             {% if can_edit and solution.id != 0 %}
             <div class="solution-actions">
-                <button class="action-btn edit" onclick="editSolution({{ solution.id }}, '{{ solution.name }}', '{{ solution.icon }}', '{{ solution.color_class }}')" title="Edit">
+                <button class="action-btn edit" onclick="event.stopPropagation(); editSolution({{ solution.id }}, '{{ solution.name }}', '{{ solution.icon }}', '{{ solution.color_class }}')" title="Edit">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="action-btn delete" onclick="deleteSolution({{ solution.id }})" title="Delete">
+                <button class="action-btn delete" onclick="event.stopPropagation(); deleteSolution({{ solution.id }})" title="Delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>

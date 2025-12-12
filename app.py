@@ -1644,6 +1644,156 @@ def delete_company_solution(solution_id):
     
     return jsonify({'success': True, 'message': 'Solution deleted successfully'})
 
+@app.route('/solution/<int:solution_id>')
+@login_required
+def solution_profile(solution_id):
+    """Solution profile page with vendors and products"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Create solution_vendors table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS solution_vendors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            solution_id INTEGER NOT NULL,
+            vendor_name TEXT NOT NULL,
+            vendor_type TEXT DEFAULT 'Vendor',
+            logo_url TEXT,
+            website TEXT,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (solution_id) REFERENCES company_solutions(id)
+        )
+    """)
+    
+    # Create solution_products table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS solution_products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            solution_id INTEGER NOT NULL,
+            product_name TEXT NOT NULL,
+            product_category TEXT,
+            description TEXT,
+            image_url TEXT,
+            vendor_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (solution_id) REFERENCES company_solutions(id),
+            FOREIGN KEY (vendor_id) REFERENCES solution_vendors(id)
+        )
+    """)
+    conn.commit()
+    
+    # Get solution details
+    c.execute("SELECT * FROM company_solutions WHERE id = ?", (solution_id,))
+    solution = c.fetchone()
+    
+    if not solution:
+        flash('Solution not found', 'danger')
+        return redirect(url_for('company_profile'))
+    
+    solution = dict(solution)
+    
+    # Get vendors for this solution
+    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? ORDER BY vendor_name", (solution_id,))
+    vendors = [dict(row) for row in c.fetchall()]
+    
+    # Get products for this solution
+    c.execute("""
+        SELECT p.*, v.vendor_name 
+        FROM solution_products p
+        LEFT JOIN solution_vendors v ON p.vendor_id = v.id
+        WHERE p.solution_id = ?
+        ORDER BY p.product_category, p.product_name
+    """, (solution_id,))
+    products = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    
+    can_edit = session.get('username', '').lower() == 'm.saleh'
+    
+    return render_template('solution_profile.html', 
+                         solution=solution, 
+                         vendors=vendors, 
+                         products=products,
+                         can_edit=can_edit)
+
+@app.route('/api/solution/<int:solution_id>/vendors', methods=['POST'])
+@login_required
+def add_solution_vendor(solution_id):
+    """Add a vendor to a solution"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        INSERT INTO solution_vendors (solution_id, vendor_name, vendor_type, website, description)
+        VALUES (?, ?, ?, ?, ?)
+    """, (solution_id, data.get('vendor_name'), data.get('vendor_type', 'Vendor'), 
+          data.get('website'), data.get('description')))
+    
+    vendor_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': vendor_id})
+
+@app.route('/api/solution/<int:solution_id>/products', methods=['POST'])
+@login_required
+def add_solution_product(solution_id):
+    """Add a product to a solution"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        INSERT INTO solution_products (solution_id, product_name, product_category, description, vendor_id)
+        VALUES (?, ?, ?, ?, ?)
+    """, (solution_id, data.get('product_name'), data.get('product_category'),
+          data.get('description'), data.get('vendor_id')))
+    
+    product_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': product_id})
+
+@app.route('/api/solution/vendors/<int:vendor_id>', methods=['DELETE'])
+@login_required
+def delete_solution_vendor(vendor_id):
+    """Delete a vendor"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM solution_vendors WHERE id = ?", (vendor_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/solution/products/<int:product_id>', methods=['DELETE'])
+@login_required
+def delete_solution_product(product_id):
+    """Delete a product"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM solution_products WHERE id = ?", (product_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
 ################################3
 @app.route('/')
 @login_required
