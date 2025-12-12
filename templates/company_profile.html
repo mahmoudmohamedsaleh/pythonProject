@@ -698,6 +698,51 @@
     .ai-badge i {
         font-size: 0.65rem;
     }
+    
+    /* AI Preview Box */
+    .ai-preview-box {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 15px;
+        margin-top: 15px;
+        animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .ai-preview-header {
+        margin-bottom: 12px;
+    }
+    .ai-preview-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    .ai-preview-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        transition: all 0.3s ease;
+    }
+    .ai-preview-text {
+        flex: 1;
+    }
+    .ai-preview-text strong {
+        display: block;
+        font-size: 1.1rem;
+        color: #1a1a2e;
+    }
+    .ai-preview-text small {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
 </style>
 
 <!-- Hero Section -->
@@ -1088,21 +1133,125 @@ let editingSolutionId = null;
 let selectedIcon = 'fa-cogs';
 let selectedColor = 'purple';
 
-// Available icons for solutions (categorized for AI suggestions)
-const iconCategories = {
-    'network': ['fa-network-wired', 'fa-wifi', 'fa-ethernet', 'fa-server', 'fa-database', 'fa-cloud'],
-    'security': ['fa-video', 'fa-camera', 'fa-eye', 'fa-shield-alt', 'fa-lock', 'fa-user-shield'],
-    'access': ['fa-fingerprint', 'fa-id-card', 'fa-key', 'fa-door-open', 'fa-qrcode', 'fa-user-lock'],
-    'fire': ['fa-fire-extinguisher', 'fa-fire', 'fa-bell', 'fa-exclamation-triangle', 'fa-thermometer-half'],
-    'audio': ['fa-volume-up', 'fa-microphone', 'fa-headphones', 'fa-broadcast-tower', 'fa-bullhorn'],
-    'building': ['fa-building', 'fa-city', 'fa-warehouse', 'fa-industry', 'fa-home', 'fa-hotel'],
-    'technology': ['fa-laptop', 'fa-desktop', 'fa-mobile-alt', 'fa-tablet-alt', 'fa-microchip', 'fa-memory'],
-    'power': ['fa-bolt', 'fa-plug', 'fa-battery-full', 'fa-solar-panel', 'fa-car-battery'],
-    'communication': ['fa-phone', 'fa-envelope', 'fa-comments', 'fa-satellite-dish', 'fa-fax'],
-    'general': ['fa-cogs', 'fa-tools', 'fa-wrench', 'fa-chart-line', 'fa-globe', 'fa-sitemap']
+// AI keyword mapping for intelligent icon/color detection
+const aiKeywordMap = {
+    // Network & Infrastructure
+    'network': { icon: 'fa-network-wired', color: 'purple', category: 'Network & Infrastructure' },
+    'ict': { icon: 'fa-network-wired', color: 'purple', category: 'ICT Infrastructure' },
+    'infrastructure': { icon: 'fa-server', color: 'purple', category: 'Infrastructure' },
+    'server': { icon: 'fa-server', color: 'blue', category: 'Server Systems' },
+    'data center': { icon: 'fa-database', color: 'indigo', category: 'Data Center' },
+    'datacenter': { icon: 'fa-database', color: 'indigo', category: 'Data Center' },
+    'wifi': { icon: 'fa-wifi', color: 'cyan', category: 'Wireless' },
+    'wireless': { icon: 'fa-wifi', color: 'cyan', category: 'Wireless' },
+    
+    // Security & Surveillance
+    'cctv': { icon: 'fa-video', color: 'pink', category: 'CCTV & Surveillance' },
+    'camera': { icon: 'fa-camera', color: 'pink', category: 'Camera Systems' },
+    'surveillance': { icon: 'fa-video', color: 'pink', category: 'Surveillance' },
+    'video': { icon: 'fa-video', color: 'pink', category: 'Video Systems' },
+    'security': { icon: 'fa-shield-alt', color: 'red', category: 'Security' },
+    'monitoring': { icon: 'fa-eye', color: 'pink', category: 'Monitoring' },
+    
+    // Access Control
+    'access': { icon: 'fa-fingerprint', color: 'cyan', category: 'Access Control' },
+    'control': { icon: 'fa-fingerprint', color: 'cyan', category: 'Access Control' },
+    'fingerprint': { icon: 'fa-fingerprint', color: 'cyan', category: 'Biometrics' },
+    'biometric': { icon: 'fa-fingerprint', color: 'cyan', category: 'Biometrics' },
+    'door': { icon: 'fa-door-open', color: 'cyan', category: 'Door Systems' },
+    'gate': { icon: 'fa-door-open', color: 'cyan', category: 'Gate Control' },
+    'barrier': { icon: 'fa-road', color: 'cyan', category: 'Barrier Systems' },
+    
+    // Fire & Safety
+    'fire': { icon: 'fa-fire-extinguisher', color: 'orange', category: 'Fire Systems' },
+    'alarm': { icon: 'fa-bell', color: 'orange', category: 'Alarm Systems' },
+    'smoke': { icon: 'fa-smog', color: 'orange', category: 'Smoke Detection' },
+    'safety': { icon: 'fa-hard-hat', color: 'orange', category: 'Safety Systems' },
+    'emergency': { icon: 'fa-exclamation-triangle', color: 'red', category: 'Emergency Systems' },
+    
+    // Audio & PA
+    'audio': { icon: 'fa-volume-up', color: 'green', category: 'Audio Systems' },
+    'pa': { icon: 'fa-bullhorn', color: 'green', category: 'Public Address' },
+    'public address': { icon: 'fa-bullhorn', color: 'green', category: 'Public Address' },
+    'speaker': { icon: 'fa-volume-up', color: 'green', category: 'Speaker Systems' },
+    'sound': { icon: 'fa-music', color: 'green', category: 'Sound Systems' },
+    'broadcast': { icon: 'fa-broadcast-tower', color: 'green', category: 'Broadcasting' },
+    
+    // Building Management
+    'building': { icon: 'fa-building', color: 'teal', category: 'Building Management' },
+    'bms': { icon: 'fa-building', color: 'teal', category: 'BMS' },
+    'hvac': { icon: 'fa-fan', color: 'teal', category: 'HVAC Systems' },
+    'automation': { icon: 'fa-robot', color: 'teal', category: 'Automation' },
+    'smart': { icon: 'fa-microchip', color: 'teal', category: 'Smart Systems' },
+    
+    // Power & Energy
+    'power': { icon: 'fa-bolt', color: 'amber', category: 'Power Systems' },
+    'energy': { icon: 'fa-solar-panel', color: 'amber', category: 'Energy' },
+    'electric': { icon: 'fa-plug', color: 'amber', category: 'Electrical' },
+    'ups': { icon: 'fa-car-battery', color: 'amber', category: 'UPS Systems' },
+    'solar': { icon: 'fa-solar-panel', color: 'amber', category: 'Solar Energy' },
+    'generator': { icon: 'fa-bolt', color: 'amber', category: 'Generators' },
+    
+    // Communication
+    'phone': { icon: 'fa-phone', color: 'blue', category: 'Telephony' },
+    'telecom': { icon: 'fa-satellite-dish', color: 'blue', category: 'Telecommunications' },
+    'intercom': { icon: 'fa-phone-volume', color: 'blue', category: 'Intercom' },
+    'voip': { icon: 'fa-headset', color: 'blue', category: 'VoIP' },
+    'pbx': { icon: 'fa-phone', color: 'blue', category: 'PBX Systems' },
+    
+    // Data & Storage
+    'data': { icon: 'fa-database', color: 'indigo', category: 'Data Systems' },
+    'storage': { icon: 'fa-hdd', color: 'indigo', category: 'Storage' },
+    'cloud': { icon: 'fa-cloud', color: 'cyan', category: 'Cloud Services' },
+    'backup': { icon: 'fa-cloud-upload-alt', color: 'indigo', category: 'Backup Systems' },
+    
+    // Display & AV
+    'display': { icon: 'fa-tv', color: 'pink', category: 'Display Systems' },
+    'led': { icon: 'fa-tv', color: 'pink', category: 'LED Display' },
+    'projector': { icon: 'fa-video', color: 'pink', category: 'Projection' },
+    'conference': { icon: 'fa-users', color: 'blue', category: 'Conference Systems' },
+    'av': { icon: 'fa-tv', color: 'pink', category: 'Audio Visual' }
 };
 
-const allIcons = Object.values(iconCategories).flat();
+// Get AI suggestion based on solution name
+function getAISuggestion(solutionName) {
+    const name = solutionName.toLowerCase();
+    
+    // Check for exact matches first, then partial matches
+    for (const [keyword, config] of Object.entries(aiKeywordMap)) {
+        if (name.includes(keyword)) {
+            return config;
+        }
+    }
+    
+    // Default fallback
+    return { icon: 'fa-cogs', color: 'purple', category: 'General Solutions' };
+}
+
+// Live preview as user types
+function previewAISuggestion() {
+    const name = document.getElementById('solutionName').value.trim();
+    const previewBox = document.getElementById('aiPreviewBox');
+    
+    if (name.length < 2) {
+        previewBox.style.display = 'none';
+        return;
+    }
+    
+    const suggestion = getAISuggestion(name);
+    selectedIcon = suggestion.icon;
+    selectedColor = suggestion.color;
+    
+    // Update preview box
+    previewBox.style.display = 'block';
+    
+    const iconEl = document.getElementById('aiPreviewIcon');
+    iconEl.innerHTML = `<i class="fas ${suggestion.icon}"></i>`;
+    iconEl.className = 'ai-preview-icon solution-icon ' + suggestion.color;
+    
+    document.getElementById('aiPreviewName').textContent = name;
+    document.getElementById('aiPreviewCategory').textContent = suggestion.category;
+}
 
 function openSolutionsModal() {
     editingSolutionId = null;
@@ -1110,8 +1259,7 @@ function openSolutionsModal() {
     selectedColor = 'purple';
     document.getElementById('solutionName').value = '';
     document.getElementById('solutionsModalTitle').textContent = 'Add New Solution';
-    updateIconSelection();
-    updateColorSelection();
+    document.getElementById('aiPreviewBox').style.display = 'none';
     document.getElementById('solutionsModalOverlay').classList.add('active');
 }
 
@@ -1127,100 +1275,8 @@ function editSolution(id, name, icon, color) {
     selectedColor = color;
     document.getElementById('solutionName').value = name;
     document.getElementById('solutionsModalTitle').textContent = 'Edit Solution';
-    updateIconSelection();
-    updateColorSelection();
+    previewAISuggestion();
     document.getElementById('solutionsModalOverlay').classList.add('active');
-}
-
-function selectIcon(icon) {
-    selectedIcon = icon;
-    updateIconSelection();
-}
-
-function updateIconSelection() {
-    document.querySelectorAll('.icon-option').forEach(el => {
-        el.classList.toggle('selected', el.dataset.icon === selectedIcon);
-    });
-    document.getElementById('selectedIconPreview').innerHTML = `<i class="fas ${selectedIcon}"></i>`;
-}
-
-function selectColor(color) {
-    selectedColor = color;
-    updateColorSelection();
-}
-
-function updateColorSelection() {
-    document.querySelectorAll('.color-option').forEach(el => {
-        el.classList.toggle('selected', el.dataset.color === selectedColor);
-    });
-}
-
-// AI Smart Icon Suggestion
-function aiSuggestIcon() {
-    const solutionName = document.getElementById('solutionName').value.toLowerCase();
-    const btn = document.querySelector('.ai-suggest-btn');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-    
-    setTimeout(() => {
-        let suggestedIcon = 'fa-cogs';
-        let suggestedColor = 'purple';
-        
-        // AI-like keyword matching for icon suggestions
-        const keywords = {
-            'network': { icons: iconCategories.network, color: 'purple' },
-            'ict': { icons: iconCategories.network, color: 'purple' },
-            'infrastructure': { icons: iconCategories.network, color: 'purple' },
-            'server': { icons: ['fa-server', 'fa-database'], color: 'blue' },
-            'cctv': { icons: iconCategories.security, color: 'pink' },
-            'camera': { icons: iconCategories.security, color: 'pink' },
-            'surveillance': { icons: iconCategories.security, color: 'pink' },
-            'video': { icons: iconCategories.security, color: 'pink' },
-            'security': { icons: iconCategories.security, color: 'red' },
-            'access': { icons: iconCategories.access, color: 'cyan' },
-            'control': { icons: iconCategories.access, color: 'cyan' },
-            'fingerprint': { icons: iconCategories.access, color: 'cyan' },
-            'fire': { icons: iconCategories.fire, color: 'orange' },
-            'alarm': { icons: iconCategories.fire, color: 'orange' },
-            'smoke': { icons: iconCategories.fire, color: 'orange' },
-            'audio': { icons: iconCategories.audio, color: 'green' },
-            'pa': { icons: iconCategories.audio, color: 'green' },
-            'public address': { icons: iconCategories.audio, color: 'green' },
-            'speaker': { icons: iconCategories.audio, color: 'green' },
-            'sound': { icons: iconCategories.audio, color: 'green' },
-            'building': { icons: iconCategories.building, color: 'teal' },
-            'bms': { icons: iconCategories.building, color: 'teal' },
-            'management': { icons: iconCategories.building, color: 'teal' },
-            'power': { icons: iconCategories.power, color: 'amber' },
-            'energy': { icons: iconCategories.power, color: 'amber' },
-            'electric': { icons: iconCategories.power, color: 'amber' },
-            'ups': { icons: iconCategories.power, color: 'amber' },
-            'phone': { icons: iconCategories.communication, color: 'blue' },
-            'telecom': { icons: iconCategories.communication, color: 'blue' },
-            'intercom': { icons: iconCategories.communication, color: 'blue' },
-            'data': { icons: ['fa-database', 'fa-hdd', 'fa-cloud'], color: 'indigo' },
-            'storage': { icons: ['fa-database', 'fa-hdd', 'fa-cloud'], color: 'indigo' },
-            'cloud': { icons: ['fa-cloud', 'fa-cloud-upload-alt'], color: 'cyan' }
-        };
-        
-        for (const [keyword, config] of Object.entries(keywords)) {
-            if (solutionName.includes(keyword)) {
-                suggestedIcon = config.icons[0];
-                suggestedColor = config.color;
-                break;
-            }
-        }
-        
-        selectedIcon = suggestedIcon;
-        selectedColor = suggestedColor;
-        updateIconSelection();
-        updateColorSelection();
-        
-        btn.innerHTML = '<i class="fas fa-magic"></i> AI Suggest';
-        
-        // Show suggestion badge
-        const preview = document.getElementById('selectedIconPreview');
-        preview.innerHTML = `<i class="fas ${suggestedIcon}"></i> <span class="ai-badge"><i class="fas fa-robot"></i> AI</span>`;
-    }, 500);
 }
 
 async function saveSolution() {
@@ -1302,7 +1358,7 @@ function filterIcons() {
 
 <!-- Solutions Modal -->
 <div class="edit-modal-overlay" id="solutionsModalOverlay" onclick="closeSolutionsModal(event)">
-    <div class="edit-modal" onclick="event.stopPropagation()" style="max-width: 600px;">
+    <div class="edit-modal" onclick="event.stopPropagation()" style="max-width: 500px;">
         <div class="edit-modal-header">
             <h4><i class="fas fa-cogs"></i><span id="solutionsModalTitle">Add New Solution</span></h4>
             <button class="edit-modal-close" onclick="closeSolutionsModal()">&times;</button>
@@ -1310,76 +1366,32 @@ function filterIcons() {
         <div class="edit-modal-body">
             <div class="edit-form-group">
                 <label>Solution Name</label>
-                <input type="text" id="solutionName" placeholder="e.g., CCTV & Surveillance" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+                <input type="text" id="solutionName" placeholder="e.g., CCTV & Surveillance, Data Center, UPS Systems..." style="width: 100%; padding: 15px 18px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 1.1rem;" oninput="previewAISuggestion()">
             </div>
             
-            <div class="edit-form-group">
-                <label style="display: flex; align-items: center; gap: 10px;">
-                    Icon Selection
-                    <span id="selectedIconPreview" style="font-size: 1.2rem; color: #667eea;"><i class="fas fa-cogs"></i></span>
-                </label>
-                <div class="icon-selector">
-                    <div class="icon-search-row">
-                        <input type="text" id="iconSearch" placeholder="Search icons..." oninput="filterIcons()">
-                        <button class="ai-suggest-btn" onclick="aiSuggestIcon()">
-                            <i class="fas fa-magic"></i> AI Suggest
-                        </button>
+            <div class="ai-preview-box" id="aiPreviewBox" style="display: none;">
+                <div class="ai-preview-header">
+                    <span class="ai-badge"><i class="fas fa-robot"></i> AI Auto-Detection</span>
+                </div>
+                <div class="ai-preview-content">
+                    <div class="ai-preview-icon" id="aiPreviewIcon">
+                        <i class="fas fa-cogs"></i>
                     </div>
-                    <div class="icon-grid">
-                        <div class="icon-option" data-icon="fa-network-wired" onclick="selectIcon('fa-network-wired')"><i class="fas fa-network-wired"></i></div>
-                        <div class="icon-option" data-icon="fa-video" onclick="selectIcon('fa-video')"><i class="fas fa-video"></i></div>
-                        <div class="icon-option" data-icon="fa-fingerprint" onclick="selectIcon('fa-fingerprint')"><i class="fas fa-fingerprint"></i></div>
-                        <div class="icon-option" data-icon="fa-fire-extinguisher" onclick="selectIcon('fa-fire-extinguisher')"><i class="fas fa-fire-extinguisher"></i></div>
-                        <div class="icon-option" data-icon="fa-volume-up" onclick="selectIcon('fa-volume-up')"><i class="fas fa-volume-up"></i></div>
-                        <div class="icon-option" data-icon="fa-building" onclick="selectIcon('fa-building')"><i class="fas fa-building"></i></div>
-                        <div class="icon-option" data-icon="fa-server" onclick="selectIcon('fa-server')"><i class="fas fa-server"></i></div>
-                        <div class="icon-option" data-icon="fa-database" onclick="selectIcon('fa-database')"><i class="fas fa-database"></i></div>
-                        <div class="icon-option" data-icon="fa-cloud" onclick="selectIcon('fa-cloud')"><i class="fas fa-cloud"></i></div>
-                        <div class="icon-option" data-icon="fa-wifi" onclick="selectIcon('fa-wifi')"><i class="fas fa-wifi"></i></div>
-                        <div class="icon-option" data-icon="fa-shield-alt" onclick="selectIcon('fa-shield-alt')"><i class="fas fa-shield-alt"></i></div>
-                        <div class="icon-option" data-icon="fa-lock" onclick="selectIcon('fa-lock')"><i class="fas fa-lock"></i></div>
-                        <div class="icon-option" data-icon="fa-key" onclick="selectIcon('fa-key')"><i class="fas fa-key"></i></div>
-                        <div class="icon-option" data-icon="fa-camera" onclick="selectIcon('fa-camera')"><i class="fas fa-camera"></i></div>
-                        <div class="icon-option" data-icon="fa-eye" onclick="selectIcon('fa-eye')"><i class="fas fa-eye"></i></div>
-                        <div class="icon-option" data-icon="fa-bell" onclick="selectIcon('fa-bell')"><i class="fas fa-bell"></i></div>
-                        <div class="icon-option" data-icon="fa-bolt" onclick="selectIcon('fa-bolt')"><i class="fas fa-bolt"></i></div>
-                        <div class="icon-option" data-icon="fa-plug" onclick="selectIcon('fa-plug')"><i class="fas fa-plug"></i></div>
-                        <div class="icon-option" data-icon="fa-microphone" onclick="selectIcon('fa-microphone')"><i class="fas fa-microphone"></i></div>
-                        <div class="icon-option" data-icon="fa-phone" onclick="selectIcon('fa-phone')"><i class="fas fa-phone"></i></div>
-                        <div class="icon-option" data-icon="fa-satellite-dish" onclick="selectIcon('fa-satellite-dish')"><i class="fas fa-satellite-dish"></i></div>
-                        <div class="icon-option" data-icon="fa-broadcast-tower" onclick="selectIcon('fa-broadcast-tower')"><i class="fas fa-broadcast-tower"></i></div>
-                        <div class="icon-option" data-icon="fa-cogs" onclick="selectIcon('fa-cogs')"><i class="fas fa-cogs"></i></div>
-                        <div class="icon-option" data-icon="fa-tools" onclick="selectIcon('fa-tools')"><i class="fas fa-tools"></i></div>
-                        <div class="icon-option" data-icon="fa-laptop" onclick="selectIcon('fa-laptop')"><i class="fas fa-laptop"></i></div>
-                        <div class="icon-option" data-icon="fa-desktop" onclick="selectIcon('fa-desktop')"><i class="fas fa-desktop"></i></div>
-                        <div class="icon-option" data-icon="fa-mobile-alt" onclick="selectIcon('fa-mobile-alt')"><i class="fas fa-mobile-alt"></i></div>
-                        <div class="icon-option" data-icon="fa-microchip" onclick="selectIcon('fa-microchip')"><i class="fas fa-microchip"></i></div>
-                        <div class="icon-option" data-icon="fa-solar-panel" onclick="selectIcon('fa-solar-panel')"><i class="fas fa-solar-panel"></i></div>
-                        <div class="icon-option" data-icon="fa-chart-line" onclick="selectIcon('fa-chart-line')"><i class="fas fa-chart-line"></i></div>
+                    <div class="ai-preview-text">
+                        <strong id="aiPreviewName">Solution Name</strong>
+                        <small id="aiPreviewCategory">Category will be detected automatically</small>
                     </div>
                 </div>
             </div>
             
-            <div class="edit-form-group">
-                <label>Icon Color</label>
-                <div class="color-selector">
-                    <div class="color-option purple" data-color="purple" onclick="selectColor('purple')"></div>
-                    <div class="color-option pink" data-color="pink" onclick="selectColor('pink')"></div>
-                    <div class="color-option cyan" data-color="cyan" onclick="selectColor('cyan')"></div>
-                    <div class="color-option orange" data-color="orange" onclick="selectColor('orange')"></div>
-                    <div class="color-option green" data-color="green" onclick="selectColor('green')"></div>
-                    <div class="color-option teal" data-color="teal" onclick="selectColor('teal')"></div>
-                    <div class="color-option blue" data-color="blue" onclick="selectColor('blue')"></div>
-                    <div class="color-option red" data-color="red" onclick="selectColor('red')"></div>
-                    <div class="color-option indigo" data-color="indigo" onclick="selectColor('indigo')"></div>
-                    <div class="color-option amber" data-color="amber" onclick="selectColor('amber')"></div>
-                </div>
-            </div>
+            <p style="color: #6c757d; font-size: 0.85rem; margin-top: 15px;">
+                <i class="fas fa-magic mr-1"></i> Icon and color will be automatically selected based on the solution name using AI detection.
+            </p>
         </div>
         <div class="edit-modal-footer">
             <button class="btn-cancel" onclick="closeSolutionsModal()">Cancel</button>
             <button class="btn-save" id="saveSolutionBtn" onclick="saveSolution()">
-                <i class="fas fa-save mr-1"></i>Save Solution
+                <i class="fas fa-magic mr-1"></i>Save with AI
             </button>
         </div>
     </div>
