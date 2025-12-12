@@ -143,8 +143,8 @@
     .vendor-logo {
         width: 80px;
         height: 80px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        background: white;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -152,7 +152,33 @@
         font-size: 2rem;
         color: white;
         font-weight: 700;
+        overflow: hidden;
+        border: 2px solid #e9ecef;
     }
+    .vendor-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 8px;
+    }
+    .vendor-logo.fallback {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+    .active-section .section-title i { color: #28a745; }
+    .passive-section .section-title i { color: #6f42c1; }
+    .active-section .add-btn { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+    .passive-section .add-btn { background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); }
+    .category-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .category-badge.active { background: #d4edda; color: #155724; }
+    .category-badge.passive { background: #e2d9f3; color: #6f42c1; }
     .vendor-card h5 { font-weight: 600; color: #1a1a2e; margin-bottom: 5px; }
     .vendor-card .vendor-type { color: #667eea; font-size: 0.85rem; margin-bottom: 10px; }
     .vendor-card .vendor-desc { color: #6c757d; font-size: 0.9rem; }
@@ -317,24 +343,33 @@
 
 <div class="stats-row">
     <div class="stat-card">
-        <div class="stat-icon purple"><i class="fas fa-building"></i></div>
-        <div class="stat-number">{{ vendors|length }}</div>
-        <div class="stat-label">Vendors</div>
+        <div class="stat-icon purple"><i class="fas fa-bolt"></i></div>
+        <div class="stat-number">{{ active_vendors|length }}</div>
+        <div class="stat-label">Active Vendors</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-network-wired"></i></div>
+        <div class="stat-number">{{ passive_vendors|length }}</div>
+        <div class="stat-label">Passive Vendors</div>
     </div>
 </div>
 
-<div class="section-card">
+<div class="section-card active-section">
     <h3 class="section-title">
-        <i class="fas fa-building"></i>Vendors & Partners
+        <i class="fas fa-bolt"></i>Active Vendors
         {% if can_edit %}
-        <button class="add-btn" onclick="openVendorModal()"><i class="fas fa-plus"></i> Add Vendor</button>
+        <button class="add-btn" onclick="openVendorModal('Active')"><i class="fas fa-plus"></i> Add Active Vendor</button>
         {% endif %}
     </h3>
-    {% if vendors %}
+    {% if active_vendors %}
     <div class="vendors-grid">
-        {% for vendor in vendors %}
+        {% for vendor in active_vendors %}
         <div class="vendor-card">
-            <div class="vendor-logo">{{ vendor.vendor_name[:2].upper() }}</div>
+            {% if vendor.logo_url %}
+            <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
+            {% else %}
+            <div class="vendor-logo fallback">{{ vendor.vendor_name[:2].upper() }}</div>
+            {% endif %}
             <h5>{{ vendor.vendor_name }}</h5>
             <div class="vendor-type">{{ vendor.vendor_type }}</div>
             {% if vendor.description %}
@@ -348,8 +383,43 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <i class="fas fa-building"></i>
-        <p>No vendors added yet</p>
+        <i class="fas fa-bolt"></i>
+        <p>No active vendors added yet</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="section-card passive-section">
+    <h3 class="section-title">
+        <i class="fas fa-network-wired"></i>Passive Vendors
+        {% if can_edit %}
+        <button class="add-btn" onclick="openVendorModal('Passive')"><i class="fas fa-plus"></i> Add Passive Vendor</button>
+        {% endif %}
+    </h3>
+    {% if passive_vendors %}
+    <div class="vendors-grid">
+        {% for vendor in passive_vendors %}
+        <div class="vendor-card">
+            {% if vendor.logo_url %}
+            <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
+            {% else %}
+            <div class="vendor-logo fallback">{{ vendor.vendor_name[:2].upper() }}</div>
+            {% endif %}
+            <h5>{{ vendor.vendor_name }}</h5>
+            <div class="vendor-type">{{ vendor.vendor_type }}</div>
+            {% if vendor.description %}
+            <div class="vendor-desc">{{ vendor.description }}</div>
+            {% endif %}
+            {% if can_edit %}
+            <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-network-wired"></i>
+        <p>No passive vendors added yet</p>
     </div>
     {% endif %}
 </div>
@@ -357,14 +427,20 @@
 {% if can_edit %}
 <div class="modal-overlay" id="vendorModal">
     <div class="modal">
-        <div class="modal-header">
-            <h4><i class="fas fa-building"></i> Add Vendor</h4>
+        <div class="modal-header" id="vendorModalHeader">
+            <h4><i class="fas fa-building"></i> <span id="vendorModalTitle">Add Vendor</span></h4>
             <button class="modal-close" onclick="closeVendorModal()">&times;</button>
         </div>
         <div class="modal-body">
+            <input type="hidden" id="vendorCategory" value="Active">
             <div class="form-group">
                 <label>Vendor Name *</label>
                 <input type="text" id="vendorName" placeholder="e.g., Hikvision, Cisco, Honeywell">
+            </div>
+            <div class="form-group">
+                <label>Logo URL</label>
+                <input type="text" id="vendorLogoUrl" placeholder="https://example.com/logo.png">
+                <small style="color: #6c757d; font-size: 0.8rem;">Enter the URL of the vendor's logo image</small>
             </div>
             <div class="form-group">
                 <label>Vendor Type</label>
@@ -396,7 +472,26 @@
 <script>
 const solutionId = {{ solution.id }};
 
-function openVendorModal() { document.getElementById('vendorModal').classList.add('active'); }
+function openVendorModal(category) {
+    category = category || 'Active';
+    document.getElementById('vendorCategory').value = category;
+    document.getElementById('vendorModalTitle').textContent = 'Add ' + category + ' Vendor';
+    
+    const header = document.getElementById('vendorModalHeader');
+    if (category === 'Active') {
+        header.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+    } else {
+        header.style.background = 'linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%)';
+    }
+    
+    document.getElementById('vendorName').value = '';
+    document.getElementById('vendorLogoUrl').value = '';
+    document.getElementById('vendorType').value = 'Vendor';
+    document.getElementById('vendorWebsite').value = '';
+    document.getElementById('vendorDesc').value = '';
+    
+    document.getElementById('vendorModal').classList.add('active');
+}
 function closeVendorModal() { document.getElementById('vendorModal').classList.remove('active'); }
 function openProductModal() { document.getElementById('productModal').classList.add('active'); }
 function closeProductModal() { document.getElementById('productModal').classList.remove('active'); }
@@ -405,6 +500,8 @@ function saveVendor() {
     const data = {
         vendor_name: document.getElementById('vendorName').value,
         vendor_type: document.getElementById('vendorType').value,
+        vendor_category: document.getElementById('vendorCategory').value,
+        logo_url: document.getElementById('vendorLogoUrl').value,
         website: document.getElementById('vendorWebsite').value,
         description: document.getElementById('vendorDesc').value
     };

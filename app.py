@@ -1659,6 +1659,7 @@ def solution_profile(solution_id):
             solution_id INTEGER NOT NULL,
             vendor_name TEXT NOT NULL,
             vendor_type TEXT DEFAULT 'Vendor',
+            vendor_category TEXT DEFAULT 'Active',
             logo_url TEXT,
             website TEXT,
             description TEXT,
@@ -1666,6 +1667,13 @@ def solution_profile(solution_id):
             FOREIGN KEY (solution_id) REFERENCES company_solutions(id)
         )
     """)
+    
+    # Add vendor_category column if it doesn't exist
+    try:
+        c.execute("ALTER TABLE solution_vendors ADD COLUMN vendor_category TEXT DEFAULT 'Active'")
+        conn.commit()
+    except:
+        pass
     
     # Create solution_products table if not exists
     c.execute("""
@@ -1694,9 +1702,14 @@ def solution_profile(solution_id):
     
     solution = dict(solution)
     
-    # Get vendors for this solution
-    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? ORDER BY vendor_name", (solution_id,))
-    vendors = [dict(row) for row in c.fetchall()]
+    # Get vendors for this solution - separate by category
+    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? AND (vendor_category = 'Active' OR vendor_category IS NULL) ORDER BY vendor_name", (solution_id,))
+    active_vendors = [dict(row) for row in c.fetchall()]
+    
+    c.execute("SELECT * FROM solution_vendors WHERE solution_id = ? AND vendor_category = 'Passive' ORDER BY vendor_name", (solution_id,))
+    passive_vendors = [dict(row) for row in c.fetchall()]
+    
+    vendors = active_vendors + passive_vendors
     
     # Get products for this solution
     c.execute("""
@@ -1714,7 +1727,9 @@ def solution_profile(solution_id):
     
     return render_template('solution_profile.html', 
                          solution=solution, 
-                         vendors=vendors, 
+                         vendors=vendors,
+                         active_vendors=active_vendors,
+                         passive_vendors=passive_vendors,
                          products=products,
                          can_edit=can_edit)
 
@@ -1730,9 +1745,10 @@ def add_solution_vendor(solution_id):
     c = conn.cursor()
     
     c.execute("""
-        INSERT INTO solution_vendors (solution_id, vendor_name, vendor_type, website, description)
-        VALUES (?, ?, ?, ?, ?)
-    """, (solution_id, data.get('vendor_name'), data.get('vendor_type', 'Vendor'), 
+        INSERT INTO solution_vendors (solution_id, vendor_name, vendor_type, vendor_category, logo_url, website, description)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (solution_id, data.get('vendor_name'), data.get('vendor_type', 'Vendor'),
+          data.get('vendor_category', 'Active'), data.get('logo_url'),
           data.get('website'), data.get('description')))
     
     vendor_id = c.lastrowid
