@@ -1544,14 +1544,15 @@ def get_solution_image_url(solution_name):
     
     # Keyword to image mapping (pre-generated images)
     image_mappings = [
+        (['audio visual', 'av system', 'projector', 'video wall', 'multimedia'], '/static/solutions/audio_visual_av_system.png'),
         (['ict', 'infrastructure', 'network', 'data center', 'server'], '/static/solutions/ict_infrastructure_data_center.png'),
         (['access', 'biometric', 'fingerprint', 'rfid', 'door'], '/static/solutions/access_control_security_system.png'),
         (['fire', 'alarm', 'smoke', 'detection'], '/static/solutions/fire_alarm_safety_system.png'),
-        (['public address', 'pa ', 'speaker', 'audio', 'sound'], '/static/solutions/public_address_speaker_system.png'),
+        (['public address', 'pa system', 'speaker', 'sound'], '/static/solutions/public_address_speaker_system.png'),
         (['building management', 'bms', 'hvac', 'automation'], '/static/solutions/building_management_system.png'),
         (['lighting', 'light control', 'led', 'illumination'], '/static/solutions/lighting_control_technology.png'),
-        (['cctv', 'camera', 'surveillance', 'video', 'monitoring'], '/static/solutions/ip_cctv_security_camera.png'),
-        (['nurse', 'call', 'patient', 'hospital', 'healthcare'], '/static/solutions/nurse_call_hospital_system.png'),
+        (['cctv', 'camera', 'surveillance', 'monitoring'], '/static/solutions/ip_cctv_security_camera.png'),
+        (['nurse', 'patient', 'hospital', 'healthcare'], '/static/solutions/nurse_call_hospital_system.png'),
         (['intercom', 'door phone', 'entry', 'doorbell'], '/static/solutions/intercom_door_entry_system.png'),
         (['ups', 'power', 'backup', 'battery', 'uninterruptible'], '/static/solutions/ups_power_backup_system.png'),
         (['queue', 'ticket', 'waiting', 'customer service'], '/static/solutions/queue_management_display.png'),
