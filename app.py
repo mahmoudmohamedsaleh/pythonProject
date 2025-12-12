@@ -1428,17 +1428,25 @@ def company_profile():
     c.execute("SELECT * FROM company_solutions ORDER BY display_order, id")
     solutions = [dict(row) for row in c.fetchall()]
     
-    # If no solutions in database, use defaults
+    # If no solutions in database, insert the defaults
     if not solutions:
         default_solutions = [
-            {'id': 0, 'name': 'ICT Infrastructure', 'icon': 'fa-network-wired', 'color_class': 'purple'},
-            {'id': 0, 'name': 'CCTV & Surveillance', 'icon': 'fa-video', 'color_class': 'pink'},
-            {'id': 0, 'name': 'Access Control', 'icon': 'fa-fingerprint', 'color_class': 'cyan'},
-            {'id': 0, 'name': 'Fire Alarm Systems', 'icon': 'fa-fire-extinguisher', 'color_class': 'orange'},
-            {'id': 0, 'name': 'Public Address', 'icon': 'fa-volume-up', 'color_class': 'green'},
-            {'id': 0, 'name': 'Building Management', 'icon': 'fa-building', 'color_class': 'teal'}
+            ('ICT Infrastructure', 'fa-network-wired', 'purple', 1),
+            ('CCTV & Surveillance', 'fa-video', 'pink', 2),
+            ('Access Control', 'fa-fingerprint', 'cyan', 3),
+            ('Fire Alarm Systems', 'fa-fire-extinguisher', 'orange', 4),
+            ('Public Address', 'fa-volume-up', 'green', 5),
+            ('Building Management', 'fa-building', 'teal', 6)
         ]
-        solutions = default_solutions
+        c.executemany("""
+            INSERT INTO company_solutions (name, icon, color_class, display_order)
+            VALUES (?, ?, ?, ?)
+        """, default_solutions)
+        conn.commit()
+        
+        # Fetch the newly inserted solutions
+        c.execute("SELECT * FROM company_solutions ORDER BY display_order, id")
+        solutions = [dict(row) for row in c.fetchall()]
     
     conn.close()
     
