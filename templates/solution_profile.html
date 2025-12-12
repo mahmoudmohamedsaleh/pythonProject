@@ -484,20 +484,34 @@
 
 <script>
 const solutionId = {{ solution.id }};
+const canEdit = {{ 'true' if can_edit else 'false' }};
 
 function openVendorModal(categoryId) {
+    if (!canEdit) return;
+    const modal = document.getElementById('vendorModal');
+    if (!modal) return;
     document.getElementById('vendorCategoryId').value = categoryId || '';
     document.getElementById('vendorName').value = '';
     document.getElementById('vendorLogoUrl').value = '';
     document.getElementById('vendorType').value = 'Vendor';
     document.getElementById('vendorWebsite').value = '';
     document.getElementById('vendorDesc').value = '';
-    document.getElementById('vendorModal').classList.add('active');
+    modal.classList.add('active');
 }
-function closeVendorModal() { document.getElementById('vendorModal').classList.remove('active'); }
+function closeVendorModal() { 
+    const modal = document.getElementById('vendorModal');
+    if (modal) modal.classList.remove('active'); 
+}
 
-function openCategoryModal() { document.getElementById('categoryModal').classList.add('active'); }
-function closeCategoryModal() { document.getElementById('categoryModal').classList.remove('active'); }
+function openCategoryModal() { 
+    if (!canEdit) return;
+    const modal = document.getElementById('categoryModal');
+    if (modal) modal.classList.add('active'); 
+}
+function closeCategoryModal() { 
+    const modal = document.getElementById('categoryModal');
+    if (modal) modal.classList.remove('active'); 
+}
 
 function saveVendor() {
     const categoryId = document.getElementById('vendorCategoryId').value;
