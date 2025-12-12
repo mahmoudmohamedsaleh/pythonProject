@@ -114,6 +114,9 @@
             <li class="menu-header">Dashboard</li>
             <li class="nav-item"><a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
             {% endif %}
+            
+            <li class="menu-header">Company</li>
+            <li class="nav-item"><a href="{{ url_for('company_profile') }}" class="{{ 'active' if request.endpoint == 'company_profile' else '' }}"><i class="fas fa-building"></i> Company Profile</a></li>
 
             {% set has_crm_items = user_has_permission('view_projects') or user_has_permission('view_pipeline_analysis') or user_has_permission('view_sales_performance') or user_has_permission('view_aging_dashboard') or user_has_permission('view_all_clients') or user_has_permission('view_end_users') or user_has_permission('view_contractors') or user_has_permission('view_consultants') %}
             {% if has_crm_items %}

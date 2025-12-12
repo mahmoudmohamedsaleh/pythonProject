@@ -1389,6 +1389,13 @@ def logout():
     return redirect(url_for('login'))  # Redirect to login page
 
 ################################3
+@app.route('/company_profile')
+@login_required
+def company_profile():
+    """Company Profile page showing EJTech company information"""
+    return render_template('company_profile.html')
+
+################################3
 @app.route('/')
 @login_required
 @permission_required('view_dashboard')
