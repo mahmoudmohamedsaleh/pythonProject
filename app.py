@@ -1462,7 +1462,13 @@ def company_profile():
         'about_paragraph1': 'Excellence Jeddah Technology (EJTech) is a leading provider of cutting-edge technology solutions in Saudi Arabia. Founded in 2008, we have established ourselves as a trusted partner for government entities, major corporations, and enterprises across the Kingdom. Our expertise spans Information & Communication Technology (ICT), security systems, building automation, and integrated solutions that drive digital transformation and operational excellence.',
         'about_paragraph2': 'With a team of highly skilled engineers and technicians, we deliver end-to-end solutions from design and implementation to maintenance and support. Our commitment to quality, innovation, and customer satisfaction has earned us recognition as a preferred technology partner in the region.',
         'mission': 'To deliver innovative, reliable, and cost-effective technology solutions that empower our clients to achieve their business objectives while maintaining the highest standards of quality and customer service.',
-        'vision': 'To be the leading technology solutions provider in the Middle East, recognized for excellence, innovation, and our commitment to contributing to Saudi Arabia\'s Vision 2030 digital transformation goals.'
+        'vision': 'To be the leading technology solutions provider in the Middle East, recognized for excellence, innovation, and our commitment to contributing to Saudi Arabia\'s Vision 2030 digital transformation goals.',
+        'hero_company_name': 'Excellence Jeddah Technology',
+        'hero_tagline': 'Where Professionalism Meets Expertise',
+        'hero_badge_1': 'Est. 2008',
+        'hero_badge_2': 'Jeddah, Saudi Arabia',
+        'hero_badge_3': 'ISO Certified',
+        'hero_location_url': 'https://maps.app.goo.gl/PtwJAnWGs8quZxoi8'
     }
     
     # Merge defaults with database content

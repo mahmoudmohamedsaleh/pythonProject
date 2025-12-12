@@ -757,13 +757,18 @@
 <!-- Hero Section -->
 <div class="hero-section">
     <div class="hero-content">
+        {% if can_edit %}
+        <button class="edit-btn" onclick="openEditModal('hero')" title="Edit Hero Section" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); backdrop-filter: blur(5px);">
+            <i class="fas fa-edit"></i> Edit
+        </button>
+        {% endif %}
         <img src="{{ url_for('static', filename='ejt.png') }}" alt="EJTech Logo" class="hero-logo">
-        <h1 class="hero-title">Excellence Jeddah Technology</h1>
-        <p class="hero-tagline">Where Professionalism Meets Expertise</p>
+        <h1 class="hero-title" id="hero_company_name">{{ content.hero_company_name }}</h1>
+        <p class="hero-tagline" id="hero_tagline">{{ content.hero_tagline }}</p>
         <div class="hero-badges">
-            <span class="hero-badge"><i class="fas fa-calendar-alt mr-2"></i>Est. 2008</span>
-            <a href="https://maps.app.goo.gl/PtwJAnWGs8quZxoi8" target="_blank" class="hero-badge location-link"><i class="fas fa-map-marker-alt mr-2"></i>Jeddah, Saudi Arabia</a>
-            <span class="hero-badge"><i class="fas fa-certificate mr-2"></i>ISO Certified</span>
+            <span class="hero-badge" id="hero_badge_1"><i class="fas fa-calendar-alt mr-2"></i>{{ content.hero_badge_1 }}</span>
+            <a href="{{ content.hero_location_url or 'https://maps.app.goo.gl/PtwJAnWGs8quZxoi8' }}" target="_blank" class="hero-badge location-link" id="hero_badge_2"><i class="fas fa-map-marker-alt mr-2"></i>{{ content.hero_badge_2 }}</a>
+            <span class="hero-badge" id="hero_badge_3"><i class="fas fa-certificate mr-2"></i>{{ content.hero_badge_3 }}</span>
         </div>
     </div>
 </div>
@@ -1057,6 +1062,46 @@ function openEditModal(section) {
                 <textarea id="edit_vision" rows="6">${document.getElementById('vision_content').textContent.trim()}</textarea>
             </div>
         `;
+    } else if (section === 'hero') {
+        modalTitle.textContent = 'Edit Hero Section';
+        const companyName = document.getElementById('hero_company_name').textContent.trim();
+        const tagline = document.getElementById('hero_tagline').textContent.trim();
+        const badge1El = document.getElementById('hero_badge_1');
+        const badge2El = document.getElementById('hero_badge_2');
+        const badge3El = document.getElementById('hero_badge_3');
+        const badge1 = badge1El.textContent.trim();
+        const badge2 = badge2El.textContent.trim();
+        const badge3 = badge3El.textContent.trim();
+        const locationUrl = badge2El.getAttribute('href') || 'https://maps.app.goo.gl/PtwJAnWGs8quZxoi8';
+        
+        html = `
+            <div class="edit-form-group">
+                <label><i class="fas fa-building mr-2"></i>Company Name</label>
+                <input type="text" id="edit_hero_company_name" value="${companyName}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-quote-right mr-2"></i>Tagline</label>
+                <input type="text" id="edit_hero_tagline" value="${tagline}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+            </div>
+            <hr style="margin: 20px 0; border: none; border-top: 1px dashed #dee2e6;">
+            <h5 style="color: #667eea; margin-bottom: 15px;"><i class="fas fa-tags mr-2"></i>Badges</h5>
+            <div class="edit-form-group">
+                <label><i class="fas fa-calendar-alt mr-2"></i>Badge 1 (Established)</label>
+                <input type="text" id="edit_hero_badge_1" value="${badge1}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-map-marker-alt mr-2"></i>Badge 2 (Location)</label>
+                <input type="text" id="edit_hero_badge_2" value="${badge2}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-link mr-2"></i>Location Map URL</label>
+                <input type="url" id="edit_hero_location_url" value="${locationUrl}" placeholder="https://maps.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-certificate mr-2"></i>Badge 3 (Certification)</label>
+                <input type="text" id="edit_hero_badge_3" value="${badge3}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+        `;
     }
     
     modalBody.innerHTML = html;
@@ -1111,6 +1156,43 @@ async function saveContent() {
                 body: JSON.stringify({section_key: 'vision', content: content})
             });
             document.getElementById('vision_content').textContent = content;
+        } else if (currentSection === 'hero') {
+            const companyName = document.getElementById('edit_hero_company_name').value;
+            const tagline = document.getElementById('edit_hero_tagline').value;
+            const badge1 = document.getElementById('edit_hero_badge_1').value;
+            const badge2 = document.getElementById('edit_hero_badge_2').value;
+            const badge3 = document.getElementById('edit_hero_badge_3').value;
+            const locationUrl = document.getElementById('edit_hero_location_url').value;
+            
+            const updates = [
+                {section_key: 'hero_company_name', content: companyName},
+                {section_key: 'hero_tagline', content: tagline},
+                {section_key: 'hero_badge_1', content: badge1},
+                {section_key: 'hero_badge_2', content: badge2},
+                {section_key: 'hero_badge_3', content: badge3},
+                {section_key: 'hero_location_url', content: locationUrl}
+            ];
+            
+            for (const update of updates) {
+                await fetch('/api/company_profile/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(update)
+                });
+            }
+            
+            document.getElementById('hero_company_name').textContent = companyName;
+            document.getElementById('hero_tagline').textContent = tagline;
+            
+            const badge1El = document.getElementById('hero_badge_1');
+            badge1El.innerHTML = '<i class="fas fa-calendar-alt mr-2"></i>' + badge1;
+            
+            const badge2El = document.getElementById('hero_badge_2');
+            badge2El.href = locationUrl;
+            badge2El.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>' + badge2;
+            
+            const badge3El = document.getElementById('hero_badge_3');
+            badge3El.innerHTML = '<i class="fas fa-certificate mr-2"></i>' + badge3;
         }
         
         // Show success
