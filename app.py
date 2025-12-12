@@ -1835,6 +1835,29 @@ def delete_solution_vendor(vendor_id):
     
     return jsonify({'success': True})
 
+@app.route('/api/solution/vendors/<int:vendor_id>', methods=['PUT'])
+@login_required
+def update_solution_vendor(vendor_id):
+    """Update a vendor"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        UPDATE solution_vendors 
+        SET vendor_name = ?, vendor_type = ?, category_id = ?, logo_url = ?, website = ?, description = ?
+        WHERE id = ?
+    """, (data.get('vendor_name'), data.get('vendor_type', 'Vendor'), data.get('category_id'),
+          data.get('logo_url'), data.get('website'), data.get('description'), vendor_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
 @app.route('/api/solution/products/<int:product_id>', methods=['DELETE'])
 @login_required
 def delete_solution_product(product_id):
@@ -1887,6 +1910,28 @@ def delete_solution_category(category_id):
     c = conn.cursor()
     c.execute("UPDATE solution_vendors SET category_id = NULL WHERE category_id = ?", (category_id,))
     c.execute("DELETE FROM solution_vendor_categories WHERE id = ?", (category_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True})
+
+@app.route('/api/solution/categories/<int:category_id>', methods=['PUT'])
+@login_required
+def update_solution_category(category_id):
+    """Update a category"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        UPDATE solution_vendor_categories 
+        SET category_name = ?, icon = ?, color = ?
+        WHERE id = ?
+    """, (data.get('category_name'), data.get('icon', 'fa-folder'), data.get('color', '#667eea'), category_id))
+    
     conn.commit()
     conn.close()
     

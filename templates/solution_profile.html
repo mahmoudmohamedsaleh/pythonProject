@@ -232,6 +232,23 @@
         box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
     }
     .vendor-card .delete-btn:hover { transform: scale(1.1); }
+    .vendor-card .edit-btn {
+        position: absolute;
+        top: 12px;
+        right: 50px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .vendor-card .edit-btn:hover { transform: scale(1.1); }
+    .vendor-card:hover .edit-btn { opacity: 1; }
     .vendor-card:hover .delete-btn { opacity: 1; }
     .empty-state {
         text-align: center;
@@ -427,6 +444,7 @@
             {% if can_edit %}
             <div class="category-actions">
                 <button class="add-vendor-btn" onclick="openVendorModal({{ category.id }})"><i class="fas fa-plus"></i> Add Vendor</button>
+                <button class="add-vendor-btn" onclick="openEditCategoryModal({{ category.id }}, '{{ category.category_name }}', '{{ category.icon or 'fa-folder' }}', '{{ category.color or '#667eea' }}')"><i class="fas fa-edit"></i> Edit</button>
                 <button class="delete-category-btn" onclick="deleteCategory({{ category.id }})"><i class="fas fa-trash"></i></button>
             </div>
             {% endif %}
@@ -447,6 +465,7 @@
                 <div class="vendor-desc">{{ vendor.description }}</div>
                 {% endif %}
                 {% if can_edit %}
+                <button class="edit-btn" onclick="openEditVendorModal({{ vendor.id }}, '{{ vendor.vendor_name }}', '{{ vendor.logo_url or '' }}', '{{ vendor.vendor_type }}', '{{ vendor.website or '' }}', '{{ vendor.description or '' }}', {{ vendor.category_id or 'null' }})"><i class="fas fa-edit"></i></button>
                 <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
                 {% endif %}
             </div>
@@ -485,6 +504,7 @@
             <div class="vendor-desc">{{ vendor.description }}</div>
             {% endif %}
             {% if can_edit %}
+            <button class="edit-btn" onclick="openEditVendorModal({{ vendor.id }}, '{{ vendor.vendor_name }}', '{{ vendor.logo_url or '' }}', '{{ vendor.vendor_type }}', '{{ vendor.website or '' }}', '{{ vendor.description or '' }}', {{ vendor.category_id or 'null' }})"><i class="fas fa-edit"></i></button>
             <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
             {% endif %}
         </div>
@@ -568,6 +588,84 @@
         </div>
     </div>
 </div>
+
+<div class="custom-modal-overlay" id="editVendorModal">
+    <div class="custom-modal">
+        <div class="custom-modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <h4><i class="fas fa-edit"></i> Edit Vendor</h4>
+            <button class="custom-modal-close" onclick="closeEditVendorModal()">&times;</button>
+        </div>
+        <div class="custom-modal-body">
+            <input type="hidden" id="editVendorId" value="">
+            <div class="custom-form-group">
+                <label>Vendor Name *</label>
+                <input type="text" id="editVendorName" placeholder="e.g., Hikvision, Cisco, Honeywell">
+            </div>
+            <div class="custom-form-group">
+                <label>Logo URL</label>
+                <input type="text" id="editVendorLogoUrl" placeholder="https://example.com/logo.png">
+            </div>
+            <div class="custom-form-group">
+                <label>Vendor Type</label>
+                <select id="editVendorType">
+                    <option value="Vendor">Vendor</option>
+                    <option value="Distributor">Distributor</option>
+                    <option value="Partner">Partner</option>
+                    <option value="Manufacturer">Manufacturer</option>
+                </select>
+            </div>
+            <div class="custom-form-group">
+                <label>Category</label>
+                <select id="editVendorCategory">
+                    <option value="">-- Uncategorized --</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.category_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="custom-form-group">
+                <label>Website</label>
+                <input type="text" id="editVendorWebsite" placeholder="https://www.example.com">
+            </div>
+            <div class="custom-form-group">
+                <label>Description</label>
+                <textarea id="editVendorDesc" rows="3" placeholder="Brief description of the vendor..."></textarea>
+            </div>
+        </div>
+        <div class="custom-modal-footer">
+            <button class="btn-cancel" onclick="closeEditVendorModal()">Cancel</button>
+            <button class="btn-save" onclick="updateVendor()">Update Vendor</button>
+        </div>
+    </div>
+</div>
+
+<div class="custom-modal-overlay" id="editCategoryModal">
+    <div class="custom-modal">
+        <div class="custom-modal-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <h4><i class="fas fa-edit"></i> Edit Category</h4>
+            <button class="custom-modal-close" onclick="closeEditCategoryModal()">&times;</button>
+        </div>
+        <div class="custom-modal-body">
+            <input type="hidden" id="editCategoryId" value="">
+            <div class="custom-form-group">
+                <label>Category Name *</label>
+                <input type="text" id="editCategoryName" placeholder="e.g., Active, Passive, Network">
+            </div>
+            <div class="custom-form-group">
+                <label>Icon (FontAwesome class)</label>
+                <input type="text" id="editCategoryIcon" placeholder="fa-bolt" value="fa-folder">
+            </div>
+            <div class="custom-form-group">
+                <label>Color</label>
+                <input type="color" id="editCategoryColor" value="#667eea" style="height: 45px;">
+            </div>
+        </div>
+        <div class="custom-modal-footer">
+            <button class="btn-cancel" onclick="closeEditCategoryModal()">Cancel</button>
+            <button class="btn-save" onclick="updateCategory()">Update Category</button>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <script>
@@ -601,6 +699,39 @@ function closeCategoryModal() {
     if (modal) modal.classList.remove('active'); 
 }
 
+function openEditVendorModal(vendorId, name, logoUrl, vendorType, website, description, categoryId) {
+    if (!canEdit) return;
+    const modal = document.getElementById('editVendorModal');
+    if (!modal) return;
+    document.getElementById('editVendorId').value = vendorId;
+    document.getElementById('editVendorName').value = name || '';
+    document.getElementById('editVendorLogoUrl').value = logoUrl || '';
+    document.getElementById('editVendorType').value = vendorType || 'Vendor';
+    document.getElementById('editVendorWebsite').value = website || '';
+    document.getElementById('editVendorDesc').value = description || '';
+    document.getElementById('editVendorCategory').value = categoryId || '';
+    modal.classList.add('active');
+}
+function closeEditVendorModal() { 
+    const modal = document.getElementById('editVendorModal');
+    if (modal) modal.classList.remove('active'); 
+}
+
+function openEditCategoryModal(categoryId, name, icon, color) {
+    if (!canEdit) return;
+    const modal = document.getElementById('editCategoryModal');
+    if (!modal) return;
+    document.getElementById('editCategoryId').value = categoryId;
+    document.getElementById('editCategoryName').value = name || '';
+    document.getElementById('editCategoryIcon').value = icon || 'fa-folder';
+    document.getElementById('editCategoryColor').value = color || '#667eea';
+    modal.classList.add('active');
+}
+function closeEditCategoryModal() { 
+    const modal = document.getElementById('editCategoryModal');
+    if (modal) modal.classList.remove('active'); 
+}
+
 function saveVendor() {
     const categoryId = document.getElementById('vendorCategoryId').value;
     const data = {
@@ -624,6 +755,30 @@ function saveVendor() {
     });
 }
 
+function updateVendor() {
+    const vendorId = document.getElementById('editVendorId').value;
+    const categoryId = document.getElementById('editVendorCategory').value;
+    const data = {
+        vendor_name: document.getElementById('editVendorName').value,
+        vendor_type: document.getElementById('editVendorType').value,
+        category_id: categoryId ? parseInt(categoryId) : null,
+        logo_url: document.getElementById('editVendorLogoUrl').value,
+        website: document.getElementById('editVendorWebsite').value,
+        description: document.getElementById('editVendorDesc').value
+    };
+    
+    if (!data.vendor_name) { alert('Vendor name is required'); return; }
+    
+    fetch(`/api/solution/vendors/${vendorId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(result => {
+        if (result.success) { location.reload(); }
+        else { alert(result.error || 'Error updating vendor'); }
+    });
+}
+
 function saveCategory() {
     const data = {
         category_name: document.getElementById('categoryName').value,
@@ -640,6 +795,26 @@ function saveCategory() {
     }).then(r => r.json()).then(result => {
         if (result.success) { location.reload(); }
         else { alert(result.error || 'Error adding category'); }
+    });
+}
+
+function updateCategory() {
+    const categoryId = document.getElementById('editCategoryId').value;
+    const data = {
+        category_name: document.getElementById('editCategoryName').value,
+        icon: document.getElementById('editCategoryIcon').value || 'fa-folder',
+        color: document.getElementById('editCategoryColor').value || '#667eea'
+    };
+    
+    if (!data.category_name) { alert('Category name is required'); return; }
+    
+    fetch(`/api/solution/categories/${categoryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(result => {
+        if (result.success) { location.reload(); }
+        else { alert(result.error || 'Error updating category'); }
     });
 }
 
