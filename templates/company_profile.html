@@ -957,47 +957,58 @@
 
 <!-- Footprint -->
 <div class="footprint-section">
-    <h3 class="section-title"><i class="fas fa-globe-asia"></i>Our Footprint</h3>
-    <div class="location-badges">
-        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>Jeddah (HQ)</span>
-        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>Riyadh</span>
-        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>Dammam</span>
-        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>Makkah</span>
-        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>Madinah</span>
-        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>Yanbu</span>
+    <h3 class="section-title">
+        <i class="fas fa-globe-asia"></i>Our Footprint
+        {% if can_edit %}
+        <button class="edit-btn" onclick="openEditModal('footprint')" title="Edit Footprint" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(5px);">
+            <i class="fas fa-edit"></i> Edit
+        </button>
+        {% endif %}
+    </h3>
+    <div class="location-badges" id="footprint_locations">
+        {% for location in content.footprint_locations.split(',') if content.footprint_locations %}
+        <span class="location-badge"><i class="fas fa-map-marker-alt"></i>{{ location.strip() }}</span>
+        {% endfor %}
     </div>
 </div>
 
 <!-- Contact Information -->
 <div class="section-card">
-    <h3 class="section-title"><i class="fas fa-address-card"></i>Contact Information</h3>
+    <h3 class="section-title">
+        <i class="fas fa-address-card"></i>Contact Information
+        {% if can_edit %}
+        <button class="edit-btn" onclick="openEditModal('contact')" title="Edit Contact Info">
+            <i class="fas fa-edit"></i> Edit
+        </button>
+        {% endif %}
+    </h3>
     <div class="contact-grid">
         <div class="contact-item">
             <i class="fas fa-map-marker-alt"></i>
             <div>
                 <div class="contact-label">Head Office</div>
-                <div class="contact-value">Jeddah, Saudi Arabia</div>
+                <div class="contact-value" id="contact_office">{{ content.contact_office }}</div>
             </div>
         </div>
         <div class="contact-item">
             <i class="fas fa-phone"></i>
             <div>
                 <div class="contact-label">Phone</div>
-                <div class="contact-value">+966 12 XXX XXXX</div>
+                <div class="contact-value" id="contact_phone">{{ content.contact_phone }}</div>
             </div>
         </div>
         <div class="contact-item">
             <i class="fas fa-envelope"></i>
             <div>
                 <div class="contact-label">Email</div>
-                <div class="contact-value">info@ejt.sa</div>
+                <div class="contact-value" id="contact_email">{{ content.contact_email }}</div>
             </div>
         </div>
         <div class="contact-item">
             <i class="fas fa-globe"></i>
             <div>
                 <div class="contact-label">Website</div>
-                <div class="contact-value">www.ejt.sa</div>
+                <div class="contact-value" id="contact_website">{{ content.contact_website }}</div>
             </div>
         </div>
     </div>
@@ -1102,6 +1113,45 @@ function openEditModal(section) {
                 <input type="text" id="edit_hero_badge_3" value="${badge3}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
             </div>
         `;
+    } else if (section === 'footprint') {
+        modalTitle.textContent = 'Edit Our Footprint';
+        const locationBadges = document.querySelectorAll('#footprint_locations .location-badge');
+        const locations = Array.from(locationBadges).map(el => el.textContent.trim()).join(', ');
+        
+        html = `
+            <div class="edit-form-group">
+                <label><i class="fas fa-globe-asia mr-2"></i>Locations</label>
+                <textarea id="edit_footprint_locations" rows="4" placeholder="Enter locations separated by commas..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">${locations}</textarea>
+                <small style="color: #6c757d; display: block; margin-top: 8px;">
+                    <i class="fas fa-info-circle mr-1"></i>Separate locations with commas. Example: Jeddah (HQ), Riyadh, Dammam
+                </small>
+            </div>
+        `;
+    } else if (section === 'contact') {
+        modalTitle.textContent = 'Edit Contact Information';
+        const office = document.getElementById('contact_office').textContent.trim();
+        const phone = document.getElementById('contact_phone').textContent.trim();
+        const email = document.getElementById('contact_email').textContent.trim();
+        const website = document.getElementById('contact_website').textContent.trim();
+        
+        html = `
+            <div class="edit-form-group">
+                <label><i class="fas fa-map-marker-alt mr-2"></i>Head Office</label>
+                <input type="text" id="edit_contact_office" value="${office}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-phone mr-2"></i>Phone</label>
+                <input type="text" id="edit_contact_phone" value="${phone}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-envelope mr-2"></i>Email</label>
+                <input type="email" id="edit_contact_email" value="${email}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-globe mr-2"></i>Website</label>
+                <input type="text" id="edit_contact_website" value="${website}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+        `;
     }
     
     modalBody.innerHTML = html;
@@ -1193,6 +1243,43 @@ async function saveContent() {
             
             const badge3El = document.getElementById('hero_badge_3');
             badge3El.innerHTML = '<i class="fas fa-certificate mr-2"></i>' + badge3;
+        } else if (currentSection === 'footprint') {
+            const locations = document.getElementById('edit_footprint_locations').value;
+            await fetch('/api/company_profile/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({section_key: 'footprint_locations', content: locations})
+            });
+            
+            const container = document.getElementById('footprint_locations');
+            container.innerHTML = locations.split(',').map(loc => 
+                `<span class="location-badge"><i class="fas fa-map-marker-alt"></i>${loc.trim()}</span>`
+            ).join('');
+        } else if (currentSection === 'contact') {
+            const office = document.getElementById('edit_contact_office').value;
+            const phone = document.getElementById('edit_contact_phone').value;
+            const email = document.getElementById('edit_contact_email').value;
+            const website = document.getElementById('edit_contact_website').value;
+            
+            const updates = [
+                {section_key: 'contact_office', content: office},
+                {section_key: 'contact_phone', content: phone},
+                {section_key: 'contact_email', content: email},
+                {section_key: 'contact_website', content: website}
+            ];
+            
+            for (const update of updates) {
+                await fetch('/api/company_profile/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(update)
+                });
+            }
+            
+            document.getElementById('contact_office').textContent = office;
+            document.getElementById('contact_phone').textContent = phone;
+            document.getElementById('contact_email').textContent = email;
+            document.getElementById('contact_website').textContent = website;
         }
         
         // Show success

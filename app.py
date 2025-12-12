@@ -1468,7 +1468,12 @@ def company_profile():
         'hero_badge_1': 'Est. 2008',
         'hero_badge_2': 'Jeddah, Saudi Arabia',
         'hero_badge_3': 'ISO Certified',
-        'hero_location_url': 'https://maps.app.goo.gl/PtwJAnWGs8quZxoi8'
+        'hero_location_url': 'https://maps.app.goo.gl/PtwJAnWGs8quZxoi8',
+        'footprint_locations': 'Jeddah (HQ), Riyadh, Dammam, Makkah, Madinah, Yanbu',
+        'contact_office': 'Jeddah, Saudi Arabia',
+        'contact_phone': '+966 12 XXX XXXX',
+        'contact_email': 'info@ejt.sa',
+        'contact_website': 'www.ejt.sa'
     }
     
     # Merge defaults with database content
