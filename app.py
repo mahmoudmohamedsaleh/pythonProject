@@ -1773,6 +1773,17 @@ def solution_profile(solution_id):
                          products=products,
                          can_edit=can_edit)
 
+ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_LOGO_SIZE = 2 * 1024 * 1024  # 2MB
+
+def allowed_logo_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
+
+@app.route('/uploads/vendor_logos/<filename>')
+def serve_vendor_logo(filename):
+    """Serve uploaded vendor logo images"""
+    return send_file(os.path.join('uploads', 'vendor_logos', filename))
+
 @app.route('/api/solution/<int:solution_id>/vendors', methods=['POST'])
 @login_required
 def add_solution_vendor(solution_id):
@@ -1780,16 +1791,44 @@ def add_solution_vendor(solution_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    data = request.get_json()
+    vendor_name = request.form.get('vendor_name')
+    vendor_type = request.form.get('vendor_type', 'Vendor')
+    category_id = request.form.get('category_id')
+    website = request.form.get('website')
+    description = request.form.get('description')
+    
+    logo_url = None
+    if 'logo_file' in request.files:
+        file = request.files['logo_file']
+        if file and file.filename:
+            if not allowed_logo_file(file.filename):
+                return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WebP'}), 400
+            file.seek(0, 2)
+            file_size = file.tell()
+            file.seek(0)
+            if file_size > MAX_LOGO_SIZE:
+                return jsonify({'success': False, 'error': 'File too large. Maximum 2MB allowed.'}), 400
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            file_path = os.path.join('uploads', 'vendor_logos', unique_filename)
+            file.save(file_path)
+            logo_url = f"/uploads/vendor_logos/{unique_filename}"
+    
+    if category_id:
+        try:
+            category_id = int(category_id)
+        except ValueError:
+            category_id = None
+    else:
+        category_id = None
+    
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     
     c.execute("""
         INSERT INTO solution_vendors (solution_id, vendor_name, vendor_type, category_id, logo_url, website, description)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (solution_id, data.get('vendor_name'), data.get('vendor_type', 'Vendor'),
-          data.get('category_id'), data.get('logo_url'),
-          data.get('website'), data.get('description')))
+    """, (solution_id, vendor_name, vendor_type, category_id, logo_url, website, description))
     
     vendor_id = c.lastrowid
     conn.commit()
@@ -1842,16 +1881,61 @@ def update_solution_vendor(vendor_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    data = request.get_json()
+    vendor_name = request.form.get('vendor_name')
+    vendor_type = request.form.get('vendor_type', 'Vendor')
+    category_id = request.form.get('category_id')
+    website = request.form.get('website')
+    description = request.form.get('description')
+    keep_existing_logo = request.form.get('keep_existing_logo') == 'true'
+    
+    if category_id:
+        try:
+            category_id = int(category_id)
+        except ValueError:
+            category_id = None
+    else:
+        category_id = None
+    
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
+    
+    c.execute("SELECT logo_url FROM solution_vendors WHERE id = ?", (vendor_id,))
+    row = c.fetchone()
+    current_logo_url = row[0] if row else None
+    
+    logo_url = current_logo_url if keep_existing_logo else None
+    
+    if 'logo_file' in request.files:
+        file = request.files['logo_file']
+        if file and file.filename:
+            if not allowed_logo_file(file.filename):
+                conn.close()
+                return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WebP'}), 400
+            file.seek(0, 2)
+            file_size = file.tell()
+            file.seek(0)
+            if file_size > MAX_LOGO_SIZE:
+                conn.close()
+                return jsonify({'success': False, 'error': 'File too large. Maximum 2MB allowed.'}), 400
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            file_path = os.path.join('uploads', 'vendor_logos', unique_filename)
+            file.save(file_path)
+            logo_url = f"/uploads/vendor_logos/{unique_filename}"
+            if current_logo_url and current_logo_url.startswith('/uploads/vendor_logos/'):
+                old_file = current_logo_url.replace('/uploads/vendor_logos/', '')
+                old_path = os.path.join('uploads', 'vendor_logos', old_file)
+                if os.path.exists(old_path):
+                    try:
+                        os.remove(old_path)
+                    except:
+                        pass
     
     c.execute("""
         UPDATE solution_vendors 
         SET vendor_name = ?, vendor_type = ?, category_id = ?, logo_url = ?, website = ?, description = ?
         WHERE id = ?
-    """, (data.get('vendor_name'), data.get('vendor_type', 'Vendor'), data.get('category_id'),
-          data.get('logo_url'), data.get('website'), data.get('description'), vendor_id))
+    """, (vendor_name, vendor_type, category_id, logo_url, website, description, vendor_id))
     
     conn.commit()
     conn.close()

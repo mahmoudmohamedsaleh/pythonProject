@@ -533,9 +533,9 @@
                 <input type="text" id="vendorName" placeholder="e.g., Hikvision, Cisco, Honeywell">
             </div>
             <div class="custom-form-group">
-                <label>Logo URL</label>
-                <input type="text" id="vendorLogoUrl" placeholder="https://example.com/logo.png">
-                <small style="color: #6c757d; font-size: 0.8rem;">Enter the URL of the vendor's logo image</small>
+                <label>Logo Image</label>
+                <input type="file" id="vendorLogoFile" accept=".png,.jpg,.jpeg,.gif,.webp" style="padding: 10px;">
+                <small style="color: #6c757d; font-size: 0.8rem;">Upload a logo image (PNG, JPG, GIF, WebP - max 2MB)</small>
             </div>
             <div class="custom-form-group">
                 <label>Vendor Type</label>
@@ -602,8 +602,13 @@
                 <input type="text" id="editVendorName" placeholder="e.g., Hikvision, Cisco, Honeywell">
             </div>
             <div class="custom-form-group">
-                <label>Logo URL</label>
-                <input type="text" id="editVendorLogoUrl" placeholder="https://example.com/logo.png">
+                <label>Logo Image</label>
+                <input type="file" id="editVendorLogoFile" accept=".png,.jpg,.jpeg,.gif,.webp" style="padding: 10px;">
+                <small style="color: #6c757d; font-size: 0.8rem;">Upload a new logo (leave empty to keep current)</small>
+                <div id="currentLogoPreview" style="margin-top: 10px; display: none;">
+                    <img id="currentLogoImg" src="" alt="Current logo" style="max-width: 80px; max-height: 80px; border-radius: 8px; border: 1px solid #e9ecef;">
+                    <span style="margin-left: 10px; color: #6c757d; font-size: 0.85rem;">Current logo</span>
+                </div>
             </div>
             <div class="custom-form-group">
                 <label>Vendor Type</label>
@@ -678,7 +683,7 @@ function openVendorModal(categoryId) {
     if (!modal) return;
     document.getElementById('vendorCategoryId').value = categoryId || '';
     document.getElementById('vendorName').value = '';
-    document.getElementById('vendorLogoUrl').value = '';
+    document.getElementById('vendorLogoFile').value = '';
     document.getElementById('vendorType').value = 'Vendor';
     document.getElementById('vendorWebsite').value = '';
     document.getElementById('vendorDesc').value = '';
@@ -705,11 +710,22 @@ function openEditVendorModal(vendorId, name, logoUrl, vendorType, website, descr
     if (!modal) return;
     document.getElementById('editVendorId').value = vendorId;
     document.getElementById('editVendorName').value = name || '';
-    document.getElementById('editVendorLogoUrl').value = logoUrl || '';
+    document.getElementById('editVendorLogoFile').value = '';
     document.getElementById('editVendorType').value = vendorType || 'Vendor';
     document.getElementById('editVendorWebsite').value = website || '';
     document.getElementById('editVendorDesc').value = description || '';
     document.getElementById('editVendorCategory').value = categoryId || '';
+    
+    const previewDiv = document.getElementById('currentLogoPreview');
+    const previewImg = document.getElementById('currentLogoImg');
+    if (logoUrl) {
+        previewImg.src = logoUrl;
+        previewDiv.style.display = 'block';
+        previewDiv.dataset.hasLogo = 'true';
+    } else {
+        previewDiv.style.display = 'none';
+        previewDiv.dataset.hasLogo = 'false';
+    }
     modal.classList.add('active');
 }
 function closeEditVendorModal() { 
@@ -733,22 +749,24 @@ function closeEditCategoryModal() {
 }
 
 function saveVendor() {
-    const categoryId = document.getElementById('vendorCategoryId').value;
-    const data = {
-        vendor_name: document.getElementById('vendorName').value,
-        vendor_type: document.getElementById('vendorType').value,
-        category_id: categoryId ? parseInt(categoryId) : null,
-        logo_url: document.getElementById('vendorLogoUrl').value,
-        website: document.getElementById('vendorWebsite').value,
-        description: document.getElementById('vendorDesc').value
-    };
+    const vendorName = document.getElementById('vendorName').value;
+    if (!vendorName) { alert('Vendor name is required'); return; }
     
-    if (!data.vendor_name) { alert('Vendor name is required'); return; }
+    const formData = new FormData();
+    formData.append('vendor_name', vendorName);
+    formData.append('vendor_type', document.getElementById('vendorType').value);
+    formData.append('category_id', document.getElementById('vendorCategoryId').value || '');
+    formData.append('website', document.getElementById('vendorWebsite').value);
+    formData.append('description', document.getElementById('vendorDesc').value);
+    
+    const logoFile = document.getElementById('vendorLogoFile').files[0];
+    if (logoFile) {
+        formData.append('logo_file', logoFile);
+    }
     
     fetch(`/api/solution/${solutionId}/vendors`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: formData
     }).then(r => r.json()).then(result => {
         if (result.success) { location.reload(); }
         else { alert(result.error || 'Error adding vendor'); }
@@ -757,22 +775,27 @@ function saveVendor() {
 
 function updateVendor() {
     const vendorId = document.getElementById('editVendorId').value;
-    const categoryId = document.getElementById('editVendorCategory').value;
-    const data = {
-        vendor_name: document.getElementById('editVendorName').value,
-        vendor_type: document.getElementById('editVendorType').value,
-        category_id: categoryId ? parseInt(categoryId) : null,
-        logo_url: document.getElementById('editVendorLogoUrl').value,
-        website: document.getElementById('editVendorWebsite').value,
-        description: document.getElementById('editVendorDesc').value
-    };
+    const vendorName = document.getElementById('editVendorName').value;
+    if (!vendorName) { alert('Vendor name is required'); return; }
     
-    if (!data.vendor_name) { alert('Vendor name is required'); return; }
+    const formData = new FormData();
+    formData.append('vendor_name', vendorName);
+    formData.append('vendor_type', document.getElementById('editVendorType').value);
+    formData.append('category_id', document.getElementById('editVendorCategory').value || '');
+    formData.append('website', document.getElementById('editVendorWebsite').value);
+    formData.append('description', document.getElementById('editVendorDesc').value);
+    
+    const logoFile = document.getElementById('editVendorLogoFile').files[0];
+    const previewDiv = document.getElementById('currentLogoPreview');
+    if (logoFile) {
+        formData.append('logo_file', logoFile);
+    } else if (previewDiv && previewDiv.dataset.hasLogo === 'true') {
+        formData.append('keep_existing_logo', 'true');
+    }
     
     fetch(`/api/solution/vendors/${vendorId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: formData
     }).then(r => r.json()).then(result => {
         if (result.success) { location.reload(); }
         else { alert(result.error || 'Error updating vendor'); }
