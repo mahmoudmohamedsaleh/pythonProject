@@ -1393,7 +1393,78 @@ def logout():
 @login_required
 def company_profile():
     """Company Profile page showing EJTech company information"""
-    return render_template('company_profile.html')
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Create table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS company_profile_content (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            section_key TEXT UNIQUE NOT NULL,
+            content TEXT,
+            updated_by TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    
+    # Get all content sections
+    c.execute("SELECT section_key, content FROM company_profile_content")
+    rows = c.fetchall()
+    content = {row['section_key']: row['content'] for row in rows}
+    conn.close()
+    
+    # Default content if not in database
+    defaults = {
+        'about_paragraph1': 'Excellence Jeddah Technology (EJTech) is a leading provider of cutting-edge technology solutions in Saudi Arabia. Founded in 2008, we have established ourselves as a trusted partner for government entities, major corporations, and enterprises across the Kingdom. Our expertise spans Information & Communication Technology (ICT), security systems, building automation, and integrated solutions that drive digital transformation and operational excellence.',
+        'about_paragraph2': 'With a team of highly skilled engineers and technicians, we deliver end-to-end solutions from design and implementation to maintenance and support. Our commitment to quality, innovation, and customer satisfaction has earned us recognition as a preferred technology partner in the region.',
+        'mission': 'To deliver innovative, reliable, and cost-effective technology solutions that empower our clients to achieve their business objectives while maintaining the highest standards of quality and customer service.',
+        'vision': 'To be the leading technology solutions provider in the Middle East, recognized for excellence, innovation, and our commitment to contributing to Saudi Arabia\'s Vision 2030 digital transformation goals.'
+    }
+    
+    # Merge defaults with database content
+    for key, default_value in defaults.items():
+        if key not in content or not content[key]:
+            content[key] = default_value
+    
+    # Check if current user is M.Saleh
+    can_edit = session.get('username', '').lower() == 'm.saleh'
+    
+    return render_template('company_profile.html', content=content, can_edit=can_edit)
+
+@app.route('/api/company_profile/update', methods=['POST'])
+@login_required
+def update_company_profile_content():
+    """Update company profile content - Only M.Saleh can edit"""
+    # Check if current user is M.Saleh
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized. Only M.Saleh can edit this content.'}), 403
+    
+    data = request.get_json()
+    section_key = data.get('section_key')
+    content = data.get('content')
+    
+    if not section_key:
+        return jsonify({'success': False, 'error': 'Section key is required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Upsert the content
+    c.execute("""
+        INSERT INTO company_profile_content (section_key, content, updated_by, updated_at)
+        VALUES (?, ?, ?, datetime('now'))
+        ON CONFLICT(section_key) DO UPDATE SET
+            content = excluded.content,
+            updated_by = excluded.updated_by,
+            updated_at = datetime('now')
+    """, (section_key, content, session.get('username')))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Content updated successfully'})
 
 ################################3
 @app.route('/')

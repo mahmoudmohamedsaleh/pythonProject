@@ -347,6 +347,187 @@
         font-weight: 600;
         color: #1a1a2e;
     }
+    
+    /* Edit Button Styles */
+    .edit-btn {
+        margin-left: auto;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+    }
+    .edit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    .edit-btn i {
+        margin-right: 6px;
+    }
+    .edit-btn-small {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        margin-left: 10px;
+        transition: all 0.3s ease;
+    }
+    .edit-btn-small:hover {
+        transform: scale(1.1);
+        box-shadow: 0 3px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Edit Modal */
+    .edit-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        backdrop-filter: blur(5px);
+    }
+    .edit-modal-overlay.active {
+        display: flex;
+    }
+    .edit-modal {
+        background: white;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 85vh;
+        overflow: hidden;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        animation: modalSlideIn 0.3s ease;
+    }
+    @keyframes modalSlideIn {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .edit-modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .edit-modal-header h4 {
+        margin: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+    }
+    .edit-modal-header h4 i {
+        margin-right: 10px;
+    }
+    .edit-modal-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+    }
+    .edit-modal-close:hover {
+        background: rgba(255,255,255,0.3);
+        transform: rotate(90deg);
+    }
+    .edit-modal-body {
+        padding: 25px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    .edit-form-group {
+        margin-bottom: 20px;
+    }
+    .edit-form-group label {
+        display: block;
+        font-weight: 600;
+        color: #1a1a2e;
+        margin-bottom: 8px;
+    }
+    .edit-form-group textarea {
+        width: 100%;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        resize: vertical;
+        min-height: 120px;
+        transition: border-color 0.3s ease;
+    }
+    .edit-form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    .edit-modal-footer {
+        padding: 15px 25px;
+        background: #f8f9fa;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+    .btn-cancel {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .btn-cancel:hover {
+        background: #5a6268;
+    }
+    .btn-save {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border: none;
+        padding: 10px 25px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+    }
+    .btn-save:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* Editable Section Highlight */
+    .editable-section {
+        position: relative;
+    }
+    {% if can_edit %}
+    .editable-section:hover {
+        outline: 2px dashed rgba(102, 126, 234, 0.3);
+        outline-offset: 5px;
+    }
+    {% endif %}
 </style>
 
 <!-- Hero Section -->
@@ -388,32 +569,44 @@
 </div>
 
 <!-- About Section -->
-<div class="section-card">
-    <h3 class="section-title"><i class="fas fa-info-circle"></i>About EJTech</h3>
-    <p class="about-text">
-        Excellence Jeddah Technology (EJTech) is a leading provider of cutting-edge technology solutions in Saudi Arabia. 
-        Founded in 2008, we have established ourselves as a trusted partner for government entities, major corporations, 
-        and enterprises across the Kingdom. Our expertise spans Information & Communication Technology (ICT), security systems, 
-        building automation, and integrated solutions that drive digital transformation and operational excellence.
-    </p>
-    <p class="about-text mt-3">
-        With a team of highly skilled engineers and technicians, we deliver end-to-end solutions from design and implementation 
-        to maintenance and support. Our commitment to quality, innovation, and customer satisfaction has earned us recognition 
-        as a preferred technology partner in the region.
-    </p>
+<div class="section-card editable-section" data-section="about">
+    <h3 class="section-title">
+        <i class="fas fa-info-circle"></i>About EJTech
+        {% if can_edit %}
+        <button class="edit-btn" onclick="openEditModal('about')" title="Edit About Section">
+            <i class="fas fa-edit"></i> Edit
+        </button>
+        {% endif %}
+    </h3>
+    <p class="about-text" id="about_paragraph1">{{ content.about_paragraph1 }}</p>
+    <p class="about-text mt-3" id="about_paragraph2">{{ content.about_paragraph2 }}</p>
 </div>
 
 <!-- Mission & Vision -->
 <div class="section-card">
     <h3 class="section-title"><i class="fas fa-bullseye"></i>Mission & Vision</h3>
     <div class="mv-grid">
-        <div class="mv-card mission">
-            <h4><i class="fas fa-rocket"></i>Our Mission</h4>
-            <p>To deliver innovative, reliable, and cost-effective technology solutions that empower our clients to achieve their business objectives while maintaining the highest standards of quality and customer service.</p>
+        <div class="mv-card mission editable-section" data-section="mission">
+            <h4>
+                <i class="fas fa-rocket"></i>Our Mission
+                {% if can_edit %}
+                <button class="edit-btn-small" onclick="openEditModal('mission')" title="Edit Mission">
+                    <i class="fas fa-edit"></i>
+                </button>
+                {% endif %}
+            </h4>
+            <p id="mission_content">{{ content.mission }}</p>
         </div>
-        <div class="mv-card vision">
-            <h4><i class="fas fa-eye"></i>Our Vision</h4>
-            <p>To be the leading technology solutions provider in the Middle East, recognized for excellence, innovation, and our commitment to contributing to Saudi Arabia's Vision 2030 digital transformation goals.</p>
+        <div class="mv-card vision editable-section" data-section="vision">
+            <h4>
+                <i class="fas fa-eye"></i>Our Vision
+                {% if can_edit %}
+                <button class="edit-btn-small" onclick="openEditModal('vision')" title="Edit Vision">
+                    <i class="fas fa-edit"></i>
+                </button>
+                {% endif %}
+            </h4>
+            <p id="vision_content">{{ content.vision }}</p>
         </div>
     </div>
 </div>
@@ -577,5 +770,151 @@
         </div>
     </div>
 </div>
+
+{% if can_edit %}
+<!-- Edit Modal -->
+<div class="edit-modal-overlay" id="editModalOverlay" onclick="closeEditModal(event)">
+    <div class="edit-modal" onclick="event.stopPropagation()">
+        <div class="edit-modal-header">
+            <h4><i class="fas fa-edit"></i><span id="modalTitle">Edit Section</span></h4>
+            <button class="edit-modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="edit-modal-body" id="modalBody">
+            <!-- Dynamic content will be inserted here -->
+        </div>
+        <div class="edit-modal-footer">
+            <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+            <button class="btn-save" id="saveBtn" onclick="saveContent()">
+                <i class="fas fa-save mr-1"></i>Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSection = null;
+
+function openEditModal(section) {
+    currentSection = section;
+    const overlay = document.getElementById('editModalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    let html = '';
+    
+    if (section === 'about') {
+        modalTitle.textContent = 'Edit About EJTech';
+        html = `
+            <div class="edit-form-group">
+                <label>Paragraph 1</label>
+                <textarea id="edit_about_paragraph1" rows="5">${document.getElementById('about_paragraph1').textContent.trim()}</textarea>
+            </div>
+            <div class="edit-form-group">
+                <label>Paragraph 2</label>
+                <textarea id="edit_about_paragraph2" rows="5">${document.getElementById('about_paragraph2').textContent.trim()}</textarea>
+            </div>
+        `;
+    } else if (section === 'mission') {
+        modalTitle.textContent = 'Edit Our Mission';
+        html = `
+            <div class="edit-form-group">
+                <label>Mission Statement</label>
+                <textarea id="edit_mission" rows="6">${document.getElementById('mission_content').textContent.trim()}</textarea>
+            </div>
+        `;
+    } else if (section === 'vision') {
+        modalTitle.textContent = 'Edit Our Vision';
+        html = `
+            <div class="edit-form-group">
+                <label>Vision Statement</label>
+                <textarea id="edit_vision" rows="6">${document.getElementById('vision_content').textContent.trim()}</textarea>
+            </div>
+        `;
+    }
+    
+    modalBody.innerHTML = html;
+    overlay.classList.add('active');
+}
+
+function closeEditModal(event) {
+    if (event && event.target !== document.getElementById('editModalOverlay')) return;
+    document.getElementById('editModalOverlay').classList.remove('active');
+    currentSection = null;
+}
+
+async function saveContent() {
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+    
+    try {
+        if (currentSection === 'about') {
+            // Save both paragraphs
+            const p1 = document.getElementById('edit_about_paragraph1').value;
+            const p2 = document.getElementById('edit_about_paragraph2').value;
+            
+            await fetch('/api/company_profile/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({section_key: 'about_paragraph1', content: p1})
+            });
+            await fetch('/api/company_profile/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({section_key: 'about_paragraph2', content: p2})
+            });
+            
+            document.getElementById('about_paragraph1').textContent = p1;
+            document.getElementById('about_paragraph2').textContent = p2;
+            
+        } else if (currentSection === 'mission') {
+            const content = document.getElementById('edit_mission').value;
+            await fetch('/api/company_profile/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({section_key: 'mission', content: content})
+            });
+            document.getElementById('mission_content').textContent = content;
+            
+        } else if (currentSection === 'vision') {
+            const content = document.getElementById('edit_vision').value;
+            await fetch('/api/company_profile/update', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({section_key: 'vision', content: content})
+            });
+            document.getElementById('vision_content').textContent = content;
+        }
+        
+        // Show success
+        saveBtn.innerHTML = '<i class="fas fa-check mr-1"></i>Saved!';
+        saveBtn.style.background = 'linear-gradient(135deg, #28a745 0%, #20c997 100%)';
+        
+        setTimeout(() => {
+            closeEditModal();
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i>Save Changes';
+        }, 1000);
+        
+    } catch (error) {
+        console.error('Error saving:', error);
+        saveBtn.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i>Error!';
+        saveBtn.style.background = '#dc3545';
+        setTimeout(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i>Save Changes';
+            saveBtn.style.background = '';
+        }, 2000);
+    }
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEditModal();
+    }
+});
+</script>
+{% endif %}
 
 {% endblock %}
