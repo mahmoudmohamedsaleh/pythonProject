@@ -341,6 +341,7 @@
     </div>
 </div>
 
+{% if is_ict_solution %}
 <div class="stats-row">
     <div class="stat-card">
         <div class="stat-icon purple"><i class="fas fa-bolt"></i></div>
@@ -423,6 +424,50 @@
     </div>
     {% endif %}
 </div>
+{% else %}
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon purple"><i class="fas fa-building"></i></div>
+        <div class="stat-number">{{ vendors|length }}</div>
+        <div class="stat-label">Vendors</div>
+    </div>
+</div>
+
+<div class="section-card">
+    <h3 class="section-title">
+        <i class="fas fa-building"></i>Vendors & Partners
+        {% if can_edit %}
+        <button class="add-btn" onclick="openVendorModal()"><i class="fas fa-plus"></i> Add Vendor</button>
+        {% endif %}
+    </h3>
+    {% if vendors %}
+    <div class="vendors-grid">
+        {% for vendor in vendors %}
+        <div class="vendor-card">
+            {% if vendor.logo_url %}
+            <div class="vendor-logo"><img src="{{ vendor.logo_url }}" alt="{{ vendor.vendor_name }}"></div>
+            {% else %}
+            <div class="vendor-logo fallback">{{ vendor.vendor_name[:2].upper() }}</div>
+            {% endif %}
+            <h5>{{ vendor.vendor_name }}</h5>
+            <div class="vendor-type">{{ vendor.vendor_type }}</div>
+            {% if vendor.description %}
+            <div class="vendor-desc">{{ vendor.description }}</div>
+            {% endif %}
+            {% if can_edit %}
+            <button class="delete-btn" onclick="deleteVendor({{ vendor.id }})"><i class="fas fa-trash"></i></button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-building"></i>
+        <p>No vendors added yet</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 
 {% if can_edit %}
 <div class="modal-overlay" id="vendorModal">

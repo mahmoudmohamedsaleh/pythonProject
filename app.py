@@ -1725,13 +1725,17 @@ def solution_profile(solution_id):
     
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
+    # Check if this is the ICT solution (only ICT gets Active/Passive vendor categories)
+    is_ict_solution = 'ict' in solution.get('name', '').lower()
+    
     return render_template('solution_profile.html', 
                          solution=solution, 
                          vendors=vendors,
                          active_vendors=active_vendors,
                          passive_vendors=passive_vendors,
                          products=products,
-                         can_edit=can_edit)
+                         can_edit=can_edit,
+                         is_ict_solution=is_ict_solution)
 
 @app.route('/api/solution/<int:solution_id>/vendors', methods=['POST'])
 @login_required
