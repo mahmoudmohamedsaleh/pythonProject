@@ -1397,7 +1397,7 @@ def company_profile():
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    # Create table if not exists
+    # Create tables if not exists
     c.execute("""
         CREATE TABLE IF NOT EXISTS company_profile_content (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1407,12 +1407,39 @@ def company_profile():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS company_solutions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            icon TEXT NOT NULL,
+            color_class TEXT DEFAULT 'purple',
+            display_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
     
     # Get all content sections
     c.execute("SELECT section_key, content FROM company_profile_content")
     rows = c.fetchall()
     content = {row['section_key']: row['content'] for row in rows}
+    
+    # Get solutions
+    c.execute("SELECT * FROM company_solutions ORDER BY display_order, id")
+    solutions = [dict(row) for row in c.fetchall()]
+    
+    # If no solutions in database, use defaults
+    if not solutions:
+        default_solutions = [
+            {'id': 0, 'name': 'ICT Infrastructure', 'icon': 'fa-network-wired', 'color_class': 'purple'},
+            {'id': 0, 'name': 'CCTV & Surveillance', 'icon': 'fa-video', 'color_class': 'pink'},
+            {'id': 0, 'name': 'Access Control', 'icon': 'fa-fingerprint', 'color_class': 'cyan'},
+            {'id': 0, 'name': 'Fire Alarm Systems', 'icon': 'fa-fire-extinguisher', 'color_class': 'orange'},
+            {'id': 0, 'name': 'Public Address', 'icon': 'fa-volume-up', 'color_class': 'green'},
+            {'id': 0, 'name': 'Building Management', 'icon': 'fa-building', 'color_class': 'teal'}
+        ]
+        solutions = default_solutions
+    
     conn.close()
     
     # Default content if not in database
@@ -1431,7 +1458,7 @@ def company_profile():
     # Check if current user is M.Saleh
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
-    return render_template('company_profile.html', content=content, can_edit=can_edit)
+    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions)
 
 @app.route('/api/company_profile/update', methods=['POST'])
 @login_required
@@ -1465,6 +1492,107 @@ def update_company_profile_content():
     conn.close()
     
     return jsonify({'success': True, 'message': 'Content updated successfully'})
+
+@app.route('/api/company_profile/solutions', methods=['GET'])
+@login_required
+def get_company_solutions():
+    """Get all company solutions"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Create table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS company_solutions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            icon TEXT NOT NULL,
+            color_class TEXT DEFAULT 'purple',
+            display_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    
+    c.execute("SELECT * FROM company_solutions ORDER BY display_order, id")
+    solutions = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify({'success': True, 'solutions': solutions})
+
+@app.route('/api/company_profile/solutions', methods=['POST'])
+@login_required
+def add_company_solution():
+    """Add a new solution - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    name = data.get('name')
+    icon = data.get('icon')
+    color_class = data.get('color_class', 'purple')
+    
+    if not name or not icon:
+        return jsonify({'success': False, 'error': 'Name and icon are required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get max display order
+    c.execute("SELECT MAX(display_order) FROM company_solutions")
+    max_order = c.fetchone()[0] or 0
+    
+    c.execute("""
+        INSERT INTO company_solutions (name, icon, color_class, display_order)
+        VALUES (?, ?, ?, ?)
+    """, (name, icon, color_class, max_order + 1))
+    
+    solution_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': solution_id, 'message': 'Solution added successfully'})
+
+@app.route('/api/company_profile/solutions/<int:solution_id>', methods=['PUT'])
+@login_required
+def update_company_solution(solution_id):
+    """Update a solution - Only M.Saleh can edit"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    name = data.get('name')
+    icon = data.get('icon')
+    color_class = data.get('color_class')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        UPDATE company_solutions 
+        SET name = ?, icon = ?, color_class = ?
+        WHERE id = ?
+    """, (name, icon, color_class, solution_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Solution updated successfully'})
+
+@app.route('/api/company_profile/solutions/<int:solution_id>', methods=['DELETE'])
+@login_required
+def delete_company_solution(solution_id):
+    """Delete a solution - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM company_solutions WHERE id = ?", (solution_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Solution deleted successfully'})
 
 ################################3
 @app.route('/')
