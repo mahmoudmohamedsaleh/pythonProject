@@ -849,11 +849,9 @@
     <div class="solutions-grid" id="solutionsGrid">
         {% for solution in solutions %}
         <div class="solution-card" data-id="{{ solution.id }}">
-            {% if solution.image_url %}
-            <div class="solution-image" style="background-image: url('{{ solution.image_url }}')"></div>
-            {% else %}
-            <div class="solution-image" style="background-image: url('https://source.unsplash.com/200x150/?{{ solution.name | urlencode }},technology')"></div>
-            {% endif %}
+            <div class="solution-icon {{ solution.color_class or 'purple' }}">
+                <i class="fas {{ solution.icon or 'fa-cog' }}"></i>
+            </div>
             <h5>{{ solution.name }}</h5>
             {% if can_edit and solution.id != 0 %}
             <div class="solution-actions">
