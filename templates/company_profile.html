@@ -55,6 +55,20 @@
         font-size: 0.9rem;
         backdrop-filter: blur(5px);
     }
+    .hero-badge.location-link {
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+    .hero-badge.location-link:hover {
+        background: rgba(255,255,255,0.3);
+        border-color: rgba(255,255,255,0.5);
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: white;
+    }
     
     /* Stats Section */
     .stats-row {
@@ -343,7 +357,7 @@
         <p class="hero-tagline">Where Professionalism Meets Expertise</p>
         <div class="hero-badges">
             <span class="hero-badge"><i class="fas fa-calendar-alt mr-2"></i>Est. 2008</span>
-            <span class="hero-badge"><i class="fas fa-map-marker-alt mr-2"></i>Jeddah, Saudi Arabia</span>
+            <a href="https://maps.app.goo.gl/PtwJAnWGs8quZxoi8" target="_blank" class="hero-badge location-link"><i class="fas fa-map-marker-alt mr-2"></i>Jeddah, Saudi Arabia</a>
             <span class="hero-badge"><i class="fas fa-certificate mr-2"></i>ISO Certified</span>
         </div>
     </div>
