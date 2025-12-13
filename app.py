@@ -1592,16 +1592,53 @@ def add_company_solution():
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    data = request.get_json()
-    name = data.get('name')
-    icon = data.get('icon')
-    color_class = data.get('color_class', 'purple')
+    # Check if this is a multipart form (file upload) or JSON request
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        name = request.form.get('name')
+        icon = request.form.get('icon')
+        color_class = request.form.get('color_class', 'purple')
+        photo = request.files.get('photo')
+    else:
+        data = request.get_json()
+        name = data.get('name')
+        icon = data.get('icon')
+        color_class = data.get('color_class', 'purple')
+        photo = None
     
     if not name or not icon:
         return jsonify({'success': False, 'error': 'Name and icon are required'}), 400
     
-    # AI-powered image selection based on solution name
-    image_url = get_solution_image_url(name)
+    image_url = None
+    
+    # Handle photo upload
+    if photo and photo.filename:
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        filename = secure_filename(photo.filename)
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        
+        if ext not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, GIF, WebP'}), 400
+        
+        # Check file size (2MB max)
+        photo.seek(0, 2)
+        size = photo.tell()
+        photo.seek(0)
+        if size > 2 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'File size must be less than 2MB'}), 400
+        
+        # Create upload directory if it doesn't exist
+        upload_dir = os.path.join('uploads', 'solution_images')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Generate unique filename
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(upload_dir, unique_filename)
+        photo.save(filepath)
+        
+        image_url = f'/uploads/solution_images/{unique_filename}'
+    else:
+        # AI-powered image selection based on solution name
+        image_url = get_solution_image_url(name)
     
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -1788,8 +1825,25 @@ def allowed_logo_file(filename):
 
 @app.route('/uploads/vendor_logos/<filename>')
 def serve_vendor_logo(filename):
-    """Serve uploaded vendor logo images"""
-    return send_file(os.path.join('uploads', 'vendor_logos', filename))
+    """Serve uploaded vendor logo images - uses secure_filename to prevent path traversal"""
+    safe_filename = secure_filename(filename)
+    if not safe_filename:
+        return "Not found", 404
+    filepath = os.path.join('uploads', 'vendor_logos', safe_filename)
+    if not os.path.exists(filepath):
+        return "Not found", 404
+    return send_file(filepath)
+
+@app.route('/uploads/solution_images/<filename>')
+def serve_solution_image(filename):
+    """Serve uploaded solution images - uses secure_filename to prevent path traversal"""
+    safe_filename = secure_filename(filename)
+    if not safe_filename:
+        return "Not found", 404
+    filepath = os.path.join('uploads', 'solution_images', safe_filename)
+    if not os.path.exists(filepath):
+        return "Not found", 404
+    return send_file(filepath)
 
 @app.route('/api/solution/<int:solution_id>/vendors', methods=['POST'])
 @login_required

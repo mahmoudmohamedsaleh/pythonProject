@@ -1760,9 +1760,31 @@ function openSolutionsModal() {
     selectedIcon = 'fa-cogs';
     selectedColor = 'purple';
     document.getElementById('solutionName').value = '';
+    document.getElementById('solutionPhoto').value = '';
+    document.getElementById('solutionPhotoPreview').innerHTML = '<i class="fas fa-image" style="font-size: 1.5rem; color: #dee2e6;"></i>';
     document.getElementById('solutionsModalTitle').textContent = 'Add New Solution';
     document.getElementById('aiPreviewBox').style.display = 'none';
     document.getElementById('solutionsModalOverlay').classList.add('active');
+}
+
+function previewSolutionPhoto(input) {
+    const preview = document.getElementById('solutionPhotoPreview');
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        if (file.size > 2 * 1024 * 1024) {
+            alert('File size must be less than 2MB');
+            input.value = '';
+            preview.innerHTML = '<i class="fas fa-image" style="font-size: 1.5rem; color: #dee2e6;"></i>';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.innerHTML = '<i class="fas fa-image" style="font-size: 1.5rem; color: #dee2e6;"></i>';
+    }
 }
 
 function closeSolutionsModal(event) {
@@ -1798,15 +1820,32 @@ async function saveSolution() {
             : '/api/company_profile/solutions';
         const method = editingSolutionId ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
-            method: method,
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                name: name,
-                icon: selectedIcon,
-                color_class: selectedColor
-            })
-        });
+        const photoInput = document.getElementById('solutionPhoto');
+        const hasPhoto = photoInput.files && photoInput.files[0];
+        
+        let response;
+        if (hasPhoto && !editingSolutionId) {
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('icon', selectedIcon);
+            formData.append('color_class', selectedColor);
+            formData.append('photo', photoInput.files[0]);
+            
+            response = await fetch(url, {
+                method: method,
+                body: formData
+            });
+        } else {
+            response = await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: name,
+                    icon: selectedIcon,
+                    color_class: selectedColor
+                })
+            });
+        }
         
         const result = await response.json();
         
@@ -1871,6 +1910,22 @@ function filterIcons() {
                 <input type="text" id="solutionName" placeholder="e.g., CCTV & Surveillance, Data Center, UPS Systems..." style="width: 100%; padding: 15px 18px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 1.1rem;" oninput="previewAISuggestion()">
             </div>
             
+            <div class="edit-form-group">
+                <label><i class="fas fa-image" style="margin-right: 6px; color: #667eea;"></i>Solution Photo (Optional)</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="solutionPhotoPreview" style="width: 80px; height: 80px; border-radius: 12px; background: #f8f9fa; border: 2px dashed #e9ecef; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                        <i class="fas fa-image" style="font-size: 1.5rem; color: #dee2e6;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="file" id="solutionPhoto" accept="image/png,image/jpeg,image/gif,image/webp" style="display: none;" onchange="previewSolutionPhoto(this)">
+                        <button type="button" onclick="document.getElementById('solutionPhoto').click()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;">
+                            <i class="fas fa-upload" style="margin-right: 6px;"></i>Upload Photo
+                        </button>
+                        <p style="color: #6c757d; font-size: 0.8rem; margin: 8px 0 0;">PNG, JPG, GIF, WebP (max 2MB)</p>
+                    </div>
+                </div>
+            </div>
+            
             <div class="ai-preview-box" id="aiPreviewBox" style="display: none;">
                 <div class="ai-preview-header">
                     <span class="ai-badge"><i class="fas fa-robot"></i> AI Auto-Detection</span>
@@ -1887,7 +1942,7 @@ function filterIcons() {
             </div>
             
             <p style="color: #6c757d; font-size: 0.85rem; margin-top: 15px;">
-                <i class="fas fa-magic mr-1"></i> Icon and color will be automatically selected based on the solution name using AI detection.
+                <i class="fas fa-magic mr-1"></i> Icon and color will be automatically selected based on the solution name using AI detection. If you upload a photo, it will be used instead of the icon.
             </p>
         </div>
         <div class="edit-modal-footer">
