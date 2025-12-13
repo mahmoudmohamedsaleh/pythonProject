@@ -1473,7 +1473,13 @@ def company_profile():
         'contact_office': 'Jeddah, Saudi Arabia',
         'contact_phone': '+966 12 XXX XXXX',
         'contact_email': 'info@ejt.sa',
-        'contact_website': 'www.ejt.sa'
+        'contact_website': 'www.ejt.sa',
+        'doc_prequalification_url': '',
+        'doc_profile_url': '',
+        'doc_cr_url': '',
+        'doc_vat_url': '',
+        'doc_national_address_url': '',
+        'doc_iso_url': ''
     }
     
     # Merge defaults with database content
