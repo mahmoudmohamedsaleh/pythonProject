@@ -1479,7 +1479,8 @@ def company_profile():
         'doc_cr_url': '',
         'doc_vat_url': '',
         'doc_national_address_url': '',
-        'doc_iso_url': ''
+        'doc_iso_url': '',
+        'doc_gosi_url': ''
     }
     
     # Merge defaults with database content

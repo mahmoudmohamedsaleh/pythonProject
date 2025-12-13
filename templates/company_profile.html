@@ -871,6 +871,7 @@
     .doc-item i.vat { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
     .doc-item i.address { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
     .doc-item i.iso { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+    .doc-item i.gosi { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%); }
     .doc-item-text {
         flex: 1;
     }
@@ -986,7 +987,17 @@
                         <i class="fas fa-external-link-alt external-icon"></i>
                     </a>
                     {% endif %}
-                    {% if not content.doc_prequalification_url and not content.doc_profile_url and not content.doc_cr_url and not content.doc_vat_url and not content.doc_national_address_url and not content.doc_iso_url %}
+                    {% if content.doc_gosi_url %}
+                    <a href="{{ content.doc_gosi_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-users gosi"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">GOSI Documents</div>
+                            <div class="doc-desc">Social insurance certificate</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if not content.doc_prequalification_url and not content.doc_profile_url and not content.doc_cr_url and not content.doc_vat_url and not content.doc_national_address_url and not content.doc_iso_url and not content.doc_gosi_url %}
                     <div class="no-docs-msg">
                         <i class="fas fa-info-circle mb-2" style="font-size: 1.5rem; color: #667eea;"></i>
                         <p class="mb-0">No documents available yet.</p>
@@ -1422,6 +1433,10 @@ function openEditModal(section) {
                 <label><i class="fas fa-award mr-2" style="color: #a8edea;"></i>ISO Certificates</label>
                 <input type="url" id="edit_doc_iso_url" value="{{ content.doc_iso_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
             </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-users mr-2" style="color: #ff6b6b;"></i>GOSI Documents</label>
+                <input type="url" id="edit_doc_gosi_url" value="{{ content.doc_gosi_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
         `;
     }
     
@@ -1559,13 +1574,16 @@ async function saveContent() {
             const docAddress = document.getElementById('edit_doc_national_address_url').value;
             const docIso = document.getElementById('edit_doc_iso_url').value;
             
+            const docGosi = document.getElementById('edit_doc_gosi_url').value;
+            
             const updates = [
                 {section_key: 'doc_prequalification_url', content: docPreq},
                 {section_key: 'doc_profile_url', content: docProfile},
                 {section_key: 'doc_cr_url', content: docCr},
                 {section_key: 'doc_vat_url', content: docVat},
                 {section_key: 'doc_national_address_url', content: docAddress},
-                {section_key: 'doc_iso_url', content: docIso}
+                {section_key: 'doc_iso_url', content: docIso},
+                {section_key: 'doc_gosi_url', content: docGosi}
             ];
             
             for (const update of updates) {
