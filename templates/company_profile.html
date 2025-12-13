@@ -752,6 +752,145 @@
         color: #6c757d;
         font-size: 0.85rem;
     }
+    
+    /* Company Documents Button */
+    .docs-container {
+        position: relative;
+        display: inline-block;
+        margin-top: 20px;
+    }
+    .docs-btn {
+        background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 30px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+    .docs-btn:hover {
+        background: linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.2) 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    .docs-btn i {
+        font-size: 1.1rem;
+    }
+    .docs-dropdown {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        min-width: 300px;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        overflow: hidden;
+    }
+    .docs-dropdown.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    .docs-dropdown-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .docs-dropdown-header i {
+        margin-right: 10px;
+    }
+    .docs-edit-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.3s ease;
+    }
+    .docs-edit-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.1);
+    }
+    .docs-list {
+        padding: 10px 0;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    .doc-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: #333;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+    .doc-item:hover {
+        background: #f8f9fa;
+        border-left-color: #667eea;
+        color: #667eea;
+        text-decoration: none;
+    }
+    .doc-item.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+        cursor: not-allowed;
+    }
+    .doc-item i {
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        font-size: 0.9rem;
+        color: white;
+    }
+    .doc-item i.preq { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .doc-item i.profile { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .doc-item i.cr { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+    .doc-item i.vat { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .doc-item i.address { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .doc-item i.iso { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333; }
+    .doc-item-text {
+        flex: 1;
+    }
+    .doc-item-text .doc-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    .doc-item-text .doc-desc {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    .doc-item .external-icon {
+        color: #adb5bd;
+        font-size: 0.8rem;
+    }
+    .no-docs-msg {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+    }
 </style>
 
 <!-- Hero Section -->
@@ -769,6 +908,95 @@
             <span class="hero-badge" id="hero_badge_1"><i class="fas fa-calendar-alt mr-2"></i>{{ content.hero_badge_1 }}</span>
             <a href="{{ content.hero_location_url or 'https://maps.app.goo.gl/PtwJAnWGs8quZxoi8' }}" target="_blank" class="hero-badge location-link" id="hero_badge_2"><i class="fas fa-map-marker-alt mr-2"></i>{{ content.hero_badge_2 }}</a>
             <span class="hero-badge" id="hero_badge_3"><i class="fas fa-certificate mr-2"></i>{{ content.hero_badge_3 }}</span>
+        </div>
+        
+        <div class="docs-container">
+            <button class="docs-btn" onclick="toggleDocsDropdown(event)">
+                <i class="fas fa-folder-open"></i>
+                Company Documents
+                <i class="fas fa-chevron-down" style="font-size: 0.8rem;"></i>
+            </button>
+            <div class="docs-dropdown" id="docsDropdown">
+                <div class="docs-dropdown-header">
+                    <span><i class="fas fa-file-alt"></i>Company Documents</span>
+                    {% if can_edit %}
+                    <button class="docs-edit-btn" onclick="event.stopPropagation(); openEditModal('documents')" title="Edit Document Links">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="docs-list">
+                    {% if content.doc_prequalification_url %}
+                    <a href="{{ content.doc_prequalification_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-file-pdf preq"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">Pre-Qualification</div>
+                            <div class="doc-desc">Company pre-qualification document</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if content.doc_profile_url %}
+                    <a href="{{ content.doc_profile_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-building profile"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">Company Profile</div>
+                            <div class="doc-desc">Official company profile PDF</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if content.doc_cr_url %}
+                    <a href="{{ content.doc_cr_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-id-card cr"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">Commercial Registration (CR)</div>
+                            <div class="doc-desc">Business registration certificate</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if content.doc_vat_url %}
+                    <a href="{{ content.doc_vat_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-receipt vat"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">VAT Certificate</div>
+                            <div class="doc-desc">Value Added Tax registration</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if content.doc_national_address_url %}
+                    <a href="{{ content.doc_national_address_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-map-marked-alt address"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">National Address</div>
+                            <div class="doc-desc">Official national address certificate</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if content.doc_iso_url %}
+                    <a href="{{ content.doc_iso_url }}" target="_blank" class="doc-item">
+                        <i class="fas fa-award iso"></i>
+                        <div class="doc-item-text">
+                            <div class="doc-name">ISO Certificates</div>
+                            <div class="doc-desc">Quality management certifications</div>
+                        </div>
+                        <i class="fas fa-external-link-alt external-icon"></i>
+                    </a>
+                    {% endif %}
+                    {% if not content.doc_prequalification_url and not content.doc_profile_url and not content.doc_cr_url and not content.doc_vat_url and not content.doc_national_address_url and not content.doc_iso_url %}
+                    <div class="no-docs-msg">
+                        <i class="fas fa-info-circle mb-2" style="font-size: 1.5rem; color: #667eea;"></i>
+                        <p class="mb-0">No documents available yet.</p>
+                        {% if can_edit %}
+                        <small>Click the edit button to add document links.</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1037,6 +1265,20 @@
 <script>
 let currentSection = null;
 
+function toggleDocsDropdown(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('docsDropdown');
+    dropdown.classList.toggle('active');
+}
+
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('docsDropdown');
+    const docsContainer = event.target.closest('.docs-container');
+    if (!docsContainer && dropdown) {
+        dropdown.classList.remove('active');
+    }
+});
+
 function openEditModal(section) {
     currentSection = section;
     const overlay = document.getElementById('editModalOverlay');
@@ -1150,6 +1392,35 @@ function openEditModal(section) {
             <div class="edit-form-group">
                 <label><i class="fas fa-globe mr-2"></i>Website</label>
                 <input type="text" id="edit_contact_website" value="${website}" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.95rem;">
+            </div>
+        `;
+    } else if (section === 'documents') {
+        modalTitle.textContent = 'Edit Company Documents';
+        html = `
+            <p style="color: #6c757d; margin-bottom: 20px;"><i class="fas fa-info-circle mr-2"></i>Add Google Drive links to your company documents. Links will open in a new tab.</p>
+            <div class="edit-form-group">
+                <label><i class="fas fa-file-pdf mr-2" style="color: #667eea;"></i>Pre-Qualification Document</label>
+                <input type="url" id="edit_doc_prequalification_url" value="{{ content.doc_prequalification_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-building mr-2" style="color: #4facfe;"></i>Company Profile PDF</label>
+                <input type="url" id="edit_doc_profile_url" value="{{ content.doc_profile_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-id-card mr-2" style="color: #43e97b;"></i>Commercial Registration (CR)</label>
+                <input type="url" id="edit_doc_cr_url" value="{{ content.doc_cr_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-receipt mr-2" style="color: #fa709a;"></i>VAT Certificate</label>
+                <input type="url" id="edit_doc_vat_url" value="{{ content.doc_vat_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-map-marked-alt mr-2" style="color: #f093fb;"></i>National Address</label>
+                <input type="url" id="edit_doc_national_address_url" value="{{ content.doc_national_address_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-award mr-2" style="color: #a8edea;"></i>ISO Certificates</label>
+                <input type="url" id="edit_doc_iso_url" value="{{ content.doc_iso_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
             </div>
         `;
     }
@@ -1280,6 +1551,33 @@ async function saveContent() {
             document.getElementById('contact_phone').textContent = phone;
             document.getElementById('contact_email').textContent = email;
             document.getElementById('contact_website').textContent = website;
+        } else if (currentSection === 'documents') {
+            const docPreq = document.getElementById('edit_doc_prequalification_url').value;
+            const docProfile = document.getElementById('edit_doc_profile_url').value;
+            const docCr = document.getElementById('edit_doc_cr_url').value;
+            const docVat = document.getElementById('edit_doc_vat_url').value;
+            const docAddress = document.getElementById('edit_doc_national_address_url').value;
+            const docIso = document.getElementById('edit_doc_iso_url').value;
+            
+            const updates = [
+                {section_key: 'doc_prequalification_url', content: docPreq},
+                {section_key: 'doc_profile_url', content: docProfile},
+                {section_key: 'doc_cr_url', content: docCr},
+                {section_key: 'doc_vat_url', content: docVat},
+                {section_key: 'doc_national_address_url', content: docAddress},
+                {section_key: 'doc_iso_url', content: docIso}
+            ];
+            
+            for (const update of updates) {
+                await fetch('/api/company_profile/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(update)
+                });
+            }
+            
+            // Reload page to show updated documents
+            setTimeout(() => location.reload(), 1200);
         }
         
         // Show success
