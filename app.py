@@ -11165,6 +11165,13 @@ def view_projects():
     start_date_filter = request.args.get('start_date')
     end_date_filter = request.args.get('end_date')
     project_name_filter = request.args.get('project_name', '').strip()
+    stage_filter = request.args.get('stage', '').strip()
+    
+    # Define stage options for the filter dropdown
+    stage_options = [
+        'Lead', 'Prospecting', 'Qualification', 'Proposal Prep', 'Proposal Sent',
+        'Customer Pending', 'Technical Discussion', 'Negotiation', 'Closed Won', 'Closed Lost'
+    ]
 
     # Smart filter: Fetch only sales engineers who have registered projects
     c.execute("""
@@ -11231,6 +11238,9 @@ def view_projects():
     if project_name_filter:
         query += " AND rp.project_name LIKE ?"
         params.append(f'%{project_name_filter}%')
+    if stage_filter and stage_filter in stage_options:
+        query += " AND rp.stage = ?"
+        params.append(stage_filter)
 
     # Order by registered date - newest first
     query += " ORDER BY rp.registered_date DESC"
@@ -11243,11 +11253,13 @@ def view_projects():
                            projects=projects,
                            sales_engineers=sales_engineers,
                            user_role=user_role,
+                           stage_options=stage_options,
                            current_filters={
                                'sales_engineer_id': sales_engineer_filter,
                                'start_date': start_date_filter,
                                'end_date': end_date_filter,
-                               'project_name': project_name_filter
+                               'project_name': project_name_filter,
+                               'stage': stage_filter
                            })
 ###############3
 @app.route('/view_end_users')

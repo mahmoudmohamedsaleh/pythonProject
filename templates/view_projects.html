@@ -121,6 +121,15 @@
                 </div>
                 {% endif %}
                 <div class="col-md-2 mb-2">
+                    <label for="stage" class="mb-1">Stage</label>
+                    <select class="form-control" id="stage" name="stage">
+                        <option value="">All Stages</option>
+                        {% for stage_option in stage_options %}
+                            <option value="{{ stage_option }}" {% if current_filters.stage == stage_option %}selected{% endif %}>{{ stage_option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2">
                     <label for="start_date" class="mb-1">Registered From</label>
                     <input type="date" class="form-control" id="start_date" name="start_date" value="{{ current_filters.start_date or '' }}">
                 </div>
