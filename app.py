@@ -8831,7 +8831,7 @@ def edit_rfq(rfq_id):
     projects = c.fetchall()
     c.execute("SELECT username FROM engineers WHERE role IN ('Presale Engineer', 'Technical Team Leader')")
     presale_engineers = c.fetchall()
-    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
+    c.execute("SELECT username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader', 'General Manager', 'Project Manager')")
     sales_engineers = c.fetchall()
     conn.close()
 
