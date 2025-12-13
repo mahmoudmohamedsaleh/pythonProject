@@ -1253,6 +1253,22 @@
     </div>
 </div>
 
+<script>
+function toggleDocsDropdown(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('docsDropdown');
+    dropdown.classList.toggle('active');
+}
+
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('docsDropdown');
+    const docsContainer = event.target.closest('.docs-container');
+    if (!docsContainer && dropdown) {
+        dropdown.classList.remove('active');
+    }
+});
+</script>
+
 {% if can_edit %}
 <!-- Edit Modal -->
 <div class="edit-modal-overlay" id="editModalOverlay" onclick="closeEditModal(event)">
@@ -1275,20 +1291,6 @@
 
 <script>
 let currentSection = null;
-
-function toggleDocsDropdown(event) {
-    event.stopPropagation();
-    const dropdown = document.getElementById('docsDropdown');
-    dropdown.classList.toggle('active');
-}
-
-document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('docsDropdown');
-    const docsContainer = event.target.closest('.docs-container');
-    if (!docsContainer && dropdown) {
-        dropdown.classList.remove('active');
-    }
-});
 
 function openEditModal(section) {
     currentSection = section;
