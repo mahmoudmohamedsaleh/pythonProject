@@ -827,6 +827,13 @@
                         backgroundColor: 'rgba(17, 153, 142, 0.8)',
                         hoverBackgroundColor: 'rgba(17, 153, 142, 1)',
                         borderWidth: 0, borderRadius: 6
+                    },
+                    {
+                        label: 'Quotation Not Submitted',
+                        data: {{ engineer_not_submitted_data|tojson }},
+                        backgroundColor: 'rgba(245, 87, 108, 0.8)',
+                        hoverBackgroundColor: 'rgba(245, 87, 108, 1)',
+                        borderWidth: 0, borderRadius: 6
                     }
                 ]
             },
@@ -840,7 +847,7 @@
                     legend: { position: 'top' },
                     title: {
                         display: true,
-                        text: 'RFQs Received vs Quotations Submitted - {{ period_label }}',
+                        text: 'RFQs Received vs Quotations Submitted vs Not Submitted - {{ period_label }}',
                         font: { size: 14 }
                     },
                     datalabels: {
@@ -855,7 +862,8 @@
                         const datasetIndex = element.datasetIndex;
                         const index = element.index;
                         const engineer = engineerLabels[index];
-                        const type = datasetIndex === 0 ? 'rfqs' : 'quotes';
+                        const typeMap = ['rfqs', 'quotes', 'not_submitted'];
+                        const type = typeMap[datasetIndex] || 'rfqs';
                         const value = engineerPerfChart.data.datasets[datasetIndex].data[index];
                         
                         if (value > 0) {
@@ -895,6 +903,13 @@
                         backgroundColor: 'rgba(17, 153, 142, 0.8)',
                         hoverBackgroundColor: 'rgba(17, 153, 142, 1)',
                         borderWidth: 0, borderRadius: 6
+                    },
+                    {
+                        label: 'RFTS Not Done',
+                        data: {{ rfts_not_done_data|tojson }},
+                        backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                        hoverBackgroundColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 0, borderRadius: 6
                     }
                 ]
             },
@@ -923,7 +938,8 @@
                         const datasetIndex = element.datasetIndex;
                         const index = element.index;
                         const engineer = rftsLabels[index];
-                        const type = datasetIndex === 0 ? 'requested' : 'done';
+                        const typeMap = ['requested', 'done', 'not_done'];
+                        const type = typeMap[datasetIndex] || 'requested';
                         const value = rftsPerfChart.data.datasets[datasetIndex].data[index];
                         
                         if (value > 0) {
@@ -1124,6 +1140,18 @@
                 <th>Sales Engineer</th>
                 <th>Action</th>
             `;
+        } else if (type === 'not_submitted') {
+            header.style.background = 'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)';
+            document.getElementById('engModalTitle').textContent = 'Quotation Not Submitted';
+            tableHeader.innerHTML = `
+                <th>RFQ Reference</th>
+                <th>Project Name</th>
+                <th>System</th>
+                <th>Date Received</th>
+                <th>Deadline</th>
+                <th>Sales Engineer</th>
+                <th>Action</th>
+            `;
         } else {
             header.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
             document.getElementById('engModalTitle').textContent = 'Quotations Submitted';
@@ -1172,6 +1200,24 @@
                                 <td>${item.deadline || '-'}</td>
                                 <td><small>${item.sales_engineer || '-'}</small></td>
                                 <td><a href="/rfq_profile/${item.id}" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
+                            </tr>
+                        `;
+                    });
+                } else if (type === 'not_submitted') {
+                    data.items.forEach(item => {
+                        const priorityBadge = item.priority === 'Urgent' 
+                            ? '<span class="badge badge-danger ml-1">Urgent</span>' 
+                            : (item.priority === 'High' ? '<span class="badge badge-warning ml-1">High</span>' : '');
+                        
+                        html += `
+                            <tr>
+                                <td><a href="/rfq_profile/${item.id}" target="_blank" style="color: #f5576c; font-weight: 600;">${item.rfq_reference}${priorityBadge}</a></td>
+                                <td>${item.project_name || '-'}</td>
+                                <td><small>${item.system || '-'}</small></td>
+                                <td>${item.date || '-'}</td>
+                                <td>${item.deadline || '-'}</td>
+                                <td><small>${item.sales_engineer || '-'}</small></td>
+                                <td><a href="/rfq_profile/${item.id}" class="btn btn-sm btn-outline-danger" target="_blank"><i class="fas fa-eye"></i></a></td>
                             </tr>
                         `;
                     });

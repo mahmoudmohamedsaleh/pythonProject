@@ -7427,16 +7427,37 @@ def presales_performance():
     c.execute(quote_per_eng_query, quote_per_eng_params)
     quote_per_eng_results = c.fetchall()
     
+    # Quotations Not Submitted per engineer (RFQs without matching quotation)
+    not_submitted_query = """
+        SELECT r.sales_engineer_presale, COUNT(*) as count
+        FROM rfq_requests r
+        LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+        WHERE date(r.requested_time) >= ? AND date(r.requested_time) <= ?
+        AND r.sales_engineer_presale IS NOT NULL AND r.sales_engineer_presale != ''
+        AND p.id IS NULL
+    """
+    not_submitted_params = [start_date, end_date]
+    if presale_filter:
+        not_submitted_query += " AND r.sales_engineer_presale = ?"
+        not_submitted_params.append(presale_filter)
+    not_submitted_query += " GROUP BY r.sales_engineer_presale"
+    c.execute(not_submitted_query, not_submitted_params)
+    not_submitted_results = c.fetchall()
+    
     # Combine into a single dataset
     engineer_performance = {}
     for eng, count in rfq_per_eng_results:
         if eng not in engineer_performance:
-            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0}
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0}
         engineer_performance[eng]['rfqs'] = count
     for eng, count in quote_per_eng_results:
         if eng not in engineer_performance:
-            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0}
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0}
         engineer_performance[eng]['quotes'] = count
+    for eng, count in not_submitted_results:
+        if eng not in engineer_performance:
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0}
+        engineer_performance[eng]['not_submitted'] = count
     
     # Sort by total activity
     sorted_engineers = sorted(engineer_performance.items(), 
@@ -7445,6 +7466,7 @@ def presales_performance():
     engineer_chart_labels = [e[0] for e in sorted_engineers]
     engineer_rfqs_data = [e[1]['rfqs'] for e in sorted_engineers]
     engineer_quotes_data = [e[1]['quotes'] for e in sorted_engineers]
+    engineer_not_submitted_data = [e[1].get('not_submitted', 0) for e in sorted_engineers]
 
     # --- Calculation 1: RFQs Requested vs. Quoted (for chart) ---
     # ... (This calculation remains the same)
@@ -7612,16 +7634,36 @@ def presales_performance():
     c.execute(rfts_done_query, rfts_done_params)
     rfts_done_results = c.fetchall()
     
+    # RFTS Not Done per engineer in the selected date range (status != 'Done')
+    rfts_not_done_query = """
+        SELECT presale_engineer, COUNT(*) as count
+        FROM technical_support_requests
+        WHERE (request_status IS NULL OR request_status != 'Done')
+        AND date(requested_time) >= ? AND date(requested_time) <= ?
+        AND presale_engineer IS NOT NULL AND presale_engineer != ''
+    """
+    rfts_not_done_params = [start_date, end_date]
+    if presale_filter:
+        rfts_not_done_query += " AND presale_engineer = ?"
+        rfts_not_done_params.append(presale_filter)
+    rfts_not_done_query += " GROUP BY presale_engineer ORDER BY count DESC"
+    c.execute(rfts_not_done_query, rfts_not_done_params)
+    rfts_not_done_results = c.fetchall()
+    
     # Combine RFTS data into a single dataset
     rfts_performance = {}
     for eng, count in rfts_requested_results:
         if eng not in rfts_performance:
-            rfts_performance[eng] = {'requested': 0, 'done': 0}
+            rfts_performance[eng] = {'requested': 0, 'done': 0, 'not_done': 0}
         rfts_performance[eng]['requested'] = count
     for eng, count in rfts_done_results:
         if eng not in rfts_performance:
-            rfts_performance[eng] = {'requested': 0, 'done': 0}
+            rfts_performance[eng] = {'requested': 0, 'done': 0, 'not_done': 0}
         rfts_performance[eng]['done'] = count
+    for eng, count in rfts_not_done_results:
+        if eng not in rfts_performance:
+            rfts_performance[eng] = {'requested': 0, 'done': 0, 'not_done': 0}
+        rfts_performance[eng]['not_done'] = count
     
     # Sort by total activity
     sorted_rfts_engineers = sorted(rfts_performance.items(), 
@@ -7630,6 +7672,7 @@ def presales_performance():
     rfts_chart_labels = [e[0] for e in sorted_rfts_engineers]
     rfts_requested_data = [e[1]['requested'] for e in sorted_rfts_engineers]
     rfts_done_data = [e[1]['done'] for e in sorted_rfts_engineers]
+    rfts_not_done_data = [e[1]['not_done'] for e in sorted_rfts_engineers]
 
     conn.close()
 
@@ -7667,9 +7710,11 @@ def presales_performance():
                            engineer_chart_labels=engineer_chart_labels,
                            engineer_rfqs_data=engineer_rfqs_data,
                            engineer_quotes_data=engineer_quotes_data,
+                           engineer_not_submitted_data=engineer_not_submitted_data,
                            rfts_chart_labels=rfts_chart_labels,
                            rfts_requested_data=rfts_requested_data,
-                           rfts_done_data=rfts_done_data)
+                           rfts_done_data=rfts_done_data,
+                           rfts_not_done_data=rfts_not_done_data)
 
 @app.route('/api/deadline_rfqs')
 @login_required
@@ -7798,6 +7843,32 @@ def get_engineer_performance_rfqs():
                 'sales_engineer': rfq['sales_engineer_sales'],
                 'system': rfq['system'],
                 'priority': rfq['priority']
+            })
+    elif data_type == 'not_submitted':
+        query = """
+            SELECT r.id, r.rfq_reference, r.project_name, r.requested_time, r.deadline,
+                   r.sales_engineer_sales, r.system, r.priority, r.quotation_status
+            FROM rfq_requests r
+            LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+            WHERE r.sales_engineer_presale = ?
+            AND date(r.requested_time) >= ? AND date(r.requested_time) <= ?
+            AND p.id IS NULL
+            ORDER BY r.requested_time DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+        rfqs = c.fetchall()
+        
+        for rfq in rfqs:
+            result.append({
+                'id': rfq['id'],
+                'rfq_reference': rfq['rfq_reference'],
+                'project_name': rfq['project_name'],
+                'date': rfq['requested_time'][:10] if rfq['requested_time'] else None,
+                'deadline': rfq['deadline'],
+                'sales_engineer': rfq['sales_engineer_sales'],
+                'system': rfq['system'],
+                'priority': rfq['priority'],
+                'quotation_status': rfq['quotation_status']
             })
     else:  # quotes
         query = """
@@ -7936,6 +8007,18 @@ def get_rfts_performance():
                    requested_time, deadline, request_status, priority
             FROM technical_support_requests
             WHERE presale_engineer = ?
+            AND date(requested_time) >= ? AND date(requested_time) <= ?
+            ORDER BY requested_time DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+    elif data_type == 'not_done':
+        # Get RFTS that are NOT marked as 'Done' for the engineer
+        query = """
+            SELECT id, rfts_reference, project_name, request_type, system,
+                   requested_time, deadline, request_status, priority
+            FROM technical_support_requests
+            WHERE presale_engineer = ?
+            AND (request_status IS NULL OR request_status != 'Done')
             AND date(requested_time) >= ? AND date(requested_time) <= ?
             ORDER BY requested_time DESC
         """
