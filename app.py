@@ -7427,7 +7427,7 @@ def presales_performance():
     c.execute(quote_per_eng_query, quote_per_eng_params)
     quote_per_eng_results = c.fetchall()
     
-    # Quotations Not Submitted per engineer (RFQs without matching quotation)
+    # Quotations Not Submitted per engineer (RFQs without matching quotation, excluding cancelled RFQs)
     not_submitted_query = """
         SELECT r.sales_engineer_presale, COUNT(*) as count
         FROM rfq_requests r
@@ -7435,6 +7435,7 @@ def presales_performance():
         WHERE date(r.requested_time) >= ? AND date(r.requested_time) <= ?
         AND r.sales_engineer_presale IS NOT NULL AND r.sales_engineer_presale != ''
         AND p.id IS NULL
+        AND (r.rfq_status IS NULL OR r.rfq_status != 'Cancelled')
     """
     not_submitted_params = [start_date, end_date]
     if presale_filter:
@@ -7847,12 +7848,13 @@ def get_engineer_performance_rfqs():
     elif data_type == 'not_submitted':
         query = """
             SELECT r.id, r.rfq_reference, r.project_name, r.requested_time, r.deadline,
-                   r.sales_engineer_sales, r.system, r.priority, r.quotation_status
+                   r.sales_engineer_sales, r.system, r.priority, r.quotation_status, r.rfq_status
             FROM rfq_requests r
             LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
             WHERE r.sales_engineer_presale = ?
             AND date(r.requested_time) >= ? AND date(r.requested_time) <= ?
             AND p.id IS NULL
+            AND (r.rfq_status IS NULL OR r.rfq_status != 'Cancelled')
             ORDER BY r.requested_time DESC
         """
         c.execute(query, (engineer, start_date, end_date))
