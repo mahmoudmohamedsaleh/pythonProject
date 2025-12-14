@@ -7490,8 +7490,10 @@ def presales_performance():
     engineer_chart_labels = [e[0] for e in sorted_engineers]
     engineer_rfqs_data = [e[1]['rfqs'] for e in sorted_engineers]
     engineer_quotes_data = [e[1]['quotes'] for e in sorted_engineers]
-    engineer_not_submitted_data = [e[1].get('not_submitted', 0) for e in sorted_engineers]
+    # For stacked bar: split "not submitted" into missed deadline and still on time
     engineer_missed_deadline_data = [e[1].get('missed_deadline', 0) for e in sorted_engineers]
+    # Calculate "not submitted but still on time" = total not_submitted - missed_deadline
+    engineer_not_submitted_ontime_data = [max(0, e[1].get('not_submitted', 0) - e[1].get('missed_deadline', 0)) for e in sorted_engineers]
 
     # --- Calculation 1: RFQs Requested vs. Quoted (for chart) ---
     # ... (This calculation remains the same)
@@ -7735,7 +7737,7 @@ def presales_performance():
                            engineer_chart_labels=engineer_chart_labels,
                            engineer_rfqs_data=engineer_rfqs_data,
                            engineer_quotes_data=engineer_quotes_data,
-                           engineer_not_submitted_data=engineer_not_submitted_data,
+                           engineer_not_submitted_ontime_data=engineer_not_submitted_ontime_data,
                            engineer_missed_deadline_data=engineer_missed_deadline_data,
                            rfts_chart_labels=rfts_chart_labels,
                            rfts_requested_data=rfts_requested_data,

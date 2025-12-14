@@ -819,36 +819,40 @@
                         data: {{ engineer_rfqs_data|tojson }},
                         backgroundColor: 'rgba(102, 126, 234, 0.8)',
                         hoverBackgroundColor: 'rgba(102, 126, 234, 1)',
-                        borderWidth: 0, borderRadius: 6
+                        borderWidth: 0, borderRadius: 6,
+                        stack: 'stack0'
                     },
                     {
                         label: 'Quotations Submitted',
                         data: {{ engineer_quotes_data|tojson }},
                         backgroundColor: 'rgba(17, 153, 142, 0.8)',
                         hoverBackgroundColor: 'rgba(17, 153, 142, 1)',
-                        borderWidth: 0, borderRadius: 6
+                        borderWidth: 0, borderRadius: 6,
+                        stack: 'stack1'
                     },
                     {
-                        label: 'Quotation Not Submitted',
-                        data: {{ engineer_not_submitted_data|tojson }},
-                        backgroundColor: 'rgba(245, 87, 108, 0.8)',
-                        hoverBackgroundColor: 'rgba(245, 87, 108, 1)',
-                        borderWidth: 0, borderRadius: 6
-                    },
-                    {
-                        label: 'Missed Deadline',
+                        label: 'Not Submitted (Missed Deadline)',
                         data: {{ engineer_missed_deadline_data|tojson }},
-                        backgroundColor: 'rgba(255, 87, 34, 0.9)',
-                        hoverBackgroundColor: 'rgba(255, 87, 34, 1)',
-                        borderWidth: 0, borderRadius: 6
+                        backgroundColor: 'rgba(220, 53, 69, 0.9)',
+                        hoverBackgroundColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 0, borderRadius: 0,
+                        stack: 'stack2'
+                    },
+                    {
+                        label: 'Not Submitted (On Time)',
+                        data: {{ engineer_not_submitted_ontime_data|tojson }},
+                        backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                        hoverBackgroundColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 0, borderRadius: 6,
+                        stack: 'stack2'
                     }
                 ]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 scales: { 
-                    y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                    x: { title: { display: true, text: 'Presales Engineers' } }
+                    y: { beginAtZero: true, stacked: true, ticks: { stepSize: 1 } },
+                    x: { stacked: true, title: { display: true, text: 'Presales Engineers' } }
                 },
                 plugins: {
                     legend: { position: 'top' },
@@ -857,9 +861,37 @@
                         text: 'RFQs Received vs Quotations Submitted vs Not Submitted - {{ period_label }}',
                         font: { size: 14 }
                     },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const datasetIndex = context[0].datasetIndex;
+                                const index = context[0].dataIndex;
+                                if (datasetIndex === 2 || datasetIndex === 3) {
+                                    const missedDeadline = engineerPerfChart.data.datasets[2].data[index] || 0;
+                                    const onTime = engineerPerfChart.data.datasets[3].data[index] || 0;
+                                    return '\nTotal Not Submitted: ' + (missedDeadline + onTime);
+                                }
+                                return '';
+                            }
+                        }
+                    },
                     datalabels: {
+                        display: function(context) {
+                            // Only show label on top of stacked bars (index 0, 1, and 3 - top of stack2)
+                            if (context.datasetIndex === 2) return false; // Don't show on bottom of stack
+                            return context.dataset.data[context.dataIndex] > 0;
+                        },
                         anchor: 'end', align: 'end',
-                        formatter: (value) => value > 0 ? value : null,
+                        formatter: function(value, context) {
+                            // For the stacked "Not Submitted" bars, show total
+                            if (context.datasetIndex === 3) {
+                                const missedDeadline = engineerPerfChart.data.datasets[2].data[context.dataIndex] || 0;
+                                const onTime = value || 0;
+                                const total = missedDeadline + onTime;
+                                return total > 0 ? total : null;
+                            }
+                            return value > 0 ? value : null;
+                        },
                         font: { weight: 'bold', size: 11 }, color: '#495057'
                     }
                 },
@@ -869,7 +901,8 @@
                         const datasetIndex = element.datasetIndex;
                         const index = element.index;
                         const engineer = engineerLabels[index];
-                        const typeMap = ['rfqs', 'quotes', 'not_submitted', 'missed_deadline'];
+                        // Map dataset index to type: 0=rfqs, 1=quotes, 2=missed_deadline, 3=not_submitted (on time)
+                        const typeMap = ['rfqs', 'quotes', 'missed_deadline', 'not_submitted'];
                         const type = typeMap[datasetIndex] || 'rfqs';
                         const value = engineerPerfChart.data.datasets[datasetIndex].data[index];
                         
