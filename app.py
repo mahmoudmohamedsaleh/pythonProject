@@ -7445,20 +7445,43 @@ def presales_performance():
     c.execute(not_submitted_query, not_submitted_params)
     not_submitted_results = c.fetchall()
     
+    # Missed Deadline per engineer (RFQs not submitted AND deadline has passed)
+    missed_deadline_query = """
+        SELECT r.sales_engineer_presale, COUNT(*) as count
+        FROM rfq_requests r
+        LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+        WHERE date(r.requested_time) >= ? AND date(r.requested_time) <= ?
+        AND r.sales_engineer_presale IS NOT NULL AND r.sales_engineer_presale != ''
+        AND p.id IS NULL
+        AND (r.rfq_status IS NULL OR r.rfq_status != 'Cancelled')
+        AND r.deadline IS NOT NULL AND r.deadline != '' AND date(r.deadline) < date('now')
+    """
+    missed_deadline_params = [start_date, end_date]
+    if presale_filter:
+        missed_deadline_query += " AND r.sales_engineer_presale = ?"
+        missed_deadline_params.append(presale_filter)
+    missed_deadline_query += " GROUP BY r.sales_engineer_presale"
+    c.execute(missed_deadline_query, missed_deadline_params)
+    missed_deadline_results = c.fetchall()
+    
     # Combine into a single dataset
     engineer_performance = {}
     for eng, count in rfq_per_eng_results:
         if eng not in engineer_performance:
-            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0}
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0, 'missed_deadline': 0}
         engineer_performance[eng]['rfqs'] = count
     for eng, count in quote_per_eng_results:
         if eng not in engineer_performance:
-            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0}
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0, 'missed_deadline': 0}
         engineer_performance[eng]['quotes'] = count
     for eng, count in not_submitted_results:
         if eng not in engineer_performance:
-            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0}
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0, 'missed_deadline': 0}
         engineer_performance[eng]['not_submitted'] = count
+    for eng, count in missed_deadline_results:
+        if eng not in engineer_performance:
+            engineer_performance[eng] = {'rfqs': 0, 'quotes': 0, 'not_submitted': 0, 'missed_deadline': 0}
+        engineer_performance[eng]['missed_deadline'] = count
     
     # Sort by total activity
     sorted_engineers = sorted(engineer_performance.items(), 
@@ -7468,6 +7491,7 @@ def presales_performance():
     engineer_rfqs_data = [e[1]['rfqs'] for e in sorted_engineers]
     engineer_quotes_data = [e[1]['quotes'] for e in sorted_engineers]
     engineer_not_submitted_data = [e[1].get('not_submitted', 0) for e in sorted_engineers]
+    engineer_missed_deadline_data = [e[1].get('missed_deadline', 0) for e in sorted_engineers]
 
     # --- Calculation 1: RFQs Requested vs. Quoted (for chart) ---
     # ... (This calculation remains the same)
@@ -7712,6 +7736,7 @@ def presales_performance():
                            engineer_rfqs_data=engineer_rfqs_data,
                            engineer_quotes_data=engineer_quotes_data,
                            engineer_not_submitted_data=engineer_not_submitted_data,
+                           engineer_missed_deadline_data=engineer_missed_deadline_data,
                            rfts_chart_labels=rfts_chart_labels,
                            rfts_requested_data=rfts_requested_data,
                            rfts_done_data=rfts_done_data,
@@ -7856,6 +7881,34 @@ def get_engineer_performance_rfqs():
             AND p.id IS NULL
             AND (r.rfq_status IS NULL OR r.rfq_status != 'Cancelled')
             ORDER BY r.requested_time DESC
+        """
+        c.execute(query, (engineer, start_date, end_date))
+        rfqs = c.fetchall()
+        
+        for rfq in rfqs:
+            result.append({
+                'id': rfq['id'],
+                'rfq_reference': rfq['rfq_reference'],
+                'project_name': rfq['project_name'],
+                'date': rfq['requested_time'][:10] if rfq['requested_time'] else None,
+                'deadline': rfq['deadline'],
+                'sales_engineer': rfq['sales_engineer_sales'],
+                'system': rfq['system'],
+                'priority': rfq['priority'],
+                'quotation_status': rfq['quotation_status']
+            })
+    elif data_type == 'missed_deadline':
+        query = """
+            SELECT r.id, r.rfq_reference, r.project_name, r.requested_time, r.deadline,
+                   r.sales_engineer_sales, r.system, r.priority, r.quotation_status, r.rfq_status
+            FROM rfq_requests r
+            LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+            WHERE r.sales_engineer_presale = ?
+            AND date(r.requested_time) >= ? AND date(r.requested_time) <= ?
+            AND p.id IS NULL
+            AND (r.rfq_status IS NULL OR r.rfq_status != 'Cancelled')
+            AND r.deadline IS NOT NULL AND r.deadline != '' AND date(r.deadline) < date('now')
+            ORDER BY r.deadline ASC
         """
         c.execute(query, (engineer, start_date, end_date))
         rfqs = c.fetchall()

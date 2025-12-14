@@ -834,6 +834,13 @@
                         backgroundColor: 'rgba(245, 87, 108, 0.8)',
                         hoverBackgroundColor: 'rgba(245, 87, 108, 1)',
                         borderWidth: 0, borderRadius: 6
+                    },
+                    {
+                        label: 'Missed Deadline',
+                        data: {{ engineer_missed_deadline_data|tojson }},
+                        backgroundColor: 'rgba(255, 87, 34, 0.9)',
+                        hoverBackgroundColor: 'rgba(255, 87, 34, 1)',
+                        borderWidth: 0, borderRadius: 6
                     }
                 ]
             },
@@ -862,7 +869,7 @@
                         const datasetIndex = element.datasetIndex;
                         const index = element.index;
                         const engineer = engineerLabels[index];
-                        const typeMap = ['rfqs', 'quotes', 'not_submitted'];
+                        const typeMap = ['rfqs', 'quotes', 'not_submitted', 'missed_deadline'];
                         const type = typeMap[datasetIndex] || 'rfqs';
                         const value = engineerPerfChart.data.datasets[datasetIndex].data[index];
                         
@@ -1153,6 +1160,19 @@
                 <th>Status</th>
                 <th>Action</th>
             `;
+        } else if (type === 'missed_deadline') {
+            header.style.background = 'linear-gradient(135deg, #ff5722 0%, #ff9800 100%)';
+            document.getElementById('engModalTitle').textContent = 'Missed Deadline (Overdue RFQs)';
+            tableHeader.innerHTML = `
+                <th>RFQ Reference</th>
+                <th>Project Name</th>
+                <th>System</th>
+                <th>Date Received</th>
+                <th>Deadline</th>
+                <th>Days Overdue</th>
+                <th>Sales Engineer</th>
+                <th>Action</th>
+            `;
         } else {
             header.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
             document.getElementById('engModalTitle').textContent = 'Quotations Submitted';
@@ -1238,6 +1258,37 @@
                             </tr>
                         `;
                     });
+                } else if (type === 'missed_deadline') {
+                    data.items.forEach(item => {
+                        const priorityBadge = item.priority === 'Urgent' 
+                            ? '<span class="badge badge-danger ml-1">Urgent</span>' 
+                            : (item.priority === 'High' ? '<span class="badge badge-warning ml-1">High</span>' : '');
+                        
+                        // Calculate days overdue
+                        let daysOverdue = '-';
+                        if (item.deadline) {
+                            const deadlineDate = new Date(item.deadline);
+                            const today = new Date();
+                            const diffTime = today - deadlineDate;
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            if (diffDays > 0) {
+                                daysOverdue = `<span class="badge badge-danger">${diffDays} days</span>`;
+                            }
+                        }
+                        
+                        html += `
+                            <tr style="background: rgba(255, 87, 34, 0.05);">
+                                <td><a href="/rfq_profile/${item.id}" target="_blank" style="color: #ff5722; font-weight: 600;">${item.rfq_reference}${priorityBadge}</a></td>
+                                <td>${item.project_name || '-'}</td>
+                                <td><small>${item.system || '-'}</small></td>
+                                <td>${item.date || '-'}</td>
+                                <td><span class="text-danger font-weight-bold">${item.deadline || '-'}</span></td>
+                                <td>${daysOverdue}</td>
+                                <td><small>${item.sales_engineer || '-'}</small></td>
+                                <td><a href="/rfq_profile/${item.id}" class="btn btn-sm btn-outline-warning" target="_blank"><i class="fas fa-eye"></i></a></td>
+                            </tr>
+                        `;
+                    });
                 } else {
                     data.items.forEach(item => {
                         const valueFormatted = item.value ? parseFloat(item.value).toLocaleString('en-US', {minimumFractionDigits: 2}) : '0.00';
@@ -1257,7 +1308,7 @@
                 }
                 
                 if (data.items.length === 0) {
-                    const colCount = type === 'not_submitted' ? 8 : 7;
+                    const colCount = (type === 'not_submitted' || type === 'missed_deadline') ? 8 : 7;
                     html = `<tr><td colspan="${colCount}" class="text-center text-muted py-4">No data found</td></tr>`;
                 }
                 
