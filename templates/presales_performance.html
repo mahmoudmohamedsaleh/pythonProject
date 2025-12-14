@@ -1150,6 +1150,7 @@
                 <th>Date Received</th>
                 <th>Deadline</th>
                 <th>Sales Engineer</th>
+                <th>Status</th>
                 <th>Action</th>
             `;
         } else {
@@ -1209,14 +1210,30 @@
                             ? '<span class="badge badge-danger ml-1">Urgent</span>' 
                             : (item.priority === 'High' ? '<span class="badge badge-warning ml-1">High</span>' : '');
                         
+                        // Show quotation status with appropriate badge
+                        let statusBadge = '-';
+                        if (item.quotation_status === 'Cancelled') {
+                            statusBadge = '<span class="badge badge-secondary"><i class="fas fa-ban mr-1"></i>Cancelled</span>';
+                        } else if (item.quotation_status === 'Pending') {
+                            statusBadge = '<span class="badge badge-info">Pending</span>';
+                        } else if (item.quotation_status === 'In Progress') {
+                            statusBadge = '<span class="badge badge-primary">In Progress</span>';
+                        } else if (item.quotation_status) {
+                            statusBadge = `<span class="badge badge-light">${item.quotation_status}</span>`;
+                        }
+                        
+                        // Style cancelled RFQs differently
+                        const rowStyle = item.quotation_status === 'Cancelled' ? 'style="opacity: 0.6; background: #f8f9fa;"' : '';
+                        
                         html += `
-                            <tr>
+                            <tr ${rowStyle}>
                                 <td><a href="/rfq_profile/${item.id}" target="_blank" style="color: #f5576c; font-weight: 600;">${item.rfq_reference}${priorityBadge}</a></td>
                                 <td>${item.project_name || '-'}</td>
                                 <td><small>${item.system || '-'}</small></td>
                                 <td>${item.date || '-'}</td>
                                 <td>${item.deadline || '-'}</td>
                                 <td><small>${item.sales_engineer || '-'}</small></td>
+                                <td>${statusBadge}</td>
                                 <td><a href="/rfq_profile/${item.id}" class="btn btn-sm btn-outline-danger" target="_blank"><i class="fas fa-eye"></i></a></td>
                             </tr>
                         `;
@@ -1240,7 +1257,8 @@
                 }
                 
                 if (data.items.length === 0) {
-                    html = '<tr><td colspan="7" class="text-center text-muted py-4">No data found</td></tr>';
+                    const colCount = type === 'not_submitted' ? 8 : 7;
+                    html = `<tr><td colspan="${colCount}" class="text-center text-muted py-4">No data found</td></tr>`;
                 }
                 
                 tableBody.innerHTML = html;
