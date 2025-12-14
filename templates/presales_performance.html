@@ -867,8 +867,9 @@
                                 const datasetIndex = context[0].datasetIndex;
                                 const index = context[0].dataIndex;
                                 if (datasetIndex === 2 || datasetIndex === 3) {
-                                    const missedDeadline = engineerPerfChart.data.datasets[2].data[index] || 0;
-                                    const onTime = engineerPerfChart.data.datasets[3].data[index] || 0;
+                                    const chart = context[0].chart;
+                                    const missedDeadline = chart.data.datasets[2].data[index] || 0;
+                                    const onTime = chart.data.datasets[3].data[index] || 0;
                                     return '\nTotal Not Submitted: ' + (missedDeadline + onTime);
                                 }
                                 return '';
@@ -885,7 +886,7 @@
                         formatter: function(value, context) {
                             // For the stacked "Not Submitted" bars, show total
                             if (context.datasetIndex === 3) {
-                                const missedDeadline = engineerPerfChart.data.datasets[2].data[context.dataIndex] || 0;
+                                const missedDeadline = context.chart.data.datasets[2].data[context.dataIndex] || 0;
                                 const onTime = value || 0;
                                 const total = missedDeadline + onTime;
                                 return total > 0 ? total : null;
