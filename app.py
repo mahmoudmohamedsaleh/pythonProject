@@ -1424,6 +1424,18 @@ def company_profile():
         conn.commit()
     except:
         pass  # Column already exists
+    
+    # Create company_clients table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS company_clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            sector TEXT DEFAULT '',
+            image_url TEXT,
+            display_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
     
     # Get all content sections
@@ -1434,6 +1446,32 @@ def company_profile():
     # Get solutions
     c.execute("SELECT * FROM company_solutions ORDER BY display_order, id")
     solutions = [dict(row) for row in c.fetchall()]
+    
+    # Get clients
+    c.execute("SELECT * FROM company_clients ORDER BY display_order, id")
+    clients = [dict(row) for row in c.fetchall()]
+    
+    # If no clients in database, insert the defaults
+    if not clients:
+        default_clients = [
+            ('STC', 'Telecommunications', None, 1),
+            ('Ministry of Interior', 'Government', None, 2),
+            ('Royal Commission', 'Government', None, 3),
+            ('KAUST', 'Education & Research', None, 4),
+            ('Saudi Aramco', 'Oil & Energy', None, 5),
+            ('SABIC', 'Petrochemical', None, 6),
+            ('Madinah Airport', 'Aviation', None, 7),
+            ('King Faisal Hospital', 'Healthcare', None, 8)
+        ]
+        c.executemany("""
+            INSERT INTO company_clients (name, sector, image_url, display_order)
+            VALUES (?, ?, ?, ?)
+        """, default_clients)
+        conn.commit()
+        
+        # Fetch the newly inserted clients
+        c.execute("SELECT * FROM company_clients ORDER BY display_order, id")
+        clients = [dict(row) for row in c.fetchall()]
     
     # If no solutions in database, insert the defaults
     if not solutions:
@@ -1491,7 +1529,7 @@ def company_profile():
     # Check if current user is M.Saleh
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
-    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions)
+    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients)
 
 @app.route('/api/company_profile/update', methods=['POST'])
 @login_required
@@ -1698,6 +1736,180 @@ def delete_company_solution(solution_id):
     conn.close()
     
     return jsonify({'success': True, 'message': 'Solution deleted successfully'})
+
+# ============== COMPANY CLIENTS API ENDPOINTS ==============
+
+@app.route('/api/company_profile/clients', methods=['GET'])
+@login_required
+def get_company_clients():
+    """Get all company clients"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM company_clients ORDER BY display_order, id")
+    clients = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify({'success': True, 'clients': clients})
+
+@app.route('/api/company_profile/clients', methods=['POST'])
+@login_required
+def add_company_client():
+    """Add a new client - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    # Handle both form data (with file) and JSON
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        name = request.form.get('name')
+        sector = request.form.get('sector', '')
+        photo = request.files.get('photo')
+    else:
+        data = request.get_json()
+        name = data.get('name')
+        sector = data.get('sector', '')
+        photo = None
+    
+    if not name:
+        return jsonify({'success': False, 'error': 'Client name is required'}), 400
+    
+    image_url = None
+    
+    # Handle photo upload if provided
+    if photo and photo.filename:
+        # Validate file extension
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = photo.filename.rsplit('.', 1)[-1].lower() if '.' in photo.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, GIF, WebP'}), 400
+        
+        # Check file size (max 2MB)
+        photo.seek(0, 2)  # Seek to end
+        file_size = photo.tell()
+        photo.seek(0)  # Reset to beginning
+        
+        if file_size > 2 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'File too large. Maximum size is 2MB'}), 400
+        
+        # Save file with unique name
+        upload_dir = 'uploads/client_logos'
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        unique_filename = f"{uuid.uuid4().hex}_{secure_filename(photo.filename)}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        photo.save(file_path)
+        
+        image_url = f"/uploads/client_logos/{unique_filename}"
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get next display_order
+    c.execute("SELECT MAX(display_order) FROM company_clients")
+    max_order = c.fetchone()[0] or 0
+    
+    c.execute("""
+        INSERT INTO company_clients (name, sector, image_url, display_order)
+        VALUES (?, ?, ?, ?)
+    """, (name, sector, image_url, max_order + 1))
+    
+    client_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': client_id, 'message': 'Client added successfully', 'image_url': image_url})
+
+@app.route('/api/company_profile/clients/<int:client_id>', methods=['PUT'])
+@login_required
+def update_company_client(client_id):
+    """Update a client - Only M.Saleh can edit"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    # Handle both form data (with file) and JSON
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        name = request.form.get('name')
+        sector = request.form.get('sector', '')
+        photo = request.files.get('photo')
+    else:
+        data = request.get_json()
+        name = data.get('name')
+        sector = data.get('sector', '')
+        photo = None
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    image_url = None
+    
+    # Handle photo upload if provided
+    if photo and photo.filename:
+        # Validate file extension
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = photo.filename.rsplit('.', 1)[-1].lower() if '.' in photo.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, GIF, WebP'}), 400
+        
+        # Check file size (max 2MB)
+        photo.seek(0, 2)
+        file_size = photo.tell()
+        photo.seek(0)
+        
+        if file_size > 2 * 1024 * 1024:
+            conn.close()
+            return jsonify({'success': False, 'error': 'File too large. Maximum size is 2MB'}), 400
+        
+        # Save file with unique name
+        upload_dir = 'uploads/client_logos'
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        unique_filename = f"{uuid.uuid4().hex}_{secure_filename(photo.filename)}"
+        file_path = os.path.join(upload_dir, unique_filename)
+        photo.save(file_path)
+        
+        image_url = f"/uploads/client_logos/{unique_filename}"
+        
+        c.execute("""
+            UPDATE company_clients 
+            SET name = ?, sector = ?, image_url = ?
+            WHERE id = ?
+        """, (name, sector, image_url, client_id))
+    else:
+        c.execute("""
+            UPDATE company_clients 
+            SET name = ?, sector = ?
+            WHERE id = ?
+        """, (name, sector, client_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Client updated successfully', 'image_url': image_url})
+
+@app.route('/api/company_profile/clients/<int:client_id>', methods=['DELETE'])
+@login_required
+def delete_company_client(client_id):
+    """Delete a client - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM company_clients WHERE id = ?", (client_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Client deleted successfully'})
+
+# Serve uploaded client logos
+@app.route('/uploads/client_logos/<filename>')
+def serve_client_logo(filename):
+    """Serve uploaded client logo files"""
+    return send_file(os.path.join('uploads/client_logos', filename))
 
 @app.route('/solution/<int:solution_id>')
 @login_required
