@@ -30,6 +30,7 @@ The system features an admin access control UI, an admin OTP Dashboard for passw
 - **Follow-up & Task Management**: Multi-channel follow-up reminder system (in-app, browser, email) integrated with a bidirectional task management synchronization system across clients, RFQs, RFTS, and POs.
 - **Solution Profile Management**: Solution profiles with vendor categories, editable by M.Saleh, supporting custom categories, icons, colors, and vendor logo uploads.
 - **Company Profile Management**: Editable hero section, footprint, contact information, and "Our Clients" section on the company profile page by M.Saleh, supporting text and image uploads.
+- **Project Profile Management**: Individual project profile pages accessible by clicking Featured Projects, featuring project certificates and approvals management with file upload support. Editable by M.Saleh only.
 - **Active Users Tracking**: Admin dashboard for real-time monitoring of logged-in users, including session details, activity status, and termination capabilities.
 
 ### System Design Choices
