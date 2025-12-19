@@ -10161,8 +10161,13 @@ def view_all_clients():
     View all entities marked as clients (End Users, Contractors, Consultants)
     Sales Engineers see only their assigned clients
     Admins (GM, TTL, Presale) see all clients
+    Supports filtering by tier, type, engineer and sorting
     """
     search_query = request.args.get('search_query', '')
+    filter_tier = request.args.get('tier', '')
+    filter_type = request.args.get('type', '')
+    filter_engineer = request.args.get('engineer', '')
+    sort_by = request.args.get('sort', 'name')  # name, projects, tier
     
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -10184,48 +10189,38 @@ def view_all_clients():
     c.execute("SELECT id, username FROM engineers WHERE role IN ('Sales Engineer', 'Technical Team Leader')")
     sales_engineers = c.fetchall()
     
+    # Check if current user can edit tiers (M.Saleh only)
+    can_edit_tier = session.get('username') == 'M.Saleh'
+    
     all_clients = []
     
-    # Fetch End Users marked as clients
-    if search_query:
-        query_param = f'%{search_query}%'
-        if engineer_id:
-            # Sales Engineer: only their assigned clients
-            c.execute("""
-                SELECT eu.*, e.username as assigned_engineer_name 
-                FROM end_users eu
-                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-                WHERE eu.is_client = 1 
-                AND eu.assigned_sales_engineer_id = ?
-                AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
-            """, (engineer_id, query_param, query_param))
-        else:
-            # Admin: all clients
-            c.execute("""
-                SELECT eu.*, e.username as assigned_engineer_name 
-                FROM end_users eu
-                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-                WHERE eu.is_client = 1 AND (eu.name LIKE ? OR eu.contact_person LIKE ?)
-            """, (query_param, query_param))
-    else:
-        if engineer_id:
-            # Sales Engineer: only their assigned clients
-            c.execute("""
-                SELECT eu.*, e.username as assigned_engineer_name 
-                FROM end_users eu
-                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-                WHERE eu.is_client = 1 AND eu.assigned_sales_engineer_id = ?
-            """, (engineer_id,))
-        else:
-            # Admin: all clients
-            c.execute("""
-                SELECT eu.*, e.username as assigned_engineer_name 
-                FROM end_users eu
-                LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
-                WHERE eu.is_client = 1
-            """)
+    # Helper function to get column indices for tables with client_tier
+    def get_client_tier(row, table_type):
+        # client_tier is added as a new column, likely at the end
+        # We'll use dictionary approach with column names instead
+        return row[-2] if len(row) > 9 else 'Standard'  # client_tier is before assigned_engineer_name
     
+    # Fetch End Users marked as clients
+    base_query = """
+        SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.email, eu.note, 
+               eu.is_client, eu.assigned_sales_engineer_id, eu.client_tier, e.username as assigned_engineer_name 
+        FROM end_users eu
+        LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+        WHERE eu.is_client = 1
+    """
+    params = []
+    
+    if engineer_id:
+        base_query += " AND eu.assigned_sales_engineer_id = ?"
+        params.append(engineer_id)
+    
+    if search_query:
+        base_query += " AND (eu.name LIKE ? OR eu.contact_person LIKE ?)"
+        params.extend([f'%{search_query}%', f'%{search_query}%'])
+    
+    c.execute(base_query, params)
     end_users = c.fetchall()
+    
     for eu in end_users:
         # Count projects
         c.execute("SELECT COUNT(*) FROM register_project WHERE end_user_id = ?", (eu[0],))
@@ -10239,147 +10234,156 @@ def view_all_clients():
         """, (eu[0],))
         contractor_count = c.fetchone()[0]
         
+        client_tier = eu[8] if eu[8] else 'Standard'
+        
         all_clients.append({
             'id': eu[0],
             'name': eu[1],
             'type': 'End User',
+            'type_key': 'end_user',
             'contact_person': eu[2],
             'phone': eu[3],
             'email': eu[4],
             'note': eu[5],
-            'assigned_engineer': eu[8] if len(eu) > 8 else None,
+            'assigned_engineer': eu[9] if len(eu) > 9 else None,
             'assigned_engineer_id': eu[7],
             'project_count': project_count,
-            'contractor_count': contractor_count
+            'contractor_count': contractor_count,
+            'client_tier': client_tier
         })
     
     # Fetch Contractors marked as clients
-    if search_query:
-        query_param = f'%{search_query}%'
-        if engineer_id:
-            # Sales Engineer: only their assigned clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM contractors c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1 
-                AND c.assigned_sales_engineer_id = ?
-                AND (c.name LIKE ? OR c.contact_person LIKE ?)
-            """, (engineer_id, query_param, query_param))
-        else:
-            # Admin: all clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM contractors c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
-            """, (query_param, query_param))
-    else:
-        if engineer_id:
-            # Sales Engineer: only their assigned clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM contractors c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1 AND c.assigned_sales_engineer_id = ?
-            """, (engineer_id,))
-        else:
-            # Admin: all clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM contractors c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1
-            """)
+    base_query = """
+        SELECT c.id, c.name, c.contact_person, c.phone, c.email, c.note, 
+               c.is_client, c.assigned_sales_engineer_id, c.client_tier, e.username as assigned_engineer_name 
+        FROM contractors c
+        LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        WHERE c.is_client = 1
+    """
+    params = []
     
+    if engineer_id:
+        base_query += " AND c.assigned_sales_engineer_id = ?"
+        params.append(engineer_id)
+    
+    if search_query:
+        base_query += " AND (c.name LIKE ? OR c.contact_person LIKE ?)"
+        params.extend([f'%{search_query}%', f'%{search_query}%'])
+    
+    c.execute(base_query, params)
     contractors = c.fetchall()
+    
     for con in contractors:
         # Count projects
         c.execute("SELECT COUNT(*) FROM register_project WHERE contractor_id = ?", (con[0],))
         project_count = c.fetchone()[0]
         
+        client_tier = con[8] if con[8] else 'Standard'
+        
         all_clients.append({
             'id': con[0],
             'name': con[1],
             'type': 'Contractor',
+            'type_key': 'contractor',
             'contact_person': con[2],
             'phone': con[3],
             'email': con[4],
             'note': con[5],
-            'assigned_engineer': con[8] if len(con) > 8 else None,
+            'assigned_engineer': con[9] if len(con) > 9 else None,
             'assigned_engineer_id': con[7],
             'project_count': project_count,
-            'contractor_count': None
+            'contractor_count': None,
+            'client_tier': client_tier
         })
     
     # Fetch Consultants marked as clients
-    if search_query:
-        query_param = f'%{search_query}%'
-        if engineer_id:
-            # Sales Engineer: only their assigned clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM consultants c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1 
-                AND c.assigned_sales_engineer_id = ?
-                AND (c.name LIKE ? OR c.contact_person LIKE ?)
-            """, (engineer_id, query_param, query_param))
-        else:
-            # Admin: all clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM consultants c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1 AND (c.name LIKE ? OR c.contact_person LIKE ?)
-            """, (query_param, query_param))
-    else:
-        if engineer_id:
-            # Sales Engineer: only their assigned clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM consultants c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1 AND c.assigned_sales_engineer_id = ?
-            """, (engineer_id,))
-        else:
-            # Admin: all clients
-            c.execute("""
-                SELECT c.*, e.username as assigned_engineer_name 
-                FROM consultants c
-                LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
-                WHERE c.is_client = 1
-            """)
+    base_query = """
+        SELECT c.id, c.name, c.contact_person, c.phone, c.email, c.note, 
+               c.is_client, c.assigned_sales_engineer_id, c.client_tier, e.username as assigned_engineer_name 
+        FROM consultants c
+        LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        WHERE c.is_client = 1
+    """
+    params = []
     
+    if engineer_id:
+        base_query += " AND c.assigned_sales_engineer_id = ?"
+        params.append(engineer_id)
+    
+    if search_query:
+        base_query += " AND (c.name LIKE ? OR c.contact_person LIKE ?)"
+        params.extend([f'%{search_query}%', f'%{search_query}%'])
+    
+    c.execute(base_query, params)
     consultants = c.fetchall()
+    
     for cons in consultants:
         # Count projects
         c.execute("SELECT COUNT(*) FROM register_project WHERE consultant_id = ?", (cons[0],))
         project_count = c.fetchone()[0]
         
+        client_tier = cons[8] if cons[8] else 'Standard'
+        
         all_clients.append({
             'id': cons[0],
             'name': cons[1],
             'type': 'Consultant',
+            'type_key': 'consultant',
             'contact_person': cons[2],
             'phone': cons[3],
             'email': cons[4],
             'note': cons[5],
-            'assigned_engineer': cons[8] if len(cons) > 8 else None,
+            'assigned_engineer': cons[9] if len(cons) > 9 else None,
             'assigned_engineer_id': cons[7],
             'project_count': project_count,
-            'contractor_count': None
+            'contractor_count': None,
+            'client_tier': client_tier
         })
     
     conn.close()
     
-    # Sort by name
-    all_clients.sort(key=lambda x: x['name'])
+    # Apply filters
+    if filter_tier:
+        all_clients = [c for c in all_clients if c['client_tier'] == filter_tier]
+    
+    if filter_type:
+        all_clients = [c for c in all_clients if c['type'] == filter_type]
+    
+    if filter_engineer:
+        all_clients = [c for c in all_clients if str(c['assigned_engineer_id']) == filter_engineer]
+    
+    # Calculate statistics before filtering for dashboard
+    tier_order = {'VIP': 0, 'Key Account': 1, 'Standard': 2, 'New': 3}
+    stats = {
+        'total': len(all_clients),
+        'vip': len([c for c in all_clients if c['client_tier'] == 'VIP']),
+        'key_account': len([c for c in all_clients if c['client_tier'] == 'Key Account']),
+        'standard': len([c for c in all_clients if c['client_tier'] == 'Standard']),
+        'new': len([c for c in all_clients if c['client_tier'] == 'New']),
+        'end_users': len([c for c in all_clients if c['type'] == 'End User']),
+        'contractors': len([c for c in all_clients if c['type'] == 'Contractor']),
+        'consultants': len([c for c in all_clients if c['type'] == 'Consultant']),
+        'total_projects': sum(c['project_count'] for c in all_clients)
+    }
+    
+    # Sort clients
+    if sort_by == 'projects':
+        all_clients.sort(key=lambda x: x['project_count'], reverse=True)
+    elif sort_by == 'tier':
+        all_clients.sort(key=lambda x: (tier_order.get(x['client_tier'], 2), x['name']))
+    else:  # Default: name
+        all_clients.sort(key=lambda x: x['name'])
     
     return render_template('view_all_clients.html',
                            clients=all_clients,
                            sales_engineers=sales_engineers,
-                           search_query=search_query)
+                           search_query=search_query,
+                           filter_tier=filter_tier,
+                           filter_type=filter_type,
+                           filter_engineer=filter_engineer,
+                           sort_by=sort_by,
+                           stats=stats,
+                           can_edit_tier=can_edit_tier)
 
 ##########
 # CLIENT PROFILE
@@ -10884,6 +10888,46 @@ def add_client_activity():
     conn.close()
     
     return jsonify({'success': True, 'activity_id': activity_id})
+
+
+@app.route('/api/client_tier/<client_type>/<int:client_id>', methods=['PUT'])
+@login_required
+def update_client_tier(client_type, client_id):
+    """Update client tier classification - only M.Saleh can edit"""
+    if session.get('username') != 'M.Saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    new_tier = data.get('tier')
+    
+    valid_tiers = ['VIP', 'Key Account', 'Standard', 'New']
+    if new_tier not in valid_tiers:
+        return jsonify({'success': False, 'error': 'Invalid tier'}), 400
+    
+    # Map client_type to table name
+    table_map = {
+        'end_user': 'end_users',
+        'contractor': 'contractors',
+        'consultant': 'consultants'
+    }
+    
+    table_name = table_map.get(client_type)
+    if not table_name:
+        return jsonify({'success': False, 'error': 'Invalid client type'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    cursor.execute(f"UPDATE {table_name} SET client_tier = ? WHERE id = ?", (new_tier, client_id))
+    
+    if cursor.rowcount == 0:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Client not found'}), 404
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'tier': new_tier})
 
 
 @app.route('/api/check_follow_up_reminders', methods=['GET'])
