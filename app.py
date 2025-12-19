@@ -1909,7 +1909,14 @@ def delete_company_client(client_id):
 @app.route('/uploads/client_logos/<filename>')
 def serve_client_logo(filename):
     """Serve uploaded client logo files"""
-    return send_file(os.path.join('uploads/client_logos', filename))
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename:
+        return "Invalid filename", 400
+    upload_dir = os.path.abspath('uploads/client_logos')
+    file_path = os.path.abspath(os.path.join(upload_dir, safe_name))
+    if not file_path.startswith(upload_dir):
+        return "Invalid path", 400
+    return send_file(file_path)
 
 @app.route('/solution/<int:solution_id>')
 @login_required
