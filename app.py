@@ -1466,7 +1466,53 @@ def company_profile():
             year TEXT DEFAULT '',
             icon TEXT DEFAULT 'fa-building',
             display_order INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            client_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES company_clients(id)
+        )
+    """)
+    conn.commit()
+    
+    # Add client_id column to featured_projects if it doesn't exist
+    try:
+        c.execute("ALTER TABLE featured_projects ADD COLUMN client_id INTEGER")
+        conn.commit()
+    except:
+        pass  # Column already exists
+    
+    # Create client_certificates table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS client_certificates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            issuing_authority TEXT DEFAULT '',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES company_clients(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    
+    # Create client_approvals table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS client_approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            client_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            approval_type TEXT DEFAULT 'General',
+            status TEXT DEFAULT 'Active',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (client_id) REFERENCES company_clients(id) ON DELETE CASCADE
         )
     """)
     conn.commit()
@@ -2041,13 +2087,15 @@ def add_featured_project():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     
+    client_id = data.get('client_id')
+    
     c.execute("SELECT MAX(display_order) FROM featured_projects")
     max_order = c.fetchone()[0] or 0
     
     c.execute("""
-        INSERT INTO featured_projects (name, scope, location, year, icon, display_order)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (name, scope, location, year, icon, max_order + 1))
+        INSERT INTO featured_projects (name, scope, location, year, icon, display_order, client_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (name, scope, location, year, icon, max_order + 1, client_id))
     
     project_id = c.lastrowid
     conn.commit()
@@ -2068,15 +2116,16 @@ def update_featured_project(project_id):
     location = data.get('location', '')
     year = data.get('year', '')
     icon = data.get('icon', 'fa-building')
+    client_id = data.get('client_id')
     
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     
     c.execute("""
         UPDATE featured_projects 
-        SET name = ?, scope = ?, location = ?, year = ?, icon = ?
+        SET name = ?, scope = ?, location = ?, year = ?, icon = ?, client_id = ?
         WHERE id = ?
-    """, (name, scope, location, year, icon, project_id))
+    """, (name, scope, location, year, icon, client_id, project_id))
     
     conn.commit()
     conn.close()
@@ -2129,6 +2178,307 @@ def reorder_featured_projects():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
+
+# ==================== CLIENT PROFILE ROUTES ====================
+
+@app.route('/company_client/<int:client_id>')
+@login_required
+def company_client_profile(client_id):
+    """Company Client Profile page showing client details, projects, certificates, and approvals"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get client details
+    c.execute("SELECT * FROM company_clients WHERE id = ?", (client_id,))
+    client = c.fetchone()
+    
+    if not client:
+        conn.close()
+        return redirect(url_for('company_profile'))
+    
+    client = dict(client)
+    
+    # Get featured projects linked to this client
+    c.execute("""
+        SELECT * FROM featured_projects 
+        WHERE client_id = ? 
+        ORDER BY display_order, id
+    """, (client_id,))
+    featured_projects = [dict(row) for row in c.fetchall()]
+    
+    # Get certificates for this client
+    c.execute("""
+        SELECT * FROM client_certificates 
+        WHERE client_id = ? 
+        ORDER BY issue_date DESC
+    """, (client_id,))
+    certificates = [dict(row) for row in c.fetchall()]
+    
+    # Get approvals for this client
+    c.execute("""
+        SELECT * FROM client_approvals 
+        WHERE client_id = ? 
+        ORDER BY issue_date DESC
+    """, (client_id,))
+    approvals = [dict(row) for row in c.fetchall()]
+    
+    # Calculate statistics
+    total_projects = len(featured_projects)
+    
+    conn.close()
+    
+    can_edit = session.get('username', '').lower() == 'm.saleh'
+    
+    return render_template('company_client_profile.html',
+                         client=client,
+                         featured_projects=featured_projects,
+                         certificates=certificates,
+                         approvals=approvals,
+                         total_projects=total_projects,
+                         can_edit=can_edit)
+
+@app.route('/api/client/<int:client_id>/certificates', methods=['GET'])
+@login_required
+def get_client_certificates(client_id):
+    """Get all certificates for a client"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT * FROM client_certificates 
+        WHERE client_id = ? 
+        ORDER BY issue_date DESC
+    """, (client_id,))
+    certificates = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    return jsonify({'success': True, 'certificates': certificates})
+
+@app.route('/api/client/<int:client_id>/certificates', methods=['POST'])
+@login_required
+def add_client_certificate(client_id):
+    """Add a certificate for a client - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    issuing_authority = request.form.get('issuing_authority', '')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Certificate title is required'}), 400
+    
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/client_certificates'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        INSERT INTO client_certificates (client_id, title, description, issuing_authority, issue_date, expiry_date, file_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (client_id, title, description, issuing_authority, issue_date, expiry_date, file_path))
+    
+    cert_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': cert_id, 'message': 'Certificate added successfully'})
+
+@app.route('/api/client/certificates/<int:cert_id>', methods=['PUT'])
+@login_required
+def update_client_certificate(cert_id):
+    """Update a certificate - Only M.Saleh can update"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    issuing_authority = request.form.get('issuing_authority', '')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Check if new file is uploaded
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/client_certificates'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    if file_path:
+        c.execute("""
+            UPDATE client_certificates 
+            SET title = ?, description = ?, issuing_authority = ?, issue_date = ?, expiry_date = ?, file_path = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, issuing_authority, issue_date, expiry_date, file_path, cert_id))
+    else:
+        c.execute("""
+            UPDATE client_certificates 
+            SET title = ?, description = ?, issuing_authority = ?, issue_date = ?, expiry_date = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, issuing_authority, issue_date, expiry_date, cert_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Certificate updated successfully'})
+
+@app.route('/api/client/certificates/<int:cert_id>', methods=['DELETE'])
+@login_required
+def delete_client_certificate(cert_id):
+    """Delete a certificate - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM client_certificates WHERE id = ?", (cert_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Certificate deleted successfully'})
+
+@app.route('/api/client/<int:client_id>/approvals', methods=['GET'])
+@login_required
+def get_client_approvals(client_id):
+    """Get all approvals for a client"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT * FROM client_approvals 
+        WHERE client_id = ? 
+        ORDER BY issue_date DESC
+    """, (client_id,))
+    approvals = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    return jsonify({'success': True, 'approvals': approvals})
+
+@app.route('/api/client/<int:client_id>/approvals', methods=['POST'])
+@login_required
+def add_client_approval(client_id):
+    """Add an approval for a client - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    approval_type = request.form.get('approval_type', 'General')
+    status = request.form.get('status', 'Active')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Approval title is required'}), 400
+    
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/client_approvals'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        INSERT INTO client_approvals (client_id, title, description, approval_type, status, issue_date, expiry_date, file_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (client_id, title, description, approval_type, status, issue_date, expiry_date, file_path))
+    
+    approval_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': approval_id, 'message': 'Approval added successfully'})
+
+@app.route('/api/client/approvals/<int:approval_id>', methods=['PUT'])
+@login_required
+def update_client_approval(approval_id):
+    """Update an approval - Only M.Saleh can update"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    approval_type = request.form.get('approval_type', 'General')
+    status = request.form.get('status', 'Active')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Check if new file is uploaded
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/client_approvals'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    if file_path:
+        c.execute("""
+            UPDATE client_approvals 
+            SET title = ?, description = ?, approval_type = ?, status = ?, issue_date = ?, expiry_date = ?, file_path = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, approval_type, status, issue_date, expiry_date, file_path, approval_id))
+    else:
+        c.execute("""
+            UPDATE client_approvals 
+            SET title = ?, description = ?, approval_type = ?, status = ?, issue_date = ?, expiry_date = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, approval_type, status, issue_date, expiry_date, approval_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Approval updated successfully'})
+
+@app.route('/api/client/approvals/<int:approval_id>', methods=['DELETE'])
+@login_required
+def delete_client_approval(approval_id):
+    """Delete an approval - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM client_approvals WHERE id = ?", (approval_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Approval deleted successfully'})
 
 @app.route('/solution/<int:solution_id>')
 @login_required

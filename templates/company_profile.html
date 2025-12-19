@@ -1308,7 +1308,7 @@
     <div class="clients-section">
         <div class="clients-grid" id="clientsGrid">
             {% for client in clients %}
-            <div class="client-card" data-client-id="{{ client.id }}">
+            <div class="client-card" data-client-id="{{ client.id }}" onclick="window.location.href='/company_client/{{ client.id }}'" style="cursor: pointer;">
                 {% if client.image_url %}
                 <div class="client-image">
                     <img src="{{ client.image_url }}" alt="{{ client.name }}" style="width: 80px; height: 80px; object-fit: contain; border-radius: 12px;">
@@ -1364,7 +1364,7 @@
             </div>
             {% if can_edit %}
             <div class="solution-actions">
-                <button class="action-btn edit" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-scope="{{ project.scope }}" data-project-location="{{ project.location }}" data-project-year="{{ project.year }}" data-project-icon="{{ project.icon }}" onclick="event.stopPropagation(); handleEditProject(this)" title="Edit">
+                <button class="action-btn edit" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-scope="{{ project.scope }}" data-project-location="{{ project.location }}" data-project-year="{{ project.year }}" data-project-icon="{{ project.icon }}" data-project-client="{{ project.client_id or '' }}" onclick="event.stopPropagation(); handleEditProject(this)" title="Edit">
                     <i class="fas fa-edit"></i>
                 </button>
                 <button class="action-btn delete" onclick="event.stopPropagation(); deleteProject({{ project.id }})" title="Delete">
@@ -2315,6 +2315,7 @@ function openAddProjectModal() {
     document.getElementById('projectLocation').value = '';
     document.getElementById('projectYear').value = '';
     document.getElementById('projectIcon').value = 'fa-building';
+    document.getElementById('projectClient').value = '';
     document.getElementById('projectModalTitle').textContent = 'Add New Project';
     document.getElementById('projectModalOverlay').style.display = 'flex';
 }
@@ -2323,16 +2324,18 @@ function handleEditProject(button) {
     const id = button.getAttribute('data-project-id');
     const name = button.getAttribute('data-project-name');
     const scope = button.getAttribute('data-project-scope');
-    const location = button.getAttribute('data-project-location');
+    const projectLocation = button.getAttribute('data-project-location');
     const year = button.getAttribute('data-project-year');
     const icon = button.getAttribute('data-project-icon');
+    const clientId = button.getAttribute('data-project-client');
     
     document.getElementById('projectId').value = id;
     document.getElementById('projectName').value = name || '';
     document.getElementById('projectScope').value = scope || '';
-    document.getElementById('projectLocation').value = location || '';
+    document.getElementById('projectLocation').value = projectLocation || '';
     document.getElementById('projectYear').value = year || '';
     document.getElementById('projectIcon').value = icon || 'fa-building';
+    document.getElementById('projectClient').value = clientId || '';
     document.getElementById('projectModalTitle').textContent = 'Edit Project';
     document.getElementById('projectModalOverlay').style.display = 'flex';
 }
@@ -2350,13 +2353,14 @@ async function saveProject() {
     const projectLocation = document.getElementById('projectLocation').value.trim();
     const year = document.getElementById('projectYear').value.trim();
     const icon = document.getElementById('projectIcon').value;
+    const clientId = document.getElementById('projectClient').value;
     
     if (!name) {
         alert('Please enter a project name');
         return;
     }
     
-    const data = { name, scope, location: projectLocation, year, icon };
+    const data = { name, scope, location: projectLocation, year, icon, client_id: clientId ? parseInt(clientId) : null };
     
     try {
         let url = '/api/company_profile/featured_projects';
@@ -2452,6 +2456,15 @@ async function deleteProject(id) {
                     <option value="fa-plane">Aviation</option>
                     <option value="fa-shield-alt">Security</option>
                     <option value="fa-hotel">Hospitality</option>
+                </select>
+            </div>
+            <div class="edit-form-group">
+                <label><i class="fas fa-user-tie" style="margin-right: 6px; color: #667eea;"></i>Link to Client</label>
+                <select id="projectClient" style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1rem;">
+                    <option value="">-- No Client Selected --</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}">{{ client.name }}</option>
+                    {% endfor %}
                 </select>
             </div>
         </div>
