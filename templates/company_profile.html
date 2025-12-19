@@ -352,6 +352,14 @@
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 20px;
     }
+    .project-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+    .project-card-link:hover {
+        text-decoration: none;
+    }
     .project-card {
         background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
         border: 1px solid #e9ecef;
@@ -1551,9 +1559,10 @@
     </h3>
     <div class="projects-grid" id="projectsGrid">
         {% for project in featured_projects %}
+        <a href="{{ url_for('project_profile', project_id=project.id) }}" class="project-card-link">
         <div class="project-card {% if can_edit %}draggable{% endif %}" data-id="{{ project.id }}">
             {% if can_edit %}
-            <div class="drag-handle" onclick="event.stopPropagation();" title="Drag to reorder">
+            <div class="drag-handle" onclick="event.stopPropagation(); event.preventDefault();" title="Drag to reorder">
                 <i class="fas fa-grip-vertical"></i>
             </div>
             {% endif %}
@@ -1568,15 +1577,16 @@
             </div>
             {% if can_edit %}
             <div class="solution-actions">
-                <button class="action-btn edit" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-scope="{{ project.scope }}" data-project-location="{{ project.location }}" data-project-year="{{ project.year }}" data-project-icon="{{ project.icon }}" data-project-client="{{ project.client_id or '' }}" onclick="event.stopPropagation(); handleEditProject(this)" title="Edit">
+                <button class="action-btn edit" data-project-id="{{ project.id }}" data-project-name="{{ project.name }}" data-project-scope="{{ project.scope }}" data-project-location="{{ project.location }}" data-project-year="{{ project.year }}" data-project-icon="{{ project.icon }}" data-project-client="{{ project.client_id or '' }}" onclick="event.stopPropagation(); event.preventDefault(); handleEditProject(this)" title="Edit">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="action-btn delete" onclick="event.stopPropagation(); deleteProject({{ project.id }})" title="Delete">
+                <button class="action-btn delete" onclick="event.stopPropagation(); event.preventDefault(); deleteProject({{ project.id }})" title="Delete">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
             {% endif %}
         </div>
+        </a>
         {% endfor %}
     </div>
 </div>

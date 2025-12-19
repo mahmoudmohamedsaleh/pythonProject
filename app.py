@@ -1517,6 +1517,43 @@ def company_profile():
     """)
     conn.commit()
     
+    # Create project_certificates table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_certificates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            issuing_authority TEXT DEFAULT '',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    
+    # Create project_approvals table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            approval_type TEXT DEFAULT 'General',
+            status TEXT DEFAULT 'Active',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    
     # Create company_custom_documents table for additional Google Drive document links
     c.execute("""
         CREATE TABLE IF NOT EXISTS company_custom_documents (
@@ -2577,6 +2614,302 @@ def delete_client_approval(approval_id):
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute("DELETE FROM client_approvals WHERE id = ?", (approval_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Approval deleted successfully'})
+
+# ==================== PROJECT PROFILE ROUTES ====================
+
+@app.route('/project/<int:project_id>')
+@login_required
+def project_profile(project_id):
+    """Project Profile page showing project details, certificates, and approvals"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Create project_certificates table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_certificates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            issuing_authority TEXT DEFAULT '',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    
+    # Create project_approvals table if not exists
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS project_approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            approval_type TEXT DEFAULT 'General',
+            status TEXT DEFAULT 'Active',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
+        )
+    """)
+    conn.commit()
+    
+    # Get project details
+    c.execute("SELECT * FROM featured_projects WHERE id = ?", (project_id,))
+    project = c.fetchone()
+    
+    if not project:
+        conn.close()
+        return redirect(url_for('company_profile'))
+    
+    project = dict(project)
+    
+    # Get client if linked
+    client = None
+    if project.get('client_id'):
+        c.execute("SELECT * FROM company_clients WHERE id = ?", (project['client_id'],))
+        client_row = c.fetchone()
+        if client_row:
+            client = dict(client_row)
+    
+    # Get certificates for this project
+    c.execute("""
+        SELECT * FROM project_certificates 
+        WHERE project_id = ? 
+        ORDER BY issue_date DESC
+    """, (project_id,))
+    certificates = [dict(row) for row in c.fetchall()]
+    
+    # Get approvals for this project
+    c.execute("""
+        SELECT * FROM project_approvals 
+        WHERE project_id = ? 
+        ORDER BY issue_date DESC
+    """, (project_id,))
+    approvals = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    
+    can_edit = session.get('username', '').lower() == 'm.saleh'
+    
+    return render_template('project_profile.html',
+                         project=project,
+                         client=client,
+                         certificates=certificates,
+                         approvals=approvals,
+                         can_edit=can_edit)
+
+@app.route('/api/project/<int:project_id>/certificates', methods=['POST'])
+@login_required
+def add_project_certificate(project_id):
+    """Add a certificate for a project - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    issuing_authority = request.form.get('issuing_authority', '')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Certificate title is required'}), 400
+    
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/project_certificates'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO project_certificates (project_id, title, description, issuing_authority, issue_date, expiry_date, file_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (project_id, title, description, issuing_authority, issue_date, expiry_date, file_path))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Certificate added successfully'})
+
+@app.route('/api/project/certificates/<int:cert_id>', methods=['PUT'])
+@login_required
+def update_project_certificate(cert_id):
+    """Update a project certificate - Only M.Saleh can update"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    issuing_authority = request.form.get('issuing_authority', '')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Certificate title is required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/project_certificates'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    if file_path:
+        c.execute("""
+            UPDATE project_certificates 
+            SET title = ?, description = ?, issuing_authority = ?, issue_date = ?, expiry_date = ?, file_path = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, issuing_authority, issue_date, expiry_date, file_path, cert_id))
+    else:
+        c.execute("""
+            UPDATE project_certificates 
+            SET title = ?, description = ?, issuing_authority = ?, issue_date = ?, expiry_date = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, issuing_authority, issue_date, expiry_date, cert_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Certificate updated successfully'})
+
+@app.route('/api/project/certificates/<int:cert_id>', methods=['DELETE'])
+@login_required
+def delete_project_certificate(cert_id):
+    """Delete a project certificate - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM project_certificates WHERE id = ?", (cert_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Certificate deleted successfully'})
+
+@app.route('/api/project/<int:project_id>/approvals', methods=['POST'])
+@login_required
+def add_project_approval(project_id):
+    """Add an approval for a project - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    approval_type = request.form.get('approval_type', 'General')
+    status = request.form.get('status', 'Active')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Approval title is required'}), 400
+    
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/project_approvals'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO project_approvals (project_id, title, description, approval_type, status, issue_date, expiry_date, file_path)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (project_id, title, description, approval_type, status, issue_date, expiry_date, file_path))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Approval added successfully'})
+
+@app.route('/api/project/approvals/<int:approval_id>', methods=['PUT'])
+@login_required
+def update_project_approval(approval_id):
+    """Update a project approval - Only M.Saleh can update"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    title = request.form.get('title')
+    description = request.form.get('description', '')
+    approval_type = request.form.get('approval_type', 'General')
+    status = request.form.get('status', 'Active')
+    issue_date = request.form.get('issue_date', '')
+    expiry_date = request.form.get('expiry_date', '')
+    
+    if not title:
+        return jsonify({'success': False, 'error': 'Approval title is required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    file_path = None
+    if 'file' in request.files:
+        file = request.files['file']
+        if file and file.filename:
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            upload_folder = 'uploads/project_approvals'
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, unique_filename)
+            file.save(file_path)
+    
+    if file_path:
+        c.execute("""
+            UPDATE project_approvals 
+            SET title = ?, description = ?, approval_type = ?, status = ?, issue_date = ?, expiry_date = ?, file_path = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, approval_type, status, issue_date, expiry_date, file_path, approval_id))
+    else:
+        c.execute("""
+            UPDATE project_approvals 
+            SET title = ?, description = ?, approval_type = ?, status = ?, issue_date = ?, expiry_date = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (title, description, approval_type, status, issue_date, expiry_date, approval_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Approval updated successfully'})
+
+@app.route('/api/project/approvals/<int:approval_id>', methods=['DELETE'])
+@login_required
+def delete_project_approval(approval_id):
+    """Delete a project approval - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM project_approvals WHERE id = ?", (approval_id,))
     conn.commit()
     conn.close()
     
