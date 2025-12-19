@@ -2326,14 +2326,6 @@ def company_client_profile(client_id):
     """, (client_id,))
     certificates = [dict(row) for row in c.fetchall()]
     
-    # Get approvals for this client
-    c.execute("""
-        SELECT * FROM client_approvals 
-        WHERE client_id = ? 
-        ORDER BY issue_date DESC
-    """, (client_id,))
-    approvals = [dict(row) for row in c.fetchall()]
-    
     # Calculate statistics
     total_projects = len(featured_projects)
     
@@ -2345,7 +2337,6 @@ def company_client_profile(client_id):
                          client=client,
                          featured_projects=featured_projects,
                          certificates=certificates,
-                         approvals=approvals,
                          total_projects=total_projects,
                          can_edit=can_edit)
 
