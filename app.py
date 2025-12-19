@@ -2234,6 +2234,45 @@ def serve_client_logo(filename):
         return "Invalid path", 400
     return send_file(file_path)
 
+# Serve uploaded client certificates
+@app.route('/uploads/client_certificates/<filename>')
+def serve_client_certificate(filename):
+    """Serve uploaded client certificate files"""
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename:
+        return "Invalid filename", 400
+    upload_dir = os.path.abspath('uploads/client_certificates')
+    file_path = os.path.abspath(os.path.join(upload_dir, safe_name))
+    if not file_path.startswith(upload_dir):
+        return "Invalid path", 400
+    return send_file(file_path)
+
+# Serve uploaded project certificates
+@app.route('/uploads/project_certificates/<filename>')
+def serve_project_certificate(filename):
+    """Serve uploaded project certificate files"""
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename:
+        return "Invalid filename", 400
+    upload_dir = os.path.abspath('uploads/project_certificates')
+    file_path = os.path.abspath(os.path.join(upload_dir, safe_name))
+    if not file_path.startswith(upload_dir):
+        return "Invalid path", 400
+    return send_file(file_path)
+
+# Serve uploaded project approvals
+@app.route('/uploads/project_approvals/<filename>')
+def serve_project_approval(filename):
+    """Serve uploaded project approval files"""
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename:
+        return "Invalid filename", 400
+    upload_dir = os.path.abspath('uploads/project_approvals')
+    file_path = os.path.abspath(os.path.join(upload_dir, safe_name))
+    if not file_path.startswith(upload_dir):
+        return "Invalid path", 400
+    return send_file(file_path)
+
 # ============== FEATURED PROJECTS API ENDPOINTS ==============
 
 @app.route('/api/company_profile/featured_projects', methods=['GET'])
