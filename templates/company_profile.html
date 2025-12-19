@@ -2347,7 +2347,7 @@ async function saveProject() {
     const id = document.getElementById('projectId').value;
     const name = document.getElementById('projectName').value.trim();
     const scope = document.getElementById('projectScope').value.trim();
-    const location = document.getElementById('projectLocation').value.trim();
+    const projectLocation = document.getElementById('projectLocation').value.trim();
     const year = document.getElementById('projectYear').value.trim();
     const icon = document.getElementById('projectIcon').value;
     
@@ -2356,7 +2356,7 @@ async function saveProject() {
         return;
     }
     
-    const data = { name, scope, location, year, icon };
+    const data = { name, scope, location: projectLocation, year, icon };
     
     try {
         let url = '/api/company_profile/featured_projects';
@@ -2376,7 +2376,7 @@ async function saveProject() {
         const result = await response.json();
         
         if (result.success) {
-            location.reload();
+            window.location.reload();
         } else {
             alert('Error: ' + result.error);
         }
