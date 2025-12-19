@@ -3294,6 +3294,114 @@ def download_chat_attachment(message_id):
         mimetype='application/octet-stream'
     )
 
+##############
+# CHAT NOTIFICATION ROUTES
+##############
+
+@app.route('/api/chat/notifications', methods=['GET'])
+@login_required
+def get_chat_notifications():
+    """Get new chat messages for notifications across all accessible projects"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    try:
+        user_id = session['user_id']
+        username = session['username']
+        
+        # Get user role
+        cursor.execute("SELECT role FROM users WHERE id = ?", (user_id,))
+        user_role_result = cursor.fetchone()
+        user_role = user_role_result[0] if user_role_result else None
+        
+        # Get last seen message ID for this user (from session or query param)
+        last_seen_id = request.args.get('last_seen_id', 0, type=int)
+        
+        # Build query based on user role
+        if user_role == 'Sales Engineer':
+            # Sales Engineer - only their projects
+            cursor.execute("SELECT id FROM engineers WHERE username = ?", (username,))
+            engineer_result = cursor.fetchone()
+            if not engineer_result:
+                return jsonify({'success': True, 'messages': [], 'count': 0})
+            
+            engineer_id = engineer_result[0]
+            cursor.execute("""
+                SELECT 
+                    pcm.id, pcm.project_id, pcm.username, pcm.message_text,
+                    pcm.attachment_filename, pcm.created_at,
+                    rp.project_name
+                FROM project_chat_messages pcm
+                JOIN register_project rp ON pcm.project_id = rp.id
+                WHERE pcm.id > ? 
+                    AND pcm.user_id != ?
+                    AND rp.sales_engineer_id = ?
+                ORDER BY pcm.created_at DESC
+                LIMIT 10
+            """, (last_seen_id, user_id, engineer_id))
+        else:
+            # Other roles - all approved projects
+            cursor.execute("""
+                SELECT 
+                    pcm.id, pcm.project_id, pcm.username, pcm.message_text,
+                    pcm.attachment_filename, pcm.created_at,
+                    rp.project_name
+                FROM project_chat_messages pcm
+                JOIN register_project rp ON pcm.project_id = rp.id
+                WHERE pcm.id > ? 
+                    AND pcm.user_id != ?
+                ORDER BY pcm.created_at DESC
+                LIMIT 10
+            """, (last_seen_id, user_id))
+        
+        messages = []
+        max_id = last_seen_id
+        for row in cursor.fetchall():
+            messages.append({
+                'id': row['id'],
+                'project_id': row['project_id'],
+                'project_name': row['project_name'],
+                'username': row['username'],
+                'message_text': row['message_text'][:100] if row['message_text'] else '',
+                'has_attachment': bool(row['attachment_filename']),
+                'attachment_filename': row['attachment_filename'],
+                'created_at': row['created_at']
+            })
+            if row['id'] > max_id:
+                max_id = row['id']
+        
+        conn.close()
+        return jsonify({
+            'success': True,
+            'messages': messages,
+            'count': len(messages),
+            'max_id': max_id
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/chat/latest_id', methods=['GET'])
+@login_required
+def get_latest_chat_id():
+    """Get the latest chat message ID to initialize the notification system"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT MAX(id) FROM project_chat_messages")
+        result = cursor.fetchone()
+        max_id = result[0] if result and result[0] else 0
+        conn.close()
+        return jsonify({'success': True, 'latest_id': max_id})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/toggle_quote_for_deal_value/<int:project_id>/<quote_ref>', methods=['POST'])
 @login_required
 def toggle_quote_for_deal_value(project_id, quote_ref):

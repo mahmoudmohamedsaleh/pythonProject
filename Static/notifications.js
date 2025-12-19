@@ -1,10 +1,15 @@
 /**
  * Notification System JavaScript
  * Handles real-time notification updates via AJAX polling
+ * Includes WhatsApp-like chat notifications with sound
  */
 
 let notificationPollingInterval = null;
 let notificationDropdownOpen = false;
+let chatPollingInterval = null;
+let lastSeenChatId = 0;
+let chatNotificationSound = null;
+let chatSoundEnabled = true;
 
 // Initialize notification system when DOM is ready
 $(document).ready(function() {
@@ -17,6 +22,9 @@ $(document).ready(function() {
         
         // Setup event handlers
         setupNotificationEventHandlers();
+        
+        // Initialize chat notification system
+        initializeChatNotifications();
     }
 });
 
@@ -335,4 +343,277 @@ function viewAllNotifications() {
 // Cleanup on page unload
 $(window).on('unload', function() {
     stopNotificationPolling();
+    stopChatPolling();
 });
+
+/**
+ * ==========================================
+ * CHAT NOTIFICATION SYSTEM (WhatsApp-like)
+ * ==========================================
+ */
+
+function initializeChatNotifications() {
+    // Create notification sound using Web Audio API
+    createNotificationSound();
+    
+    // Request notification permission
+    requestNotificationPermission();
+    
+    // Get the latest chat message ID to start from
+    $.ajax({
+        url: '/api/chat/latest_id',
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                lastSeenChatId = response.latest_id || 0;
+                // Start polling after we have the initial ID
+                startChatPolling();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('Failed to get latest chat ID:', error);
+            // Start polling anyway
+            startChatPolling();
+        }
+    });
+}
+
+function createNotificationSound() {
+    try {
+        // Create AudioContext for generating notification sound
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            chatNotificationSound = new AudioContext();
+        }
+    } catch (e) {
+        console.log('Audio not supported:', e);
+    }
+}
+
+function playNotificationSound() {
+    if (!chatSoundEnabled || !chatNotificationSound) return;
+    
+    try {
+        // Resume AudioContext if suspended (required for some browsers)
+        if (chatNotificationSound.state === 'suspended') {
+            chatNotificationSound.resume();
+        }
+        
+        const oscillator = chatNotificationSound.createOscillator();
+        const gainNode = chatNotificationSound.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(chatNotificationSound.destination);
+        
+        // WhatsApp-like notification sound (two quick beeps)
+        oscillator.frequency.setValueAtTime(880, chatNotificationSound.currentTime); // A5
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0, chatNotificationSound.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, chatNotificationSound.currentTime + 0.01);
+        gainNode.gain.linearRampToValueAtTime(0, chatNotificationSound.currentTime + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.3, chatNotificationSound.currentTime + 0.15);
+        gainNode.gain.linearRampToValueAtTime(0, chatNotificationSound.currentTime + 0.25);
+        
+        oscillator.start(chatNotificationSound.currentTime);
+        oscillator.stop(chatNotificationSound.currentTime + 0.3);
+    } catch (e) {
+        console.log('Error playing notification sound:', e);
+    }
+}
+
+function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+function startChatPolling() {
+    // Poll every 5 seconds for chat messages (faster than general notifications)
+    chatPollingInterval = setInterval(checkForNewChatMessages, 5000);
+}
+
+function stopChatPolling() {
+    if (chatPollingInterval) {
+        clearInterval(chatPollingInterval);
+        chatPollingInterval = null;
+    }
+}
+
+function checkForNewChatMessages() {
+    $.ajax({
+        url: '/api/chat/notifications?last_seen_id=' + lastSeenChatId,
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.messages && response.messages.length > 0) {
+                // Update last seen ID
+                if (response.max_id > lastSeenChatId) {
+                    lastSeenChatId = response.max_id;
+                }
+                
+                // Show notifications for each new message (limit to 3 at a time)
+                const messagesToShow = response.messages.slice(0, 3);
+                messagesToShow.forEach(function(msg, index) {
+                    setTimeout(function() {
+                        showChatToast(msg);
+                    }, index * 200); // Stagger the notifications
+                });
+                
+                // Play sound once for all new messages
+                playNotificationSound();
+                
+                // Show browser notification if page is not focused
+                if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+                    showBrowserChatNotification(messagesToShow[0]);
+                }
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('Chat notification check failed:', error);
+        }
+    });
+}
+
+function showChatToast(message) {
+    const container = $('#chatNotificationContainer');
+    if (!container.length) return;
+    
+    const toastId = 'chat-toast-' + message.id;
+    
+    // Don't show duplicate toasts
+    if ($('#' + toastId).length > 0) return;
+    
+    // Truncate message text
+    let messageText = message.message_text || '';
+    if (messageText.length > 80) {
+        messageText = messageText.substring(0, 80) + '...';
+    }
+    
+    // Create attachment indicator if has attachment
+    let attachmentHtml = '';
+    if (message.has_attachment) {
+        const icon = message.attachment_filename && message.attachment_filename.match(/\.(jpg|jpeg|png|gif)$/i) 
+            ? 'fa-image' : 'fa-paperclip';
+        attachmentHtml = `
+            <div class="chat-toast-attachment">
+                <i class="fas ${icon}"></i>
+                <span>${escapeHtml(message.attachment_filename) || 'Attachment'}</span>
+            </div>
+        `;
+    }
+    
+    // Format time
+    const time = formatChatTime(message.created_at);
+    
+    const toast = $(`
+        <div class="chat-toast pulse" id="${toastId}" data-project-id="${message.project_id}">
+            <div class="chat-toast-header">
+                <div class="chat-toast-project">
+                    <i class="fas fa-folder-open"></i>
+                    <span>${escapeHtml(message.project_name)}</span>
+                </div>
+                <button class="chat-toast-close" onclick="closeChatToast('${toastId}'); event.stopPropagation();">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="chat-toast-body">
+                <div class="chat-toast-sender">
+                    <i class="fas fa-user-circle"></i>
+                    ${escapeHtml(message.username)}
+                </div>
+                <div class="chat-toast-message">
+                    ${messageText ? escapeHtml(messageText) : '<i class="text-light opacity-75">[Attachment]</i>'}
+                </div>
+                ${attachmentHtml}
+                <div class="chat-toast-time">
+                    <i class="far fa-clock"></i> ${time}
+                </div>
+            </div>
+        </div>
+    `);
+    
+    // Click handler to navigate to project
+    toast.on('click', function() {
+        const projectId = $(this).data('project-id');
+        window.location.href = '/project/' + projectId + '#project-chat';
+    });
+    
+    container.prepend(toast);
+    
+    // Trigger animation
+    setTimeout(function() {
+        toast.addClass('show');
+    }, 10);
+    
+    // Auto-remove after 8 seconds
+    setTimeout(function() {
+        closeChatToast(toastId);
+    }, 8000);
+    
+    // Keep only 3 toasts visible
+    const toasts = container.find('.chat-toast');
+    if (toasts.length > 3) {
+        toasts.slice(3).each(function() {
+            closeChatToast($(this).attr('id'));
+        });
+    }
+}
+
+function closeChatToast(toastId) {
+    const toast = $('#' + toastId);
+    if (toast.length) {
+        toast.removeClass('show');
+        setTimeout(function() {
+            toast.remove();
+        }, 400);
+    }
+}
+
+function showBrowserChatNotification(message) {
+    try {
+        const notification = new Notification('New message in ' + message.project_name, {
+            body: message.username + ': ' + (message.message_text || 'Sent an attachment'),
+            icon: '/static/ejt.png',
+            tag: 'chat-' + message.id,
+            requireInteraction: false
+        });
+        
+        notification.onclick = function() {
+            window.focus();
+            window.location.href = '/project/' + message.project_id + '#project-chat';
+            notification.close();
+        };
+        
+        // Auto-close after 5 seconds
+        setTimeout(function() {
+            notification.close();
+        }, 5000);
+    } catch (e) {
+        console.log('Browser notification error:', e);
+    }
+}
+
+function formatChatTime(timestamp) {
+    try {
+        const msgTime = new Date(timestamp.replace(' ', 'T') + (timestamp.includes('Z') ? '' : 'Z'));
+        const now = new Date();
+        const diffMs = now - msgTime;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return diffMins + ' min ago';
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return diffHours + ' hour' + (diffHours > 1 ? 's' : '') + ' ago';
+        
+        return msgTime.toLocaleDateString();
+    } catch (e) {
+        return 'Just now';
+    }
+}
+
+// Global function to toggle chat sound
+function toggleChatSound(enabled) {
+    chatSoundEnabled = enabled;
+    console.log('Chat notification sound ' + (enabled ? 'enabled' : 'disabled'));
+}
