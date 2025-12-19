@@ -1070,6 +1070,178 @@
         text-align: center;
         color: #6c757d;
     }
+    
+    .custom-doc-item {
+        display: flex;
+        align-items: center;
+    }
+    .custom-doc-btn {
+        background: none;
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    .custom-doc-btn.edit {
+        color: #667eea;
+    }
+    .custom-doc-btn.edit:hover {
+        background: rgba(102, 126, 234, 0.1);
+    }
+    .custom-doc-btn.delete {
+        color: #dc3545;
+    }
+    .custom-doc-btn.delete:hover {
+        background: rgba(220, 53, 69, 0.1);
+    }
+    .add-custom-doc-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+    }
+    .add-custom-doc-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .custom-doc-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 2000;
+        justify-content: center;
+        align-items: center;
+    }
+    .custom-doc-modal-overlay.active {
+        display: flex;
+    }
+    .custom-doc-modal {
+        background: white;
+        border-radius: 20px;
+        width: 90%;
+        max-width: 450px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .custom-doc-modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 25px;
+        border-radius: 20px 20px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .custom-doc-modal-header h4 {
+        margin: 0;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .custom-doc-modal-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .custom-doc-modal-body {
+        padding: 25px;
+    }
+    .custom-doc-form-group {
+        margin-bottom: 20px;
+    }
+    .custom-doc-form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #1a1a2e;
+    }
+    .custom-doc-form-group input, .custom-doc-form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+    .custom-doc-form-group input:focus, .custom-doc-form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    .icon-select-container {
+        display: flex;
+        gap: 10px;
+    }
+    .icon-select-container select {
+        flex: 1;
+    }
+    .icon-preview {
+        width: 45px;
+        height: 45px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+    }
+    .custom-doc-modal-footer {
+        padding: 0 25px 25px;
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+    }
+    .custom-doc-btn-cancel {
+        background: #e9ecef;
+        color: #495057;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    .custom-doc-btn-save {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+    }
 </style>
 
 <!-- Hero Section -->
@@ -1175,7 +1347,39 @@
                         <i class="fas fa-external-link-alt external-icon"></i>
                     </a>
                     {% endif %}
-                    {% if not content.doc_prequalification_url and not content.doc_profile_url and not content.doc_cr_url and not content.doc_vat_url and not content.doc_national_address_url and not content.doc_iso_url and not content.doc_gosi_url %}
+                    
+                    {% for doc in custom_documents %}
+                    <div class="doc-item custom-doc-item" data-doc-id="{{ doc.id }}">
+                        <a href="{{ doc.url }}" target="_blank" style="display: flex; align-items: center; gap: 12px; flex: 1; text-decoration: none; color: inherit;">
+                            <i class="fas {{ doc.icon }}" style="color: {{ doc.color }}; font-size: 1.3rem;"></i>
+                            <div class="doc-item-text">
+                                <div class="doc-name">{{ doc.title }}</div>
+                                <div class="doc-desc">Custom document</div>
+                            </div>
+                            <i class="fas fa-external-link-alt external-icon"></i>
+                        </a>
+                        {% if can_edit %}
+                        <div class="custom-doc-actions" style="display: flex; gap: 5px; margin-left: 10px;">
+                            <button class="custom-doc-btn edit" onclick="event.stopPropagation(); editCustomDocument({{ doc.id }}, '{{ doc.title|e }}', '{{ doc.url|e }}', '{{ doc.icon }}', '{{ doc.color }}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="custom-doc-btn delete" onclick="event.stopPropagation(); deleteCustomDocument({{ doc.id }})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    
+                    {% if can_edit %}
+                    <div class="add-doc-btn-container" style="padding: 12px; border-top: 1px solid #e9ecef;">
+                        <button class="add-custom-doc-btn" onclick="event.stopPropagation(); openCustomDocModal()">
+                            <i class="fas fa-plus-circle"></i> Add New Document
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    {% if not content.doc_prequalification_url and not content.doc_profile_url and not content.doc_cr_url and not content.doc_vat_url and not content.doc_national_address_url and not content.doc_iso_url and not content.doc_gosi_url and not custom_documents %}
                     <div class="no-docs-msg">
                         <i class="fas fa-info-circle mb-2" style="font-size: 1.5rem; color: #667eea;"></i>
                         <p class="mb-0">No documents available yet.</p>
@@ -2476,6 +2680,161 @@ async function deleteProject(id) {
         </div>
     </div>
 </div>
+{% endif %}
+
+<!-- Custom Document Modal -->
+{% if can_edit %}
+<div class="custom-doc-modal-overlay" id="customDocModalOverlay" onclick="closeCustomDocModal(event)">
+    <div class="custom-doc-modal" onclick="event.stopPropagation()">
+        <div class="custom-doc-modal-header">
+            <h4><i class="fas fa-file-plus"></i> <span id="customDocModalTitle">Add New Document</span></h4>
+            <button class="custom-doc-modal-close" onclick="closeCustomDocModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="custom-doc-modal-body">
+            <input type="hidden" id="customDocId" value="">
+            <div class="custom-doc-form-group">
+                <label><i class="fas fa-heading mr-2"></i>Document Title *</label>
+                <input type="text" id="customDocTitle" placeholder="e.g., Bank Certificate, SASO Approval">
+            </div>
+            <div class="custom-doc-form-group">
+                <label><i class="fas fa-link mr-2"></i>Google Drive URL *</label>
+                <input type="url" id="customDocUrl" placeholder="https://drive.google.com/...">
+            </div>
+            <div class="custom-doc-form-group">
+                <label><i class="fas fa-icons mr-2"></i>Icon & Color</label>
+                <div class="icon-select-container">
+                    <select id="customDocIcon" onchange="updateIconPreview()">
+                        <option value="fa-file-alt">Document</option>
+                        <option value="fa-file-pdf">PDF</option>
+                        <option value="fa-file-contract">Contract</option>
+                        <option value="fa-certificate">Certificate</option>
+                        <option value="fa-award">Award</option>
+                        <option value="fa-id-card">ID Card</option>
+                        <option value="fa-stamp">Stamp</option>
+                        <option value="fa-shield-alt">Shield</option>
+                        <option value="fa-check-circle">Check</option>
+                        <option value="fa-building">Building</option>
+                        <option value="fa-landmark">Landmark</option>
+                        <option value="fa-university">University</option>
+                        <option value="fa-handshake">Handshake</option>
+                        <option value="fa-clipboard-check">Clipboard</option>
+                    </select>
+                    <input type="color" id="customDocColor" value="#667eea" style="width: 45px; height: 45px; border-radius: 10px; border: 2px solid #e9ecef; cursor: pointer;" onchange="updateIconPreview()">
+                    <div class="icon-preview" id="iconPreview" style="background: #667eea;">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="custom-doc-modal-footer">
+            <button class="custom-doc-btn-cancel" onclick="closeCustomDocModal()">Cancel</button>
+            <button class="custom-doc-btn-save" onclick="saveCustomDocument()">
+                <i class="fas fa-save mr-1"></i>Save Document
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let editingDocId = null;
+
+function openCustomDocModal() {
+    editingDocId = null;
+    document.getElementById('customDocModalTitle').textContent = 'Add New Document';
+    document.getElementById('customDocId').value = '';
+    document.getElementById('customDocTitle').value = '';
+    document.getElementById('customDocUrl').value = '';
+    document.getElementById('customDocIcon').value = 'fa-file-alt';
+    document.getElementById('customDocColor').value = '#667eea';
+    updateIconPreview();
+    document.getElementById('customDocModalOverlay').classList.add('active');
+}
+
+function editCustomDocument(id, title, url, icon, color) {
+    editingDocId = id;
+    document.getElementById('customDocModalTitle').textContent = 'Edit Document';
+    document.getElementById('customDocId').value = id;
+    document.getElementById('customDocTitle').value = title;
+    document.getElementById('customDocUrl').value = url;
+    document.getElementById('customDocIcon').value = icon;
+    document.getElementById('customDocColor').value = color;
+    updateIconPreview();
+    document.getElementById('customDocModalOverlay').classList.add('active');
+}
+
+function closeCustomDocModal(event) {
+    if (event && event.target !== document.getElementById('customDocModalOverlay')) return;
+    document.getElementById('customDocModalOverlay').classList.remove('active');
+}
+
+function updateIconPreview() {
+    const icon = document.getElementById('customDocIcon').value;
+    const color = document.getElementById('customDocColor').value;
+    const preview = document.getElementById('iconPreview');
+    preview.style.background = color;
+    preview.innerHTML = `<i class="fas ${icon}"></i>`;
+}
+
+async function saveCustomDocument() {
+    const title = document.getElementById('customDocTitle').value.trim();
+    const url = document.getElementById('customDocUrl').value.trim();
+    const icon = document.getElementById('customDocIcon').value;
+    const color = document.getElementById('customDocColor').value;
+    
+    if (!title || !url) {
+        alert('Please fill in the document title and URL.');
+        return;
+    }
+    
+    try {
+        const method = editingDocId ? 'PUT' : 'POST';
+        const endpoint = editingDocId 
+            ? `/api/company_profile/custom_documents/${editingDocId}`
+            : '/api/company_profile/custom_documents';
+        
+        const response = await fetch(endpoint, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, url, icon, color })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            closeCustomDocModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to save document'));
+        }
+    } catch (error) {
+        console.error('Error saving document:', error);
+        alert('Error saving document. Please try again.');
+    }
+}
+
+async function deleteCustomDocument(id) {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    
+    try {
+        const response = await fetch(`/api/company_profile/custom_documents/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to delete document'));
+        }
+    } catch (error) {
+        console.error('Error deleting document:', error);
+        alert('Error deleting document. Please try again.');
+    }
+}
+</script>
 {% endif %}
 
 <!-- SortableJS for drag and drop -->

@@ -1517,6 +1517,20 @@ def company_profile():
     """)
     conn.commit()
     
+    # Create company_custom_documents table for additional Google Drive document links
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS company_custom_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            icon TEXT DEFAULT 'fa-file-alt',
+            color TEXT DEFAULT '#667eea',
+            url TEXT NOT NULL,
+            display_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    
     # Get all content sections
     c.execute("SELECT section_key, content FROM company_profile_content")
     rows = c.fetchall()
@@ -1533,6 +1547,10 @@ def company_profile():
     # Get featured projects
     c.execute("SELECT * FROM featured_projects ORDER BY display_order, id")
     featured_projects = [dict(row) for row in c.fetchall()]
+    
+    # Get custom documents
+    c.execute("SELECT * FROM company_custom_documents ORDER BY display_order, id")
+    custom_documents = [dict(row) for row in c.fetchall()]
     
     # If no featured projects in database, insert the defaults
     if not featured_projects:
@@ -1630,7 +1648,7 @@ def company_profile():
     # Check if current user is M.Saleh
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
-    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects)
+    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects, custom_documents=custom_documents)
 
 @app.route('/api/company_profile/update', methods=['POST'])
 @login_required
@@ -1869,6 +1887,99 @@ def reorder_company_solutions():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         conn.close()
+
+# ============== COMPANY CUSTOM DOCUMENTS API ENDPOINTS ==============
+
+@app.route('/api/company_profile/custom_documents', methods=['GET'])
+@login_required
+def get_custom_documents():
+    """Get all custom documents"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM company_custom_documents ORDER BY display_order, id")
+    documents = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify({'success': True, 'documents': documents})
+
+@app.route('/api/company_profile/custom_documents', methods=['POST'])
+@login_required
+def add_custom_document():
+    """Add a new custom document - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    title = data.get('title')
+    url = data.get('url')
+    icon = data.get('icon', 'fa-file-alt')
+    color = data.get('color', '#667eea')
+    
+    if not title or not url:
+        return jsonify({'success': False, 'error': 'Title and URL are required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Get max display_order
+    c.execute("SELECT MAX(display_order) FROM company_custom_documents")
+    max_order = c.fetchone()[0] or 0
+    
+    c.execute("""
+        INSERT INTO company_custom_documents (title, icon, color, url, display_order)
+        VALUES (?, ?, ?, ?, ?)
+    """, (title, icon, color, url, max_order + 1))
+    
+    doc_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': doc_id, 'message': 'Document added successfully'})
+
+@app.route('/api/company_profile/custom_documents/<int:doc_id>', methods=['PUT'])
+@login_required
+def update_custom_document(doc_id):
+    """Update a custom document - Only M.Saleh can update"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    title = data.get('title')
+    url = data.get('url')
+    icon = data.get('icon', 'fa-file-alt')
+    color = data.get('color', '#667eea')
+    
+    if not title or not url:
+        return jsonify({'success': False, 'error': 'Title and URL are required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("""
+        UPDATE company_custom_documents 
+        SET title = ?, icon = ?, color = ?, url = ?
+        WHERE id = ?
+    """, (title, icon, color, url, doc_id))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Document updated successfully'})
+
+@app.route('/api/company_profile/custom_documents/<int:doc_id>', methods=['DELETE'])
+@login_required
+def delete_custom_document(doc_id):
+    """Delete a custom document - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM company_custom_documents WHERE id = ?", (doc_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Document deleted successfully'})
 
 # ============== COMPANY CLIENTS API ENDPOINTS ==============
 
