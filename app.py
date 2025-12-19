@@ -946,6 +946,41 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_follow_ups_po ON po_follow_ups(po_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_follow_ups_status ON po_follow_ups(status)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_po_activity_log_po ON po_activity_log(po_id)')
+    
+    # Project certificates table for project profile
+    c.execute('''CREATE TABLE IF NOT EXISTS project_certificates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            issuing_authority TEXT DEFAULT '',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
+        )''')
+    
+    # Project approvals table for project profile
+    c.execute('''CREATE TABLE IF NOT EXISTS project_approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            approval_type TEXT DEFAULT 'General',
+            status TEXT DEFAULT 'Active',
+            issue_date TEXT,
+            expiry_date TEXT,
+            file_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
+        )''')
+    
+    # Create indexes for project tables
+    c.execute('CREATE INDEX IF NOT EXISTS idx_project_certificates_project ON project_certificates(project_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_project_approvals_project ON project_approvals(project_id)')
 
     conn.commit()
     conn.close()
@@ -2628,43 +2663,6 @@ def project_profile(project_id):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    
-    # Create project_certificates table if not exists
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS project_certificates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT DEFAULT '',
-            issuing_authority TEXT DEFAULT '',
-            issue_date TEXT,
-            expiry_date TEXT,
-            file_path TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
-        )
-    """)
-    conn.commit()
-    
-    # Create project_approvals table if not exists
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS project_approvals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT DEFAULT '',
-            approval_type TEXT DEFAULT 'General',
-            status TEXT DEFAULT 'Active',
-            issue_date TEXT,
-            expiry_date TEXT,
-            file_path TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (project_id) REFERENCES featured_projects(id) ON DELETE CASCADE
-        )
-    """)
-    conn.commit()
     
     # Get project details
     c.execute("SELECT * FROM featured_projects WHERE id = ?", (project_id,))
