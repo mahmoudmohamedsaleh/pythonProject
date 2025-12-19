@@ -719,6 +719,24 @@ def init_db():
     except sqlite3.OperationalError:
         pass  # Column already exists
     
+    # Add client_tier column to end_users table for client importance classification
+    try:
+        c.execute("ALTER TABLE end_users ADD COLUMN client_tier TEXT DEFAULT 'Standard'")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add client_tier column to contractors table for client importance classification
+    try:
+        c.execute("ALTER TABLE contractors ADD COLUMN client_tier TEXT DEFAULT 'Standard'")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add client_tier column to consultants table for client importance classification
+    try:
+        c.execute("ALTER TABLE consultants ADD COLUMN client_tier TEXT DEFAULT 'Standard'")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     # RFTS Deliverables table for storing submitted documents (Google Drive links)
     c.execute('''CREATE TABLE IF NOT EXISTS rfts_deliverables (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
