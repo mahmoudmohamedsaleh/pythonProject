@@ -441,11 +441,14 @@ function stopChatPolling() {
 }
 
 function checkForNewChatMessages() {
+    console.log('[Chat Notifications] Checking for new messages, last_seen_id:', lastSeenChatId);
     $.ajax({
         url: '/api/chat/notifications?last_seen_id=' + lastSeenChatId,
         method: 'GET',
         success: function(response) {
+            console.log('[Chat Notifications] Response:', response);
             if (response.success && response.messages && response.messages.length > 0) {
+                console.log('[Chat Notifications] Found', response.messages.length, 'new messages!');
                 // Update last seen ID
                 if (response.max_id > lastSeenChatId) {
                     lastSeenChatId = response.max_id;
