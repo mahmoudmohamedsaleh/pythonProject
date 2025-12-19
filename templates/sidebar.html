@@ -5,104 +5,370 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
+        :root {
+            --sidebar-width: 260px;
+            --sidebar-collapsed-width: 70px;
+            --sidebar-bg: #343a40;
+            --sidebar-hover: #495057;
+            --sidebar-active: #007bff;
+            --text-muted: #6c757d;
+            --text-light: #adb5bd;
+            --transition-speed: 0.3s;
+        }
+        
         .sidebar {
             position: fixed;
             top: 0;
             left: 0;
             height: 100%;
-            width: 260px;
-            background-color: #343a40;
+            width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
             color: #f8f9fa;
-            padding: 20px;
+            padding: 15px 10px;
             display: flex;
             flex-direction: column;
+            transition: width var(--transition-speed) ease;
+            z-index: 1000;
+            overflow: hidden;
         }
+        
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+        
+        .sidebar-toggle {
+            position: absolute;
+            top: 15px;
+            right: -15px;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: transform var(--transition-speed) ease, background var(--transition-speed) ease;
+            z-index: 1001;
+        }
+        
+        .sidebar-toggle:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }
+        
+        .sidebar.collapsed .sidebar-toggle {
+            right: -15px;
+        }
+        
+        .sidebar.collapsed .sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+        
         .sidebar .logo {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
+            padding: 10px 0;
+            flex-shrink: 0;
         }
+        
         .sidebar .logo img {
-            max-height: 50px;
+            max-height: 45px;
+            transition: transform var(--transition-speed) ease;
         }
+        
+        .sidebar.collapsed .logo img {
+            max-height: 35px;
+        }
+        
         .sidebar-menu {
             list-style: none;
             padding: 0;
+            margin: 0;
             flex-grow: 1;
             overflow-y: auto;
+            overflow-x: hidden;
         }
-        .sidebar-menu .menu-header {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #6c757d;
+        
+        .sidebar-menu::-webkit-scrollbar {
+            width: 5px;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 3px;
+        }
+        
+        .menu-section {
+            margin-bottom: 5px;
+        }
+        
+        .menu-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
             text-transform: uppercase;
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-            padding: 0 15px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            user-select: none;
         }
+        
+        .menu-header:hover {
+            background-color: rgba(255,255,255,0.05);
+            color: var(--text-light);
+        }
+        
+        .menu-header .header-text {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        
+        .menu-header .header-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .menu-header .toggle-icon {
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+            opacity: 0.7;
+        }
+        
+        .menu-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        
+        .sidebar.collapsed .menu-header .header-text span,
+        .sidebar.collapsed .menu-header .toggle-icon {
+            display: none;
+        }
+        
+        .menu-items {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease;
+            opacity: 1;
+        }
+        
+        .menu-items.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        .sidebar.collapsed .menu-items {
+            display: none;
+        }
+        
         .sidebar-menu .nav-item a {
             display: flex;
             align-items: center;
-            padding: 12px 15px;
-            color: #adb5bd;
+            padding: 10px 12px;
+            padding-left: 20px;
+            color: var(--text-light);
             text-decoration: none;
             border-radius: 8px;
             font-weight: 500;
-            transition: background-color 0.2s ease, color 0.2s ease;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
         }
+        
+        .sidebar.collapsed .sidebar-menu .nav-item a {
+            padding: 10px;
+            justify-content: center;
+        }
+        
         .sidebar-menu .nav-item a:hover {
-            background-color: #495057;
+            background-color: var(--sidebar-hover);
             color: #ffffff;
+            transform: translateX(3px);
         }
+        
+        .sidebar.collapsed .sidebar-menu .nav-item a:hover {
+            transform: none;
+        }
+        
         .sidebar-menu .nav-item a.active {
-            background-color: #007bff;
+            background-color: var(--sidebar-active);
             color: #ffffff;
         }
+        
         .sidebar-menu .nav-item a i {
             width: 24px;
-            margin-right: 15px;
+            min-width: 24px;
+            margin-right: 12px;
             text-align: center;
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
-
+        
+        .sidebar.collapsed .sidebar-menu .nav-item a i {
+            margin-right: 0;
+        }
+        
+        .sidebar.collapsed .sidebar-menu .nav-item a span {
+            display: none;
+        }
+        
         .user-profile {
             padding-top: 1rem;
-            border-top: 1px solid #495057;
+            border-top: 1px solid var(--sidebar-hover);
+            flex-shrink: 0;
         }
-        .user-profile a {
+        
+        .user-profile-content {
             display: flex;
             align-items: center;
-            padding: 15px;
+            padding: 12px;
             text-decoration: none;
-            color: #adb5bd;
+            color: var(--text-light);
             border-radius: 8px;
+            transition: background-color 0.2s ease;
         }
-        .user-profile a:hover {
-            background-color: #495057;
-            color: #ffffff;
+        
+        .user-profile-content:hover {
+            background-color: var(--sidebar-hover);
         }
+        
         .user-profile .user-icon {
-            font-size: 2rem;
-            margin-right: 15px;
+            font-size: 1.8rem;
+            margin-right: 12px;
+            color: #fff;
+            flex-shrink: 0;
         }
+        
+        .sidebar.collapsed .user-profile .user-icon {
+            margin-right: 0;
+        }
+        
         .user-profile .user-info {
-            line-height: 1.2;
+            line-height: 1.3;
+            flex-grow: 1;
+            overflow: hidden;
         }
+        
+        .sidebar.collapsed .user-profile .user-info {
+            display: none;
+        }
+        
         .user-profile .user-name {
             font-weight: 600;
             color: #ffffff;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        
         .user-profile .user-role {
-            font-size: 0.8rem;
-            color: #6c757d;
+            font-size: 0.75rem;
+            color: var(--text-muted);
         }
-        .user-profile .logout-icon {
-            margin-left: auto;
-            font-size: 1.2rem;
+        
+        .logout-btn {
+            padding: 8px;
+            color: var(--text-light);
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logout-btn:hover {
+            background-color: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+        }
+        
+        .sidebar.collapsed .logout-btn {
+            margin-top: 8px;
+            width: 100%;
+        }
+        
+        .main-content {
+            margin-left: var(--sidebar-width);
+            transition: margin-left var(--transition-speed) ease;
+            min-height: 100vh;
+        }
+        
+        body.sidebar-collapsed .main-content {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+        
+        .tooltip-wrapper {
+            position: relative;
+        }
+        
+        .sidebar.collapsed .tooltip-wrapper:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #1a1a1a;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            margin-left: 10px;
+            z-index: 1002;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+            border-radius: 10px;
+        }
+        
+        .sidebar.collapsed .badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            padding: 2px 5px;
+            font-size: 0.6rem;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: var(--sidebar-collapsed-width);
+            }
+            
+            .sidebar .logo img {
+                max-height: 35px;
+            }
+            
+            .main-content {
+                margin-left: var(--sidebar-collapsed-width);
+            }
         }
     </style>
 </head>
 <body>
-    <nav class="sidebar">
+    <nav class="sidebar" id="mainSidebar">
+        <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
         <div class="logo">
             <a href="{{ url_for('index') }}">
                 <img src="{{ url_for('static', filename='ejt.png') }}" alt="EJTech Logo">
@@ -111,182 +377,462 @@
 
         <ul class="sidebar-menu">
             {% if user_has_permission('view_dashboard') %}
-            <li class="menu-header">Dashboard</li>
-            <li class="nav-item"><a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="dashboard">
+                    <div class="header-text">
+                        <i class="fas fa-th-large header-icon"></i>
+                        <span>Dashboard</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Dashboard">
+                        <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
             {% endif %}
             
-            <li class="menu-header">Company</li>
-            <li class="nav-item"><a href="{{ url_for('company_profile') }}" class="{{ 'active' if request.endpoint == 'company_profile' else '' }}"><i class="fas fa-building"></i> Company Profile</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="company">
+                    <div class="header-text">
+                        <i class="fas fa-building header-icon"></i>
+                        <span>Company</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Company Profile">
+                        <a href="{{ url_for('company_profile') }}" class="{{ 'active' if request.endpoint == 'company_profile' else '' }}">
+                            <i class="fas fa-id-card"></i>
+                            <span>Company Profile</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
 
             {% set has_crm_items = user_has_permission('view_projects') or user_has_permission('view_pipeline_analysis') or user_has_permission('view_sales_performance') or user_has_permission('view_aging_dashboard') or user_has_permission('view_all_clients') or user_has_permission('view_end_users') or user_has_permission('view_contractors') or user_has_permission('view_consultants') %}
             {% if has_crm_items %}
-            <li class="menu-header">CRM</li>
-            {% endif %}
-            {% if user_has_permission('view_projects') %}
-            <li class="nav-item"><a href="{{ url_for('view_projects') }}" class="{{ 'active' if request.path == url_for('view_projects') else '' }}"><i class="fas fa-project-diagram"></i> Projects & Pipeline</a></li>
-            {% endif %}
-            {% if user_has_permission('view_pipeline_analysis') %}
-            <li class="nav-item"><a href="{{ url_for('project_pipeline') }}" class="{{ 'active' if request.path == url_for('project_pipeline') else '' }}"><i class="fas fa-chart-line"></i> Pipeline Analysis</a></li>
-            {% endif %}
-            {% if user_has_permission('view_sales_performance') %}
-            <li class="nav-item"><a href="{{ url_for('sales_performance') }}" class="{{ 'active' if request.endpoint == 'sales_performance' else '' }}"><i class="fas fa-trophy"></i> Sales Performance</a></li>
-            {% endif %}
-            {% if user_has_permission('view_aging_dashboard') %}
-            <li class="nav-item"><a href="{{ url_for('aging_dashboard') }}" class="{{ 'active' if request.endpoint == 'aging_dashboard' else '' }}"><i class="fas fa-history"></i> Aging Dashboard</a></li>
-            {% endif %}
-            {% if user_has_permission('view_all_clients') %}
-            <li class="nav-item"><a href="{{ url_for('view_all_clients') }}" class="{{ 'active' if request.endpoint == 'view_all_clients' else '' }}"><i class="fas fa-star"></i> All Clients</a></li>
-            {% endif %}
-            {% if user_has_permission('view_end_users') %}
-            <li class="nav-item"><a href="{{ url_for('view_end_users') }}" class="{{ 'active' if 'end_user' in request.endpoint else '' }}"><i class="fas fa-building"></i> End Users</a></li>
-            {% endif %}
-            {% if user_has_permission('view_contractors') %}
-            <li class="nav-item"><a href="{{ url_for('view_contractors') }}" class="{{ 'active' if 'contractor' in request.endpoint else '' }}"><i class="fas fa-hard-hat"></i> Contractors</a></li>
-            {% endif %}
-            {% if user_has_permission('view_consultants') %}
-            <li class="nav-item"><a href="{{ url_for('view_consultants') }}" class="{{ 'active' if 'consultant' in request.endpoint else '' }}"><i class="fas fa-user-tie"></i> Consultants</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="crm">
+                    <div class="header-text">
+                        <i class="fas fa-users header-icon"></i>
+                        <span>CRM</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    {% if user_has_permission('view_projects') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Projects & Pipeline">
+                        <a href="{{ url_for('view_projects') }}" class="{{ 'active' if request.path == url_for('view_projects') else '' }}">
+                            <i class="fas fa-project-diagram"></i>
+                            <span>Projects & Pipeline</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_pipeline_analysis') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Pipeline Analysis">
+                        <a href="{{ url_for('project_pipeline') }}" class="{{ 'active' if request.path == url_for('project_pipeline') else '' }}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Pipeline Analysis</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_sales_performance') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Sales Performance">
+                        <a href="{{ url_for('sales_performance') }}" class="{{ 'active' if request.endpoint == 'sales_performance' else '' }}">
+                            <i class="fas fa-trophy"></i>
+                            <span>Sales Performance</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_aging_dashboard') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Aging Dashboard">
+                        <a href="{{ url_for('aging_dashboard') }}" class="{{ 'active' if request.endpoint == 'aging_dashboard' else '' }}">
+                            <i class="fas fa-history"></i>
+                            <span>Aging Dashboard</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_all_clients') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="All Clients">
+                        <a href="{{ url_for('view_all_clients') }}" class="{{ 'active' if request.endpoint == 'view_all_clients' else '' }}">
+                            <i class="fas fa-star"></i>
+                            <span>All Clients</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_end_users') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="End Users">
+                        <a href="{{ url_for('view_end_users') }}" class="{{ 'active' if 'end_user' in request.endpoint else '' }}">
+                            <i class="fas fa-building"></i>
+                            <span>End Users</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_contractors') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Contractors">
+                        <a href="{{ url_for('view_contractors') }}" class="{{ 'active' if 'contractor' in request.endpoint else '' }}">
+                            <i class="fas fa-hard-hat"></i>
+                            <span>Contractors</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_consultants') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Consultants">
+                        <a href="{{ url_for('view_consultants') }}" class="{{ 'active' if 'consultant' in request.endpoint else '' }}">
+                            <i class="fas fa-user-tie"></i>
+                            <span>Consultants</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </li>
             {% endif %}
 
             {% set has_presales_items = user_has_permission('view_presales') or user_has_permission('view_rfq') or user_has_permission('view_rfts') or user_has_permission('view_reports') or user_has_permission('view_products') or user_has_permission('view_solution_builder') or user_has_permission('view_quotation_builder') %}
             {% if has_presales_items %}
-            <li class="menu-header">Presales</li>
-            {% endif %}
-            {% if user_has_permission('view_presales') %}
-            <li class="nav-item"><a href="{{ url_for('presales_performance') }}" class="{{ 'active' if request.endpoint == 'presales_performance' else '' }}"><i class="fas fa-chart-pie"></i> Presales Performance</a></li>
-            {% endif %}
-            {% if user_has_permission('view_rfq') %}
-            <li class="nav-item"><a href="{{ url_for('rfq_summary') }}" class="{{ 'active' if 'rfq' in request.endpoint else '' }}"><i class="fas fa-file-alt"></i> RFQ</a></li>
-            {% endif %}
-            {% if user_has_permission('view_rfts') %}
-            <li class="nav-item"><a href="{{ url_for('technical_support_summary') }}" class="{{ 'active' if 'technical_support' in request.endpoint or 'edit_request' in request.endpoint else '' }}"><i class="fas fa-headset"></i> RFTS</a></li>
-            {% endif %}
-            {% if user_has_permission('view_reports') %}
-            <li class="nav-item"><a href="{{ url_for('registered_quotations') }}" class="{{ 'active' if 'reports' in request.endpoint else '' }}"><i class="fas fa-file-invoice"></i> Reports</a></li>
-            {% endif %}
-            {% if user_has_permission('view_products') %}
-            <li class="nav-item"><a href="{{ url_for('products_page') }}" class="{{ 'active' if 'products' in request.endpoint else '' }}"><i class="fas fa-box-open"></i> Products</a></li>
-            {% endif %}
-            {% if user_has_permission('view_solution_builder') %}
-            <li class="nav-item">
-                <a href="{{ url_for('solution_builder') }}" class="{{ 'active' if 'solution' in request.endpoint else '' }}">
-                    <i class="fas fa-drafting-compass"></i> Solution Builder
-                </a>
-            </li>
-            {% endif %}
-            {% if user_has_permission('view_quotation_builder') %}
-            <li class="nav-item">
-                <a href="{{ url_for('quotation_builder') }}" class="{{ 'active' if 'quotation_builder' in request.endpoint else '' }}">
-                    <i class="fas fa-calculator"></i> Quotation Builder
-                </a>
+            <li class="menu-section">
+                <div class="menu-header" data-section="presales">
+                    <div class="header-text">
+                        <i class="fas fa-file-signature header-icon"></i>
+                        <span>Presales</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    {% if user_has_permission('view_presales') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Presales Performance">
+                        <a href="{{ url_for('presales_performance') }}" class="{{ 'active' if request.endpoint == 'presales_performance' else '' }}">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Presales Performance</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_rfq') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="RFQ">
+                        <a href="{{ url_for('rfq_summary') }}" class="{{ 'active' if 'rfq' in request.endpoint else '' }}">
+                            <i class="fas fa-file-alt"></i>
+                            <span>RFQ</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_rfts') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="RFTS">
+                        <a href="{{ url_for('technical_support_summary') }}" class="{{ 'active' if 'technical_support' in request.endpoint or 'edit_request' in request.endpoint else '' }}">
+                            <i class="fas fa-headset"></i>
+                            <span>RFTS</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_reports') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Reports">
+                        <a href="{{ url_for('registered_quotations') }}" class="{{ 'active' if 'reports' in request.endpoint else '' }}">
+                            <i class="fas fa-file-invoice"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_products') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Products">
+                        <a href="{{ url_for('products_page') }}" class="{{ 'active' if 'products' in request.endpoint else '' }}">
+                            <i class="fas fa-box-open"></i>
+                            <span>Products</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_solution_builder') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Solution Builder">
+                        <a href="{{ url_for('solution_builder') }}" class="{{ 'active' if 'solution' in request.endpoint else '' }}">
+                            <i class="fas fa-drafting-compass"></i>
+                            <span>Solution Builder</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_quotation_builder') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Quotation Builder">
+                        <a href="{{ url_for('quotation_builder') }}" class="{{ 'active' if 'quotation_builder' in request.endpoint else '' }}">
+                            <i class="fas fa-calculator"></i>
+                            <span>Quotation Builder</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
             </li>
             {% endif %}
 
             {% set has_purchasing_items = user_has_permission('view_po_status') or user_has_permission('view_po_requests') %}
             {% if has_purchasing_items %}
-            <li class="menu-header">Purchasing</li>
-            {% endif %}
-            {% if user_has_permission('view_po_status') %}
-            <li class="nav-item"><a href="{{ url_for('view_po_status') }}" class="{{ 'active' if 'view_po_status' in request.endpoint else '' }}"><i class="fas fa-shopping-cart"></i> PO Status</a></li>
-            {% endif %}
-            {% if user_has_permission('view_po_requests') %}
-            <li class="nav-item"><a href="{{ url_for('po_requests_dashboard') }}" class="{{ 'active' if 'po_requests' in request.endpoint or 'request_po' in request.endpoint else '' }}"><i class="fas fa-clipboard-check"></i> PO Requests</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="purchasing">
+                    <div class="header-text">
+                        <i class="fas fa-shopping-bag header-icon"></i>
+                        <span>Purchasing</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    {% if user_has_permission('view_po_status') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="PO Status">
+                        <a href="{{ url_for('view_po_status') }}" class="{{ 'active' if 'view_po_status' in request.endpoint else '' }}">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span>PO Status</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_po_requests') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="PO Requests">
+                        <a href="{{ url_for('po_requests_dashboard') }}" class="{{ 'active' if 'po_requests' in request.endpoint or 'request_po' in request.endpoint else '' }}">
+                            <i class="fas fa-clipboard-check"></i>
+                            <span>PO Requests</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </li>
             {% endif %}
 
             {% if user_has_permission('view_tasks') %}
-            <li class="menu-header">Task Management</li>
-            <li class="nav-item"><a href="{{ url_for('tasks') }}" class="{{ 'active' if 'tasks' in request.endpoint else '' }}"><i class="fas fa-tasks"></i> Tasks</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="tasks">
+                    <div class="header-text">
+                        <i class="fas fa-clipboard-list header-icon"></i>
+                        <span>Task Management</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Tasks">
+                        <a href="{{ url_for('tasks') }}" class="{{ 'active' if 'tasks' in request.endpoint else '' }}">
+                            <i class="fas fa-tasks"></i>
+                            <span>Tasks</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
             {% endif %}
 
             {% set has_srm_items = user_has_permission('view_vendors') or user_has_permission('view_distributors') or user_has_permission('view_products') %}
             {% if has_srm_items %}
-            <li class="menu-header">SRM</li>
-            {% endif %}
-            {% if user_has_permission('view_vendors') %}
-            <li class="nav-item"><a href="{{ url_for('show_vendors') }}" class="{{ 'active' if 'vendor' in request.endpoint else '' }}"><i class="fas fa-store"></i> Vendors</a></li>
-            {% endif %}
-            {% if user_has_permission('view_distributors') %}
-            <li class="nav-item"><a href="{{ url_for('show_distributors') }}" class="{{ 'active' if 'distributor' in request.endpoint else '' }}"><i class="fas fa-truck"></i> Distributors</a></li>
-            {% endif %}
-            {% if user_has_permission('view_products') %}
-            <li class="nav-item"><a href="{{ url_for('quotation_products_dashboard') }}" class="{{ 'active' if 'quotation_products' in request.endpoint else '' }}"><i class="fas fa-box-open"></i> Quotation Products</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="srm">
+                    <div class="header-text">
+                        <i class="fas fa-handshake header-icon"></i>
+                        <span>SRM</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    {% if user_has_permission('view_vendors') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Vendors">
+                        <a href="{{ url_for('show_vendors') }}" class="{{ 'active' if 'vendor' in request.endpoint else '' }}">
+                            <i class="fas fa-store"></i>
+                            <span>Vendors</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_distributors') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Distributors">
+                        <a href="{{ url_for('show_distributors') }}" class="{{ 'active' if 'distributor' in request.endpoint else '' }}">
+                            <i class="fas fa-truck"></i>
+                            <span>Distributors</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_products') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Quotation Products">
+                        <a href="{{ url_for('quotation_products_dashboard') }}" class="{{ 'active' if 'quotation_products' in request.endpoint else '' }}">
+                            <i class="fas fa-box-open"></i>
+                            <span>Quotation Products</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </li>
             {% endif %}
 
             {% if user_has_permission('view_registration_hub') %}
-            <li class="menu-header">Registration</li>
-            <li class="nav-item"><a href="{{ url_for('registration_page') }}" class="{{ 'active' if 'registration_page' in request.endpoint else '' }}"><i class="fas fa-plus-circle"></i> Registration Hub</a></li>
+            <li class="menu-section">
+                <div class="menu-header" data-section="registration">
+                    <div class="header-text">
+                        <i class="fas fa-plus-circle header-icon"></i>
+                        <span>Registration</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Registration Hub">
+                        <a href="{{ url_for('registration_page') }}" class="{{ 'active' if 'registration_page' in request.endpoint else '' }}">
+                            <i class="fas fa-edit"></i>
+                            <span>Registration Hub</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
             {% endif %}
             
             {% set has_admin_items = user_has_permission('manage_users') or user_has_permission('manage_permissions') or user_has_permission('view_pending_registrations') or user_has_permission('view_password_reset_otps') or user_has_permission('view_active_users') %}
             {% if has_admin_items %}
-            <li class="menu-header">Administration</li>
-            {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
-            <li class="nav-item">
-                <a href="{{ url_for('pending_project_approvals') }}" class="{{ 'active' if 'pending_project_approvals' in request.endpoint else '' }}">
-                    <i class="fas fa-clock"></i> Pending Approvals
-                    <span id="pending-approvals-badge" class="badge badge-warning ml-2"></span>
-                </a>
+            <li class="menu-section">
+                <div class="menu-header" data-section="admin">
+                    <div class="header-text">
+                        <i class="fas fa-cog header-icon"></i>
+                        <span>Administration</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Pending Approvals" style="position: relative;">
+                        <a href="{{ url_for('pending_project_approvals') }}" class="{{ 'active' if 'pending_project_approvals' in request.endpoint else '' }}">
+                            <i class="fas fa-clock"></i>
+                            <span>Pending Approvals</span>
+                            <span id="pending-approvals-badge" class="badge badge-warning ml-2"></span>
+                        </a>
+                    </li>
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Manage Clients">
+                        <a href="{{ url_for('manage_clients') }}" class="{{ 'active' if 'manage_clients' in request.endpoint else '' }}">
+                            <i class="fas fa-star"></i>
+                            <span>Manage Clients</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('manage_users') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Manage Users">
+                        <a href="{{ url_for('manage_users') }}" class="{{ 'active' if 'manage_users' in request.endpoint or 'edit_user' in request.endpoint or 'add_user' in request.endpoint else '' }}">
+                            <i class="fas fa-users-cog"></i>
+                            <span>Manage Users</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('manage_permissions') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Access Control">
+                        <a href="{{ url_for('access_control') }}" class="{{ 'active' if 'access_control' in request.endpoint else '' }}">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Access Control</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_pending_registrations') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Pending Registrations">
+                        <a href="{{ url_for('pending_registrations') }}" class="{{ 'active' if 'registration' in request.endpoint else '' }}">
+                            <i class="fas fa-user-clock"></i>
+                            <span>Pending Registrations</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_password_reset_otps') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Password Reset OTPs">
+                        <a href="{{ url_for('pending_otp_requests') }}" class="{{ 'active' if 'pending_otp' in request.endpoint else '' }}">
+                            <i class="fas fa-key"></i>
+                            <span>Password Reset OTPs</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if user_has_permission('view_active_users') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Active Users">
+                        <a href="{{ url_for('active_users') }}" class="{{ 'active' if 'active_users' in request.endpoint else '' }}">
+                            <i class="fas fa-user-check"></i>
+                            <span>Active Users</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
             </li>
-            <li class="nav-item"><a href="{{ url_for('manage_clients') }}" class="{{ 'active' if 'manage_clients' in request.endpoint else '' }}"><i class="fas fa-star"></i> Manage Clients</a></li>
-            {% endif %}
-            {% if user_has_permission('manage_users') %}
-            <li class="nav-item"><a href="{{ url_for('manage_users') }}" class="{{ 'active' if 'manage_users' in request.endpoint or 'edit_user' in request.endpoint or 'add_user' in request.endpoint else '' }}"><i class="fas fa-users-cog"></i> Manage Users</a></li>
-            {% endif %}
-            {% if user_has_permission('manage_permissions') %}
-            <li class="nav-item"><a href="{{ url_for('access_control') }}" class="{{ 'active' if 'access_control' in request.endpoint else '' }}"><i class="fas fa-shield-alt"></i> Access Control</a></li>
-            {% endif %}
-            {% if user_has_permission('view_pending_registrations') %}
-            <li class="nav-item"><a href="{{ url_for('pending_registrations') }}" class="{{ 'active' if 'registration' in request.endpoint else '' }}"><i class="fas fa-user-clock"></i> Pending Registrations</a></li>
-            {% endif %}
-            {% if user_has_permission('view_password_reset_otps') %}
-            <li class="nav-item"><a href="{{ url_for('pending_otp_requests') }}" class="{{ 'active' if 'pending_otp' in request.endpoint else '' }}"><i class="fas fa-key"></i> Password Reset OTPs</a></li>
-            {% endif %}
-            {% if user_has_permission('view_active_users') %}
-            <li class="nav-item"><a href="{{ url_for('active_users') }}" class="{{ 'active' if 'active_users' in request.endpoint else '' }}"><i class="fas fa-user-check"></i> Active Users</a></li>
-            {% endif %}
             {% endif %}
         </ul>
 
         <div class="user-profile">
             {% if session.get('user_id') %}
-                <a href="#"> <i class="fas fa-user-circle user-icon"></i>
-                    <div class="user-info">
-                        <div class="user-name">Welcome, {{ session['username'] }}</div>
-                        <div class="user-role">{{ session['user_role'] }}</div>
-                    </div>
-                    <a href="{{ url_for('logout') }}" title="Sign Out">
-                        <i class="fas fa-sign-out-alt logout-icon text-danger"></i>
-                    </a>
+            <div class="user-profile-content">
+                <i class="fas fa-user-circle user-icon"></i>
+                <div class="user-info">
+                    <div class="user-name">Welcome, {{ session['username'] }}</div>
+                    <div class="user-role">{{ session['user_role'] }}</div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn" title="Sign Out">
+                    <i class="fas fa-sign-out-alt"></i>
                 </a>
+            </div>
             {% else %}
-                <a href="{{ url_for('login') }}">
-                    <i class="fas fa-sign-in-alt user-icon"></i>
-                    <div class="user-info">
-                        <div class="user-name">Sign In</div>
-                    </div>
-                </a>
+            <a href="{{ url_for('login') }}" class="user-profile-content">
+                <i class="fas fa-sign-in-alt user-icon"></i>
+                <div class="user-info">
+                    <div class="user-name">Sign In</div>
+                </div>
+            </a>
             {% endif %}
         </div>
     </nav>
-</body>
-</html>    
+    
     <script>
-        {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
-        function updatePendingApprovalsCount() {
-            fetch('/api/pending_approvals_count')
-                .then(response => response.json())
-                .then(data => {
-                    const badge = document.getElementById('pending-approvals-badge');
-                    if (badge && data.count > 0) {
-                        badge.textContent = data.count;
-                        badge.style.display = 'inline';
-                    } else if (badge) {
-                        badge.style.display = 'none';
-                    }
-                })
-                .catch(error => console.error('Error fetching pending approvals count:', error));
-        }
-        
-        updatePendingApprovalsCount();
-        setInterval(updatePendingApprovalsCount, 30000);
-        {% endif %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('mainSidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const menuHeaders = document.querySelectorAll('.menu-header');
+            
+            const sidebarState = localStorage.getItem('sidebarCollapsed');
+            if (sidebarState === 'true') {
+                sidebar.classList.add('collapsed');
+                document.body.classList.add('sidebar-collapsed');
+            }
+            
+            const sectionStates = JSON.parse(localStorage.getItem('sidebarSections') || '{}');
+            menuHeaders.forEach(function(header) {
+                const section = header.getAttribute('data-section');
+                const menuItems = header.nextElementSibling;
+                
+                if (sectionStates[section] === false) {
+                    header.classList.add('collapsed');
+                    menuItems.classList.add('collapsed');
+                }
+            });
+            
+            toggleBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('collapsed');
+                document.body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            });
+            
+            menuHeaders.forEach(function(header) {
+                header.addEventListener('click', function() {
+                    if (sidebar.classList.contains('collapsed')) return;
+                    
+                    const section = this.getAttribute('data-section');
+                    const menuItems = this.nextElementSibling;
+                    
+                    this.classList.toggle('collapsed');
+                    menuItems.classList.toggle('collapsed');
+                    
+                    const states = JSON.parse(localStorage.getItem('sidebarSections') || '{}');
+                    states[section] = !this.classList.contains('collapsed');
+                    localStorage.setItem('sidebarSections', JSON.stringify(states));
+                });
+            });
+            
+            {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
+            function updatePendingApprovalsCount() {
+                fetch('/api/pending_approvals_count')
+                    .then(response => response.json())
+                    .then(data => {
+                        const badge = document.getElementById('pending-approvals-badge');
+                        if (badge && data.count > 0) {
+                            badge.textContent = data.count;
+                            badge.style.display = 'inline';
+                        } else if (badge) {
+                            badge.style.display = 'none';
+                        }
+                    })
+                    .catch(error => console.error('Error fetching pending approvals count:', error));
+            }
+            
+            updatePendingApprovalsCount();
+            setInterval(updatePendingApprovalsCount, 30000);
+            {% endif %}
+        });
     </script>
+</body>
+</html>
