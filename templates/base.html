@@ -269,7 +269,7 @@
     
     <!-- Notification System JavaScript -->
     {% if session.get('user_id') %}
-    <script src="{{ url_for('static', filename='notifications.js') }}"></script>
+    <script src="{{ url_for('static', filename='notifications.js') }}?v=2"></script>
     {% endif %}
 
     {% block scripts %}{% endblock %}
