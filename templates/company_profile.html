@@ -631,6 +631,43 @@
     .solution-card {
         position: relative;
     }
+    .solution-card.draggable {
+        cursor: grab;
+    }
+    .solution-card.draggable:active {
+        cursor: grabbing;
+    }
+    .solution-card.sortable-ghost {
+        opacity: 0.4;
+        background: #e9ecef;
+    }
+    .solution-card.sortable-chosen {
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+        transform: scale(1.02);
+    }
+    .drag-handle {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        width: 24px;
+        height: 24px;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #667eea;
+        cursor: grab;
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 10;
+    }
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+    .solution-card:hover .drag-handle {
+        opacity: 1;
+    }
     .solution-image {
         width: 80px;
         height: 80px;
@@ -1186,7 +1223,12 @@
     </h3>
     <div class="solutions-grid" id="solutionsGrid">
         {% for solution in solutions %}
-        <div class="solution-card" data-id="{{ solution.id }}" onclick="window.location.href='/solution/{{ solution.id }}'" style="cursor: pointer;">
+        <div class="solution-card {% if can_edit %}draggable{% endif %}" data-id="{{ solution.id }}" onclick="window.location.href='/solution/{{ solution.id }}'" style="cursor: pointer;">
+            {% if can_edit %}
+            <div class="drag-handle" onclick="event.stopPropagation();" title="Drag to reorder">
+                <i class="fas fa-grip-vertical"></i>
+            </div>
+            {% endif %}
             {% if solution.image_url %}
             <div class="solution-image" style="background-image: url('{{ solution.image_url }}')"></div>
             {% else %}
@@ -2222,6 +2264,50 @@ async function deleteClient(id) {
         alert('Error deleting client');
     }
 }
+</script>
+{% endif %}
+
+<!-- SortableJS for drag and drop -->
+{% if can_edit %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const solutionsGrid = document.getElementById('solutionsGrid');
+    if (solutionsGrid) {
+        new Sortable(solutionsGrid, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: function(evt) {
+                const cards = solutionsGrid.querySelectorAll('.solution-card');
+                const order = Array.from(cards).map((card, index) => ({
+                    id: parseInt(card.getAttribute('data-id')),
+                    order: index + 1
+                }));
+                
+                fetch('/api/company_profile/solutions/reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ order: order })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error reordering:', data.error);
+                        alert('Error saving order. Please refresh the page.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error saving order. Please refresh the page.');
+                });
+            }
+        });
+    }
+});
 </script>
 {% endif %}
 

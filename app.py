@@ -1737,6 +1737,38 @@ def delete_company_solution(solution_id):
     
     return jsonify({'success': True, 'message': 'Solution deleted successfully'})
 
+@app.route('/api/company_profile/solutions/reorder', methods=['POST'])
+@login_required
+def reorder_company_solutions():
+    """Reorder solutions - Only M.Saleh can reorder"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    order_list = data.get('order', [])
+    
+    if not order_list:
+        return jsonify({'success': False, 'error': 'No order data provided'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        for item in order_list:
+            solution_id = item.get('id')
+            display_order = item.get('order')
+            if solution_id and display_order:
+                c.execute("UPDATE company_solutions SET display_order = ? WHERE id = ?", 
+                         (display_order, solution_id))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Order updated successfully'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
 # ============== COMPANY CLIENTS API ENDPOINTS ==============
 
 @app.route('/api/company_profile/clients', methods=['GET'])
