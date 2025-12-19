@@ -19,7 +19,7 @@ The system features an admin access control UI, an admin OTP Dashboard for passw
 - **PDF Generation**: ReportLab
 - **Frontend**: HTML templates with Jinja2
 - **User Management**: Role-based access control, secure authentication (`werkzeug.security`), password resets via OTP, and public registration with admin approval.
-- **CRM Features**: Manages customers, vendors, distributors, contractors, consultants, end-users, technical support, client status, and sales engineer assignments, including comprehensive client profile pages with statistics and follow-up tracking.
+- **CRM Features**: Manages customers, vendors, distributors, contractors, consultants, end-users, technical support, client status, and sales engineer assignments, including comprehensive client profile pages with statistics and follow-up tracking. Includes a **Client Tier System** (VIP, Key Account, Standard, New) for prioritizing and categorizing client importance with a redesigned All Clients page featuring a statistics dashboard, filtering, and sorting capabilities.
 - **Project Management**: Registration, quotation submission, status updates, tracking, admin approval, client designation, automated deal value calculation, and comprehensive project profile pages showing the project lifecycle, documents, and chat.
 - **Sales & Presales Tools**: RFQ management (with comments and notifications), quotation builder, solution builder, cost sheet management, product catalog (fire alarm, CCTV, passive), and an AI-Powered CCTV Smart Selector for intelligent product recommendations.
 - **Access Control**: Granular, page-level permissions with a dynamic, database-driven role management system allowing administrators to create and manage custom roles.
