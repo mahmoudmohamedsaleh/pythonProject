@@ -26,7 +26,7 @@ The system features an admin access control UI, an admin OTP Dashboard for passw
 - **Supplier Relationship Management (SRM)**: Comprehensive vendor and distributor management, including activity logs, performance metrics, and purchase order integration.
 - **Purchase Order (PO) Management**: Workflow for PO approval, supplier quotation management, PO profile system with VAT management, per-item tracking, delivery note functionality, and modernized dashboards with inline editing.
 - **Document Management**: Project-specific document uploads (BOQ, specifications, Google Drive links) with version tracking, and company-level document management for essential company files.
-- **Collaboration**: Real-time project chat system for team communication, supporting text, image, and PDF sharing.
+- **Collaboration**: Real-time project chat system for team communication, supporting text, image, and PDF sharing. Features **WhatsApp-like chat notifications** with sound alerts, floating popup toasts, browser notifications, and click-to-navigate functionality.
 - **Follow-up & Task Management**: Multi-channel follow-up reminder system (in-app, browser, email) integrated with a bidirectional task management synchronization system across clients, RFQs, RFTS, and POs.
 - **Solution Profile Management**: Solution profiles with vendor categories, editable by M.Saleh, supporting custom categories, icons, colors, and vendor logo uploads.
 - **Company Profile Management**: Editable hero section, footprint, contact information, and "Our Clients" section on the company profile page by M.Saleh, supporting text and image uploads.
