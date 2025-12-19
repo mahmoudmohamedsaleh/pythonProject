@@ -1273,7 +1273,7 @@
                 <div class="client-sector">{{ client.sector }}</div>
                 {% if can_edit %}
                 <div class="solution-actions">
-                    <button class="action-btn edit" onclick="event.stopPropagation(); openEditClientModal({{ client.id }}, {{ client.name|tojson }}, {{ client.sector|tojson }}, {{ (client.image_url or '')|tojson }})" title="Edit">
+                    <button class="action-btn edit" data-client-id="{{ client.id }}" data-client-name="{{ client.name }}" data-client-sector="{{ client.sector }}" data-client-image="{{ client.image_url or '' }}" onclick="event.stopPropagation(); handleEditClient(this)" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button class="action-btn delete" onclick="event.stopPropagation(); deleteClient({{ client.id }})" title="Delete">
@@ -2145,10 +2145,18 @@ function openAddClientModal() {
     document.getElementById('clientModalOverlay').style.display = 'flex';
 }
 
+function handleEditClient(button) {
+    const id = button.getAttribute('data-client-id');
+    const name = button.getAttribute('data-client-name');
+    const sector = button.getAttribute('data-client-sector');
+    const imageUrl = button.getAttribute('data-client-image');
+    openEditClientModal(id, name, sector, imageUrl);
+}
+
 function openEditClientModal(id, name, sector, imageUrl) {
     document.getElementById('clientId').value = id;
-    document.getElementById('clientName').value = name;
-    document.getElementById('clientSector').value = sector;
+    document.getElementById('clientName').value = name || '';
+    document.getElementById('clientSector').value = sector || '';
     document.getElementById('clientPhoto').value = '';
     document.getElementById('clientModalTitle').textContent = 'Edit Client';
     
