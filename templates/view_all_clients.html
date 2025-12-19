@@ -10,202 +10,517 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         body {
-            background-color: #f8f9fa;
+            background-color: #f0f2f5;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .container-fluid {
+            padding: 20px 30px;
+        }
+        
+        .page-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
             padding: 30px;
+            margin-bottom: 25px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
         }
-        .page-header {
-            margin-bottom: 2rem;
-        }
-        .page-header h1 {
+        .page-hero h1 {
             font-weight: 700;
+            margin-bottom: 5px;
         }
+        .page-hero p {
+            opacity: 0.9;
+            margin-bottom: 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+        }
+        .stat-card.active {
+            border-color: #667eea;
+        }
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .stat-card.vip .stat-value { color: #ffd700; }
+        .stat-card.key-account .stat-value { color: #c0c0c0; }
+        .stat-card.standard .stat-value { color: #cd7f32; }
+        .stat-card.new .stat-value { color: #28a745; }
+        .stat-card.total .stat-value { color: #667eea; }
+        
+        .filter-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        }
+        .filter-bar .form-control, .filter-bar .btn {
+            border-radius: 8px;
+        }
+        .filter-bar label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
         .client-card {
             background-color: #ffffff;
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
             height: 100%;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
+            position: relative;
         }
         .client-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-6px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
         }
-        .card-header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #e9ecef;
-            font-weight: 600;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
+        
+        .tier-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
         }
-        .card-body {
-            flex-grow: 1;
+        .tier-indicator.tier-vip { background: linear-gradient(90deg, #ffd700, #ffed4a); }
+        .tier-indicator.tier-key-account { background: linear-gradient(90deg, #c0c0c0, #e8e8e8); }
+        .tier-indicator.tier-standard { background: linear-gradient(90deg, #cd7f32, #daa06d); }
+        .tier-indicator.tier-new { background: linear-gradient(90deg, #28a745, #5dd879); }
+        
+        .card-header-custom {
+            background-color: #fff;
+            padding: 20px 20px 15px;
+            border-bottom: 1px solid #f0f0f0;
         }
-        .card-body p {
-            margin-bottom: 0.75rem;
-            color: #6c757d;
-        }
-        .card-body p i {
-            width: 20px;
-            margin-right: 10px;
-            color: #007bff;
-        }
-        .card-body p strong {
-            color: #343a40;
-        }
-        .no-clients {
-            text-align: center;
-            padding: 3rem;
-            background-color: #ffffff;
-            border-radius: 12px;
-        }
-        .client-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 5px 12px;
+        
+        .tier-badge {
+            padding: 4px 12px;
             border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
+        .tier-badge.tier-vip {
+            background: linear-gradient(135deg, #ffd700, #ffed4a);
+            color: #856404;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+        }
+        .tier-badge.tier-key-account {
+            background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+            color: #495057;
+            box-shadow: 0 2px 8px rgba(192, 192, 192, 0.4);
+        }
+        .tier-badge.tier-standard {
+            background: linear-gradient(135deg, #cd7f32, #daa06d);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(205, 127, 50, 0.4);
+        }
+        .tier-badge.tier-new {
+            background: linear-gradient(135deg, #28a745, #5dd879);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.4);
+        }
+        
         .type-badge {
-            padding: 5px 12px;
+            padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.7rem;
             font-weight: 600;
         }
         .type-enduser {
-            background-color: #007bff;
-            color: white;
+            background-color: #e7f1ff;
+            color: #007bff;
         }
         .type-contractor {
-            background-color: #ffc107;
-            color: #333;
+            background-color: #fff8e1;
+            color: #f57c00;
         }
         .type-consultant {
-            background-color: #28a745;
-            color: white;
+            background-color: #e8f5e9;
+            color: #388e3c;
         }
-        .btn-view-projects {
-            background-color: #17a2b8;
-            color: white;
+        
+        .client-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin: 10px 0 0;
+            display: flex;
+            align-items: center;
+        }
+        .client-name i {
+            color: #667eea;
+            margin-right: 8px;
+        }
+        
+        .card-body-custom {
+            padding: 15px 20px 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .info-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .info-row:last-of-type {
+            border-bottom: none;
+        }
+        .info-row i {
+            width: 20px;
+            color: #667eea;
+            margin-right: 10px;
+        }
+        .info-row .label {
             font-weight: 600;
+            color: #495057;
+            margin-right: 5px;
+            font-size: 0.85rem;
         }
-        .btn-view-projects:hover {
-            background-color: #138496;
-            color: white;
+        .info-row .value {
+            color: #6c757d;
+            font-size: 0.85rem;
         }
-        .btn-view-contractors {
-            background-color: #ffc107;
-            color: #333;
-            font-weight: 600;
+        
+        .project-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 10px;
         }
-        .btn-view-contractors:hover {
-            background-color: #e0a800;
-            color: #333;
+        .project-stat {
+            text-align: center;
+            flex: 1;
+        }
+        .project-stat .number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .project-stat .label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-transform: uppercase;
+        }
+        
+        .card-actions {
+            margin-top: auto;
+            padding-top: 15px;
+            display: flex;
+            gap: 10px;
         }
         .btn-view-profile {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             font-weight: 600;
             border: none;
+            border-radius: 8px;
+            flex: 1;
+            padding: 10px;
         }
         .btn-view-profile:hover {
             background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
             color: white;
             transform: translateY(-1px);
         }
+        .btn-edit {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px 15px;
+        }
+        .btn-edit:hover {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .tier-select-dropdown {
+            position: relative;
+        }
+        .tier-select-dropdown select {
+            appearance: none;
+            background: transparent;
+            border: 1px dashed #ccc;
+            border-radius: 20px;
+            padding: 4px 25px 4px 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            min-width: 100px;
+        }
+        .tier-select-dropdown select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .tier-select-dropdown::after {
+            content: '\f078';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.6rem;
+            color: #6c757d;
+            pointer-events: none;
+        }
+        
+        .no-clients {
+            text-align: center;
+            padding: 60px 30px;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+        .no-clients i {
+            color: #667eea;
+            opacity: 0.3;
+        }
+        
+        .clear-filters {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        .clear-filters:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .filter-bar .row > div {
+                margin-bottom: 10px;
+            }
+        }
     </style>
 </head>
 <body>
 
     <div class="container-fluid">
-        <div class="page-header d-flex justify-content-between align-items-center flex-wrap">
-            <div>
-                <h1>All Clients</h1>
-                <p class="text-muted mb-0">View all entities marked as clients across End Users, Contractors, and Consultants.</p>
+        <div class="page-hero">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h1><i class="fas fa-users mr-2"></i>Client Portfolio</h1>
+                    <p>Manage and track all your valued clients across End Users, Contractors, and Consultants</p>
+                </div>
+                <div class="d-flex align-items-center mt-3 mt-md-0">
+                    <span class="mr-3" style="opacity: 0.9;">
+                        <i class="fas fa-chart-line mr-1"></i>{{ stats.total_projects }} Total Projects
+                    </span>
+                </div>
             </div>
-            <div class="d-flex align-items-center mt-3 mt-md-0">
-                <form method="GET" action="{{ url_for('view_all_clients') }}" class="form-inline">
-                    <div class="input-group">
+        </div>
+        
+        <div class="stats-grid">
+            <a href="{{ url_for('view_all_clients', tier='', type=filter_type, engineer=filter_engineer, sort=sort_by, search_query=search_query) }}" class="stat-card total {{ 'active' if not filter_tier else '' }}" style="text-decoration: none;">
+                <div class="stat-value">{{ stats.total }}</div>
+                <div class="stat-label">Total Clients</div>
+            </a>
+            <a href="{{ url_for('view_all_clients', tier='VIP', type=filter_type, engineer=filter_engineer, sort=sort_by, search_query=search_query) }}" class="stat-card vip {{ 'active' if filter_tier == 'VIP' else '' }}" style="text-decoration: none;">
+                <div class="stat-value"><i class="fas fa-crown mr-1" style="font-size: 1.5rem;"></i>{{ stats.vip }}</div>
+                <div class="stat-label">VIP</div>
+            </a>
+            <a href="{{ url_for('view_all_clients', tier='Key Account', type=filter_type, engineer=filter_engineer, sort=sort_by, search_query=search_query) }}" class="stat-card key-account {{ 'active' if filter_tier == 'Key Account' else '' }}" style="text-decoration: none;">
+                <div class="stat-value"><i class="fas fa-star mr-1" style="font-size: 1.5rem;"></i>{{ stats.key_account }}</div>
+                <div class="stat-label">Key Account</div>
+            </a>
+            <a href="{{ url_for('view_all_clients', tier='Standard', type=filter_type, engineer=filter_engineer, sort=sort_by, search_query=search_query) }}" class="stat-card standard {{ 'active' if filter_tier == 'Standard' else '' }}" style="text-decoration: none;">
+                <div class="stat-value">{{ stats.standard }}</div>
+                <div class="stat-label">Standard</div>
+            </a>
+            <a href="{{ url_for('view_all_clients', tier='New', type=filter_type, engineer=filter_engineer, sort=sort_by, search_query=search_query) }}" class="stat-card new {{ 'active' if filter_tier == 'New' else '' }}" style="text-decoration: none;">
+                <div class="stat-value"><i class="fas fa-seedling mr-1" style="font-size: 1.5rem;"></i>{{ stats.new }}</div>
+                <div class="stat-label">New</div>
+            </a>
+        </div>
+        
+        <div class="filter-bar">
+            <form method="GET" action="{{ url_for('view_all_clients') }}" id="filterForm">
+                <div class="row align-items-end">
+                    <div class="col-md-3 col-sm-6 mb-2 mb-md-0">
+                        <label><i class="fas fa-search mr-1"></i>Search</label>
                         <input type="text" name="search_query" class="form-control" placeholder="Search by name..." value="{{ search_query or '' }}">
-                        <div class="input-group-append">
-                            <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
-                        </div>
                     </div>
-                </form>
-            </div>
+                    <div class="col-md-2 col-sm-6 mb-2 mb-md-0">
+                        <label><i class="fas fa-filter mr-1"></i>Type</label>
+                        <select name="type" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Types</option>
+                            <option value="End User" {{ 'selected' if filter_type == 'End User' else '' }}>End Users ({{ stats.end_users }})</option>
+                            <option value="Contractor" {{ 'selected' if filter_type == 'Contractor' else '' }}>Contractors ({{ stats.contractors }})</option>
+                            <option value="Consultant" {{ 'selected' if filter_type == 'Consultant' else '' }}>Consultants ({{ stats.consultants }})</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2 mb-md-0">
+                        <label><i class="fas fa-medal mr-1"></i>Tier</label>
+                        <select name="tier" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Tiers</option>
+                            <option value="VIP" {{ 'selected' if filter_tier == 'VIP' else '' }}>VIP</option>
+                            <option value="Key Account" {{ 'selected' if filter_tier == 'Key Account' else '' }}>Key Account</option>
+                            <option value="Standard" {{ 'selected' if filter_tier == 'Standard' else '' }}>Standard</option>
+                            <option value="New" {{ 'selected' if filter_tier == 'New' else '' }}>New</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2 mb-md-0">
+                        <label><i class="fas fa-user-tie mr-1"></i>Engineer</label>
+                        <select name="engineer" class="form-control" onchange="this.form.submit()">
+                            <option value="">All Engineers</option>
+                            {% for eng in sales_engineers %}
+                            <option value="{{ eng[0] }}" {{ 'selected' if filter_engineer == eng[0]|string else '' }}>{{ eng[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2 mb-md-0">
+                        <label><i class="fas fa-sort mr-1"></i>Sort By</label>
+                        <select name="sort" class="form-control" onchange="this.form.submit()">
+                            <option value="name" {{ 'selected' if sort_by == 'name' else '' }}>Name (A-Z)</option>
+                            <option value="tier" {{ 'selected' if sort_by == 'tier' else '' }}>Tier Priority</option>
+                            <option value="projects" {{ 'selected' if sort_by == 'projects' else '' }}>Most Projects</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 col-sm-12 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                {% if search_query or filter_tier or filter_type or filter_engineer %}
+                <div class="mt-2 text-right">
+                    <a href="{{ url_for('view_all_clients') }}" class="clear-filters"><i class="fas fa-times mr-1"></i>Clear all filters</a>
+                </div>
+                {% endif %}
+            </form>
         </div>
 
         <div class="row">
             {% for client in clients %}
-                <div class="col-lg-4 col-md-6 mb-4">
+                <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
                     <div class="client-card">
-                        <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="tier-indicator tier-{{ client.client_tier|lower|replace(' ', '-') }}"></div>
+                        
+                        <div class="card-header-custom">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <span class="type-badge 
                                     {% if client.type == 'End User' %}type-enduser
                                     {% elif client.type == 'Contractor' %}type-contractor
                                     {% else %}type-consultant{% endif %}">
-                                    {% if client.type == 'End User' %}🏢
-                                    {% elif client.type == 'Contractor' %}🪖
-                                    {% else %}👔{% endif %}
+                                    {% if client.type == 'End User' %}<i class="fas fa-building mr-1"></i>
+                                    {% elif client.type == 'Contractor' %}<i class="fas fa-hard-hat mr-1"></i>
+                                    {% else %}<i class="fas fa-user-tie mr-1"></i>{% endif %}
                                     {{ client.type }}
                                 </span>
-                                <span class="client-badge">
-                                    <i class="fas fa-star mr-1"></i>CLIENT
-                                </span>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0 text-primary">
-                                    <i class="fas fa-building mr-2"></i>{{ client.name }}
-                                </h5>
-                                {% if client.type == 'End User' %}
-                                <a href="{{ url_for('edit_end_user', end_user_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-edit mr-1"></i>Edit
-                                </a>
-                                {% elif client.type == 'Contractor' %}
-                                <a href="{{ url_for('edit_contractor', contractor_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-edit mr-1"></i>Edit
-                                </a>
+                                
+                                {% if can_edit_tier %}
+                                <div class="tier-select-dropdown">
+                                    <select data-client-id="{{ client.id }}" 
+                                            data-client-type="{{ client.type_key }}"
+                                            onchange="updateClientTier(this)">
+                                        <option value="VIP" {{ 'selected' if client.client_tier == 'VIP' else '' }}>VIP</option>
+                                        <option value="Key Account" {{ 'selected' if client.client_tier == 'Key Account' else '' }}>Key Account</option>
+                                        <option value="Standard" {{ 'selected' if client.client_tier == 'Standard' else '' }}>Standard</option>
+                                        <option value="New" {{ 'selected' if client.client_tier == 'New' else '' }}>New</option>
+                                    </select>
+                                </div>
                                 {% else %}
-                                <a href="{{ url_for('edit_consultant', consultant_id=client.id) }}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-edit mr-1"></i>Edit
-                                </a>
+                                <span class="tier-badge tier-{{ client.client_tier|lower|replace(' ', '-') }}">
+                                    {% if client.client_tier == 'VIP' %}<i class="fas fa-crown mr-1"></i>
+                                    {% elif client.client_tier == 'Key Account' %}<i class="fas fa-star mr-1"></i>
+                                    {% elif client.client_tier == 'New' %}<i class="fas fa-seedling mr-1"></i>
+                                    {% endif %}
+                                    {{ client.client_tier }}
+                                </span>
                                 {% endif %}
                             </div>
+                            
+                            <div class="client-name">
+                                <i class="fas fa-building"></i>
+                                <span title="{{ client.name }}">{{ client.name[:30] }}{{ '...' if client.name|length > 30 else '' }}</span>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <p><i class="fas fa-user"></i><strong>Contact:</strong> {{ client.contact_person }}</p>
-                            <p><i class="fas fa-phone"></i><strong>Phone:</strong> {{ client.phone if client.phone else 'N/A' }}</p>
-                            <p><i class="fas fa-envelope"></i><strong>Email:</strong> {{ client.email if client.email else 'N/A' }}</p>
-                            <p><i class="fas fa-user-tie"></i><strong>Sales Engineer:</strong> {{ client.assigned_engineer if client.assigned_engineer else 'Not Assigned' }}</p>
+                        
+                        <div class="card-body-custom">
+                            <div class="info-row">
+                                <i class="fas fa-user"></i>
+                                <span class="label">Contact:</span>
+                                <span class="value">{{ client.contact_person or 'N/A' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-phone"></i>
+                                <span class="label">Phone:</span>
+                                <span class="value">{{ client.phone or 'N/A' }}</span>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-user-tie"></i>
+                                <span class="label">Engineer:</span>
+                                <span class="value">{{ client.assigned_engineer or 'Not Assigned' }}</span>
+                            </div>
                             
-                            {% if client.note %}
-                            <p><i class="fas fa-sticky-note"></i><strong>Note:</strong></p>
-                            <p class="ml-4">{{ client.note }}</p>
-                            {% else %}
-                            <p><i class="fas fa-sticky-note"></i><strong>Note:</strong></p>
-                            <p class="ml-4 text-muted">No notes available.</p>
-                            {% endif %}
+                            <div class="project-stats">
+                                <div class="project-stat">
+                                    <div class="number">{{ client.project_count }}</div>
+                                    <div class="label">Projects</div>
+                                </div>
+                                {% if client.type == 'End User' and client.contractor_count %}
+                                <div class="project-stat">
+                                    <div class="number">{{ client.contractor_count }}</div>
+                                    <div class="label">Contractors</div>
+                                </div>
+                                {% endif %}
+                            </div>
                             
-                            <div class="mt-3">
+                            <div class="card-actions">
+                                <a href="{{ url_for('client_profile', client_type=client.type_key, client_id=client.id) }}" class="btn btn-view-profile">
+                                    <i class="fas fa-user-circle mr-1"></i>Profile
+                                </a>
                                 {% if client.type == 'End User' %}
-                                <a href="{{ url_for('client_profile', client_type='end_user', client_id=client.id) }}" class="btn btn-view-profile btn-sm btn-block">
-                                    <i class="fas fa-user-circle mr-1"></i>View Profile
+                                <a href="{{ url_for('edit_end_user', end_user_id=client.id) }}" class="btn btn-edit">
+                                    <i class="fas fa-edit"></i>
                                 </a>
                                 {% elif client.type == 'Contractor' %}
-                                <a href="{{ url_for('client_profile', client_type='contractor', client_id=client.id) }}" class="btn btn-view-profile btn-sm btn-block">
-                                    <i class="fas fa-user-circle mr-1"></i>View Profile
+                                <a href="{{ url_for('edit_contractor', contractor_id=client.id) }}" class="btn btn-edit">
+                                    <i class="fas fa-edit"></i>
                                 </a>
                                 {% else %}
-                                <a href="{{ url_for('client_profile', client_type='consultant', client_id=client.id) }}" class="btn btn-view-profile btn-sm btn-block">
-                                    <i class="fas fa-user-circle mr-1"></i>View Profile
+                                <a href="{{ url_for('edit_consultant', consultant_id=client.id) }}" class="btn btn-edit">
+                                    <i class="fas fa-edit"></i>
                                 </a>
                                 {% endif %}
                             </div>
@@ -215,14 +530,65 @@
             {% else %}
                 <div class="col-12">
                     <div class="no-clients">
-                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <i class="fas fa-users fa-4x mb-4"></i>
                         <h4 class="text-muted">No Clients Found</h4>
-                        <p class="text-muted">No entities are currently marked as clients.</p>
+                        <p class="text-muted mb-3">
+                            {% if search_query or filter_tier or filter_type or filter_engineer %}
+                            No clients match your current filters.
+                            {% else %}
+                            No entities are currently marked as clients.
+                            {% endif %}
+                        </p>
+                        {% if search_query or filter_tier or filter_type or filter_engineer %}
+                        <a href="{{ url_for('view_all_clients') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-times mr-1"></i>Clear Filters
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
         </div>
     </div>
+    
+    <script>
+        function updateClientTier(selectElement) {
+            const clientId = selectElement.getAttribute('data-client-id');
+            const clientType = selectElement.getAttribute('data-client-type');
+            const newTier = selectElement.value;
+            
+            fetch(`/api/client_tier/${clientType}/${clientId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ tier: newTier })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const card = selectElement.closest('.client-card');
+                    const indicator = card.querySelector('.tier-indicator');
+                    
+                    indicator.className = 'tier-indicator tier-' + newTier.toLowerCase().replace(' ', '-');
+                    
+                    const toast = document.createElement('div');
+                    toast.className = 'alert alert-success position-fixed';
+                    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; animation: fadeIn 0.3s;';
+                    toast.innerHTML = '<i class="fas fa-check mr-2"></i>Client tier updated to ' + newTier;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                } else {
+                    alert('Failed to update tier: ' + (data.error || 'Unknown error'));
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update tier');
+                location.reload();
+            });
+        }
+    </script>
 
 </body>
 {% endblock %}
