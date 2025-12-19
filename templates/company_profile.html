@@ -649,7 +649,8 @@
         opacity: 0;
         transition: opacity 0.3s ease;
     }
-    .solution-card:hover .solution-actions {
+    .solution-card:hover .solution-actions,
+    .client-card:hover .solution-actions {
         opacity: 1;
     }
     .action-btn {
@@ -1271,7 +1272,7 @@
                 <div class="client-name">{{ client.name }}</div>
                 <div class="client-sector">{{ client.sector }}</div>
                 {% if can_edit %}
-                <div class="solution-actions" style="position: absolute; top: 5px; right: 5px; display: flex; gap: 5px;">
+                <div class="solution-actions">
                     <button class="action-btn edit" onclick="event.stopPropagation(); openEditClientModal({{ client.id }}, {{ client.name|tojson }}, {{ client.sector|tojson }}, {{ (client.image_url or '')|tojson }})" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
