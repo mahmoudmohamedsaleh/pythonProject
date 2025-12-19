@@ -181,6 +181,14 @@
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 20px;
     }
+    .project-card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+    .project-card-link:hover {
+        text-decoration: none;
+    }
     .project-card {
         background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
         border: 2px solid #e9ecef;
@@ -508,6 +516,7 @@
     {% if featured_projects %}
         <div class="projects-grid">
             {% for project in featured_projects %}
+            <a href="{{ url_for('project_profile', project_id=project.id) }}" class="project-card-link">
             <div class="project-card">
                 <div class="project-icon">
                     <i class="fas {{ project.icon or 'fa-building' }}"></i>
@@ -525,6 +534,7 @@
                     {% endif %}
                 </div>
             </div>
+            </a>
             {% endfor %}
         </div>
     {% else %}
