@@ -1438,6 +1438,21 @@ def company_profile():
     """)
     conn.commit()
     
+    # Create featured_projects table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS featured_projects (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            scope TEXT DEFAULT '',
+            location TEXT DEFAULT '',
+            year TEXT DEFAULT '',
+            icon TEXT DEFAULT 'fa-building',
+            display_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    
     # Get all content sections
     c.execute("SELECT section_key, content FROM company_profile_content")
     rows = c.fetchall()
@@ -1450,6 +1465,28 @@ def company_profile():
     # Get clients
     c.execute("SELECT * FROM company_clients ORDER BY display_order, id")
     clients = [dict(row) for row in c.fetchall()]
+    
+    # Get featured projects
+    c.execute("SELECT * FROM featured_projects ORDER BY display_order, id")
+    featured_projects = [dict(row) for row in c.fetchall()]
+    
+    # If no featured projects in database, insert the defaults
+    if not featured_projects:
+        default_projects = [
+            ('Ministry of Interior HQ', 'CCTV & Access Control', 'Riyadh', '2023', 'fa-video', 1),
+            ('KAUST Research Center', 'ICT Infrastructure', 'Thuwal', '2022', 'fa-network-wired', 2),
+            ('Prince Mohammed Medical City', 'Fire Alarm & BMS', 'Jeddah', '2023', 'fa-fire-extinguisher', 3),
+            ('Royal Commission Yanbu', 'Integrated Security', 'Yanbu', '2022', 'fa-building', 4)
+        ]
+        c.executemany("""
+            INSERT INTO featured_projects (name, scope, location, year, icon, display_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, default_projects)
+        conn.commit()
+        
+        # Fetch the newly inserted projects
+        c.execute("SELECT * FROM featured_projects ORDER BY display_order, id")
+        featured_projects = [dict(row) for row in c.fetchall()]
     
     # If no clients in database, insert the defaults
     if not clients:
@@ -1529,7 +1566,7 @@ def company_profile():
     # Check if current user is M.Saleh
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
-    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients)
+    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects)
 
 @app.route('/api/company_profile/update', methods=['POST'])
 @login_required
@@ -1949,6 +1986,131 @@ def serve_client_logo(filename):
     if not file_path.startswith(upload_dir):
         return "Invalid path", 400
     return send_file(file_path)
+
+# ============== FEATURED PROJECTS API ENDPOINTS ==============
+
+@app.route('/api/company_profile/featured_projects', methods=['GET'])
+@login_required
+def get_featured_projects():
+    """Get all featured projects"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM featured_projects ORDER BY display_order, id")
+    projects = [dict(row) for row in c.fetchall()]
+    conn.close()
+    
+    return jsonify({'success': True, 'projects': projects})
+
+@app.route('/api/company_profile/featured_projects', methods=['POST'])
+@login_required
+def add_featured_project():
+    """Add a new featured project - Only M.Saleh can add"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    name = data.get('name')
+    scope = data.get('scope', '')
+    location = data.get('location', '')
+    year = data.get('year', '')
+    icon = data.get('icon', 'fa-building')
+    
+    if not name:
+        return jsonify({'success': False, 'error': 'Project name is required'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT MAX(display_order) FROM featured_projects")
+    max_order = c.fetchone()[0] or 0
+    
+    c.execute("""
+        INSERT INTO featured_projects (name, scope, location, year, icon, display_order)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (name, scope, location, year, icon, max_order + 1))
+    
+    project_id = c.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'id': project_id, 'message': 'Project added successfully'})
+
+@app.route('/api/company_profile/featured_projects/<int:project_id>', methods=['PUT'])
+@login_required
+def update_featured_project(project_id):
+    """Update a featured project - Only M.Saleh can edit"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    name = data.get('name')
+    scope = data.get('scope', '')
+    location = data.get('location', '')
+    year = data.get('year', '')
+    icon = data.get('icon', 'fa-building')
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        UPDATE featured_projects 
+        SET name = ?, scope = ?, location = ?, year = ?, icon = ?
+        WHERE id = ?
+    """, (name, scope, location, year, icon, project_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Project updated successfully'})
+
+@app.route('/api/company_profile/featured_projects/<int:project_id>', methods=['DELETE'])
+@login_required
+def delete_featured_project(project_id):
+    """Delete a featured project - Only M.Saleh can delete"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM featured_projects WHERE id = ?", (project_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Project deleted successfully'})
+
+@app.route('/api/company_profile/featured_projects/reorder', methods=['POST'])
+@login_required
+def reorder_featured_projects():
+    """Reorder featured projects - Only M.Saleh can reorder"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    order_list = data.get('order', [])
+    
+    if not order_list:
+        return jsonify({'success': False, 'error': 'No order data provided'}), 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    try:
+        for item in order_list:
+            project_id = item.get('id')
+            display_order = item.get('order')
+            if project_id and display_order:
+                c.execute("UPDATE featured_projects SET display_order = ? WHERE id = ?", 
+                         (display_order, project_id))
+        
+        conn.commit()
+        return jsonify({'success': True, 'message': 'Order updated successfully'})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
 
 @app.route('/solution/<int:solution_id>')
 @login_required
