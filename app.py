@@ -11164,6 +11164,172 @@ def rfq_summary():
                            status_counts=status_counts,
                            current_filters=filters)
 
+###################################
+# RFQ Engineer Reports - Similar to Engineer Reports but for RFQs
+@app.route('/rfq_engineer_reports')
+@login_required
+def rfq_engineer_reports():
+    """RFQ Engineer Reports - View RFQ statistics by Sales or Presale Engineer"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    # Get available years from RFQs
+    c.execute("SELECT DISTINCT strftime('%Y', requested_time) as year FROM rfq_requests WHERE requested_time IS NOT NULL ORDER BY year DESC")
+    years = [row[0] for row in c.fetchall() if row[0]]
+    
+    # Get list of engineers based on report type
+    if report_type == 'sales':
+        c.execute("SELECT DISTINCT sales_engineer_sales FROM rfq_requests WHERE sales_engineer_sales IS NOT NULL AND sales_engineer_sales != '' ORDER BY sales_engineer_sales")
+    else:
+        c.execute("SELECT DISTINCT sales_engineer_presale FROM rfq_requests WHERE sales_engineer_presale IS NOT NULL AND sales_engineer_presale != '' ORDER BY sales_engineer_presale")
+    
+    engineers = [row[0] for row in c.fetchall()]
+    
+    rfqs = []
+    total_rfqs_count = 0
+    
+    # Summary statistics
+    summary = {
+        'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0
+    }
+    
+    # Associated engineers stats (opposite type)
+    associated_stats = []
+    
+    if selected_engineer:
+        # Build date filter conditions
+        date_conditions = ""
+        params_base = [selected_engineer]
+        
+        if selected_year:
+            date_conditions += " AND strftime('%Y', requested_time) = ?"
+            params_base.append(selected_year)
+        
+        if selected_month:
+            date_conditions += " AND strftime('%m', requested_time) = ?"
+            params_base.append(selected_month)
+            
+            if selected_week:
+                week_num = int(selected_week)
+                start_day = (week_num - 1) * 7 + 1
+                end_day = week_num * 7
+                date_conditions += " AND CAST(strftime('%d', requested_time) AS INTEGER) BETWEEN ? AND ?"
+                params_base.extend([start_day, end_day])
+        elif selected_quarter:
+            quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+            if selected_quarter in quarter_map:
+                start_month, end_month = quarter_map[selected_quarter]
+                date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
+                params_base.extend([start_month, end_month])
+        
+        # Get RFQs for this engineer with date filters
+        if report_type == 'sales':
+            query = f"""
+                SELECT id, rfq_reference, project_name, project_status, priority,
+                       sales_engineer_presale, sales_engineer_sales, rfq_status,
+                       quotation_status, deadline, note, requested_time, system
+                FROM rfq_requests 
+                WHERE sales_engineer_sales = ?
+                {date_conditions}
+                ORDER BY requested_time DESC
+            """
+        else:
+            query = f"""
+                SELECT id, rfq_reference, project_name, project_status, priority,
+                       sales_engineer_presale, sales_engineer_sales, rfq_status,
+                       quotation_status, deadline, note, requested_time, system
+                FROM rfq_requests 
+                WHERE sales_engineer_presale = ?
+                {date_conditions}
+                ORDER BY requested_time DESC
+            """
+        c.execute(query, params_base)
+        rfqs = c.fetchall()
+        total_rfqs_count = len(rfqs)
+        
+        # Calculate summary statistics
+        for rfq in rfqs:
+            status = rfq[7].lower() if rfq[7] else ''
+            if 'queue' in status:
+                summary['queue'] += 1
+            elif 'study' in status:
+                summary['studying'] += 1
+            elif 'pricing' in status or 'price' in status:
+                summary['pricing'] += 1
+            elif 'quoted' in status:
+                summary['quoted'] += 1
+            elif 'cancel' in status:
+                summary['cancelled'] += 1
+        
+        # Get associated engineers stats (the opposite type)
+        if report_type == 'sales':
+            # Get presale engineers who worked on these RFQs
+            assoc_query = f"""
+                SELECT sales_engineer_presale,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%queue%' THEN 1 ELSE 0 END) as queue_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%study%' THEN 1 ELSE 0 END) as studying_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%pric%' THEN 1 ELSE 0 END) as pricing_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%quoted%' THEN 1 ELSE 0 END) as quoted_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%cancel%' THEN 1 ELSE 0 END) as cancelled_count,
+                       COUNT(*) as total
+                FROM rfq_requests
+                WHERE sales_engineer_sales = ? AND sales_engineer_presale IS NOT NULL AND sales_engineer_presale != ''
+                {date_conditions}
+                GROUP BY sales_engineer_presale
+                ORDER BY total DESC
+            """
+        else:
+            # Get sales engineers who worked on these RFQs
+            assoc_query = f"""
+                SELECT sales_engineer_sales,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%queue%' THEN 1 ELSE 0 END) as queue_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%study%' THEN 1 ELSE 0 END) as studying_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%pric%' THEN 1 ELSE 0 END) as pricing_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%quoted%' THEN 1 ELSE 0 END) as quoted_count,
+                       SUM(CASE WHEN LOWER(rfq_status) LIKE '%cancel%' THEN 1 ELSE 0 END) as cancelled_count,
+                       COUNT(*) as total
+                FROM rfq_requests
+                WHERE sales_engineer_presale = ? AND sales_engineer_sales IS NOT NULL AND sales_engineer_sales != ''
+                {date_conditions}
+                GROUP BY sales_engineer_sales
+                ORDER BY total DESC
+            """
+        c.execute(assoc_query, params_base)
+        assoc_rows = c.fetchall()
+        for row in assoc_rows:
+            associated_stats.append({
+                'name': row[0],
+                'queue': row[1],
+                'studying': row[2],
+                'pricing': row[3],
+                'quoted': row[4],
+                'cancelled': row[5],
+                'total': row[6]
+            })
+    
+    conn.close()
+    
+    return render_template('rfq_engineer_reports.html',
+                           report_type=report_type,
+                           engineers=engineers,
+                           selected_engineer=selected_engineer,
+                           rfqs=rfqs,
+                           total_rfqs=total_rfqs_count,
+                           summary=summary,
+                           associated_stats=associated_stats,
+                           years=years,
+                           selected_year=selected_year,
+                           selected_quarter=selected_quarter,
+                           selected_month=selected_month,
+                           selected_week=selected_week)
+
 ###################################3
 @app.route('/delete_rfq/<int:rfq_id>', methods=['POST'])
 @role_required('Technical Team Leader') # Only allows this role to access the route

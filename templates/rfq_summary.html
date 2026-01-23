@@ -65,9 +65,16 @@
 </style>
 
 <!-- Hero Header -->
-<div class="page-header mb-4">
-    <h1><i class="fas fa-clipboard-list"></i> RFQ Dashboard</h1>
-    <p class="text-muted">Comprehensive overview and management of all Requests for Quotation</p>
+<div class="page-header mb-4 d-flex justify-content-between align-items-center flex-wrap">
+    <div>
+        <h1><i class="fas fa-clipboard-list"></i> RFQ Dashboard</h1>
+        <p class="text-muted mb-0">Comprehensive overview and management of all Requests for Quotation</p>
+    </div>
+    <div>
+        <a href="{{ url_for('rfq_engineer_reports') }}" class="btn btn-primary">
+            <i class="fas fa-chart-bar mr-1"></i> Engineer Reports
+        </a>
+    </div>
 </div>
 
 <!-- KPI Statistics Cards -->

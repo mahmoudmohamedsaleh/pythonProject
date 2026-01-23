@@ -1,0 +1,517 @@
+{% extends 'base.html' %}
+{% block title %}RFQ Engineer Reports{% endblock %}
+{% block content %}
+
+<style>
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+.report-type-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+.report-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.report-type-card.active {
+    border: 2px solid #667eea;
+}
+.sales-card {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+.presale-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.stat-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.stat-card.active {
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+}
+.engineer-card {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+}
+.engineer-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.engineer-card .card-header {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    cursor: pointer;
+}
+.engineer-card .card-header:hover {
+    opacity: 0.9;
+}
+.stat-btn {
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    padding: 8px 4px !important;
+    cursor: pointer;
+}
+.stat-btn:hover {
+    background: rgba(0,0,0,0.05);
+    transform: scale(1.05);
+}
+.back-btn {
+    color: white;
+    text-decoration: none;
+}
+.back-btn:hover {
+    color: rgba(255,255,255,0.8);
+}
+.rfq-table th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.rfq-row {
+    transition: all 0.2s ease;
+}
+.rfq-row:hover {
+    background: #f8f9fc;
+}
+.status-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.status-queue { background: #fff3cd; color: #856404; }
+.status-studying { background: #cce5ff; color: #004085; }
+.status-pricing { background: #e2d4f0; color: #6f42c1; }
+.status-quoted { background: #d4edda; color: #155724; }
+.status-cancelled { background: #f8d7da; color: #721c24; }
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <a href="{{ url_for('rfq_summary') }}" class="back-btn mb-2 d-inline-block">
+                <i class="fas fa-arrow-left mr-2"></i>Back to RFQ Dashboard
+            </a>
+            <h1><i class="fas fa-chart-bar mr-2"></i>RFQ Engineer Reports</h1>
+            <p class="mb-0">View RFQ statistics by Sales or Presales Engineer</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card report-type-card sales-card h-100 {% if report_type == 'sales' %}active{% endif %}" onclick="switchReportType('sales')">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-user-tie fa-3x mb-3"></i>
+                <h4>Sales Engineer Reports</h4>
+                <p class="mb-0">View RFQs by Sales Engineer</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card report-type-card presale-card h-100 {% if report_type == 'presale' %}active{% endif %}" onclick="switchReportType('presale')">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-user-cog fa-3x mb-3"></i>
+                <h4>Presale Engineer Reports</h4>
+                <p class="mb-0">View RFQs by Presale Engineer</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-filter mr-2 text-primary"></i>
+        Filter Report
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <input type="hidden" name="type" value="{{ report_type }}">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="small text-muted font-weight-bold">{% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer</label>
+                    <select name="engineer" class="form-control" id="engineerSelect">
+                        <option value="">-- Select Engineer --</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng }}" {% if eng == selected_engineer %}selected{% endif %}>{{ eng }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Year</label>
+                    <select name="year" class="form-control" id="yearSelect">
+                        <option value="">All Years</option>
+                        {% for year in years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Month</label>
+                    <select name="month" class="form-control" id="monthSelect">
+                        <option value="">All Months</option>
+                        <option value="01" {% if selected_month == '01' %}selected{% endif %}>January</option>
+                        <option value="02" {% if selected_month == '02' %}selected{% endif %}>February</option>
+                        <option value="03" {% if selected_month == '03' %}selected{% endif %}>March</option>
+                        <option value="04" {% if selected_month == '04' %}selected{% endif %}>April</option>
+                        <option value="05" {% if selected_month == '05' %}selected{% endif %}>May</option>
+                        <option value="06" {% if selected_month == '06' %}selected{% endif %}>June</option>
+                        <option value="07" {% if selected_month == '07' %}selected{% endif %}>July</option>
+                        <option value="08" {% if selected_month == '08' %}selected{% endif %}>August</option>
+                        <option value="09" {% if selected_month == '09' %}selected{% endif %}>September</option>
+                        <option value="10" {% if selected_month == '10' %}selected{% endif %}>October</option>
+                        <option value="11" {% if selected_month == '11' %}selected{% endif %}>November</option>
+                        <option value="12" {% if selected_month == '12' %}selected{% endif %}>December</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Week</label>
+                    <select name="week" class="form-control" id="weekSelect">
+                        <option value="">All Weeks</option>
+                        <option value="1" {% if selected_week == '1' %}selected{% endif %}>Week 1</option>
+                        <option value="2" {% if selected_week == '2' %}selected{% endif %}>Week 2</option>
+                        <option value="3" {% if selected_week == '3' %}selected{% endif %}>Week 3</option>
+                        <option value="4" {% if selected_week == '4' %}selected{% endif %}>Week 4</option>
+                        <option value="5" {% if selected_week == '5' %}selected{% endif %}>Week 5</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Quarter</label>
+                    <select name="quarter" class="form-control" id="quarterSelect">
+                        <option value="">All Quarters</option>
+                        <option value="Q1" {% if selected_quarter == 'Q1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
+                        <option value="Q2" {% if selected_quarter == 'Q2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
+                        <option value="Q3" {% if selected_quarter == 'Q3' %}selected{% endif %}>Q3 (Jul-Sep)</option>
+                        <option value="Q4" {% if selected_quarter == 'Q4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
+                    </select>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if selected_engineer %}
+<div class="row mb-4">
+    <div class="col mb-3">
+        <div class="card stat-card h-100 active" data-filter="all" style="border-left: 4px solid #667eea !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">TOTAL RFQs</div>
+                <h2 class="mb-1" style="color: #667eea;">{{ total_rfqs }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-3">
+        <div class="card stat-card h-100" data-filter="queue" style="border-left: 4px solid #ffc107 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">QUEUE</div>
+                <h2 class="mb-1" style="color: #ffc107;">{{ summary.queue }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-3">
+        <div class="card stat-card h-100" data-filter="studying" style="border-left: 4px solid #17a2b8 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">STUDYING</div>
+                <h2 class="mb-1" style="color: #17a2b8;">{{ summary.studying }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-3">
+        <div class="card stat-card h-100" data-filter="pricing" style="border-left: 4px solid #6f42c1 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">PRICING</div>
+                <h2 class="mb-1" style="color: #6f42c1;">{{ summary.pricing }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-3">
+        <div class="card stat-card h-100" data-filter="quoted" style="border-left: 4px solid #28a745 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">QUOTED</div>
+                <h2 class="mb-1 text-success">{{ summary.quoted }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-3">
+        <div class="card stat-card h-100" data-filter="cancelled" style="border-left: 4px solid #dc3545 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">CANCELLED</div>
+                <h2 class="mb-1 text-danger">{{ summary.cancelled }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if associated_stats and associated_stats|length > 0 %}
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+        <i class="fas fa-{% if report_type == 'sales' %}user-cog{% else %}user-tie{% endif %} mr-2"></i>
+        <strong>{% if report_type == 'sales' %}Presale Engineers{% else %}Sales Engineers{% endif %} Performance</strong>
+        <span class="badge badge-light ml-2">{{ associated_stats|length }} Engineers</span>
+    </div>
+    <div class="card-body" style="background: #f8f9fa;">
+        <div class="row">
+            {% for eng in associated_stats %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 engineer-card" style="background: white;">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center"
+                         onclick="filterByAssocEngineer('{{ eng.name }}')"
+                         title="Click to filter by {{ eng.name }}">
+                        <span>
+                            <i class="fas fa-user-tie mr-1"></i>
+                            <strong>{{ eng.name }}</strong>
+                        </span>
+                        <span class="badge" style="background: rgba(255,255,255,0.2); color: white;">{{ eng.total }} RFQs</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row text-center">
+                            <div class="col stat-btn" style="border-right: 1px solid #e9ecef;"
+                                 onclick="filterByAssocAndStatus('{{ eng.name }}', 'queue')"
+                                 title="Queue RFQs by {{ eng.name }}">
+                                <div class="font-weight-bold" style="font-size: 1.3rem; color: #ffc107;">{{ eng.queue }}</div>
+                                <small class="text-muted">Queue</small>
+                            </div>
+                            <div class="col stat-btn" style="border-right: 1px solid #e9ecef;"
+                                 onclick="filterByAssocAndStatus('{{ eng.name }}', 'studying')"
+                                 title="Studying RFQs by {{ eng.name }}">
+                                <div class="font-weight-bold" style="font-size: 1.3rem; color: #17a2b8;">{{ eng.studying }}</div>
+                                <small class="text-muted">Study</small>
+                            </div>
+                            <div class="col stat-btn" style="border-right: 1px solid #e9ecef;"
+                                 onclick="filterByAssocAndStatus('{{ eng.name }}', 'pricing')"
+                                 title="Pricing RFQs by {{ eng.name }}">
+                                <div class="font-weight-bold" style="font-size: 1.3rem; color: #6f42c1;">{{ eng.pricing }}</div>
+                                <small class="text-muted">Price</small>
+                            </div>
+                            <div class="col stat-btn" style="border-right: 1px solid #e9ecef;"
+                                 onclick="filterByAssocAndStatus('{{ eng.name }}', 'quoted')"
+                                 title="Quoted RFQs by {{ eng.name }}">
+                                <div class="font-weight-bold" style="font-size: 1.3rem; color: #28a745;">{{ eng.quoted }}</div>
+                                <small class="text-muted">Quoted</small>
+                            </div>
+                            <div class="col stat-btn"
+                                 onclick="filterByAssocAndStatus('{{ eng.name }}', 'cancelled')"
+                                 title="Cancelled RFQs by {{ eng.name }}">
+                                <div class="font-weight-bold" style="font-size: 1.3rem; color: #dc3545;">{{ eng.cancelled }}</div>
+                                <small class="text-muted">Cancel</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div id="activeFilterBadge" style="display: none;">
+        <span class="badge badge-info px-3 py-2">
+            <i class="fas fa-filter mr-1"></i>Showing: <span id="filterLabel">All</span>
+            <button type="button" class="btn btn-sm ml-2 p-0" onclick="clearFilter()" style="color: white; font-size: 14px;">
+                <i class="fas fa-times"></i>
+            </button>
+        </span>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <span>
+            <i class="fas fa-{% if report_type == 'sales' %}user-tie{% else %}user-cog{% endif %} mr-2"></i>
+            <strong>{{ selected_engineer }}'s RFQ Report</strong>
+            {% if selected_year or selected_quarter or selected_month %}
+            <span class="ml-2" style="opacity: 0.8;">
+                ({% if selected_year %}{{ selected_year }}{% endif %}{% if selected_year and (selected_quarter or selected_month) %} - {% endif %}{% if selected_month %}Month {{ selected_month }}{% elif selected_quarter %}{{ selected_quarter }}{% endif %})
+            </span>
+            {% endif %}
+        </span>
+        <span class="badge badge-light">
+            <i class="fas fa-clipboard-list mr-1"></i>{{ total_rfqs }} RFQs
+        </span>
+    </div>
+    <div class="card-body p-0">
+        {% if rfqs %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 rfq-table">
+                <thead>
+                    <tr>
+                        <th>RFQ Reference</th>
+                        <th>Project Name</th>
+                        <th>{% if report_type == 'sales' %}Presale Engineer{% else %}Sales Engineer{% endif %}</th>
+                        <th>RFQ Status</th>
+                        <th>Priority</th>
+                        <th>Deadline</th>
+                        <th>Requested</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rfq in rfqs %}
+                    {% set status_lower = rfq[7]|lower if rfq[7] else '' %}
+                    {% set status_class = 'queue' if 'queue' in status_lower else ('studying' if 'study' in status_lower else ('pricing' if 'pric' in status_lower else ('quoted' if 'quoted' in status_lower else ('cancelled' if 'cancel' in status_lower else 'queue')))) %}
+                    <tr class="rfq-row" 
+                        data-status="{{ status_class }}"
+                        data-assoc-engineer="{{ rfq[5] if report_type == 'sales' else rfq[6] }}">
+                        <td><strong class="text-primary">{{ rfq[1] }}</strong></td>
+                        <td>{{ rfq[2] }}</td>
+                        <td>
+                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.4rem 0.8rem;">
+                                <i class="fas fa-user mr-1"></i>{{ rfq[5] if report_type == 'sales' else rfq[6] or 'N/A' }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ status_class }}">{{ rfq[7] or 'Queue' }}</span>
+                        </td>
+                        <td>
+                            {% if rfq[4] == 'High' %}
+                            <span class="badge badge-danger"><i class="fas fa-exclamation-circle mr-1"></i>High</span>
+                            {% elif rfq[4] == 'Medium' %}
+                            <span class="badge badge-warning"><i class="fas fa-minus-circle mr-1"></i>Medium</span>
+                            {% else %}
+                            <span class="badge badge-secondary"><i class="fas fa-arrow-circle-down mr-1"></i>Low</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ rfq[9] or '-' }}</td>
+                        <td>{{ rfq[11][:10] if rfq[11] else '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('rfq_profile', rfq_id=rfq[0]) }}" class="btn btn-info btn-sm" title="View RFQ">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">No RFQs Found</h5>
+            <p class="text-muted">No RFQs match your current filter criteria.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-user-check fa-4x text-muted mb-3"></i>
+        <h4 class="text-muted">Select an Engineer</h4>
+        <p class="text-muted">Please select a {% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer from the dropdown above to view their RFQ report.</p>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function switchReportType(type) {
+    window.location.href = '{{ url_for("rfq_engineer_reports") }}?type=' + type;
+}
+
+document.querySelectorAll('.stat-card').forEach(card => {
+    card.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        applyFilter(filter);
+    });
+});
+
+function applyFilter(filter) {
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.stat-card[data-filter="${filter}"]`).classList.add('active');
+    
+    const rows = document.querySelectorAll('.rfq-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        if (filter === 'all') {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            const status = row.dataset.status;
+            if (status === filter) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    });
+    
+    if (filter !== 'all') {
+        document.getElementById('activeFilterBadge').style.display = 'block';
+        document.getElementById('filterLabel').textContent = filter.charAt(0).toUpperCase() + filter.slice(1);
+    } else {
+        document.getElementById('activeFilterBadge').style.display = 'none';
+    }
+}
+
+function filterByAssocEngineer(engineer) {
+    const rows = document.querySelectorAll('.rfq-row');
+    rows.forEach(row => {
+        const assocEng = row.dataset.assocEngineer;
+        if (assocEng === engineer) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('activeFilterBadge').style.display = 'block';
+    document.getElementById('filterLabel').textContent = engineer;
+}
+
+function filterByAssocAndStatus(engineer, status) {
+    const rows = document.querySelectorAll('.rfq-row');
+    rows.forEach(row => {
+        const assocEng = row.dataset.assocEngineer;
+        const rowStatus = row.dataset.status;
+        if (assocEng === engineer && rowStatus === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('activeFilterBadge').style.display = 'block';
+    document.getElementById('filterLabel').textContent = `${engineer} - ${status.charAt(0).toUpperCase() + status.slice(1)}`;
+}
+
+function clearFilter() {
+    document.querySelectorAll('.rfq-row').forEach(row => {
+        row.style.display = '';
+    });
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+    document.querySelector('.stat-card[data-filter="all"]').classList.add('active');
+    document.getElementById('activeFilterBadge').style.display = 'none';
+}
+</script>
+
+{% endblock %}
