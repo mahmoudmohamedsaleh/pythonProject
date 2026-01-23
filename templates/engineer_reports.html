@@ -265,10 +265,10 @@
                                             </span>
                                         </td>
                                         <td>
-                                            {% if q.status and q.status.lower() == 'won' %}
-                                            <span class="badge badge-success px-3 py-2"><i class="fas fa-trophy mr-1"></i>Won</span>
-                                            {% elif q.status and q.status.lower() == 'lost' %}
-                                            <span class="badge badge-danger px-3 py-2"><i class="fas fa-times-circle mr-1"></i>Lost</span>
+                                            {% if q.status and 'won' in q.status.lower() %}
+                                            <span class="badge badge-success px-3 py-2"><i class="fas fa-trophy mr-1"></i>{{ q.status }}</span>
+                                            {% elif q.status and 'lost' in q.status.lower() %}
+                                            <span class="badge badge-danger px-3 py-2"><i class="fas fa-times-circle mr-1"></i>{{ q.status }}</span>
                                             {% else %}
                                             <span class="badge badge-warning px-3 py-2"><i class="fas fa-clock mr-1"></i>{{ q.status or 'Ongoing' }}</span>
                                             {% endif %}

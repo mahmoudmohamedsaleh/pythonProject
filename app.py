@@ -5867,10 +5867,12 @@ def engineer_reports():
         for q in project['quotations']:
             status = (q['status'] or '').lower()
             selling_price = float(q['selling_price'] or 0)
-            if status == 'won':
+            # Check for won status variations (Won, Closed Won, etc.)
+            if 'won' in status:
                 won_count += 1
                 total_won_value += selling_price
-            elif status == 'lost':
+            # Check for lost status variations (Lost, Closed Lost, etc.)
+            elif 'lost' in status:
                 lost_count += 1
                 total_lost_value += selling_price
             else:
