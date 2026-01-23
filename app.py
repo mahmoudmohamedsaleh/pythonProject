@@ -3487,6 +3487,13 @@ def upload():
         quotation_data = quotation_file.read()
         cost_sheet_data = cost_sheet_file.read()
 
+        # Check for duplicate quote_ref before inserting
+        c.execute("SELECT COUNT(*) FROM projects WHERE quote_ref = ?", (quote_ref,))
+        if c.fetchone()[0] > 0:
+            flash('Error: That Quote Reference already exists. Please use a unique reference.', 'danger')
+            conn.close()
+            return redirect(url_for('register_quotation'))
+
         try:
             c.execute('''INSERT INTO projects 
                          (project_name, quote_ref, presale_eng, sales_eng, system, sow, status, quarter, 
@@ -5713,29 +5720,31 @@ def registered_quotations():
                            is_admin=is_admin)
 
 
-@app.route('/api/quotation/<quote_ref>', methods=['DELETE'])
+@app.route('/api/quotation/<int:quotation_id>', methods=['DELETE'])
 @login_required
-def delete_quotation(quote_ref):
-    """Delete a quotation - Admin only (M.Saleh)"""
+def delete_quotation(quotation_id):
+    """Delete a quotation by ID - Admin only (M.Saleh)"""
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized. Admin access required.'}), 403
     
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     
-    # Check if quotation exists
-    c.execute("SELECT id FROM projects WHERE quote_ref = ?", (quote_ref,))
+    # Check if quotation exists and get quote_ref
+    c.execute("SELECT id, quote_ref FROM projects WHERE id = ?", (quotation_id,))
     quotation = c.fetchone()
     
     if not quotation:
         conn.close()
         return jsonify({'success': False, 'error': 'Quotation not found'}), 404
     
-    # Delete quotation products first (if any)
-    c.execute("DELETE FROM quotation_products WHERE quote_ref = ?", (quote_ref,))
+    quote_ref = quotation[1]
     
-    # Delete the quotation
-    c.execute("DELETE FROM projects WHERE quote_ref = ?", (quote_ref,))
+    # Delete quotation products for this specific quotation
+    c.execute("DELETE FROM quotation_products WHERE quote_ref = ? AND id IN (SELECT qp.id FROM quotation_products qp WHERE qp.quote_ref = ? LIMIT 1)", (quote_ref, quote_ref))
+    
+    # Delete only this specific quotation by ID
+    c.execute("DELETE FROM projects WHERE id = ?", (quotation_id,))
     
     conn.commit()
     conn.close()
