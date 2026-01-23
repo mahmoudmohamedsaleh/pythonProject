@@ -6601,86 +6601,148 @@ def export_engineer_report_pptx():
                 engineer_stats[eng_name]['ongoing'] += 1
                 engineer_stats[eng_name]['ongoing_value'] += q['selling_price']
     
-    # Presale/Sales Engineers Performance Slide
+    # Presale/Sales Engineers Performance Slide(s) - Card Layout
     if engineer_stats:
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # Title
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
-        tf = title_box.text_frame
-        p = tf.paragraphs[0]
-        p.text = f"{'Presale' if report_type == 'sales' else 'Sales'} Engineers Performance"
-        p.font.size = Pt(32)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(30, 60, 114)
-        
-        # Subtitle
-        sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.9), Inches(12.333), Inches(0.4))
-        tf = sub_box.text_frame
-        p = tf.paragraphs[0]
-        p.text = f"{len(engineer_stats)} Engineers | Working with {selected_engineer}"
-        p.font.size = Pt(16)
-        p.font.color.rgb = RGBColor(100, 100, 100)
-        
-        # Sort engineers by total quotations
         sorted_engineers = sorted(engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True)
         
-        # Create table for engineers
-        rows = min(len(sorted_engineers), 10) + 1  # Max 10 engineers per slide
-        table = slide.shapes.add_table(rows, 8, Inches(0.2), Inches(1.4), Inches(12.9), Inches(0.45 * rows)).table
+        # 6 cards per slide (2 rows x 3 columns)
+        cards_per_slide = 6
+        card_width = Inches(4.0)
+        card_height = Inches(2.2)
         
-        # Column widths
-        table.columns[0].width = Inches(2.5)
-        table.columns[1].width = Inches(1.3)
-        table.columns[2].width = Inches(1.0)
-        table.columns[3].width = Inches(1.8)
-        table.columns[4].width = Inches(1.0)
-        table.columns[5].width = Inches(1.8)
-        table.columns[6].width = Inches(1.0)
-        table.columns[7].width = Inches(1.8)
-        
-        # Headers
-        headers = ['Engineer', 'Total', 'Won', 'Won Value', 'Lost', 'Lost Value', 'Ongoing', 'Ongoing Value']
-        header_colors = [RGBColor(30, 60, 114), RGBColor(30, 60, 114), RGBColor(40, 167, 69), RGBColor(40, 167, 69), 
-                         RGBColor(220, 53, 69), RGBColor(220, 53, 69), RGBColor(253, 126, 20), RGBColor(253, 126, 20)]
-        
-        for col, (header, color) in enumerate(zip(headers, header_colors)):
-            cell = table.cell(0, col)
-            cell.text = header
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = color
-            p = cell.text_frame.paragraphs[0]
+        for slide_idx in range(0, len(sorted_engineers), cards_per_slide):
+            slide = prs.slides.add_slide(slide_layout)
+            
+            # Green header bar
+            header_bar = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+            header_bar.fill.solid()
+            header_bar.fill.fore_color.rgb = RGBColor(17, 153, 142)
+            header_bar.line.fill.background()
+            
+            # Title on green bar
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(8), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"{'Presale' if report_type == 'sales' else 'Sales'} Engineers Performance"
+            p.font.size = Pt(24)
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
-            p.font.size = Pt(10)
-            p.alignment = PP_ALIGN.CENTER
-        
-        # Data rows
-        for row_idx, (eng_name, stats) in enumerate(sorted_engineers[:10], 1):
-            cell_data = [
-                eng_name,
-                str(stats['total']),
-                str(stats['won']),
-                f"{stats['won_value']:,.0f}",
-                str(stats['lost']),
-                f"{stats['lost_value']:,.0f}",
-                str(stats['ongoing']),
-                f"{stats['ongoing_value']:,.0f}"
-            ]
-            for col, value in enumerate(cell_data):
-                cell = table.cell(row_idx, col)
-                cell.text = value
-                p = cell.text_frame.paragraphs[0]
-                p.font.size = Pt(9)
-                if col in [2, 3]:  # Won columns - green
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(212, 237, 218)
-                elif col in [4, 5]:  # Lost columns - red
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(248, 215, 218)
-                elif col in [6, 7]:  # Ongoing columns - orange
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(255, 243, 205)
+            
+            # Badge showing count
+            badge_box = slide.shapes.add_textbox(Inches(9), Inches(0.25), Inches(2), Inches(0.4))
+            tf = badge_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"{len(sorted_engineers)} Engineers"
+            p.font.size = Pt(14)
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            
+            # Draw cards for this slide
+            engineers_on_slide = sorted_engineers[slide_idx:slide_idx + cards_per_slide]
+            
+            for i, (eng_name, stats) in enumerate(engineers_on_slide):
+                col = i % 3
+                row = i // 3
+                
+                left = Inches(0.4 + col * 4.3)
+                top = Inches(1.1 + row * 2.8)
+                
+                # Card background (white with shadow effect)
+                card_bg = slide.shapes.add_shape(1, left, top, card_width, card_height)
+                card_bg.fill.solid()
+                card_bg.fill.fore_color.rgb = RGBColor(255, 255, 255)
+                card_bg.line.color.rgb = RGBColor(200, 200, 200)
+                card_bg.line.width = Pt(1)
+                
+                # Card header (dark blue)
+                header = slide.shapes.add_shape(1, left, top, card_width, Inches(0.55))
+                header.fill.solid()
+                header.fill.fore_color.rgb = RGBColor(30, 60, 114)
+                header.line.fill.background()
+                
+                # Engineer name
+                name_box = slide.shapes.add_textbox(left + Inches(0.1), top + Inches(0.1), Inches(2.5), Inches(0.4))
+                tf = name_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = eng_name
+                p.font.size = Pt(14)
+                p.font.bold = True
+                p.font.color.rgb = RGBColor(255, 255, 255)
+                
+                # Total quotes badge
+                badge = slide.shapes.add_textbox(left + Inches(2.8), top + Inches(0.12), Inches(1.1), Inches(0.35))
+                tf = badge.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"{stats['total']} Quotes"
+                p.font.size = Pt(10)
+                p.font.color.rgb = RGBColor(255, 255, 255)
+                p.alignment = PP_ALIGN.CENTER
+                
+                # Stats row - Won, Lost, Ongoing
+                stat_top = top + Inches(0.7)
+                stat_width = Inches(1.25)
+                
+                # Won
+                won_box = slide.shapes.add_textbox(left + Inches(0.1), stat_top, stat_width, Inches(1.4))
+                tf = won_box.text_frame
+                tf.word_wrap = False
+                p = tf.paragraphs[0]
+                p.text = str(stats['won'])
+                p.font.size = Pt(32)
+                p.font.bold = True
+                p.font.color.rgb = RGBColor(40, 167, 69)
+                p.alignment = PP_ALIGN.CENTER
+                p2 = tf.add_paragraph()
+                p2.text = "Won"
+                p2.font.size = Pt(10)
+                p2.font.color.rgb = RGBColor(108, 117, 125)
+                p2.alignment = PP_ALIGN.CENTER
+                p3 = tf.add_paragraph()
+                p3.text = f"{stats['won_value']:,.0f}"
+                p3.font.size = Pt(9)
+                p3.font.color.rgb = RGBColor(40, 167, 69)
+                p3.alignment = PP_ALIGN.CENTER
+                
+                # Lost
+                lost_box = slide.shapes.add_textbox(left + Inches(1.4), stat_top, stat_width, Inches(1.4))
+                tf = lost_box.text_frame
+                tf.word_wrap = False
+                p = tf.paragraphs[0]
+                p.text = str(stats['lost'])
+                p.font.size = Pt(32)
+                p.font.bold = True
+                p.font.color.rgb = RGBColor(220, 53, 69)
+                p.alignment = PP_ALIGN.CENTER
+                p2 = tf.add_paragraph()
+                p2.text = "Lost"
+                p2.font.size = Pt(10)
+                p2.font.color.rgb = RGBColor(108, 117, 125)
+                p2.alignment = PP_ALIGN.CENTER
+                p3 = tf.add_paragraph()
+                p3.text = f"{stats['lost_value']:,.0f}"
+                p3.font.size = Pt(9)
+                p3.font.color.rgb = RGBColor(220, 53, 69)
+                p3.alignment = PP_ALIGN.CENTER
+                
+                # Ongoing
+                ongoing_box = slide.shapes.add_textbox(left + Inches(2.7), stat_top, stat_width, Inches(1.4))
+                tf = ongoing_box.text_frame
+                tf.word_wrap = False
+                p = tf.paragraphs[0]
+                p.text = str(stats['ongoing'])
+                p.font.size = Pt(32)
+                p.font.bold = True
+                p.font.color.rgb = RGBColor(253, 126, 20)
+                p.alignment = PP_ALIGN.CENTER
+                p2 = tf.add_paragraph()
+                p2.text = "Ongoing"
+                p2.font.size = Pt(10)
+                p2.font.color.rgb = RGBColor(108, 117, 125)
+                p2.alignment = PP_ALIGN.CENTER
+                p3 = tf.add_paragraph()
+                p3.text = f"{stats['ongoing_value']:,.0f}"
+                p3.font.size = Pt(9)
+                p3.font.color.rgb = RGBColor(253, 126, 20)
+                p3.alignment = PP_ALIGN.CENTER
     
     # Save to BytesIO
     output = BytesIO()
