@@ -5919,6 +5919,45 @@ def engineer_reports():
         'total_ongoing_value': total_ongoing_value
     }
     
+    # Calculate presale/sales engineer statistics (associated engineers)
+    associated_stats = []
+    if selected_engineer and projects:
+        # Collect all associated engineers and their stats
+        engineer_data = {}
+        for project in projects:
+            for q in project['quotations']:
+                assoc_eng = q.get('associated_engineer', '') or 'Unassigned'
+                if assoc_eng not in engineer_data:
+                    engineer_data[assoc_eng] = {'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0, 'won_value': 0, 'lost_value': 0, 'ongoing_value': 0}
+                
+                engineer_data[assoc_eng]['total'] += 1
+                selling_price = float(q.get('selling_price') or 0)
+                status_cat = q.get('status_category', 'ongoing')
+                
+                if status_cat == 'won':
+                    engineer_data[assoc_eng]['won'] += 1
+                    engineer_data[assoc_eng]['won_value'] += selling_price
+                elif status_cat == 'lost':
+                    engineer_data[assoc_eng]['lost'] += 1
+                    engineer_data[assoc_eng]['lost_value'] += selling_price
+                else:
+                    engineer_data[assoc_eng]['ongoing'] += 1
+                    engineer_data[assoc_eng]['ongoing_value'] += selling_price
+        
+        # Convert to list and sort by total quotations descending
+        for eng_name, stats in engineer_data.items():
+            associated_stats.append({
+                'name': eng_name,
+                'total': stats['total'],
+                'won': stats['won'],
+                'lost': stats['lost'],
+                'ongoing': stats['ongoing'],
+                'won_value': stats['won_value'],
+                'lost_value': stats['lost_value'],
+                'ongoing_value': stats['ongoing_value']
+            })
+        associated_stats.sort(key=lambda x: x['total'], reverse=True)
+    
     conn.close()
     
     return render_template('engineer_reports.html',
@@ -5932,7 +5971,8 @@ def engineer_reports():
                            selected_week=selected_week,
                            projects=projects,
                            total_quotations=total_quotations,
-                           summary=summary)
+                           summary=summary,
+                           associated_stats=associated_stats)
 
 
 @app.route('/export_engineer_report_excel')
