@@ -257,39 +257,39 @@
         <div class="row">
             {% for eng in associated_stats %}
             <div class="col-md-6 col-lg-4 mb-3">
-                <div class="card h-100 border-0 shadow-sm presale-card" style="border-radius: 12px; overflow: hidden;">
+                <div class="card h-100 border-0 shadow presale-card" style="border-radius: 12px; overflow: hidden; background: white;">
                     <div class="card-header py-2 d-flex justify-content-between align-items-center" 
-                         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer;"
+                         style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; cursor: pointer;"
                          onclick="filterByPresaleEngineer('{{ eng.name }}')" 
                          title="Click to filter by {{ eng.name }}">
                         <span>
-                            <i class="fas fa-user mr-1"></i>
+                            <i class="fas fa-user-tie mr-1"></i>
                             <strong>{{ eng.name }}</strong>
                         </span>
-                        <span class="badge badge-light">{{ eng.total }} Quotes</span>
+                        <span class="badge" style="background: rgba(255,255,255,0.2); color: white;">{{ eng.total }} Quotes</span>
                     </div>
-                    <div class="card-body p-2">
+                    <div class="card-body p-3" style="background: white;">
                         <div class="row text-center">
-                            <div class="col-4 border-right presale-stat-btn" style="cursor: pointer;" 
+                            <div class="col-4 presale-stat-btn" style="cursor: pointer; border-right: 1px solid #e9ecef;" 
                                  onclick="filterByPresaleAndStatus('{{ eng.name }}', 'won')" 
                                  title="Click to show Won quotations by {{ eng.name }}">
-                                <div class="text-success font-weight-bold" style="font-size: 1.3rem;">{{ eng.won }}</div>
-                                <small class="text-muted">Won</small>
-                                <div class="text-success small">{{ '{:,.0f}'.format(eng.won_value) }}</div>
+                                <div class="font-weight-bold" style="font-size: 1.5rem; color: #28a745;">{{ eng.won }}</div>
+                                <small style="color: #6c757d;">Won</small>
+                                <div class="small" style="color: #28a745;">{{ '{:,.0f}'.format(eng.won_value) }}</div>
                             </div>
-                            <div class="col-4 border-right presale-stat-btn" style="cursor: pointer;" 
+                            <div class="col-4 presale-stat-btn" style="cursor: pointer; border-right: 1px solid #e9ecef;" 
                                  onclick="filterByPresaleAndStatus('{{ eng.name }}', 'lost')" 
                                  title="Click to show Lost quotations by {{ eng.name }}">
-                                <div class="text-danger font-weight-bold" style="font-size: 1.3rem;">{{ eng.lost }}</div>
-                                <small class="text-muted">Lost</small>
-                                <div class="text-danger small">{{ '{:,.0f}'.format(eng.lost_value) }}</div>
+                                <div class="font-weight-bold" style="font-size: 1.5rem; color: #dc3545;">{{ eng.lost }}</div>
+                                <small style="color: #6c757d;">Lost</small>
+                                <div class="small" style="color: #dc3545;">{{ '{:,.0f}'.format(eng.lost_value) }}</div>
                             </div>
                             <div class="col-4 presale-stat-btn" style="cursor: pointer;" 
                                  onclick="filterByPresaleAndStatus('{{ eng.name }}', 'ongoing')" 
                                  title="Click to show Ongoing quotations by {{ eng.name }}">
-                                <div class="font-weight-bold" style="font-size: 1.3rem; color: #ffc107;">{{ eng.ongoing }}</div>
-                                <small class="text-muted">Ongoing</small>
-                                <div class="small" style="color: #d39e00;">{{ '{:,.0f}'.format(eng.ongoing_value) }}</div>
+                                <div class="font-weight-bold" style="font-size: 1.5rem; color: #fd7e14;">{{ eng.ongoing }}</div>
+                                <small style="color: #6c757d;">Ongoing</small>
+                                <div class="small" style="color: #fd7e14;">{{ '{:,.0f}'.format(eng.ongoing_value) }}</div>
                             </div>
                         </div>
                     </div>
