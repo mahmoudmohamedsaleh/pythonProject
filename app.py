@@ -5763,6 +5763,8 @@ def engineer_reports():
     selected_engineer = request.args.get('engineer', '')
     selected_year = request.args.get('year', '')
     selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
     
     # Get available years from projects
     c.execute("SELECT DISTINCT strftime('%Y', registered_date) as year FROM projects WHERE registered_date IS NOT NULL ORDER BY year DESC")
@@ -5788,7 +5790,20 @@ def engineer_reports():
             date_conditions += " AND strftime('%Y', registered_date) = ?"
             params_base.append(selected_year)
         
-        if selected_quarter:
+        # Month filter takes priority over quarter if both are set
+        if selected_month:
+            date_conditions += " AND strftime('%m', registered_date) = ?"
+            params_base.append(selected_month)
+            
+            # Week filter only applies when month is selected
+            if selected_week:
+                # Calculate week of month based on day: Week 1 = days 1-7, Week 2 = days 8-14, etc.
+                week_num = int(selected_week)
+                start_day = (week_num - 1) * 7 + 1
+                end_day = week_num * 7
+                date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+                params_base.extend([start_day, end_day])
+        elif selected_quarter:
             quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
             if selected_quarter in quarter_map:
                 start_month, end_month = quarter_map[selected_quarter]
@@ -5913,6 +5928,8 @@ def engineer_reports():
                            years=years,
                            selected_year=selected_year,
                            selected_quarter=selected_quarter,
+                           selected_month=selected_month,
+                           selected_week=selected_week,
                            projects=projects,
                            total_quotations=total_quotations,
                            summary=summary)

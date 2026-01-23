@@ -126,7 +126,7 @@
         <form method="GET">
             <input type="hidden" name="type" value="{{ report_type }}">
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="small text-muted font-weight-bold">{% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer</label>
                     <select name="engineer" class="form-control" id="engineerSelect">
                         <option value="">-- Select Engineer --</option>
@@ -135,18 +135,47 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3 mb-3">
+                <div class="col-md-2 mb-3">
                     <label class="small text-muted font-weight-bold">Year</label>
-                    <select name="year" class="form-control">
+                    <select name="year" class="form-control" id="yearSelect">
                         <option value="">All Years</option>
                         {% for year in years %}
                         <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3 mb-3">
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Month</label>
+                    <select name="month" class="form-control" id="monthSelect">
+                        <option value="">All Months</option>
+                        <option value="01" {% if selected_month == '01' %}selected{% endif %}>January</option>
+                        <option value="02" {% if selected_month == '02' %}selected{% endif %}>February</option>
+                        <option value="03" {% if selected_month == '03' %}selected{% endif %}>March</option>
+                        <option value="04" {% if selected_month == '04' %}selected{% endif %}>April</option>
+                        <option value="05" {% if selected_month == '05' %}selected{% endif %}>May</option>
+                        <option value="06" {% if selected_month == '06' %}selected{% endif %}>June</option>
+                        <option value="07" {% if selected_month == '07' %}selected{% endif %}>July</option>
+                        <option value="08" {% if selected_month == '08' %}selected{% endif %}>August</option>
+                        <option value="09" {% if selected_month == '09' %}selected{% endif %}>September</option>
+                        <option value="10" {% if selected_month == '10' %}selected{% endif %}>October</option>
+                        <option value="11" {% if selected_month == '11' %}selected{% endif %}>November</option>
+                        <option value="12" {% if selected_month == '12' %}selected{% endif %}>December</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Week</label>
+                    <select name="week" class="form-control" id="weekSelect">
+                        <option value="">All Weeks</option>
+                        <option value="1" {% if selected_week == '1' %}selected{% endif %}>Week 1</option>
+                        <option value="2" {% if selected_week == '2' %}selected{% endif %}>Week 2</option>
+                        <option value="3" {% if selected_week == '3' %}selected{% endif %}>Week 3</option>
+                        <option value="4" {% if selected_week == '4' %}selected{% endif %}>Week 4</option>
+                        <option value="5" {% if selected_week == '5' %}selected{% endif %}>Week 5</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
                     <label class="small text-muted font-weight-bold">Quarter</label>
-                    <select name="quarter" class="form-control">
+                    <select name="quarter" class="form-control" id="quarterSelect">
                         <option value="">All Quarters</option>
                         <option value="Q1" {% if selected_quarter == 'Q1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
                         <option value="Q2" {% if selected_quarter == 'Q2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
@@ -154,9 +183,9 @@
                         <option value="Q4" {% if selected_quarter == 'Q4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
                     </select>
                 </div>
-                <div class="col-md-2 mb-3 d-flex align-items-end">
+                <div class="col-md-1 mb-3 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search mr-1"></i>Generate
+                        <i class="fas fa-search"></i>
                     </button>
                 </div>
             </div>
