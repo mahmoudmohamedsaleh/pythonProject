@@ -6011,7 +6011,7 @@ def export_engineer_report_excel():
     for project_name in project_names:
         if report_type == 'sales':
             query = f"""
-                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, client_name
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date
                 FROM projects 
                 WHERE project_name = ? AND sales_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6019,7 +6019,7 @@ def export_engineer_report_excel():
             """
         else:
             query = f"""
-                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, client_name
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date
                 FROM projects 
                 WHERE project_name = ? AND presale_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6050,8 +6050,7 @@ def export_engineer_report_excel():
                 'status': row[3],
                 'category': category,
                 'selling_price': selling_price,
-                'registered_date': row[5],
-                'client_name': row[6]
+                'registered_date': row[5]
             })
         
         if quotations:
@@ -6080,7 +6079,7 @@ def export_engineer_report_excel():
     )
     
     # Title
-    ws.merge_cells('A1:G1')
+    ws.merge_cells('A1:F1')
     ws['A1'] = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
     ws['A1'].font = title_font
     ws['A1'].alignment = Alignment(horizontal='center')
@@ -6097,13 +6096,13 @@ def export_engineer_report_excel():
     if selected_quarter and not selected_month:
         filter_text.append(f"Quarter: {selected_quarter}")
     
-    ws.merge_cells('A2:G2')
+    ws.merge_cells('A2:F2')
     ws['A2'] = ' | '.join(filter_text) if filter_text else 'All Time'
     ws['A2'].alignment = Alignment(horizontal='center')
     
     # Summary section
     row = 4
-    ws.merge_cells(f'A{row}:G{row}')
+    ws.merge_cells(f'A{row}:F{row}')
     ws[f'A{row}'] = 'SUMMARY'
     ws[f'A{row}'].font = subtitle_font
     ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
@@ -6126,13 +6125,13 @@ def export_engineer_report_excel():
     
     # Projects and Quotations
     row = 8
-    ws.merge_cells(f'A{row}:G{row}')
+    ws.merge_cells(f'A{row}:F{row}')
     ws[f'A{row}'] = 'PROJECTS & QUOTATIONS'
     ws[f'A{row}'].font = subtitle_font
     ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
     
     row = 9
-    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Client', 'Status', 'Selling Price (SAR)', 'Registered Date']
+    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Status', 'Selling Price (SAR)', 'Registered Date']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=row, column=col, value=header)
         cell.font = header_font
@@ -6146,8 +6145,7 @@ def export_engineer_report_excel():
             ws.cell(row=row, column=1, value=project['name']).border = border
             ws.cell(row=row, column=2, value=q['quote_ref']).border = border
             ws.cell(row=row, column=3, value=q['associated_engineer']).border = border
-            ws.cell(row=row, column=4, value=q['client_name']).border = border
-            status_cell = ws.cell(row=row, column=5, value=q['status'] or 'Ongoing')
+            status_cell = ws.cell(row=row, column=4, value=q['status'] or 'Ongoing')
             status_cell.border = border
             if q['category'] == 'Won':
                 status_cell.fill = won_fill
@@ -6157,15 +6155,15 @@ def export_engineer_report_excel():
                 status_cell.font = Font(color="FFFFFF", bold=True)
             else:
                 status_cell.fill = ongoing_fill
-            price_cell = ws.cell(row=row, column=6, value=q['selling_price'])
+            price_cell = ws.cell(row=row, column=5, value=q['selling_price'])
             price_cell.border = border
             price_cell.number_format = '#,##0.00'
-            date_cell = ws.cell(row=row, column=7, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
+            date_cell = ws.cell(row=row, column=6, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
             date_cell.border = border
             row += 1
     
     # Adjust column widths
-    column_widths = [40, 25, 20, 25, 15, 20, 15]
+    column_widths = [40, 25, 25, 15, 20, 15]
     for i, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     
