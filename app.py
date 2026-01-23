@@ -13684,6 +13684,14 @@ def register_po():
             conn.close()
             return redirect(url_for('register_po'))
         distributor = dist_result['name']
+        
+        # Check for duplicate PO number before inserting
+        c.execute("SELECT COUNT(*) FROM purchase_orders WHERE po_number = ?", (po_number,))
+        if c.fetchone()[0] > 0:
+            flash('Error: That PO Number already exists. Please use a unique PO number.', 'danger')
+            conn.close()
+            return redirect(url_for('register_po'))
+        
         try:
             c.execute('''INSERT INTO purchase_orders (
                 po_request_number, project_name, system, presale_engineer, project_manager,
@@ -13986,20 +13994,26 @@ def delete_po(po_id):
         po_request_number = po_data['po_request_number']
         po_number = po_data['po_number']
         
+        # Check if there are other POs with the same po_number (duplicates)
+        cursor.execute("SELECT COUNT(*) FROM purchase_orders WHERE po_number = ?", (po_number,))
+        duplicate_count = cursor.fetchone()[0]
+        
         # Delete all related data in correct order (foreign key constraints)
-        # 1. Delete purchase order monitoring records (delivery tracking)
-        cursor.execute("DELETE FROM purchase_order_monitoring WHERE po_number = ?", (po_number,))
+        # Only delete shared data if this is the last PO with this number
+        if duplicate_count == 1:
+            # 1. Delete purchase order monitoring records (delivery tracking)
+            cursor.execute("DELETE FROM purchase_order_monitoring WHERE po_number = ?", (po_number,))
+            
+            # 2. Delete PO items
+            cursor.execute("DELETE FROM po_items WHERE po_number = ?", (po_number,))
+            
+            # 3. Delete VAT invoices associated with this PO (uses po_request_number)
+            cursor.execute("DELETE FROM vat_invoices WHERE po_request_number = ?", (po_request_number,))
         
-        # 2. Delete PO items
-        cursor.execute("DELETE FROM po_items WHERE po_number = ?", (po_number,))
-        
-        # 3. Delete VAT invoices associated with this PO (uses po_request_number)
-        cursor.execute("DELETE FROM vat_invoices WHERE po_request_number = ?", (po_request_number,))
-        
-        # 4. Delete PO comments if any
+        # 4. Delete PO comments if any (always delete for this specific PO)
         cursor.execute("DELETE FROM po_comments WHERE po_id = ?", (po_id,))
         
-        # 5. Finally delete the purchase order itself
+        # 5. Finally delete the purchase order itself (only this specific record)
         cursor.execute("DELETE FROM purchase_orders WHERE id = ?", (po_id,))
         
         conn.commit()
