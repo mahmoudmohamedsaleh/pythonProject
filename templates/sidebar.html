@@ -529,11 +529,26 @@
                     </li>
                     {% endif %}
                     {% if user_has_permission('view_reports') %}
-                    <li class="nav-item tooltip-wrapper" data-tooltip="Reports">
-                        <a href="{{ url_for('registered_quotations') }}" class="{{ 'active' if 'reports' in request.endpoint else '' }}">
+                    <li class="nav-item has-submenu tooltip-wrapper" data-tooltip="Reports">
+                        <a href="#" class="submenu-toggle {{ 'active' if 'reports' in request.endpoint or 'engineer_reports' in request.endpoint or 'registered_quotations' in request.endpoint else '' }}">
                             <i class="fas fa-file-invoice"></i>
                             <span>Reports</span>
+                            <i class="fas fa-chevron-right submenu-arrow"></i>
                         </a>
+                        <ul class="submenu">
+                            <li>
+                                <a href="{{ url_for('registered_quotations') }}" class="{{ 'active' if 'registered_quotations' in request.endpoint else '' }}">
+                                    <i class="fas fa-list-ul"></i>
+                                    <span>All Quotations</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('engineer_reports') }}" class="{{ 'active' if 'engineer_reports' in request.endpoint else '' }}">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>Engineer Reports</span>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     {% endif %}
                     {% if user_has_permission('view_products') %}
