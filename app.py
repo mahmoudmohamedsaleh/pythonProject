@@ -5836,7 +5836,7 @@ def engineer_reports():
             # Get quotations for this project by this engineer with date filters
             if report_type == 'sales':
                 query = f"""
-                    SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, project_id, client_name
+                    SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, id, client_name
                     FROM projects 
                     WHERE project_name = ? AND sales_eng = ?
                     {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -5845,7 +5845,7 @@ def engineer_reports():
                 params = [project_name, selected_engineer] + params_base[1:]
             else:
                 query = f"""
-                    SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, project_id, client_name
+                    SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, id, client_name
                     FROM projects 
                     WHERE project_name = ? AND presale_eng = ?
                     {date_conditions.replace('?', '?', 1) if date_conditions else ''}
