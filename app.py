@@ -6568,30 +6568,30 @@ def export_engineer_report_pptx():
         bg.line.fill.background()
         
         # Title with subtitle
-        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.6))
+        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.6))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
         run = p.add_run()
         run.text = "Sales Follow-Up "
-        run.font.size = Pt(26)
+        run.font.size = Pt(28)
         run.font.bold = True
         run.font.color.rgb = RGBColor(102, 126, 234)
         run2 = p.add_run()
-        run2.text = f"(Pending Feedback & Action Items for Aged Quotations):-"
+        run2.text = "(Pending Feedback & Action Items for Aged Quotations):-"
         run2.font.size = Pt(14)
         run2.font.color.rgb = RGBColor(220, 53, 69)
         
-        # Add table with 11 columns
+        # Add table with 10 columns (removed Sales Engineer)
         rows_count = min(quotations_per_slide, len(all_quotations) - slide_num) + 1
-        table = slide.shapes.add_table(rows_count, 11, Inches(0.1), Inches(0.8), Inches(13.1), Inches(0.9 * rows_count)).table
+        table = slide.shapes.add_table(rows_count, 10, Inches(0.1), Inches(0.85), Inches(13.1), Inches(1.0 * rows_count)).table
         
-        # Set column widths
-        col_widths = [0.3, 1.3, 1.3, 0.9, 0.9, 0.8, 0.5, 1.0, 1.0, 0.7, 1.0]
+        # Set column widths - wider and better balanced
+        col_widths = [0.4, 1.6, 1.8, 1.2, 0.9, 0.6, 1.3, 1.5, 0.8, 1.0]
         for i, w in enumerate(col_widths):
             table.columns[i].width = Inches(w)
         
-        # Headers
-        headers = ['#', 'Quote Reference', 'Project Name', 'Sales Eng', 'Presale Eng', 'Date', 'Age', 'Cost Price', 'Selling Price', 'Margin', 'Status']
+        # Headers - no Sales Engineer
+        headers = ['#', 'Quote Reference', 'Project Name', 'Presale Engineer', 'Date', 'Age', 'Cost Price', 'Selling Price', 'Margin', 'Status']
         for col, header in enumerate(headers):
             cell = table.cell(0, col)
             cell.text = header
@@ -6600,36 +6600,46 @@ def export_engineer_report_pptx():
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
-            p.font.size = Pt(9)
+            p.font.size = Pt(10)
             p.alignment = PP_ALIGN.CENTER
+            cell.text_frame.paragraphs[0].font.name = 'Arial'
         
         # Data rows
         for row_idx, q in enumerate(all_quotations[slide_num:slide_num + quotations_per_slide], 1):
-            # Calculate age
+            # Get submitted date from quotation
+            submitted_date = q.get('submitted_date') or q.get('date') or ''
+            
+            # Calculate age from submitted date to today
+            age_str = "-"
             try:
-                q_date = datetime.strptime(q.get('date', ''), '%Y-%m-%d')
-                age_days = (datetime.now() - q_date).days
-                age_str = f"{age_days} days"
+                if submitted_date:
+                    q_date = datetime.strptime(str(submitted_date)[:10], '%Y-%m-%d')
+                    age_days = (datetime.now() - q_date).days
+                    age_str = f"{age_days} days"
             except:
                 age_str = "-"
             
+            # Get cost and selling price from quotation
+            cost = float(q.get('cost_price', 0) or 0)
+            sell = float(q.get('selling_price', 0) or 0)
+            
             # Calculate margin
-            cost = q.get('cost_price', 0) or 0
-            sell = q.get('selling_price', 0) or 0
             margin = ((sell - cost) / sell * 100) if sell > 0 else 0
+            
+            # Get presale engineer
+            presale_eng = q.get('presale_engineer') or q.get('associated_engineer') or ''
             
             data = [
                 str(slide_num + row_idx),
-                (q.get('quote_ref', '') or '')[:18],
-                (q.get('project_name', '') or '')[:18],
-                (q.get('sales_engineer', '') or '')[:12],
-                (q.get('presale_engineer', '') or q.get('associated_engineer', '') or '')[:12],
-                q.get('date', '')[:10] if q.get('date') else '',
+                (q.get('quote_ref', '') or '')[:20],
+                (q.get('project_name', '') or '')[:22],
+                presale_eng[:15] if presale_eng else '-',
+                str(submitted_date)[:10] if submitted_date else '-',
                 age_str,
-                f"SAR {cost:,.2f}" if cost else '-',
-                f"SAR {sell:,.2f}" if sell else '-',
+                f"SAR {cost:,.2f}" if cost > 0 else '-',
+                f"SAR {sell:,.2f}" if sell > 0 else '-',
                 f"{margin:.0f}%",
-                q.get('category', 'Ongoing')[:10]
+                q.get('category', 'Ongoing')
             ]
             
             for col, value in enumerate(data):
@@ -6643,7 +6653,8 @@ def export_engineer_report_pptx():
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
                 p = cell.text_frame.paragraphs[0]
-                p.font.size = Pt(8)
+                p.font.size = Pt(9)
+                p.font.name = 'Arial'
                 p.alignment = PP_ALIGN.CENTER
     
     # Calculate associated engineer stats for Presale/Sales Engineers Performance slide
