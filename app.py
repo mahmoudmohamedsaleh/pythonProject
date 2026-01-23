@@ -6207,6 +6207,95 @@ def export_engineer_report_excel():
     for i, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     
+    # Calculate associated engineer stats (Presale/Sales Engineers Performance)
+    engineer_stats = {}
+    for project in projects:
+        for q in project['quotations']:
+            eng_name = q['associated_engineer'] or 'Unassigned'
+            if eng_name not in engineer_stats:
+                engineer_stats[eng_name] = {'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0, 'won_value': 0, 'lost_value': 0, 'ongoing_value': 0}
+            engineer_stats[eng_name]['total'] += 1
+            if q['category'] == 'Won':
+                engineer_stats[eng_name]['won'] += 1
+                engineer_stats[eng_name]['won_value'] += q['selling_price']
+            elif q['category'] == 'Lost':
+                engineer_stats[eng_name]['lost'] += 1
+                engineer_stats[eng_name]['lost_value'] += q['selling_price']
+            else:
+                engineer_stats[eng_name]['ongoing'] += 1
+                engineer_stats[eng_name]['ongoing_value'] += q['selling_price']
+    
+    # Add Presale/Sales Engineers Performance sheet
+    if engineer_stats:
+        ws2 = wb.create_sheet(title="Engineer Performance")
+        
+        # Header styling
+        presale_header_fill = PatternFill(start_color="1e3c72", end_color="1e3c72", fill_type="solid")
+        green_fill = PatternFill(start_color="28a745", end_color="28a745", fill_type="solid")
+        red_fill = PatternFill(start_color="dc3545", end_color="dc3545", fill_type="solid")
+        orange_fill = PatternFill(start_color="fd7e14", end_color="fd7e14", fill_type="solid")
+        
+        # Title
+        ws2.merge_cells('A1:G1')
+        ws2['A1'] = f"{'Presale' if report_type == 'sales' else 'Sales'} Engineers Performance"
+        ws2['A1'].font = Font(bold=True, size=16, color="1e3c72")
+        ws2['A1'].alignment = Alignment(horizontal='center')
+        
+        # Headers
+        perf_headers = ['Engineer Name', 'Total Quotes', 'Won', 'Won Value (SAR)', 'Lost', 'Lost Value (SAR)', 'Ongoing', 'Ongoing Value (SAR)']
+        for col, header in enumerate(perf_headers, 1):
+            cell = ws2.cell(row=3, column=col, value=header)
+            cell.font = Font(bold=True, color="FFFFFF", size=11)
+            cell.fill = presale_header_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Data rows
+        perf_row = 4
+        sorted_engineers = sorted(engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True)
+        for eng_name, stats in sorted_engineers:
+            ws2.cell(row=perf_row, column=1, value=eng_name).border = border
+            ws2.cell(row=perf_row, column=2, value=stats['total']).border = border
+            
+            won_cell = ws2.cell(row=perf_row, column=3, value=stats['won'])
+            won_cell.border = border
+            won_cell.fill = green_fill
+            won_cell.font = Font(color="FFFFFF", bold=True)
+            
+            won_val_cell = ws2.cell(row=perf_row, column=4, value=stats['won_value'])
+            won_val_cell.border = border
+            won_val_cell.number_format = '#,##0.00'
+            
+            lost_cell = ws2.cell(row=perf_row, column=5, value=stats['lost'])
+            lost_cell.border = border
+            lost_cell.fill = red_fill
+            lost_cell.font = Font(color="FFFFFF", bold=True)
+            
+            lost_val_cell = ws2.cell(row=perf_row, column=6, value=stats['lost_value'])
+            lost_val_cell.border = border
+            lost_val_cell.number_format = '#,##0.00'
+            
+            ongoing_cell = ws2.cell(row=perf_row, column=7, value=stats['ongoing'])
+            ongoing_cell.border = border
+            ongoing_cell.fill = orange_fill
+            ongoing_cell.font = Font(bold=True)
+            
+            ongoing_val_cell = ws2.cell(row=perf_row, column=8, value=stats['ongoing_value'])
+            ongoing_val_cell.border = border
+            ongoing_val_cell.number_format = '#,##0.00'
+            
+            perf_row += 1
+        
+        # Column widths for sheet 2
+        ws2.column_dimensions['A'].width = 25
+        ws2.column_dimensions['B'].width = 15
+        ws2.column_dimensions['C'].width = 12
+        ws2.column_dimensions['D'].width = 18
+        ws2.column_dimensions['E'].width = 12
+        ws2.column_dimensions['F'].width = 18
+        ws2.column_dimensions['G'].width = 12
+        ws2.column_dimensions['H'].width = 18
+    
     # Save to BytesIO
     output = BytesIO()
     wb.save(output)
@@ -6493,6 +6582,105 @@ def export_engineer_report_pptx():
                 cell.text = value
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(10)
+    
+    # Calculate associated engineer stats for Presale/Sales Engineers Performance slide
+    engineer_stats = {}
+    for project in projects:
+        for q in project['quotations']:
+            eng_name = q['associated_engineer'] or 'Unassigned'
+            if eng_name not in engineer_stats:
+                engineer_stats[eng_name] = {'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0, 'won_value': 0, 'lost_value': 0, 'ongoing_value': 0}
+            engineer_stats[eng_name]['total'] += 1
+            if q['category'] == 'Won':
+                engineer_stats[eng_name]['won'] += 1
+                engineer_stats[eng_name]['won_value'] += q['selling_price']
+            elif q['category'] == 'Lost':
+                engineer_stats[eng_name]['lost'] += 1
+                engineer_stats[eng_name]['lost_value'] += q['selling_price']
+            else:
+                engineer_stats[eng_name]['ongoing'] += 1
+                engineer_stats[eng_name]['ongoing_value'] += q['selling_price']
+    
+    # Presale/Sales Engineers Performance Slide
+    if engineer_stats:
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Title
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"{'Presale' if report_type == 'sales' else 'Sales'} Engineers Performance"
+        p.font.size = Pt(32)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(30, 60, 114)
+        
+        # Subtitle
+        sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.9), Inches(12.333), Inches(0.4))
+        tf = sub_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"{len(engineer_stats)} Engineers | Working with {selected_engineer}"
+        p.font.size = Pt(16)
+        p.font.color.rgb = RGBColor(100, 100, 100)
+        
+        # Sort engineers by total quotations
+        sorted_engineers = sorted(engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True)
+        
+        # Create table for engineers
+        rows = min(len(sorted_engineers), 10) + 1  # Max 10 engineers per slide
+        table = slide.shapes.add_table(rows, 8, Inches(0.2), Inches(1.4), Inches(12.9), Inches(0.45 * rows)).table
+        
+        # Column widths
+        table.columns[0].width = Inches(2.5)
+        table.columns[1].width = Inches(1.3)
+        table.columns[2].width = Inches(1.0)
+        table.columns[3].width = Inches(1.8)
+        table.columns[4].width = Inches(1.0)
+        table.columns[5].width = Inches(1.8)
+        table.columns[6].width = Inches(1.0)
+        table.columns[7].width = Inches(1.8)
+        
+        # Headers
+        headers = ['Engineer', 'Total', 'Won', 'Won Value', 'Lost', 'Lost Value', 'Ongoing', 'Ongoing Value']
+        header_colors = [RGBColor(30, 60, 114), RGBColor(30, 60, 114), RGBColor(40, 167, 69), RGBColor(40, 167, 69), 
+                         RGBColor(220, 53, 69), RGBColor(220, 53, 69), RGBColor(253, 126, 20), RGBColor(253, 126, 20)]
+        
+        for col, (header, color) in enumerate(zip(headers, header_colors)):
+            cell = table.cell(0, col)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = color
+            p = cell.text_frame.paragraphs[0]
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.size = Pt(10)
+            p.alignment = PP_ALIGN.CENTER
+        
+        # Data rows
+        for row_idx, (eng_name, stats) in enumerate(sorted_engineers[:10], 1):
+            cell_data = [
+                eng_name,
+                str(stats['total']),
+                str(stats['won']),
+                f"{stats['won_value']:,.0f}",
+                str(stats['lost']),
+                f"{stats['lost_value']:,.0f}",
+                str(stats['ongoing']),
+                f"{stats['ongoing_value']:,.0f}"
+            ]
+            for col, value in enumerate(cell_data):
+                cell = table.cell(row_idx, col)
+                cell.text = value
+                p = cell.text_frame.paragraphs[0]
+                p.font.size = Pt(9)
+                if col in [2, 3]:  # Won columns - green
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(212, 237, 218)
+                elif col in [4, 5]:  # Lost columns - red
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(248, 215, 218)
+                elif col in [6, 7]:  # Ongoing columns - orange
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(255, 243, 205)
     
     # Save to BytesIO
     output = BytesIO()
