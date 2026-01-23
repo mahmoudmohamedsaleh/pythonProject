@@ -5798,19 +5798,21 @@ def engineer_reports():
         # Get projects for this engineer with date filters
         if report_type == 'sales':
             query = f"""
-                SELECT DISTINCT project_name 
+                SELECT project_name, MAX(registered_date) as latest_date
                 FROM projects 
                 WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
                 {date_conditions}
-                ORDER BY project_name
+                GROUP BY project_name
+                ORDER BY latest_date DESC
             """
         else:
             query = f"""
-                SELECT DISTINCT project_name 
+                SELECT project_name, MAX(registered_date) as latest_date
                 FROM projects 
                 WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
                 {date_conditions}
-                ORDER BY project_name
+                GROUP BY project_name
+                ORDER BY latest_date DESC
             """
         c.execute(query, params_base)
         project_names = [row[0] for row in c.fetchall()]
