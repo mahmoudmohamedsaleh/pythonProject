@@ -120,22 +120,46 @@
 <div class="card mb-4">
     <div class="card-header">
         <i class="fas fa-filter mr-2 text-primary"></i>
-        Select {% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer
+        Filter Report
     </div>
     <div class="card-body">
-        <form method="GET" class="d-flex align-items-end">
+        <form method="GET">
             <input type="hidden" name="type" value="{{ report_type }}">
-            <div class="form-group mb-0 mr-3 engineer-select flex-grow-1">
-                <select name="engineer" class="form-control" id="engineerSelect">
-                    <option value="">-- Select Engineer --</option>
-                    {% for eng in engineers %}
-                    <option value="{{ eng }}" {% if eng == selected_engineer %}selected{% endif %}>{{ eng }}</option>
-                    {% endfor %}
-                </select>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="small text-muted font-weight-bold">{% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer</label>
+                    <select name="engineer" class="form-control" id="engineerSelect">
+                        <option value="">-- Select Engineer --</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng }}" {% if eng == selected_engineer %}selected{% endif %}>{{ eng }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="small text-muted font-weight-bold">Year</label>
+                    <select name="year" class="form-control">
+                        <option value="">All Years</option>
+                        {% for year in years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="small text-muted font-weight-bold">Quarter</label>
+                    <select name="quarter" class="form-control">
+                        <option value="">All Quarters</option>
+                        <option value="Q1" {% if selected_quarter == 'Q1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
+                        <option value="Q2" {% if selected_quarter == 'Q2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
+                        <option value="Q3" {% if selected_quarter == 'Q3' %}selected{% endif %}>Q3 (Jul-Sep)</option>
+                        <option value="Q4" {% if selected_quarter == 'Q4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search mr-1"></i>Generate
+                    </button>
+                </div>
             </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-search mr-1"></i>Generate Report
-            </button>
         </form>
     </div>
 </div>
@@ -146,6 +170,11 @@
         <span>
             <i class="fas fa-{% if report_type == 'sales' %}user-tie{% else %}user-cog{% endif %} mr-2 text-primary"></i>
             {{ selected_engineer }}'s Report
+            {% if selected_year or selected_quarter %}
+            <small class="text-muted ml-2">
+                ({% if selected_year %}{{ selected_year }}{% endif %}{% if selected_year and selected_quarter %} - {% endif %}{% if selected_quarter %}{{ selected_quarter }}{% endif %})
+            </small>
+            {% endif %}
         </span>
         <div>
             <span class="stat-badge projects mr-2">

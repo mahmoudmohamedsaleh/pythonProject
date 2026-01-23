@@ -5761,6 +5761,12 @@ def engineer_reports():
     
     report_type = request.args.get('type', 'sales')
     selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    
+    # Get available years from projects
+    c.execute("SELECT DISTINCT strftime('%Y', registered_date) as year FROM projects WHERE registered_date IS NOT NULL ORDER BY year DESC")
+    years = [row[0] for row in c.fetchall() if row[0]]
     
     # Get list of engineers based on report type
     if report_type == 'sales':
@@ -5774,40 +5780,62 @@ def engineer_reports():
     total_quotations = 0
     
     if selected_engineer:
-        # Get projects for this engineer
+        # Build date filter conditions
+        date_conditions = ""
+        params_base = [selected_engineer]
+        
+        if selected_year:
+            date_conditions += " AND strftime('%Y', registered_date) = ?"
+            params_base.append(selected_year)
+        
+        if selected_quarter:
+            quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+            if selected_quarter in quarter_map:
+                start_month, end_month = quarter_map[selected_quarter]
+                date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+                params_base.extend([start_month, end_month])
+        
+        # Get projects for this engineer with date filters
         if report_type == 'sales':
-            c.execute("""
+            query = f"""
                 SELECT DISTINCT project_name 
                 FROM projects 
                 WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
+                {date_conditions}
                 ORDER BY project_name
-            """, (selected_engineer,))
+            """
         else:
-            c.execute("""
+            query = f"""
                 SELECT DISTINCT project_name 
                 FROM projects 
                 WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
+                {date_conditions}
                 ORDER BY project_name
-            """, (selected_engineer,))
-        
+            """
+        c.execute(query, params_base)
         project_names = [row[0] for row in c.fetchall()]
         
         for project_name in project_names:
-            # Get quotations for this project by this engineer
+            # Get quotations for this project by this engineer with date filters
             if report_type == 'sales':
-                c.execute("""
+                query = f"""
                     SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date
                     FROM projects 
                     WHERE project_name = ? AND sales_eng = ?
+                    {date_conditions.replace('?', '?', 1) if date_conditions else ''}
                     ORDER BY registered_date DESC
-                """, (project_name, selected_engineer))
+                """
+                params = [project_name, selected_engineer] + params_base[1:]
             else:
-                c.execute("""
+                query = f"""
                     SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date
                     FROM projects 
                     WHERE project_name = ? AND presale_eng = ?
+                    {date_conditions.replace('?', '?', 1) if date_conditions else ''}
                     ORDER BY registered_date DESC
-                """, (project_name, selected_engineer))
+                """
+                params = [project_name, selected_engineer] + params_base[1:]
+            c.execute(query, params)
             
             quotations = []
             for row in c.fetchall():
@@ -5833,6 +5861,9 @@ def engineer_reports():
                            report_type=report_type,
                            engineers=engineers,
                            selected_engineer=selected_engineer,
+                           years=years,
+                           selected_year=selected_year,
+                           selected_quarter=selected_quarter,
                            projects=projects,
                            total_quotations=total_quotations)
 
