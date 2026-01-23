@@ -6558,8 +6558,8 @@ def export_engineer_report_pptx():
             q['project_name'] = project['name']
             all_quotations.append(q)
     
-    # Sort by date (newest first)
-    all_quotations.sort(key=lambda x: x.get('date', ''), reverse=True)
+    # Sort by date (oldest first for follow-up priority)
+    all_quotations.sort(key=lambda x: x.get('registered_date', '') or '', reverse=False)
     
     quotations_per_slide = 5
     for slide_num in range(0, len(all_quotations), quotations_per_slide):
