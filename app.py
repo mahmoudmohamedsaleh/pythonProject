@@ -5837,9 +5837,12 @@ def engineer_reports():
             if report_type == 'sales':
                 query = f"""
                     SELECT p.id, p.quote_ref, p.presale_eng, p.status, p.quotation_selling_price, p.registered_date, p.project_name,
-                           rp.client_name, rp.client_type, rp.id as register_project_id
+                           COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name, rp.client_type, rp.id as register_project_id
                     FROM projects p
                     LEFT JOIN register_project rp ON p.project_name = rp.project_name
+                    LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+                    LEFT JOIN contractors co ON rp.contractor_id = co.id
+                    LEFT JOIN consultants cn ON rp.consultant_id = cn.id
                     WHERE p.project_name = ? AND p.sales_eng = ?
                     {date_conditions.replace('registered_date', 'p.registered_date') if date_conditions else ''}
                     ORDER BY p.registered_date DESC
@@ -5848,9 +5851,12 @@ def engineer_reports():
             else:
                 query = f"""
                     SELECT p.id, p.quote_ref, p.sales_eng, p.status, p.quotation_selling_price, p.registered_date, p.project_name,
-                           rp.client_name, rp.client_type, rp.id as register_project_id
+                           COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name, rp.client_type, rp.id as register_project_id
                     FROM projects p
                     LEFT JOIN register_project rp ON p.project_name = rp.project_name
+                    LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+                    LEFT JOIN contractors co ON rp.contractor_id = co.id
+                    LEFT JOIN consultants cn ON rp.consultant_id = cn.id
                     WHERE p.project_name = ? AND p.presale_eng = ?
                     {date_conditions.replace('registered_date', 'p.registered_date') if date_conditions else ''}
                     ORDER BY p.registered_date DESC
