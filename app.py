@@ -6388,7 +6388,7 @@ def export_engineer_report_pptx():
     for project_name in project_names:
         if report_type == 'sales':
             query = f"""
-                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, quotation_cost, margin
                 FROM projects 
                 WHERE project_name = ? AND sales_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6396,7 +6396,7 @@ def export_engineer_report_pptx():
             """
         else:
             query = f"""
-                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, quotation_cost, margin
                 FROM projects 
                 WHERE project_name = ? AND presale_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6409,6 +6409,8 @@ def export_engineer_report_pptx():
         for row in c.fetchall():
             status = (row[3] or '').lower()
             selling_price = float(row[4] or 0)
+            cost_price = float(row[6] or 0)
+            margin_val = float(row[7] or 0)
             if 'won' in status:
                 won_count += 1
                 total_won += selling_price
@@ -6427,7 +6429,9 @@ def export_engineer_report_pptx():
                 'status': row[3],
                 'category': category,
                 'selling_price': selling_price,
-                'registered_date': row[5]
+                'registered_date': row[5],
+                'cost_price': cost_price,
+                'margin': margin_val
             })
         
         if quotations:
@@ -6606,39 +6610,39 @@ def export_engineer_report_pptx():
         
         # Data rows
         for row_idx, q in enumerate(all_quotations[slide_num:slide_num + quotations_per_slide], 1):
-            # Get submitted date from quotation
-            submitted_date = q.get('submitted_date') or q.get('date') or ''
+            # Get registered date from quotation (this is the submitted date)
+            registered_date = q.get('registered_date') or ''
             
-            # Calculate age from submitted date to today
+            # Calculate age from registered date to today
             age_str = "-"
             try:
-                if submitted_date:
-                    q_date = datetime.strptime(str(submitted_date)[:10], '%Y-%m-%d')
+                if registered_date:
+                    q_date = datetime.strptime(str(registered_date)[:10], '%Y-%m-%d')
                     age_days = (datetime.now() - q_date).days
                     age_str = f"{age_days} days"
             except:
                 age_str = "-"
             
-            # Get cost and selling price from quotation
+            # Get cost and selling price from quotation (accurate data)
             cost = float(q.get('cost_price', 0) or 0)
             sell = float(q.get('selling_price', 0) or 0)
             
-            # Calculate margin
-            margin = ((sell - cost) / sell * 100) if sell > 0 else 0
+            # Get margin directly from database (accurate margin value)
+            margin = float(q.get('margin', 0) or 0)
             
             # Get presale engineer
-            presale_eng = q.get('presale_engineer') or q.get('associated_engineer') or ''
+            presale_eng = q.get('associated_engineer') or ''
             
             data = [
                 str(slide_num + row_idx),
                 (q.get('quote_ref', '') or '')[:20],
                 (q.get('project_name', '') or '')[:22],
                 presale_eng[:15] if presale_eng else '-',
-                str(submitted_date)[:10] if submitted_date else '-',
+                str(registered_date)[:10] if registered_date else '-',
                 age_str,
                 f"SAR {cost:,.2f}" if cost > 0 else '-',
                 f"SAR {sell:,.2f}" if sell > 0 else '-',
-                f"{margin:.0f}%",
+                f"{margin:.1f}%",
                 q.get('category', 'Ongoing')
             ]
             
