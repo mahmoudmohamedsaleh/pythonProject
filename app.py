@@ -12177,8 +12177,8 @@ def view_consultants():
     conn.close()
     
     # Sort consultants by project count (descending - most projects first)
-    # Index 9 is project_count (after id[0], name[1], contact[2], phone[3], email[4], note[5], is_client[6], assigned_id[7], assigned_name[8])
-    consultants_with_counts.sort(key=lambda x: int(x[9]) if x[9] is not None else 0, reverse=True)
+    # project_count is appended at the end
+    consultants_with_counts.sort(key=lambda x: int(x[-1]) if x[-1] is not None else 0, reverse=True)
 
     # Pass the list of consultants (with project counts), sales engineers, and the search query to the template
     return render_template('view_consultants.html', 
@@ -13730,8 +13730,8 @@ def view_contractors():
     conn.close()
     
     # Sort contractors by project count (descending - most projects first)
-    # Index 9 is project_count (after id[0], name[1], contact[2], phone[3], email[4], note[5], is_client[6], assigned_id[7], assigned_name[8])
-    contractors_with_counts.sort(key=lambda x: int(x[9]) if x[9] is not None else 0, reverse=True)
+    # project_count is appended at the end
+    contractors_with_counts.sort(key=lambda x: int(x[-1]) if x[-1] is not None else 0, reverse=True)
 
     # Pass the list of contractors (with project counts), sales engineers, and the search query back to the template
     return render_template('view_contractors.html', 
@@ -14051,8 +14051,8 @@ def view_end_users():
     conn.close()
     
     # Sort end users by project count (descending - most projects first)
-    # Index 9 is project_count (after id[0], name[1], contact[2], phone[3], email[4], note[5], is_client[6], assigned_id[7], assigned_name[8])
-    end_users_with_counts.sort(key=lambda x: int(x[9]) if x[9] is not None else 0, reverse=True)
+    # project_count is appended second-to-last, contractor_count is last
+    end_users_with_counts.sort(key=lambda x: int(x[-2]) if x[-2] is not None else 0, reverse=True)
 
     # Pass the list of end users (with project counts), sales engineers, and the search query to the template
     return render_template('view_end_users.html', 
