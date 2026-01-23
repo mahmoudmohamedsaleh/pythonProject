@@ -6188,9 +6188,8 @@ def export_engineer_report_pptx():
     """Export Engineer Report to PowerPoint with professional presentation"""
     from pptx import Presentation
     from pptx.util import Inches, Pt
-    from pptx.dml.color import RgbColor
+    from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
-    from pptx.oxml.ns import nsmap
     from io import BytesIO
     
     conn = sqlite3.connect('ProjectStatus.db')
@@ -6323,7 +6322,7 @@ def export_engineer_report_pptx():
     p.text = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
     p.font.size = Pt(44)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(102, 126, 234)
+    p.font.color.rgb = RGBColor(102, 126, 234)
     p.alignment = PP_ALIGN.CENTER
     
     # Add subtitle with filters
@@ -6343,7 +6342,7 @@ def export_engineer_report_pptx():
     p = tf.paragraphs[0]
     p.text = ' | '.join(filter_text) if filter_text else 'All Time Report'
     p.font.size = Pt(24)
-    p.font.color.rgb = RgbColor(100, 100, 100)
+    p.font.color.rgb = RGBColor(100, 100, 100)
     p.alignment = PP_ALIGN.CENTER
     
     # Summary Slide
@@ -6356,24 +6355,24 @@ def export_engineer_report_pptx():
     p.text = "Summary Dashboard"
     p.font.size = Pt(32)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(102, 126, 234)
+    p.font.color.rgb = RGBColor(102, 126, 234)
     
     total_quotations = won_count + lost_count + ongoing_count
     total_value = total_won + total_lost + total_ongoing
     
     # Summary boxes
     box_data = [
-        ("Total Quotations", str(total_quotations), f"{len(projects)} Projects", RgbColor(102, 126, 234)),
-        ("Won", str(won_count), f"{total_won:,.2f} SAR", RgbColor(40, 167, 69)),
-        ("Lost", str(lost_count), f"{total_lost:,.2f} SAR", RgbColor(220, 53, 69)),
-        ("Ongoing", str(ongoing_count), f"{total_ongoing:,.2f} SAR", RgbColor(255, 193, 7))
+        ("Total Quotations", str(total_quotations), f"{len(projects)} Projects", RGBColor(102, 126, 234)),
+        ("Won", str(won_count), f"{total_won:,.2f} SAR", RGBColor(40, 167, 69)),
+        ("Lost", str(lost_count), f"{total_lost:,.2f} SAR", RGBColor(220, 53, 69)),
+        ("Ongoing", str(ongoing_count), f"{total_ongoing:,.2f} SAR", RGBColor(255, 193, 7))
     ]
     
     for i, (label, count, value, color) in enumerate(box_data):
         left = Inches(0.5 + i * 3.2)
         shape = slide.shapes.add_shape(1, left, Inches(1.5), Inches(3), Inches(2))
         shape.fill.solid()
-        shape.fill.fore_color.rgb = RgbColor(255, 255, 255)
+        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
         shape.line.color.rgb = color
         shape.line.width = Pt(4)
         
@@ -6383,7 +6382,7 @@ def export_engineer_report_pptx():
         p = tf.paragraphs[0]
         p.text = label
         p.font.size = Pt(14)
-        p.font.color.rgb = RgbColor(100, 100, 100)
+        p.font.color.rgb = RGBColor(100, 100, 100)
         p.alignment = PP_ALIGN.CENTER
         
         # Count
@@ -6416,7 +6415,7 @@ def export_engineer_report_pptx():
         p.text = f"Projects Overview ({slide_num + 1}-{min(slide_num + projects_per_slide, len(projects))} of {len(projects)})"
         p.font.size = Pt(28)
         p.font.bold = True
-        p.font.color.rgb = RgbColor(102, 126, 234)
+        p.font.color.rgb = RGBColor(102, 126, 234)
         
         # Add table
         rows = min(projects_per_slide, len(projects) - slide_num) + 1
@@ -6435,10 +6434,10 @@ def export_engineer_report_pptx():
             cell = table.cell(0, col)
             cell.text = header
             cell.fill.solid()
-            cell.fill.fore_color.rgb = RgbColor(102, 126, 234)
+            cell.fill.fore_color.rgb = RGBColor(102, 126, 234)
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
-            p.font.color.rgb = RgbColor(255, 255, 255)
+            p.font.color.rgb = RGBColor(255, 255, 255)
             p.font.size = Pt(11)
         
         # Data rows
