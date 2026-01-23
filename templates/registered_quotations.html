@@ -150,22 +150,6 @@
             <a href="{{ url_for('engineer_reports') }}" class="btn btn-info btn-sm mr-2">
                 <i class="fas fa-chart-bar mr-1"></i>Engineer Reports
             </a>
-            <div class="dropdown mr-2">
-                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" id="periodReportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    <i class="fas fa-calendar-alt mr-1"></i>Period Reports
-                </button>
-                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="periodReportDropdown">
-                    <a class="dropdown-item" href="{{ url_for('download_quotations_report', period='weekly') }}">
-                        <i class="fas fa-calendar-week mr-2 text-info"></i>Weekly Report
-                    </a>
-                    <a class="dropdown-item" href="{{ url_for('download_quotations_report', period='monthly') }}">
-                        <i class="fas fa-calendar-alt mr-2 text-primary"></i>Monthly Report
-                    </a>
-                    <a class="dropdown-item" href="{{ url_for('download_quotations_report', period='quarterly') }}">
-                        <i class="fas fa-calendar mr-2 text-success"></i>Quarterly Report
-                    </a>
-                </div>
-            </div>
             <a href="{{ url_for('download_quotations_excel', **request.args) }}" class="btn btn-success btn-sm">
                 <i class="fas fa-file-excel mr-1"></i>Download Full Report
             </a>
