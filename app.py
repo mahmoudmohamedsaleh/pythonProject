@@ -6547,55 +6547,104 @@ def export_engineer_report_pptx():
         p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
     
-    # Projects slide(s)
-    projects_per_slide = 8
-    for slide_num in range(0, len(projects), projects_per_slide):
+    # Sales Follow-Up slide(s) - Detailed Quotations Table
+    all_quotations = []
+    for project in projects:
+        for q in project['quotations']:
+            q['project_name'] = project['name']
+            all_quotations.append(q)
+    
+    # Sort by date (newest first)
+    all_quotations.sort(key=lambda x: x.get('date', ''), reverse=True)
+    
+    quotations_per_slide = 5
+    for slide_num in range(0, len(all_quotations), quotations_per_slide):
         slide = prs.slides.add_slide(slide_layout)
         
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.6))
+        # Light gray background
+        bg = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+        bg.fill.solid()
+        bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+        bg.line.fill.background()
+        
+        # Title with subtitle
+        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.6))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
-        p.text = f"Projects Overview ({slide_num + 1}-{min(slide_num + projects_per_slide, len(projects))} of {len(projects)})"
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(102, 126, 234)
+        run = p.add_run()
+        run.text = "Sales Follow-Up "
+        run.font.size = Pt(26)
+        run.font.bold = True
+        run.font.color.rgb = RGBColor(102, 126, 234)
+        run2 = p.add_run()
+        run2.text = f"(Pending Feedback & Action Items for Aged Quotations):-"
+        run2.font.size = Pt(14)
+        run2.font.color.rgb = RGBColor(220, 53, 69)
         
-        # Add table
-        rows = min(projects_per_slide, len(projects) - slide_num) + 1
-        table = slide.shapes.add_table(rows, 5, Inches(0.3), Inches(1), Inches(12.7), Inches(0.5 * rows)).table
+        # Add table with 11 columns
+        rows_count = min(quotations_per_slide, len(all_quotations) - slide_num) + 1
+        table = slide.shapes.add_table(rows_count, 11, Inches(0.1), Inches(0.8), Inches(13.1), Inches(0.9 * rows_count)).table
         
         # Set column widths
-        table.columns[0].width = Inches(4)
-        table.columns[1].width = Inches(2)
-        table.columns[2].width = Inches(2)
-        table.columns[3].width = Inches(2)
-        table.columns[4].width = Inches(2.7)
+        col_widths = [0.3, 1.3, 1.3, 0.9, 0.9, 0.8, 0.5, 1.0, 1.0, 0.7, 1.0]
+        for i, w in enumerate(col_widths):
+            table.columns[i].width = Inches(w)
         
         # Headers
-        headers = ['Project Name', 'Quotations', 'Won', 'Lost', 'Total Value (SAR)']
+        headers = ['#', 'Quote Reference', 'Project Name', 'Sales Eng', 'Presale Eng', 'Date', 'Age', 'Cost Price', 'Selling Price', 'Margin', 'Status']
         for col, header in enumerate(headers):
             cell = table.cell(0, col)
             cell.text = header
             cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(102, 126, 234)
+            cell.fill.fore_color.rgb = RGBColor(74, 144, 226)
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
-            p.font.size = Pt(11)
+            p.font.size = Pt(9)
+            p.alignment = PP_ALIGN.CENTER
         
         # Data rows
-        for row_idx, project in enumerate(projects[slide_num:slide_num + projects_per_slide], 1):
-            quotations = project['quotations']
-            p_won = sum(1 for q in quotations if q['category'] == 'Won')
-            p_lost = sum(1 for q in quotations if q['category'] == 'Lost')
-            p_total = sum(q['selling_price'] for q in quotations)
+        for row_idx, q in enumerate(all_quotations[slide_num:slide_num + quotations_per_slide], 1):
+            # Calculate age
+            try:
+                q_date = datetime.strptime(q.get('date', ''), '%Y-%m-%d')
+                age_days = (datetime.now() - q_date).days
+                age_str = f"{age_days} days"
+            except:
+                age_str = "-"
             
-            data = [project['name'][:50], str(len(quotations)), str(p_won), str(p_lost), f"{p_total:,.2f}"]
+            # Calculate margin
+            cost = q.get('cost_price', 0) or 0
+            sell = q.get('selling_price', 0) or 0
+            margin = ((sell - cost) / sell * 100) if sell > 0 else 0
+            
+            data = [
+                str(slide_num + row_idx),
+                (q.get('quote_ref', '') or '')[:18],
+                (q.get('project_name', '') or '')[:18],
+                (q.get('sales_engineer', '') or '')[:12],
+                (q.get('presale_engineer', '') or q.get('associated_engineer', '') or '')[:12],
+                q.get('date', '')[:10] if q.get('date') else '',
+                age_str,
+                f"SAR {cost:,.2f}" if cost else '-',
+                f"SAR {sell:,.2f}" if sell else '-',
+                f"{margin:.0f}%",
+                q.get('category', 'Ongoing')[:10]
+            ]
+            
             for col, value in enumerate(data):
                 cell = table.cell(row_idx, col)
                 cell.text = value
+                # Alternating row colors
+                if row_idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(232, 244, 253)
+                else:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
                 p = cell.text_frame.paragraphs[0]
-                p.font.size = Pt(10)
+                p.font.size = Pt(8)
+                p.alignment = PP_ALIGN.CENTER
     
     # Calculate associated engineer stats for Presale/Sales Engineers Performance slide
     engineer_stats = {}
