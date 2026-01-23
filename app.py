@@ -5752,6 +5752,91 @@ def delete_quotation(quotation_id):
     return jsonify({'success': True, 'message': 'Quotation deleted successfully'})
 
 
+@app.route('/engineer_reports')
+@login_required
+def engineer_reports():
+    """Engineer Reports - View projects and quotations by Sales or Presale Engineer"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    
+    # Get list of engineers based on report type
+    if report_type == 'sales':
+        c.execute("SELECT DISTINCT sales_eng FROM projects WHERE sales_eng IS NOT NULL AND sales_eng != '' ORDER BY sales_eng")
+    else:
+        c.execute("SELECT DISTINCT presale_eng FROM projects WHERE presale_eng IS NOT NULL AND presale_eng != '' ORDER BY presale_eng")
+    
+    engineers = [row[0] for row in c.fetchall()]
+    
+    projects = []
+    total_quotations = 0
+    
+    if selected_engineer:
+        # Get projects for this engineer
+        if report_type == 'sales':
+            c.execute("""
+                SELECT DISTINCT project_name 
+                FROM projects 
+                WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
+                ORDER BY project_name
+            """, (selected_engineer,))
+        else:
+            c.execute("""
+                SELECT DISTINCT project_name 
+                FROM projects 
+                WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
+                ORDER BY project_name
+            """, (selected_engineer,))
+        
+        project_names = [row[0] for row in c.fetchall()]
+        
+        for project_name in project_names:
+            # Get quotations for this project by this engineer
+            if report_type == 'sales':
+                c.execute("""
+                    SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date
+                    FROM projects 
+                    WHERE project_name = ? AND sales_eng = ?
+                    ORDER BY registered_date DESC
+                """, (project_name, selected_engineer))
+            else:
+                c.execute("""
+                    SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date
+                    FROM projects 
+                    WHERE project_name = ? AND presale_eng = ?
+                    ORDER BY registered_date DESC
+                """, (project_name, selected_engineer))
+            
+            quotations = []
+            for row in c.fetchall():
+                quotations.append({
+                    'id': row[0],
+                    'quote_ref': row[1],
+                    'associated_engineer': row[2],
+                    'status': row[3],
+                    'selling_price': row[4],
+                    'registered_date': row[5]
+                })
+            
+            if quotations:
+                projects.append({
+                    'name': project_name,
+                    'quotations': quotations
+                })
+                total_quotations += len(quotations)
+    
+    conn.close()
+    
+    return render_template('engineer_reports.html',
+                           report_type=report_type,
+                           engineers=engineers,
+                           selected_engineer=selected_engineer,
+                           projects=projects,
+                           total_quotations=total_quotations)
+
+
 @app.route('/download_quotations_excel')
 @login_required
 def download_quotations_excel():

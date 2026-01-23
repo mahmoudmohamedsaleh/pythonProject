@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% block title %}Engineer Reports{% endblock %}
+{% block content %}
+
+<style>
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+.report-type-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+.report-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.report-type-card.active {
+    border: 2px solid #667eea;
+}
+.sales-card {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+.presale-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.project-card {
+    border-left: 4px solid #11998e;
+    margin-bottom: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+.project-card .card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 10px 10px 0 0;
+    cursor: pointer;
+}
+.quotation-row {
+    border-left: 3px solid #667eea;
+    background: #f8f9fc;
+    margin: 0.5rem 0;
+    padding: 1rem;
+    border-radius: 8px;
+}
+.stat-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+}
+.stat-badge.projects {
+    background: rgba(17, 153, 142, 0.15);
+    color: #11998e;
+}
+.stat-badge.quotations {
+    background: rgba(102, 126, 234, 0.15);
+    color: #667eea;
+}
+.engineer-select {
+    max-width: 400px;
+}
+.presale-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+}
+.back-btn {
+    color: white;
+    text-decoration: none;
+}
+.back-btn:hover {
+    color: rgba(255,255,255,0.8);
+}
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <a href="{{ url_for('registered_quotations') }}" class="back-btn mb-2 d-inline-block">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Quotations
+            </a>
+            <h1><i class="fas fa-chart-bar mr-2"></i>Engineer Reports</h1>
+            <p class="mb-0">View project and quotation statistics by Sales or Presales Engineer</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card report-type-card sales-card h-100 {% if report_type == 'sales' %}active{% endif %}" onclick="switchReportType('sales')">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-user-tie fa-3x mb-3"></i>
+                <h4>Sales Engineer Reports</h4>
+                <p class="mb-0">View projects and quotations by Sales Engineer</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card report-type-card presale-card h-100 {% if report_type == 'presale' %}active{% endif %}" onclick="switchReportType('presale')">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-user-cog fa-3x mb-3"></i>
+                <h4>Presale Engineer Reports</h4>
+                <p class="mb-0">View projects and quotations by Presale Engineer</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-filter mr-2 text-primary"></i>
+        Select {% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer
+    </div>
+    <div class="card-body">
+        <form method="GET" class="d-flex align-items-end">
+            <input type="hidden" name="type" value="{{ report_type }}">
+            <div class="form-group mb-0 mr-3 engineer-select flex-grow-1">
+                <select name="engineer" class="form-control" id="engineerSelect">
+                    <option value="">-- Select Engineer --</option>
+                    {% for eng in engineers %}
+                    <option value="{{ eng }}" {% if eng == selected_engineer %}selected{% endif %}>{{ eng }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search mr-1"></i>Generate Report
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if selected_engineer %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>
+            <i class="fas fa-{% if report_type == 'sales' %}user-tie{% else %}user-cog{% endif %} mr-2 text-primary"></i>
+            {{ selected_engineer }}'s Report
+        </span>
+        <div>
+            <span class="stat-badge projects mr-2">
+                <i class="fas fa-project-diagram mr-1"></i>{{ projects|length }} Projects
+            </span>
+            <span class="stat-badge quotations">
+                <i class="fas fa-file-invoice-dollar mr-1"></i>{{ total_quotations }} Quotations
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if projects %}
+        <div class="accordion" id="projectAccordion">
+            {% for project in projects %}
+            <div class="card project-card">
+                <div class="card-header d-flex justify-content-between align-items-center" 
+                     data-toggle="collapse" data-target="#project{{ loop.index }}" 
+                     aria-expanded="{% if loop.first %}true{% else %}false{% endif %}">
+                    <div>
+                        <i class="fas fa-folder-open mr-2 text-success"></i>
+                        <strong>{{ project.name }}</strong>
+                    </div>
+                    <span class="badge badge-primary">{{ project.quotations|length }} Quotation(s)</span>
+                </div>
+                <div id="project{{ loop.index }}" class="collapse {% if loop.first %}show{% endif %}" data-parent="#projectAccordion">
+                    <div class="card-body">
+                        {% if project.quotations %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Quote Reference</th>
+                                        <th>{% if report_type == 'sales' %}Presale Engineer{% else %}Sales Engineer{% endif %}</th>
+                                        <th>Status</th>
+                                        <th>Selling Price (SAR)</th>
+                                        <th>Registered</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for q in project.quotations %}
+                                    <tr>
+                                        <td><strong>{{ q.quote_ref }}</strong></td>
+                                        <td>
+                                            <span class="presale-badge">
+                                                <i class="fas fa-user mr-1"></i>{{ q.associated_engineer or 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if q.status == 'Won' %}badge-success{% elif q.status == 'Lost' %}badge-danger{% else %}badge-info{% endif %}">
+                                                {{ q.status or 'Pending' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ '{:,.2f}'.format(q.selling_price|float) if q.selling_price else '-' }}</td>
+                                        <td>{{ q.registered_date.split(' ')[0] if q.registered_date else '-' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0"><i class="fas fa-info-circle mr-1"></i>No quotations found for this project.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No projects found for this engineer.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-user-chart fa-4x text-muted mb-3" style="opacity: 0.5;"></i>
+        <h5 class="text-muted">Select an engineer to view their report</h5>
+        <p class="text-muted mb-0">Choose a {% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer from the dropdown above</p>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function switchReportType(type) {
+    window.location.href = '{{ url_for("engineer_reports") }}?type=' + type;
+}
+</script>
+
+{% endblock %}
