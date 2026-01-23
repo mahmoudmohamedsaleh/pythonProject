@@ -6474,22 +6474,28 @@ def export_engineer_report_pptx():
     p.font.color.rgb = RGBColor(100, 100, 100)
     p.alignment = PP_ALIGN.CENTER
     
-    # Summary Slide
+    # Summary Slide - Enhanced Design
     slide = prs.slides.add_slide(slide_layout)
     
+    # Light gray background
+    bg = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+    bg.line.fill.background()
+    
     # Summary title
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(12.333), Inches(1))
     tf = title_box.text_frame
     p = tf.paragraphs[0]
     p.text = "Summary Dashboard"
-    p.font.size = Pt(32)
+    p.font.size = Pt(40)
     p.font.bold = True
     p.font.color.rgb = RGBColor(102, 126, 234)
     
     total_quotations = won_count + lost_count + ongoing_count
     total_value = total_won + total_lost + total_ongoing
     
-    # Summary boxes
+    # Summary boxes - larger and better positioned
     box_data = [
         ("Total Quotations", str(total_quotations), f"{len(projects)} Projects", RGBColor(102, 126, 234)),
         ("Won", str(won_count), f"{total_won:,.2f} SAR", RGBColor(40, 167, 69)),
@@ -6497,39 +6503,47 @@ def export_engineer_report_pptx():
         ("Ongoing", str(ongoing_count), f"{total_ongoing:,.2f} SAR", RGBColor(255, 193, 7))
     ]
     
+    box_width = Inches(3.0)
+    box_height = Inches(2.8)
+    start_left = Inches(0.4)
+    spacing = Inches(3.2)
+    top = Inches(2.0)
+    
     for i, (label, count, value, color) in enumerate(box_data):
-        left = Inches(0.5 + i * 3.2)
-        shape = slide.shapes.add_shape(1, left, Inches(1.5), Inches(3), Inches(2))
+        left = start_left + (i * spacing)
+        
+        # White card with colored border
+        shape = slide.shapes.add_shape(1, left, top, box_width, box_height)
         shape.fill.solid()
         shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
         shape.line.color.rgb = color
-        shape.line.width = Pt(4)
+        shape.line.width = Pt(3)
         
-        # Label
-        tb = slide.shapes.add_textbox(left, Inches(1.6), Inches(3), Inches(0.4))
+        # Label at top
+        tb = slide.shapes.add_textbox(left, top + Inches(0.2), box_width, Inches(0.5))
         tf = tb.text_frame
         p = tf.paragraphs[0]
         p.text = label
-        p.font.size = Pt(14)
+        p.font.size = Pt(16)
         p.font.color.rgb = RGBColor(100, 100, 100)
         p.alignment = PP_ALIGN.CENTER
         
-        # Count
-        tb = slide.shapes.add_textbox(left, Inches(2), Inches(3), Inches(0.8))
+        # Large count number in center
+        tb = slide.shapes.add_textbox(left, top + Inches(0.8), box_width, Inches(1.2))
         tf = tb.text_frame
         p = tf.paragraphs[0]
         p.text = count
-        p.font.size = Pt(48)
+        p.font.size = Pt(72)
         p.font.bold = True
         p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
         
-        # Value
-        tb = slide.shapes.add_textbox(left, Inches(2.8), Inches(3), Inches(0.4))
+        # Value at bottom
+        tb = slide.shapes.add_textbox(left, top + Inches(2.0), box_width, Inches(0.5))
         tf = tb.text_frame
         p = tf.paragraphs[0]
         p.text = value
-        p.font.size = Pt(12)
+        p.font.size = Pt(14)
         p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
     
