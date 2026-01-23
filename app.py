@@ -5837,7 +5837,8 @@ def engineer_reports():
             if report_type == 'sales':
                 query = f"""
                     SELECT p.id, p.quote_ref, p.presale_eng, p.status, p.quotation_selling_price, p.registered_date, p.project_name,
-                           COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name, rp.client_type, rp.id as register_project_id
+                           COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name, rp.client_type, rp.id as register_project_id,
+                           rp.end_user_id, rp.contractor_id, rp.consultant_id
                     FROM projects p
                     LEFT JOIN register_project rp ON p.project_name = rp.project_name
                     LEFT JOIN end_users eu ON rp.end_user_id = eu.id
@@ -5851,7 +5852,8 @@ def engineer_reports():
             else:
                 query = f"""
                     SELECT p.id, p.quote_ref, p.sales_eng, p.status, p.quotation_selling_price, p.registered_date, p.project_name,
-                           COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name, rp.client_type, rp.id as register_project_id
+                           COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name, rp.client_type, rp.id as register_project_id,
+                           rp.end_user_id, rp.contractor_id, rp.consultant_id
                     FROM projects p
                     LEFT JOIN register_project rp ON p.project_name = rp.project_name
                     LEFT JOIN end_users eu ON rp.end_user_id = eu.id
@@ -5866,6 +5868,16 @@ def engineer_reports():
             
             quotations = []
             for row in c.fetchall():
+                # Determine client_id based on client_type
+                client_type = row[8]
+                client_id = None
+                if client_type == 'End User' and row[10]:
+                    client_id = row[10]
+                elif client_type == 'Contractor' and row[11]:
+                    client_id = row[11]
+                elif client_type == 'Consultant' and row[12]:
+                    client_id = row[12]
+                
                 quotations.append({
                     'id': row[0],
                     'quote_ref': row[1],
@@ -5875,8 +5887,9 @@ def engineer_reports():
                     'registered_date': row[5],
                     'project_name': row[6],
                     'client_name': row[7],
-                    'client_type': row[8],
-                    'register_project_id': row[9]
+                    'client_type': client_type,
+                    'register_project_id': row[9],
+                    'client_id': client_id
                 })
             
             if quotations:
