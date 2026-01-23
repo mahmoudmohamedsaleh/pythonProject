@@ -403,8 +403,8 @@
                                                 <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View Quotation">
                                                     <i class="fas fa-file-invoice"></i>
                                                 </a>
-                                                {% if q.project_id %}
-                                                <a href="{{ url_for('project_profile', project_id=q.project_id) }}" class="btn btn-primary btn-sm" title="View Project">
+                                                {% if q.project_name %}
+                                                <a href="{{ url_for('show_project_history', project_name=q.project_name) }}" class="btn btn-primary btn-sm" title="View Project History">
                                                     <i class="fas fa-project-diagram"></i>
                                                 </a>
                                                 {% endif %}
