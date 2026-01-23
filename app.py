@@ -5935,6 +5935,543 @@ def engineer_reports():
                            summary=summary)
 
 
+@app.route('/export_engineer_report_excel')
+@login_required
+def export_engineer_report_excel():
+    """Export Engineer Report to Excel with professional formatting"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Fill, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('engineer_reports', type=report_type))
+    
+    # Build date filter conditions (same logic as engineer_reports)
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', registered_date) = ?"
+        params_base.append(selected_year)
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', registered_date) = ?"
+        params_base.append(selected_month)
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    # Get projects and quotations
+    if report_type == 'sales':
+        query = f"""
+            SELECT project_name, MAX(registered_date) as latest_date
+            FROM projects 
+            WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
+            {date_conditions}
+            GROUP BY project_name
+            ORDER BY latest_date DESC
+        """
+    else:
+        query = f"""
+            SELECT project_name, MAX(registered_date) as latest_date
+            FROM projects 
+            WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
+            {date_conditions}
+            GROUP BY project_name
+            ORDER BY latest_date DESC
+        """
+    c.execute(query, params_base)
+    project_names = [row[0] for row in c.fetchall()]
+    
+    projects = []
+    won_count = lost_count = ongoing_count = 0
+    total_won = total_lost = total_ongoing = 0
+    
+    for project_name in project_names:
+        if report_type == 'sales':
+            query = f"""
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, client_name
+                FROM projects 
+                WHERE project_name = ? AND sales_eng = ?
+                {date_conditions.replace('?', '?', 1) if date_conditions else ''}
+                ORDER BY registered_date DESC
+            """
+        else:
+            query = f"""
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, client_name
+                FROM projects 
+                WHERE project_name = ? AND presale_eng = ?
+                {date_conditions.replace('?', '?', 1) if date_conditions else ''}
+                ORDER BY registered_date DESC
+            """
+        params = [project_name, selected_engineer] + params_base[1:]
+        c.execute(query, params)
+        
+        quotations = []
+        for row in c.fetchall():
+            status = (row[3] or '').lower()
+            selling_price = float(row[4] or 0)
+            if 'won' in status:
+                won_count += 1
+                total_won += selling_price
+                category = 'Won'
+            elif 'lost' in status:
+                lost_count += 1
+                total_lost += selling_price
+                category = 'Lost'
+            else:
+                ongoing_count += 1
+                total_ongoing += selling_price
+                category = 'Ongoing'
+            quotations.append({
+                'quote_ref': row[1],
+                'associated_engineer': row[2],
+                'status': row[3],
+                'category': category,
+                'selling_price': selling_price,
+                'registered_date': row[5],
+                'client_name': row[6]
+            })
+        
+        if quotations:
+            projects.append({'name': project_name, 'quotations': quotations})
+    
+    conn.close()
+    
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Engineer Report"
+    
+    # Styles
+    header_fill = PatternFill(start_color="667eea", end_color="667eea", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    title_font = Font(bold=True, size=16, color="667eea")
+    subtitle_font = Font(bold=True, size=12)
+    won_fill = PatternFill(start_color="28a745", end_color="28a745", fill_type="solid")
+    lost_fill = PatternFill(start_color="dc3545", end_color="dc3545", fill_type="solid")
+    ongoing_fill = PatternFill(start_color="ffc107", end_color="ffc107", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Title
+    ws.merge_cells('A1:G1')
+    ws['A1'] = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
+    ws['A1'].font = title_font
+    ws['A1'].alignment = Alignment(horizontal='center')
+    
+    # Filter info
+    filter_text = []
+    if selected_year:
+        filter_text.append(f"Year: {selected_year}")
+    if selected_month:
+        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        filter_text.append(f"Month: {months[int(selected_month)-1]}")
+    if selected_week:
+        filter_text.append(f"Week: {selected_week}")
+    if selected_quarter and not selected_month:
+        filter_text.append(f"Quarter: {selected_quarter}")
+    
+    ws.merge_cells('A2:G2')
+    ws['A2'] = ' | '.join(filter_text) if filter_text else 'All Time'
+    ws['A2'].alignment = Alignment(horizontal='center')
+    
+    # Summary section
+    row = 4
+    ws.merge_cells(f'A{row}:G{row}')
+    ws[f'A{row}'] = 'SUMMARY'
+    ws[f'A{row}'].font = subtitle_font
+    ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
+    
+    row = 5
+    summary_headers = ['Total Quotations', 'Won', 'Won Value (SAR)', 'Lost', 'Lost Value (SAR)', 'Ongoing', 'Ongoing Value (SAR)']
+    for col, header in enumerate(summary_headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = Font(bold=True)
+        cell.border = border
+    
+    row = 6
+    total_quotations = won_count + lost_count + ongoing_count
+    summary_data = [total_quotations, won_count, total_won, lost_count, total_lost, ongoing_count, total_ongoing]
+    for col, value in enumerate(summary_data, 1):
+        cell = ws.cell(row=row, column=col, value=value)
+        cell.border = border
+        if col in [3, 5, 7]:
+            cell.number_format = '#,##0.00'
+    
+    # Projects and Quotations
+    row = 8
+    ws.merge_cells(f'A{row}:G{row}')
+    ws[f'A{row}'] = 'PROJECTS & QUOTATIONS'
+    ws[f'A{row}'].font = subtitle_font
+    ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
+    
+    row = 9
+    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Client', 'Status', 'Selling Price (SAR)', 'Registered Date']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row = 10
+    for project in projects:
+        for q in project['quotations']:
+            ws.cell(row=row, column=1, value=project['name']).border = border
+            ws.cell(row=row, column=2, value=q['quote_ref']).border = border
+            ws.cell(row=row, column=3, value=q['associated_engineer']).border = border
+            ws.cell(row=row, column=4, value=q['client_name']).border = border
+            status_cell = ws.cell(row=row, column=5, value=q['status'] or 'Ongoing')
+            status_cell.border = border
+            if q['category'] == 'Won':
+                status_cell.fill = won_fill
+                status_cell.font = Font(color="FFFFFF", bold=True)
+            elif q['category'] == 'Lost':
+                status_cell.fill = lost_fill
+                status_cell.font = Font(color="FFFFFF", bold=True)
+            else:
+                status_cell.fill = ongoing_fill
+            price_cell = ws.cell(row=row, column=6, value=q['selling_price'])
+            price_cell.border = border
+            price_cell.number_format = '#,##0.00'
+            date_cell = ws.cell(row=row, column=7, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
+            date_cell.border = border
+            row += 1
+    
+    # Adjust column widths
+    column_widths = [40, 25, 20, 25, 15, 20, 15]
+    for i, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+    
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/export_engineer_report_pptx')
+@login_required
+def export_engineer_report_pptx():
+    """Export Engineer Report to PowerPoint with professional presentation"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RgbColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.oxml.ns import nsmap
+    from io import BytesIO
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('engineer_reports', type=report_type))
+    
+    # Build date filter conditions
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', registered_date) = ?"
+        params_base.append(selected_year)
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', registered_date) = ?"
+        params_base.append(selected_month)
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    # Get projects and quotations
+    if report_type == 'sales':
+        query = f"""
+            SELECT project_name, MAX(registered_date) as latest_date
+            FROM projects 
+            WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
+            {date_conditions}
+            GROUP BY project_name
+            ORDER BY latest_date DESC
+        """
+    else:
+        query = f"""
+            SELECT project_name, MAX(registered_date) as latest_date
+            FROM projects 
+            WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
+            {date_conditions}
+            GROUP BY project_name
+            ORDER BY latest_date DESC
+        """
+    c.execute(query, params_base)
+    project_names = [row[0] for row in c.fetchall()]
+    
+    projects = []
+    won_count = lost_count = ongoing_count = 0
+    total_won = total_lost = total_ongoing = 0
+    
+    for project_name in project_names:
+        if report_type == 'sales':
+            query = f"""
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date
+                FROM projects 
+                WHERE project_name = ? AND sales_eng = ?
+                {date_conditions.replace('?', '?', 1) if date_conditions else ''}
+                ORDER BY registered_date DESC
+            """
+        else:
+            query = f"""
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date
+                FROM projects 
+                WHERE project_name = ? AND presale_eng = ?
+                {date_conditions.replace('?', '?', 1) if date_conditions else ''}
+                ORDER BY registered_date DESC
+            """
+        params = [project_name, selected_engineer] + params_base[1:]
+        c.execute(query, params)
+        
+        quotations = []
+        for row in c.fetchall():
+            status = (row[3] or '').lower()
+            selling_price = float(row[4] or 0)
+            if 'won' in status:
+                won_count += 1
+                total_won += selling_price
+                category = 'Won'
+            elif 'lost' in status:
+                lost_count += 1
+                total_lost += selling_price
+                category = 'Lost'
+            else:
+                ongoing_count += 1
+                total_ongoing += selling_price
+                category = 'Ongoing'
+            quotations.append({
+                'quote_ref': row[1],
+                'associated_engineer': row[2],
+                'status': row[3],
+                'category': category,
+                'selling_price': selling_price,
+                'registered_date': row[5]
+            })
+        
+        if quotations:
+            projects.append({'name': project_name, 'quotations': quotations})
+    
+    conn.close()
+    
+    # Create PowerPoint presentation
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    # Title Slide
+    slide_layout = prs.slide_layouts[6]  # Blank layout
+    slide = prs.slides.add_slide(slide_layout)
+    
+    # Add title box
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.color.rgb = RgbColor(102, 126, 234)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Add subtitle with filters
+    filter_text = []
+    if selected_year:
+        filter_text.append(f"Year: {selected_year}")
+    if selected_month:
+        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        filter_text.append(f"Month: {months[int(selected_month)-1]}")
+    if selected_week:
+        filter_text.append(f"Week: {selected_week}")
+    if selected_quarter and not selected_month:
+        filter_text.append(f"Quarter: {selected_quarter}")
+    
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.7), Inches(12.333), Inches(0.5))
+    tf = subtitle_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = ' | '.join(filter_text) if filter_text else 'All Time Report'
+    p.font.size = Pt(24)
+    p.font.color.rgb = RgbColor(100, 100, 100)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Summary Slide
+    slide = prs.slides.add_slide(slide_layout)
+    
+    # Summary title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Summary Dashboard"
+    p.font.size = Pt(32)
+    p.font.bold = True
+    p.font.color.rgb = RgbColor(102, 126, 234)
+    
+    total_quotations = won_count + lost_count + ongoing_count
+    total_value = total_won + total_lost + total_ongoing
+    
+    # Summary boxes
+    box_data = [
+        ("Total Quotations", str(total_quotations), f"{len(projects)} Projects", RgbColor(102, 126, 234)),
+        ("Won", str(won_count), f"{total_won:,.2f} SAR", RgbColor(40, 167, 69)),
+        ("Lost", str(lost_count), f"{total_lost:,.2f} SAR", RgbColor(220, 53, 69)),
+        ("Ongoing", str(ongoing_count), f"{total_ongoing:,.2f} SAR", RgbColor(255, 193, 7))
+    ]
+    
+    for i, (label, count, value, color) in enumerate(box_data):
+        left = Inches(0.5 + i * 3.2)
+        shape = slide.shapes.add_shape(1, left, Inches(1.5), Inches(3), Inches(2))
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RgbColor(255, 255, 255)
+        shape.line.color.rgb = color
+        shape.line.width = Pt(4)
+        
+        # Label
+        tb = slide.shapes.add_textbox(left, Inches(1.6), Inches(3), Inches(0.4))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(14)
+        p.font.color.rgb = RgbColor(100, 100, 100)
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Count
+        tb = slide.shapes.add_textbox(left, Inches(2), Inches(3), Inches(0.8))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = count
+        p.font.size = Pt(48)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Value
+        tb = slide.shapes.add_textbox(left, Inches(2.8), Inches(3), Inches(0.4))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = value
+        p.font.size = Pt(12)
+        p.font.color.rgb = color
+        p.alignment = PP_ALIGN.CENTER
+    
+    # Projects slide(s)
+    projects_per_slide = 8
+    for slide_num in range(0, len(projects), projects_per_slide):
+        slide = prs.slides.add_slide(slide_layout)
+        
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.6))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Projects Overview ({slide_num + 1}-{min(slide_num + projects_per_slide, len(projects))} of {len(projects)})"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RgbColor(102, 126, 234)
+        
+        # Add table
+        rows = min(projects_per_slide, len(projects) - slide_num) + 1
+        table = slide.shapes.add_table(rows, 5, Inches(0.3), Inches(1), Inches(12.7), Inches(0.5 * rows)).table
+        
+        # Set column widths
+        table.columns[0].width = Inches(4)
+        table.columns[1].width = Inches(2)
+        table.columns[2].width = Inches(2)
+        table.columns[3].width = Inches(2)
+        table.columns[4].width = Inches(2.7)
+        
+        # Headers
+        headers = ['Project Name', 'Quotations', 'Won', 'Lost', 'Total Value (SAR)']
+        for col, header in enumerate(headers):
+            cell = table.cell(0, col)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RgbColor(102, 126, 234)
+            p = cell.text_frame.paragraphs[0]
+            p.font.bold = True
+            p.font.color.rgb = RgbColor(255, 255, 255)
+            p.font.size = Pt(11)
+        
+        # Data rows
+        for row_idx, project in enumerate(projects[slide_num:slide_num + projects_per_slide], 1):
+            quotations = project['quotations']
+            p_won = sum(1 for q in quotations if q['category'] == 'Won')
+            p_lost = sum(1 for q in quotations if q['category'] == 'Lost')
+            p_total = sum(q['selling_price'] for q in quotations)
+            
+            data = [project['name'][:50], str(len(quotations)), str(p_won), str(p_lost), f"{p_total:,.2f}"]
+            for col, value in enumerate(data):
+                cell = table.cell(row_idx, col)
+                cell.text = value
+                p = cell.text_frame.paragraphs[0]
+                p.font.size = Pt(10)
+    
+    # Save to BytesIO
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 @app.route('/download_quotations_excel')
 @login_required
 def download_quotations_excel():
