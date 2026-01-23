@@ -11,6 +11,19 @@
     margin-bottom: 2rem;
     box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
 }
+.presale-card .card-header:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+.presale-stat-btn {
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    padding: 8px 4px !important;
+}
+.presale-stat-btn:hover {
+    background: rgba(0,0,0,0.05);
+    transform: scale(1.05);
+}
 .report-type-card {
     border: none;
     border-radius: 15px;
@@ -244,8 +257,11 @@
         <div class="row">
             {% for eng in associated_stats %}
             <div class="col-md-6 col-lg-4 mb-3">
-                <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                    <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <div class="card h-100 border-0 shadow-sm presale-card" style="border-radius: 12px; overflow: hidden;">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center" 
+                         style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; cursor: pointer;"
+                         onclick="filterByPresaleEngineer('{{ eng.name }}')" 
+                         title="Click to filter by {{ eng.name }}">
                         <span>
                             <i class="fas fa-user mr-1"></i>
                             <strong>{{ eng.name }}</strong>
@@ -254,17 +270,23 @@
                     </div>
                     <div class="card-body p-2">
                         <div class="row text-center">
-                            <div class="col-4 border-right">
+                            <div class="col-4 border-right presale-stat-btn" style="cursor: pointer;" 
+                                 onclick="filterByPresaleAndStatus('{{ eng.name }}', 'won')" 
+                                 title="Click to show Won quotations by {{ eng.name }}">
                                 <div class="text-success font-weight-bold" style="font-size: 1.3rem;">{{ eng.won }}</div>
                                 <small class="text-muted">Won</small>
                                 <div class="text-success small">{{ '{:,.0f}'.format(eng.won_value) }}</div>
                             </div>
-                            <div class="col-4 border-right">
+                            <div class="col-4 border-right presale-stat-btn" style="cursor: pointer;" 
+                                 onclick="filterByPresaleAndStatus('{{ eng.name }}', 'lost')" 
+                                 title="Click to show Lost quotations by {{ eng.name }}">
                                 <div class="text-danger font-weight-bold" style="font-size: 1.3rem;">{{ eng.lost }}</div>
                                 <small class="text-muted">Lost</small>
                                 <div class="text-danger small">{{ '{:,.0f}'.format(eng.lost_value) }}</div>
                             </div>
-                            <div class="col-4">
+                            <div class="col-4 presale-stat-btn" style="cursor: pointer;" 
+                                 onclick="filterByPresaleAndStatus('{{ eng.name }}', 'ongoing')" 
+                                 title="Click to show Ongoing quotations by {{ eng.name }}">
                                 <div class="font-weight-bold" style="font-size: 1.3rem; color: #ffc107;">{{ eng.ongoing }}</div>
                                 <small class="text-muted">Ongoing</small>
                                 <div class="small" style="color: #d39e00;">{{ '{:,.0f}'.format(eng.ongoing_value) }}</div>
@@ -358,7 +380,7 @@
                                 </thead>
                                 <tbody>
                                     {% for q in project.quotations %}
-                                    <tr class="quotation-row" data-status="{{ q.status_category }}">
+                                    <tr class="quotation-row" data-status="{{ q.status_category }}" data-presale-engineer="{{ q.associated_engineer or '' }}">
                                         <td><strong class="text-primary">{{ q.quote_ref }}</strong></td>
                                         <td>
                                             <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.4rem 0.8rem;">
@@ -490,6 +512,101 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function clearFilter() {
     document.querySelector('.summary-card[data-filter="all"]').click();
+    // Also reset presale card highlights
+    document.querySelectorAll('.presale-card').forEach(card => {
+        card.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+    });
+}
+
+function filterByPresaleEngineer(engineerName) {
+    const projectCards = document.querySelectorAll('.project-card');
+    const filterBadge = document.getElementById('activeFilterBadge');
+    const filterLabel = document.getElementById('filterLabel');
+    
+    // Reset summary card highlights
+    document.querySelectorAll('.summary-card').forEach(c => {
+        c.classList.remove('active');
+        c.style.transform = 'scale(1)';
+        c.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+    });
+    
+    // Show filter badge
+    filterBadge.style.display = 'block';
+    filterLabel.textContent = engineerName + "'s Quotations";
+    
+    projectCards.forEach(project => {
+        const rows = project.querySelectorAll('.quotation-row');
+        let hasMatch = false;
+        
+        rows.forEach(row => {
+            const rowEngineer = row.dataset.presaleEngineer || '';
+            if (rowEngineer === engineerName) {
+                row.style.display = '';
+                hasMatch = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        if (hasMatch) {
+            project.style.display = '';
+            const collapse = project.querySelector('.collapse');
+            if (collapse && !collapse.classList.contains('show')) {
+                $(collapse).collapse('show');
+            }
+        } else {
+            project.style.display = 'none';
+        }
+    });
+    
+    // Scroll to projects section
+    document.querySelector('.project-card')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function filterByPresaleAndStatus(engineerName, status) {
+    const projectCards = document.querySelectorAll('.project-card');
+    const filterBadge = document.getElementById('activeFilterBadge');
+    const filterLabel = document.getElementById('filterLabel');
+    
+    // Reset summary card highlights
+    document.querySelectorAll('.summary-card').forEach(c => {
+        c.classList.remove('active');
+        c.style.transform = 'scale(1)';
+        c.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+    });
+    
+    // Show filter badge
+    filterBadge.style.display = 'block';
+    filterLabel.textContent = engineerName + "'s " + status.charAt(0).toUpperCase() + status.slice(1) + " Quotations";
+    
+    projectCards.forEach(project => {
+        const rows = project.querySelectorAll('.quotation-row');
+        let hasMatch = false;
+        
+        rows.forEach(row => {
+            const rowEngineer = row.dataset.presaleEngineer || '';
+            const rowStatus = row.dataset.status || '';
+            if (rowEngineer === engineerName && rowStatus === status) {
+                row.style.display = '';
+                hasMatch = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        if (hasMatch) {
+            project.style.display = '';
+            const collapse = project.querySelector('.collapse');
+            if (collapse && !collapse.classList.contains('show')) {
+                $(collapse).collapse('show');
+            }
+        } else {
+            project.style.display = 'none';
+        }
+    });
+    
+    // Scroll to projects section
+    document.querySelector('.project-card')?.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 </script>
 
