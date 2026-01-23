@@ -5855,6 +5855,37 @@ def engineer_reports():
                 })
                 total_quotations += len(quotations)
     
+    # Calculate summary statistics
+    won_count = 0
+    lost_count = 0
+    ongoing_count = 0
+    total_won_value = 0
+    total_lost_value = 0
+    total_ongoing_value = 0
+    
+    for project in projects:
+        for q in project['quotations']:
+            status = (q['status'] or '').lower()
+            selling_price = float(q['selling_price'] or 0)
+            if status == 'won':
+                won_count += 1
+                total_won_value += selling_price
+            elif status == 'lost':
+                lost_count += 1
+                total_lost_value += selling_price
+            else:
+                ongoing_count += 1
+                total_ongoing_value += selling_price
+    
+    summary = {
+        'won_count': won_count,
+        'lost_count': lost_count,
+        'ongoing_count': ongoing_count,
+        'total_won_value': total_won_value,
+        'total_lost_value': total_lost_value,
+        'total_ongoing_value': total_ongoing_value
+    }
+    
     conn.close()
     
     return render_template('engineer_reports.html',
@@ -5865,7 +5896,8 @@ def engineer_reports():
                            selected_year=selected_year,
                            selected_quarter=selected_quarter,
                            projects=projects,
-                           total_quotations=total_quotations)
+                           total_quotations=total_quotations,
+                           summary=summary)
 
 
 @app.route('/download_quotations_excel')

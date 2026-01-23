@@ -165,73 +165,118 @@
 </div>
 
 {% if selected_engineer %}
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #667eea !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">TOTAL QUOTATIONS</div>
+                <h2 class="mb-1" style="color: #667eea;">{{ total_quotations }}</h2>
+                <small class="text-muted">{{ projects|length }} Projects</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #28a745 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">WON</div>
+                <h2 class="mb-1 text-success">{{ summary.won_count }}</h2>
+                <small class="text-success">{{ '{:,.2f}'.format(summary.total_won_value) }} SAR</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #dc3545 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">LOST</div>
+                <h2 class="mb-1 text-danger">{{ summary.lost_count }}</h2>
+                <small class="text-danger">{{ '{:,.2f}'.format(summary.total_lost_value) }} SAR</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #ffc107 !important;">
+            <div class="card-body text-center">
+                <div class="text-muted small mb-1">ONGOING</div>
+                <h2 class="mb-1" style="color: #ffc107;">{{ summary.ongoing_count }}</h2>
+                <small style="color: #d39e00;">{{ '{:,.2f}'.format(summary.total_ongoing_value) }} SAR</small>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
         <span>
-            <i class="fas fa-{% if report_type == 'sales' %}user-tie{% else %}user-cog{% endif %} mr-2 text-primary"></i>
-            {{ selected_engineer }}'s Report
+            <i class="fas fa-{% if report_type == 'sales' %}user-tie{% else %}user-cog{% endif %} mr-2"></i>
+            <strong>{{ selected_engineer }}'s Report</strong>
             {% if selected_year or selected_quarter %}
-            <small class="text-muted ml-2">
+            <span class="ml-2" style="opacity: 0.8;">
                 ({% if selected_year %}{{ selected_year }}{% endif %}{% if selected_year and selected_quarter %} - {% endif %}{% if selected_quarter %}{{ selected_quarter }}{% endif %})
-            </small>
+            </span>
             {% endif %}
         </span>
         <div>
-            <span class="stat-badge projects mr-2">
+            <span class="badge badge-light mr-2">
                 <i class="fas fa-project-diagram mr-1"></i>{{ projects|length }} Projects
             </span>
-            <span class="stat-badge quotations">
+            <span class="badge badge-light">
                 <i class="fas fa-file-invoice-dollar mr-1"></i>{{ total_quotations }} Quotations
             </span>
         </div>
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if projects %}
         <div class="accordion" id="projectAccordion">
             {% for project in projects %}
-            <div class="card project-card">
-                <div class="card-header d-flex justify-content-between align-items-center" 
+            <div class="border-bottom">
+                <div class="d-flex justify-content-between align-items-center p-3" 
+                     style="cursor: pointer; background: {% if loop.index is odd %}#f8f9fa{% else %}#ffffff{% endif %};"
                      data-toggle="collapse" data-target="#project{{ loop.index }}" 
                      aria-expanded="{% if loop.first %}true{% else %}false{% endif %}">
                     <div>
-                        <i class="fas fa-folder-open mr-2 text-success"></i>
+                        <i class="fas fa-chevron-right mr-2 text-muted collapse-icon" id="icon{{ loop.index }}"></i>
+                        <i class="fas fa-folder mr-2 text-warning"></i>
                         <strong>{{ project.name }}</strong>
                     </div>
-                    <span class="badge badge-primary">{{ project.quotations|length }} Quotation(s)</span>
+                    <span class="badge badge-primary px-3 py-2">{{ project.quotations|length }} Quotation(s)</span>
                 </div>
                 <div id="project{{ loop.index }}" class="collapse {% if loop.first %}show{% endif %}" data-parent="#projectAccordion">
-                    <div class="card-body">
+                    <div class="p-3" style="background: #fafbfc;">
                         {% if project.quotations %}
                         <div class="table-responsive">
-                            <table class="table table-sm mb-0">
-                                <thead class="thead-light">
+                            <table class="table table-hover mb-0" style="background: white;">
+                                <thead style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
                                     <tr>
-                                        <th>Quote Reference</th>
-                                        <th>{% if report_type == 'sales' %}Presale Engineer{% else %}Sales Engineer{% endif %}</th>
-                                        <th>Status</th>
-                                        <th>Selling Price (SAR)</th>
-                                        <th>Registered</th>
-                                        <th>Actions</th>
+                                        <th style="width: 20%;">Quote Reference</th>
+                                        <th style="width: 20%;">{% if report_type == 'sales' %}Presale Engineer{% else %}Sales Engineer{% endif %}</th>
+                                        <th style="width: 15%;">Status</th>
+                                        <th style="width: 20%;">Selling Price (SAR)</th>
+                                        <th style="width: 15%;">Registered</th>
+                                        <th style="width: 10%;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for q in project.quotations %}
                                     <tr>
-                                        <td><strong>{{ q.quote_ref }}</strong></td>
+                                        <td><strong class="text-primary">{{ q.quote_ref }}</strong></td>
                                         <td>
-                                            <span class="presale-badge">
+                                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.4rem 0.8rem;">
                                                 <i class="fas fa-user mr-1"></i>{{ q.associated_engineer or 'N/A' }}
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge {% if q.status == 'Won' %}badge-success{% elif q.status == 'Lost' %}badge-danger{% else %}badge-info{% endif %}">
-                                                {{ q.status or 'Pending' }}
-                                            </span>
+                                            {% if q.status and q.status.lower() == 'won' %}
+                                            <span class="badge badge-success px-3 py-2"><i class="fas fa-trophy mr-1"></i>Won</span>
+                                            {% elif q.status and q.status.lower() == 'lost' %}
+                                            <span class="badge badge-danger px-3 py-2"><i class="fas fa-times-circle mr-1"></i>Lost</span>
+                                            {% else %}
+                                            <span class="badge badge-warning px-3 py-2"><i class="fas fa-clock mr-1"></i>{{ q.status or 'Ongoing' }}</span>
+                                            {% endif %}
                                         </td>
-                                        <td>{{ '{:,.2f}'.format(q.selling_price|float) if q.selling_price else '-' }}</td>
+                                        <td><strong>{{ '{:,.2f}'.format(q.selling_price|float) if q.selling_price else '-' }}</strong></td>
                                         <td>{{ q.registered_date.split(' ')[0] if q.registered_date else '-' }}</td>
                                         <td>
-                                            <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View">
+                                            <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View Quotation">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                         </td>
