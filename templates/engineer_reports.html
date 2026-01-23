@@ -408,6 +408,11 @@
                                                     <i class="fas fa-project-diagram"></i>
                                                 </a>
                                                 {% endif %}
+                                                {% if q.client_name and q.client_type and q.register_project_id %}
+                                                <a href="{{ url_for('project_detail', project_id=q.register_project_id) }}" class="btn btn-success btn-sm" title="View Client: {{ q.client_name }}">
+                                                    <i class="fas fa-building"></i>
+                                                </a>
+                                                {% endif %}
                                             </div>
                                         </td>
                                     </tr>

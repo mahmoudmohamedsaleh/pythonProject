@@ -5836,20 +5836,24 @@ def engineer_reports():
             # Get quotations for this project by this engineer with date filters
             if report_type == 'sales':
                 query = f"""
-                    SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, project_name, end_user
-                    FROM projects 
-                    WHERE project_name = ? AND sales_eng = ?
-                    {date_conditions.replace('?', '?', 1) if date_conditions else ''}
-                    ORDER BY registered_date DESC
+                    SELECT p.id, p.quote_ref, p.presale_eng, p.status, p.quotation_selling_price, p.registered_date, p.project_name,
+                           rp.client_name, rp.client_type, rp.id as register_project_id
+                    FROM projects p
+                    LEFT JOIN register_project rp ON p.project_name = rp.project_name
+                    WHERE p.project_name = ? AND p.sales_eng = ?
+                    {date_conditions.replace('registered_date', 'p.registered_date') if date_conditions else ''}
+                    ORDER BY p.registered_date DESC
                 """
                 params = [project_name, selected_engineer] + params_base[1:]
             else:
                 query = f"""
-                    SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, project_name, end_user
-                    FROM projects 
-                    WHERE project_name = ? AND presale_eng = ?
-                    {date_conditions.replace('?', '?', 1) if date_conditions else ''}
-                    ORDER BY registered_date DESC
+                    SELECT p.id, p.quote_ref, p.sales_eng, p.status, p.quotation_selling_price, p.registered_date, p.project_name,
+                           rp.client_name, rp.client_type, rp.id as register_project_id
+                    FROM projects p
+                    LEFT JOIN register_project rp ON p.project_name = rp.project_name
+                    WHERE p.project_name = ? AND p.presale_eng = ?
+                    {date_conditions.replace('registered_date', 'p.registered_date') if date_conditions else ''}
+                    ORDER BY p.registered_date DESC
                 """
                 params = [project_name, selected_engineer] + params_base[1:]
             c.execute(query, params)
@@ -5864,7 +5868,9 @@ def engineer_reports():
                     'selling_price': row[4],
                     'registered_date': row[5],
                     'project_name': row[6],
-                    'end_user': row[7]
+                    'client_name': row[7],
+                    'client_type': row[8],
+                    'register_project_id': row[9]
                 })
             
             if quotations:
