@@ -11063,22 +11063,15 @@ def rfq_summary():
     c.execute("SELECT DISTINCT quotation_status FROM rfq_requests")
     quotation_status_options = [row[0] for row in c.fetchall()]
 
-    # Base query with LEFT JOIN to get quotation reference, project_id, and client info
+    # Base query with LEFT JOIN to get quotation reference
     query = """
         SELECT
             r.id, r.rfq_reference, r.project_name, r.project_status, r.priority,
             r.sales_engineer_presale, r.sales_engineer_sales, r.rfq_status,
             r.quotation_status, r.deadline, r.note, r.requested_time,
-            p.quote_ref, r.system,
-            rp.id as project_id,
-            rp.end_user_id, rp.contractor_id, rp.consultant_id, rp.client_type,
-            COALESCE(eu.name, con.name, cons.name) as client_name
+            p.quote_ref, r.system
         FROM rfq_requests r
         LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
-        LEFT JOIN register_project rp ON r.rfq_reference = rp.rfq_reference
-        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
-        LEFT JOIN contractors con ON rp.contractor_id = con.id
-        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
         WHERE 1=1
     """
     params = []

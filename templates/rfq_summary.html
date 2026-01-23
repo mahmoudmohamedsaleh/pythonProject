@@ -349,31 +349,6 @@
                             <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#commentsModal{{ rfq[0] }}" title="View Comments">
                                 <i class="fas fa-comments"></i>
                             </button>
-                            {% if rfq[12] %}
-                            <a href="{{ url_for('quotation_profile', quote_ref=rfq[12]) }}" class="btn btn-primary btn-sm" title="View Quotation">
-                                <i class="fas fa-file-alt"></i>
-                            </a>
-                            {% endif %}
-                            {% if rfq[14] %}
-                            <a href="{{ url_for('project_detail', project_id=rfq[14]) }}" class="btn btn-secondary btn-sm" title="View Project">
-                                <i class="fas fa-project-diagram"></i>
-                            </a>
-                            {% endif %}
-                            {% if rfq[18] %}
-                            {% if rfq[18] == 'End User' and rfq[15] %}
-                            <a href="{{ url_for('client_profile', client_type='end_user', client_id=rfq[15]) }}" class="btn btn-success btn-sm" title="View Client: {{ rfq[19] }}">
-                                <i class="fas fa-user-tie"></i>
-                            </a>
-                            {% elif rfq[18] == 'Contractor' and rfq[16] %}
-                            <a href="{{ url_for('client_profile', client_type='contractor', client_id=rfq[16]) }}" class="btn btn-success btn-sm" title="View Client: {{ rfq[19] }}">
-                                <i class="fas fa-user-tie"></i>
-                            </a>
-                            {% elif rfq[18] == 'Consultant' and rfq[17] %}
-                            <a href="{{ url_for('client_profile', client_type='consultant', client_id=rfq[17]) }}" class="btn btn-success btn-sm" title="View Client: {{ rfq[19] }}">
-                                <i class="fas fa-user-tie"></i>
-                            </a>
-                            {% endif %}
-                            {% endif %}
                         </td>
                     </tr>
                     
