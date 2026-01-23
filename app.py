@@ -5703,11 +5703,44 @@ def registered_quotations():
     presale_engineers = [row[0] for row in c.fetchall()]
     conn.close()
 
+    is_admin = session.get('username', '').lower() == 'm.saleh'
+    
     return render_template('registered_quotations.html',
                            quotations=quotations,
                            presale_engineers=presale_engineers,
                            sales_engineers=sales_engineers,
-                           current_filters=filters)
+                           current_filters=filters,
+                           is_admin=is_admin)
+
+
+@app.route('/api/quotation/<quote_ref>', methods=['DELETE'])
+@login_required
+def delete_quotation(quote_ref):
+    """Delete a quotation - Admin only (M.Saleh)"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized. Admin access required.'}), 403
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Check if quotation exists
+    c.execute("SELECT id FROM projects WHERE quote_ref = ?", (quote_ref,))
+    quotation = c.fetchone()
+    
+    if not quotation:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Quotation not found'}), 404
+    
+    # Delete quotation products first (if any)
+    c.execute("DELETE FROM quotation_products WHERE quote_ref = ?", (quote_ref,))
+    
+    # Delete the quotation
+    c.execute("DELETE FROM projects WHERE quote_ref = ?", (quote_ref,))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'success': True, 'message': 'Quotation deleted successfully'})
 
 
 @app.route('/download_quotations_excel')
