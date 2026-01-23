@@ -399,9 +399,21 @@
                                         <td><strong>{{ '{:,.2f}'.format(q.selling_price|float) if q.selling_price else '-' }}</strong></td>
                                         <td>{{ q.registered_date.split(' ')[0] if q.registered_date else '-' }}</td>
                                         <td>
-                                            <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View Quotation">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View Quotation">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </a>
+                                                {% if q.project_id %}
+                                                <a href="{{ url_for('project_profile', project_id=q.project_id) }}" class="btn btn-primary btn-sm" title="View Project">
+                                                    <i class="fas fa-project-diagram"></i>
+                                                </a>
+                                                {% endif %}
+                                                {% if q.client_name %}
+                                                <a href="{{ url_for('company_client_profile', client_name=q.client_name) }}" class="btn btn-success btn-sm" title="View Client">
+                                                    <i class="fas fa-building"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
