@@ -6589,8 +6589,8 @@ def export_engineer_report_pptx():
         rows_count = min(quotations_per_slide, len(all_quotations) - slide_num) + 1
         table = slide.shapes.add_table(rows_count, 10, Inches(0.1), Inches(0.85), Inches(13.1), Inches(1.0 * rows_count)).table
         
-        # Set column widths - wider and better balanced
-        col_widths = [0.4, 1.6, 1.8, 1.2, 0.9, 0.6, 1.3, 1.5, 0.8, 1.0]
+        # Set column widths - wider Quote Reference column
+        col_widths = [0.35, 2.2, 1.6, 1.0, 0.85, 0.55, 1.2, 1.4, 0.7, 0.9]
         for i, w in enumerate(col_widths):
             table.columns[i].width = Inches(w)
         
@@ -6635,9 +6635,9 @@ def export_engineer_report_pptx():
             
             data = [
                 str(slide_num + row_idx),
-                (q.get('quote_ref', '') or '')[:20],
-                (q.get('project_name', '') or '')[:22],
-                presale_eng[:15] if presale_eng else '-',
+                q.get('quote_ref', '') or '-',
+                (q.get('project_name', '') or '')[:20],
+                presale_eng[:12] if presale_eng else '-',
                 str(registered_date)[:10] if registered_date else '-',
                 age_str,
                 f"SAR {cost:,.2f}" if cost > 0 else '-',
