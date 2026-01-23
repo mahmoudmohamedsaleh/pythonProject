@@ -5855,7 +5855,7 @@ def engineer_reports():
                 })
                 total_quotations += len(quotations)
     
-    # Calculate summary statistics
+    # Calculate summary statistics and add status flags to each project
     won_count = 0
     lost_count = 0
     ongoing_count = 0
@@ -5864,6 +5864,10 @@ def engineer_reports():
     total_ongoing_value = 0
     
     for project in projects:
+        project_has_won = False
+        project_has_lost = False
+        project_has_ongoing = False
+        
         for q in project['quotations']:
             status = (q['status'] or '').lower()
             selling_price = float(q['selling_price'] or 0)
@@ -5871,13 +5875,23 @@ def engineer_reports():
             if 'won' in status:
                 won_count += 1
                 total_won_value += selling_price
+                project_has_won = True
+                q['status_category'] = 'won'
             # Check for lost status variations (Lost, Closed Lost, etc.)
             elif 'lost' in status:
                 lost_count += 1
                 total_lost_value += selling_price
+                project_has_lost = True
+                q['status_category'] = 'lost'
             else:
                 ongoing_count += 1
                 total_ongoing_value += selling_price
+                project_has_ongoing = True
+                q['status_category'] = 'ongoing'
+        
+        project['has_won'] = project_has_won
+        project['has_lost'] = project_has_lost
+        project['has_ongoing'] = project_has_ongoing
     
     summary = {
         'won_count': won_count,

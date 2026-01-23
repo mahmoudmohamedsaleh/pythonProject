@@ -167,7 +167,7 @@
 {% if selected_engineer %}
 <div class="row mb-4">
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #667eea !important;">
+        <div class="card border-0 shadow-sm h-100 summary-card active" data-filter="all" style="border-left: 4px solid #667eea !important; cursor: pointer; transition: all 0.3s ease;">
             <div class="card-body text-center">
                 <div class="text-muted small mb-1">TOTAL QUOTATIONS</div>
                 <h2 class="mb-1" style="color: #667eea;">{{ total_quotations }}</h2>
@@ -176,7 +176,7 @@
         </div>
     </div>
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #28a745 !important;">
+        <div class="card border-0 shadow-sm h-100 summary-card" data-filter="won" style="border-left: 4px solid #28a745 !important; cursor: pointer; transition: all 0.3s ease;">
             <div class="card-body text-center">
                 <div class="text-muted small mb-1">WON</div>
                 <h2 class="mb-1 text-success">{{ summary.won_count }}</h2>
@@ -185,7 +185,7 @@
         </div>
     </div>
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #dc3545 !important;">
+        <div class="card border-0 shadow-sm h-100 summary-card" data-filter="lost" style="border-left: 4px solid #dc3545 !important; cursor: pointer; transition: all 0.3s ease;">
             <div class="card-body text-center">
                 <div class="text-muted small mb-1">LOST</div>
                 <h2 class="mb-1 text-danger">{{ summary.lost_count }}</h2>
@@ -194,7 +194,7 @@
         </div>
     </div>
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #ffc107 !important;">
+        <div class="card border-0 shadow-sm h-100 summary-card" data-filter="ongoing" style="border-left: 4px solid #ffc107 !important; cursor: pointer; transition: all 0.3s ease;">
             <div class="card-body text-center">
                 <div class="text-muted small mb-1">ONGOING</div>
                 <h2 class="mb-1" style="color: #ffc107;">{{ summary.ongoing_count }}</h2>
@@ -202,6 +202,14 @@
             </div>
         </div>
     </div>
+</div>
+<div id="activeFilterBadge" class="mb-3" style="display: none;">
+    <span class="badge badge-info px-3 py-2">
+        <i class="fas fa-filter mr-1"></i>Showing: <span id="filterLabel">All</span>
+        <button type="button" class="btn btn-sm ml-2 p-0" onclick="clearFilter()" style="color: white; font-size: 14px;">
+            <i class="fas fa-times"></i>
+        </button>
+    </span>
 </div>
 
 <div class="card">
@@ -228,8 +236,11 @@
         {% if projects %}
         <div class="accordion" id="projectAccordion">
             {% for project in projects %}
-            <div class="border-bottom">
-                <div class="d-flex justify-content-between align-items-center p-3" 
+            <div class="border-bottom project-card" 
+                 data-has-won="{{ 'true' if project.has_won else 'false' }}"
+                 data-has-lost="{{ 'true' if project.has_lost else 'false' }}"
+                 data-has-ongoing="{{ 'true' if project.has_ongoing else 'false' }}">
+                <div class="d-flex justify-content-between align-items-center p-3 project-header" 
                      style="cursor: pointer; background: {% if loop.index is odd %}#f8f9fa{% else %}#ffffff{% endif %};"
                      data-toggle="collapse" data-target="#project{{ loop.index }}" 
                      aria-expanded="{% if loop.first %}true{% else %}false{% endif %}">
@@ -257,7 +268,7 @@
                                 </thead>
                                 <tbody>
                                     {% for q in project.quotations %}
-                                    <tr>
+                                    <tr class="quotation-row" data-status="{{ q.status_category }}">
                                         <td><strong class="text-primary">{{ q.quote_ref }}</strong></td>
                                         <td>
                                             <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.4rem 0.8rem;">
@@ -314,6 +325,81 @@
 <script>
 function switchReportType(type) {
     window.location.href = '{{ url_for("engineer_reports") }}?type=' + type;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const summaryCards = document.querySelectorAll('.summary-card');
+    const projectCards = document.querySelectorAll('.project-card');
+    const filterBadge = document.getElementById('activeFilterBadge');
+    const filterLabel = document.getElementById('filterLabel');
+    
+    summaryCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+            applyFilter(filter);
+            
+            summaryCards.forEach(c => {
+                c.classList.remove('active');
+                c.style.transform = 'scale(1)';
+                c.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+            });
+            this.classList.add('active');
+            this.style.transform = 'scale(1.03)';
+            this.style.boxShadow = '0 .5rem 1rem rgba(0,0,0,.15)';
+        });
+        
+        card.addEventListener('mouseenter', function() {
+            if (!this.classList.contains('active')) {
+                this.style.transform = 'scale(1.02)';
+            }
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            if (!this.classList.contains('active')) {
+                this.style.transform = 'scale(1)';
+            }
+        });
+    });
+    
+    function applyFilter(filter) {
+        if (filter === 'all') {
+            filterBadge.style.display = 'none';
+            projectCards.forEach(project => {
+                project.style.display = '';
+                const rows = project.querySelectorAll('.quotation-row');
+                rows.forEach(row => row.style.display = '');
+            });
+        } else {
+            filterBadge.style.display = 'block';
+            filterLabel.textContent = filter.charAt(0).toUpperCase() + filter.slice(1) + ' Quotations';
+            
+            projectCards.forEach(project => {
+                const hasStatus = project.dataset['has' + filter.charAt(0).toUpperCase() + filter.slice(1)] === 'true';
+                
+                if (hasStatus) {
+                    project.style.display = '';
+                    const rows = project.querySelectorAll('.quotation-row');
+                    rows.forEach(row => {
+                        if (row.dataset.status === filter) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                    const collapse = project.querySelector('.collapse');
+                    if (collapse && !collapse.classList.contains('show')) {
+                        $(collapse).collapse('show');
+                    }
+                } else {
+                    project.style.display = 'none';
+                }
+            });
+        }
+    }
+});
+
+function clearFilter() {
+    document.querySelector('.summary-card[data-filter="all"]').click();
 }
 </script>
 
