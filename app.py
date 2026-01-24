@@ -6472,6 +6472,9 @@ def export_engineer_report_pptx():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     
+    # Define consistent font
+    FONT_NAME = 'Arial'
+    
     # Title Slide
     slide_layout = prs.slide_layouts[6]  # Blank layout
     slide = prs.slides.add_slide(slide_layout)
@@ -6483,6 +6486,7 @@ def export_engineer_report_pptx():
     p.text = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
     p.font.size = Pt(44)
     p.font.bold = True
+    p.font.name = FONT_NAME
     p.font.color.rgb = RGBColor(102, 126, 234)
     p.alignment = PP_ALIGN.CENTER
     
@@ -6503,6 +6507,7 @@ def export_engineer_report_pptx():
     p = tf.paragraphs[0]
     p.text = ' | '.join(filter_text) if filter_text else 'All Time Report'
     p.font.size = Pt(24)
+    p.font.name = FONT_NAME
     p.font.color.rgb = RGBColor(100, 100, 100)
     p.alignment = PP_ALIGN.CENTER
     
@@ -6522,6 +6527,7 @@ def export_engineer_report_pptx():
     p.text = "Summary Dashboard"
     p.font.size = Pt(40)
     p.font.bold = True
+    p.font.name = FONT_NAME
     p.font.color.rgb = RGBColor(102, 126, 234)
     
     total_quotations = won_count + lost_count + ongoing_count
@@ -6557,6 +6563,7 @@ def export_engineer_report_pptx():
         p = tf.paragraphs[0]
         p.text = label
         p.font.size = Pt(16)
+        p.font.name = FONT_NAME
         p.font.color.rgb = RGBColor(100, 100, 100)
         p.alignment = PP_ALIGN.CENTER
         
@@ -6567,6 +6574,7 @@ def export_engineer_report_pptx():
         p.text = count
         p.font.size = Pt(72)
         p.font.bold = True
+        p.font.name = FONT_NAME
         p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
         
@@ -6576,6 +6584,7 @@ def export_engineer_report_pptx():
         p = tf.paragraphs[0]
         p.text = value
         p.font.size = Pt(14)
+        p.font.name = FONT_NAME
         p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
     
@@ -6599,44 +6608,55 @@ def export_engineer_report_pptx():
         bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
         bg.line.fill.background()
         
-        # Title with subtitle
+        # Title with subtitle - professional fonts
         title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.6))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
         run = p.add_run()
         run.text = "Sales Follow-Up "
-        run.font.size = Pt(28)
+        run.font.size = Pt(26)
         run.font.bold = True
+        run.font.name = FONT_NAME
         run.font.color.rgb = RGBColor(102, 126, 234)
         run2 = p.add_run()
         run2.text = "(Pending Feedback & Action Items for Aged Quotations):-"
-        run2.font.size = Pt(14)
+        run2.font.size = Pt(12)
+        run2.font.name = FONT_NAME
         run2.font.color.rgb = RGBColor(220, 53, 69)
         
-        # Add table with 10 columns (removed Sales Engineer)
+        # Calculate rows and create table with proper dimensions
         rows_count = min(quotations_per_slide, len(all_quotations) - slide_num) + 1
-        table = slide.shapes.add_table(rows_count, 10, Inches(0.1), Inches(0.85), Inches(13.1), Inches(1.0 * rows_count)).table
+        row_height = Inches(1.0)  # Fixed row height for consistency
+        table_height = row_height * rows_count
+        table = slide.shapes.add_table(rows_count, 10, Inches(0.15), Inches(0.9), Inches(13.0), table_height).table
         
-        # Set column widths - wider Quote Reference column
-        col_widths = [0.35, 2.2, 1.6, 1.0, 0.85, 0.55, 1.2, 1.4, 0.7, 0.9]
+        # Set optimized column widths for better content fit
+        col_widths = [0.32, 2.1, 1.5, 0.95, 0.82, 0.55, 1.25, 1.4, 0.65, 0.85]
         for i, w in enumerate(col_widths):
             table.columns[i].width = Inches(w)
         
-        # Headers - no Sales Engineer
-        headers = ['#', 'Quote Reference', 'Project Name', 'Presale Engineer', 'Date', 'Age', 'Cost Price', 'Selling Price', 'Margin', 'Status']
+        # Set consistent row heights
+        for row in table.rows:
+            row.height = Inches(0.85)
+        table.rows[0].height = Inches(0.5)  # Header row smaller
+        
+        # Headers with professional styling
+        headers = ['#', 'Quote Reference', 'Project Name', 'Presale Eng', 'Date', 'Age', 'Cost Price', 'Selling Price', 'Margin', 'Status']
         for col, header in enumerate(headers):
             cell = table.cell(0, col)
             cell.text = header
             cell.fill.solid()
             cell.fill.fore_color.rgb = RGBColor(74, 144, 226)
+            # Set vertical alignment to middle
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
-            p.font.size = Pt(10)
+            p.font.size = Pt(9)
+            p.font.name = FONT_NAME
             p.alignment = PP_ALIGN.CENTER
-            cell.text_frame.paragraphs[0].font.name = 'Arial'
         
-        # Data rows
+        # Data rows with improved formatting
         for row_idx, q in enumerate(all_quotations[slide_num:slide_num + quotations_per_slide], 1):
             # Get registered date from quotation (this is the submitted date)
             registered_date = q.get('registered_date') or ''
@@ -6647,7 +6667,7 @@ def export_engineer_report_pptx():
                 if registered_date:
                     q_date = datetime.strptime(str(registered_date)[:10], '%Y-%m-%d')
                     age_days = (datetime.now() - q_date).days
-                    age_str = f"{age_days} days"
+                    age_str = f"{age_days}\ndays"
             except:
                 age_str = "-"
             
@@ -6661,15 +6681,21 @@ def export_engineer_report_pptx():
             # Get presale engineer
             presale_eng = q.get('associated_engineer') or ''
             
+            # Truncate long text to fit cells
+            quote_ref = q.get('quote_ref', '') or '-'
+            project_name = (q.get('project_name', '') or '')[:18]
+            if len(q.get('project_name', '') or '') > 18:
+                project_name += '..'
+            
             data = [
                 str(slide_num + row_idx),
-                q.get('quote_ref', '') or '-',
-                (q.get('project_name', '') or '')[:20],
-                presale_eng[:12] if presale_eng else '-',
+                quote_ref,
+                project_name,
+                presale_eng[:10] if presale_eng else '-',
                 str(registered_date)[:10] if registered_date else '-',
                 age_str,
-                f"SAR {cost:,.2f}" if cost > 0 else '-',
-                f"SAR {sell:,.2f}" if sell > 0 else '-',
+                f"SAR\n{cost:,.2f}" if cost > 0 else '-',
+                f"SAR\n{sell:,.2f}" if sell > 0 else '-',
                 f"{margin:.1f}%",
                 q.get('category', 'Ongoing')
             ]
@@ -6677,6 +6703,8 @@ def export_engineer_report_pptx():
             for col, value in enumerate(data):
                 cell = table.cell(row_idx, col)
                 cell.text = value
+                # Set vertical alignment to middle
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
                 # Alternating row colors
                 if row_idx % 2 == 0:
                     cell.fill.solid()
@@ -6684,10 +6712,23 @@ def export_engineer_report_pptx():
                 else:
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
-                p = cell.text_frame.paragraphs[0]
-                p.font.size = Pt(9)
-                p.font.name = 'Arial'
-                p.alignment = PP_ALIGN.CENTER
+                
+                # Style all paragraphs in the cell (for multi-line content)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(8)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                    # Color code the status column
+                    if col == 9:  # Status column
+                        if value == 'Won':
+                            para.font.color.rgb = RGBColor(40, 167, 69)
+                            para.font.bold = True
+                        elif value == 'Lost':
+                            para.font.color.rgb = RGBColor(220, 53, 69)
+                            para.font.bold = True
+                        else:
+                            para.font.color.rgb = RGBColor(255, 153, 0)
+                            para.font.bold = True
     
     # Calculate associated engineer stats for Presale/Sales Engineers Performance slide
     engineer_stats = {}
@@ -6732,6 +6773,7 @@ def export_engineer_report_pptx():
             p.text = f"{'Presale' if report_type == 'sales' else 'Sales'} Engineers Performance"
             p.font.size = Pt(24)
             p.font.bold = True
+            p.font.name = FONT_NAME
             p.font.color.rgb = RGBColor(255, 255, 255)
             
             # Badge showing count
@@ -6740,6 +6782,7 @@ def export_engineer_report_pptx():
             p = tf.paragraphs[0]
             p.text = f"{len(sorted_engineers)} Engineers"
             p.font.size = Pt(14)
+            p.font.name = FONT_NAME
             p.font.color.rgb = RGBColor(255, 255, 255)
             
             # Draw cards for this slide
@@ -6772,6 +6815,7 @@ def export_engineer_report_pptx():
                 p.text = eng_name
                 p.font.size = Pt(14)
                 p.font.bold = True
+                p.font.name = FONT_NAME
                 p.font.color.rgb = RGBColor(255, 255, 255)
                 
                 # Total quotes badge
@@ -6780,6 +6824,7 @@ def export_engineer_report_pptx():
                 p = tf.paragraphs[0]
                 p.text = f"{stats['total']} Quotes"
                 p.font.size = Pt(10)
+                p.font.name = FONT_NAME
                 p.font.color.rgb = RGBColor(255, 255, 255)
                 p.alignment = PP_ALIGN.CENTER
                 
@@ -6795,16 +6840,19 @@ def export_engineer_report_pptx():
                 p.text = str(stats['won'])
                 p.font.size = Pt(32)
                 p.font.bold = True
+                p.font.name = FONT_NAME
                 p.font.color.rgb = RGBColor(40, 167, 69)
                 p.alignment = PP_ALIGN.CENTER
                 p2 = tf.add_paragraph()
                 p2.text = "Won"
                 p2.font.size = Pt(10)
+                p2.font.name = FONT_NAME
                 p2.font.color.rgb = RGBColor(108, 117, 125)
                 p2.alignment = PP_ALIGN.CENTER
                 p3 = tf.add_paragraph()
                 p3.text = f"{stats['won_value']:,.0f}"
                 p3.font.size = Pt(9)
+                p3.font.name = FONT_NAME
                 p3.font.color.rgb = RGBColor(40, 167, 69)
                 p3.alignment = PP_ALIGN.CENTER
                 
@@ -6816,16 +6864,19 @@ def export_engineer_report_pptx():
                 p.text = str(stats['lost'])
                 p.font.size = Pt(32)
                 p.font.bold = True
+                p.font.name = FONT_NAME
                 p.font.color.rgb = RGBColor(220, 53, 69)
                 p.alignment = PP_ALIGN.CENTER
                 p2 = tf.add_paragraph()
                 p2.text = "Lost"
                 p2.font.size = Pt(10)
+                p2.font.name = FONT_NAME
                 p2.font.color.rgb = RGBColor(108, 117, 125)
                 p2.alignment = PP_ALIGN.CENTER
                 p3 = tf.add_paragraph()
                 p3.text = f"{stats['lost_value']:,.0f}"
                 p3.font.size = Pt(9)
+                p3.font.name = FONT_NAME
                 p3.font.color.rgb = RGBColor(220, 53, 69)
                 p3.alignment = PP_ALIGN.CENTER
                 
@@ -6837,16 +6888,19 @@ def export_engineer_report_pptx():
                 p.text = str(stats['ongoing'])
                 p.font.size = Pt(32)
                 p.font.bold = True
+                p.font.name = FONT_NAME
                 p.font.color.rgb = RGBColor(253, 126, 20)
                 p.alignment = PP_ALIGN.CENTER
                 p2 = tf.add_paragraph()
                 p2.text = "Ongoing"
                 p2.font.size = Pt(10)
+                p2.font.name = FONT_NAME
                 p2.font.color.rgb = RGBColor(108, 117, 125)
                 p2.alignment = PP_ALIGN.CENTER
                 p3 = tf.add_paragraph()
                 p3.text = f"{stats['ongoing_value']:,.0f}"
                 p3.font.size = Pt(9)
+                p3.font.name = FONT_NAME
                 p3.font.color.rgb = RGBColor(253, 126, 20)
                 p3.alignment = PP_ALIGN.CENTER
     
