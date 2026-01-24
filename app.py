@@ -13021,7 +13021,7 @@ def rfts_engineer_reports():
         # Get RFTS for this engineer with date filters
         if report_type == 'sales':
             query = f"""
-                SELECT id, reference, request_type, project_name, priority,
+                SELECT id, rfts_reference, request_type, project_name, priority,
                        presale_engineer, sales_engineer, request_status,
                        request_result, deadline, note, requested_time, system
                 FROM technical_support_requests 
@@ -13031,7 +13031,7 @@ def rfts_engineer_reports():
             """
         else:
             query = f"""
-                SELECT id, reference, request_type, project_name, priority,
+                SELECT id, rfts_reference, request_type, project_name, priority,
                        presale_engineer, sales_engineer, request_status,
                        request_result, deadline, note, requested_time, system
                 FROM technical_support_requests 
@@ -13234,7 +13234,7 @@ def export_rfts_engineer_report_excel():
     # Get RFTS for this engineer
     if report_type == 'sales':
         query = f"""
-            SELECT id, reference, request_type, project_name, priority,
+            SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
                    request_result, deadline, note, requested_time
             FROM technical_support_requests 
@@ -13244,7 +13244,7 @@ def export_rfts_engineer_report_excel():
         """
     else:
         query = f"""
-            SELECT id, reference, request_type, project_name, priority,
+            SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
                    request_result, deadline, note, requested_time
             FROM technical_support_requests 
@@ -13422,7 +13422,7 @@ def export_rfts_engineer_report_pptx():
     # Get RFTS for this engineer
     if report_type == 'sales':
         query = f"""
-            SELECT id, reference, request_type, project_name, priority,
+            SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
                    request_result, deadline, note, requested_time
             FROM technical_support_requests 
@@ -13432,7 +13432,7 @@ def export_rfts_engineer_report_pptx():
         """
     else:
         query = f"""
-            SELECT id, reference, request_type, project_name, priority,
+            SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
                    request_result, deadline, note, requested_time
             FROM technical_support_requests 
