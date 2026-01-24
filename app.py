@@ -18382,6 +18382,583 @@ def export_po_items_excel(po_number):
         return redirect(url_for('po_profile', po_number=po_number))
 
 
+###################################
+# Export Complete PO Profile Report to Excel
+@app.route('/export_po_profile_excel/<po_request_number>')
+@login_required
+def export_po_profile_excel(po_request_number):
+    """Export comprehensive PO Profile Report to Excel"""
+    try:
+        import pandas as pd
+        from io import BytesIO
+        from datetime import datetime
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get PO details with joins
+        cursor.execute("""
+            SELECT 
+                po.*,
+                rp.project_name as project_name_actual,
+                d.name as distributor_name,
+                v.name as vendor_name,
+                e.name as presale_engineer_name,
+                pm.name as project_manager_name
+            FROM purchase_orders po
+            LEFT JOIN register_project rp ON CAST(po.project_name AS INTEGER) = rp.id
+            LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
+            LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
+            LEFT JOIN engineers e ON po.presale_engineer = e.username
+            LEFT JOIN engineers pm ON po.project_manager = pm.username
+            WHERE po.po_request_number = ?
+        """, (po_request_number,))
+        po = cursor.fetchone()
+        
+        if not po:
+            flash('Purchase Order not found!', 'danger')
+            conn.close()
+            return redirect(url_for('view_po_status'))
+        
+        po_number = po['po_number']
+        
+        # Get PO items
+        cursor.execute("""
+            SELECT * FROM po_items 
+            WHERE po_number = ? 
+            ORDER BY item_number ASC
+        """, (po_number,))
+        po_items = cursor.fetchall()
+        
+        # Get delivery notes
+        cursor.execute("""
+            SELECT * FROM purchase_order_monitoring 
+            WHERE (po_number = ? OR po_number = ?) AND deleted_at IS NULL
+            ORDER BY order_date DESC
+        """, (po_number, po_request_number))
+        delivery_notes = cursor.fetchall()
+        
+        # Get VAT invoices
+        cursor.execute("""
+            SELECT * FROM vat_invoices 
+            WHERE po_request_number = ?
+            ORDER BY uploaded_at DESC
+        """, (po_request_number,))
+        vat_invoices = cursor.fetchall()
+        
+        conn.close()
+        
+        # Calculate delivery stats
+        delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
+        partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
+        not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
+        total_items = len(po_items)
+        
+        # Calculate financial summary
+        total_value = sum(float(item['total_price'] or 0) for item in po_items)
+        vat_amount = total_value * 0.15
+        grand_total = total_value + vat_amount
+        
+        # Create Excel file with multiple sheets
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            workbook = writer.book
+            
+            # Formats
+            header_format = workbook.add_format({
+                'bold': True, 'bg_color': '#667eea', 'font_color': 'white',
+                'border': 1, 'align': 'center', 'valign': 'vcenter'
+            })
+            title_format = workbook.add_format({
+                'bold': True, 'font_size': 16, 'font_color': '#667eea'
+            })
+            label_format = workbook.add_format({
+                'bold': True, 'bg_color': '#f0f4ff', 'border': 1
+            })
+            value_format = workbook.add_format({'border': 1})
+            money_format = workbook.add_format({'border': 1, 'num_format': '#,##0.00'})
+            
+            # Sheet 1: PO Summary
+            summary_sheet = workbook.add_worksheet('PO Summary')
+            summary_sheet.set_column('A:A', 25)
+            summary_sheet.set_column('B:B', 40)
+            summary_sheet.set_column('C:C', 25)
+            summary_sheet.set_column('D:D', 40)
+            
+            summary_sheet.write('A1', f'Purchase Order Report - {po_request_number}', title_format)
+            summary_sheet.write('A2', f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}')
+            
+            row = 4
+            summary_sheet.write(row, 0, 'PO Details', header_format)
+            summary_sheet.merge_range(row, 0, row, 3, 'Purchase Order Details', header_format)
+            
+            row += 1
+            details = [
+                ('PO Number', po['po_number'] or 'N/A', 'PO Request Number', po_request_number),
+                ('System', po['system'] or 'N/A', 'Status', po['status'] or 'N/A'),
+                ('Distributor', po['distributor_name'] or 'N/A', 'Vendor', po['vendor_name'] or 'N/A'),
+                ('Presale Engineer', po['presale_engineer_name'] or 'N/A', 'Project Manager', po['project_manager_name'] or 'N/A'),
+                ('Project', po['project_name_actual'] or 'N/A', 'Created Date', str(po['created_at'])[:10] if po['created_at'] else 'N/A'),
+                ('Delivery Status', po['delivery_status'] or 'N/A', 'Vendor Notes', (po['vendor_notes'] or 'N/A')[:50])
+            ]
+            
+            for label1, val1, label2, val2 in details:
+                summary_sheet.write(row, 0, label1, label_format)
+                summary_sheet.write(row, 1, val1, value_format)
+                summary_sheet.write(row, 2, label2, label_format)
+                summary_sheet.write(row, 3, val2, value_format)
+                row += 1
+            
+            row += 2
+            summary_sheet.merge_range(row, 0, row, 1, 'Delivery Summary', header_format)
+            summary_sheet.merge_range(row, 2, row, 3, 'Financial Summary', header_format)
+            
+            row += 1
+            summary_sheet.write(row, 0, 'Total Items', label_format)
+            summary_sheet.write(row, 1, total_items, value_format)
+            summary_sheet.write(row, 2, 'Subtotal', label_format)
+            summary_sheet.write(row, 3, total_value, money_format)
+            
+            row += 1
+            summary_sheet.write(row, 0, 'Delivered', label_format)
+            summary_sheet.write(row, 1, delivered_count, value_format)
+            summary_sheet.write(row, 2, 'VAT (15%)', label_format)
+            summary_sheet.write(row, 3, vat_amount, money_format)
+            
+            row += 1
+            summary_sheet.write(row, 0, 'Partial', label_format)
+            summary_sheet.write(row, 1, partial_count, value_format)
+            summary_sheet.write(row, 2, 'Grand Total', label_format)
+            summary_sheet.write(row, 3, grand_total, money_format)
+            
+            row += 1
+            summary_sheet.write(row, 0, 'Not Delivered', label_format)
+            summary_sheet.write(row, 1, not_delivered_count, value_format)
+            
+            # Sheet 2: PO Items
+            if po_items:
+                items_data = []
+                for item in po_items:
+                    items_data.append({
+                        'Item #': item['item_number'] or '',
+                        'Part Number': item['part_number'] or '',
+                        'Description': item['description'] or '',
+                        'Quantity': item['quantity'] or 0,
+                        'Unit Price': float(item['unit_price'] or 0),
+                        'Total Price': float(item['total_price'] or 0),
+                        'Qty Delivered': item['quantity_delivered'] or 0,
+                        'Delivery Status': item['delivery_status'] or 'Not Delivered'
+                    })
+                items_df = pd.DataFrame(items_data)
+                items_df.to_excel(writer, sheet_name='PO Items', index=False, startrow=1)
+                
+                items_sheet = writer.sheets['PO Items']
+                items_sheet.write('A1', 'PO Items List', title_format)
+                for col, header in enumerate(items_df.columns):
+                    items_sheet.write(1, col, header, header_format)
+                    items_sheet.set_column(col, col, 18 if col == 2 else 14)
+            
+            # Sheet 3: Delivery Notes
+            if delivery_notes:
+                dn_data = []
+                for dn in delivery_notes:
+                    dn_data.append({
+                        'DN Number': dn['order_number'] or '',
+                        'Order Date': str(dn['order_date'])[:10] if dn['order_date'] else '',
+                        'Delivery Date': str(dn['delivery_date'])[:10] if dn['delivery_date'] else '',
+                        'Status': dn['order_status'] or '',
+                        'Description': dn['item_description'] or ''
+                    })
+                dn_df = pd.DataFrame(dn_data)
+                dn_df.to_excel(writer, sheet_name='Delivery Notes', index=False, startrow=1)
+                
+                dn_sheet = writer.sheets['Delivery Notes']
+                dn_sheet.write('A1', 'Delivery Notes', title_format)
+                for col, header in enumerate(dn_df.columns):
+                    dn_sheet.write(1, col, header, header_format)
+                    dn_sheet.set_column(col, col, 20)
+            
+            # Sheet 4: VAT Invoices
+            if vat_invoices:
+                vat_data = []
+                for inv in vat_invoices:
+                    vat_data.append({
+                        'Invoice Number': inv['invoice_number'] or '',
+                        'Amount': float(inv['amount'] or 0),
+                        'Uploaded By': inv['uploaded_by'] or '',
+                        'Upload Date': str(inv['uploaded_at'])[:10] if inv['uploaded_at'] else ''
+                    })
+                vat_df = pd.DataFrame(vat_data)
+                vat_df.to_excel(writer, sheet_name='VAT Invoices', index=False, startrow=1)
+                
+                vat_sheet = writer.sheets['VAT Invoices']
+                vat_sheet.write('A1', 'VAT Invoices', title_format)
+                for col, header in enumerate(vat_df.columns):
+                    vat_sheet.write(1, col, header, header_format)
+                    vat_sheet.set_column(col, col, 18)
+        
+        output.seek(0)
+        
+        filename = f'PO_Report_{po_request_number}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting PO Report: {str(e)}', 'danger')
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
+
+
+###################################
+# Export Complete PO Profile Report to PowerPoint
+@app.route('/export_po_profile_pptx/<po_request_number>')
+@login_required
+def export_po_profile_pptx(po_request_number):
+    """Export comprehensive PO Profile Report to PowerPoint"""
+    try:
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
+        from pptx.dml.color import RGBColor
+        from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+        from io import BytesIO
+        from datetime import datetime
+        
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get PO details with joins
+        cursor.execute("""
+            SELECT 
+                po.*,
+                rp.project_name as project_name_actual,
+                d.name as distributor_name,
+                v.name as vendor_name,
+                e.name as presale_engineer_name,
+                pm.name as project_manager_name
+            FROM purchase_orders po
+            LEFT JOIN register_project rp ON CAST(po.project_name AS INTEGER) = rp.id
+            LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
+            LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
+            LEFT JOIN engineers e ON po.presale_engineer = e.username
+            LEFT JOIN engineers pm ON po.project_manager = pm.username
+            WHERE po.po_request_number = ?
+        """, (po_request_number,))
+        po = cursor.fetchone()
+        
+        if not po:
+            flash('Purchase Order not found!', 'danger')
+            conn.close()
+            return redirect(url_for('view_po_status'))
+        
+        po_number = po['po_number']
+        
+        # Get PO items
+        cursor.execute("""
+            SELECT * FROM po_items 
+            WHERE po_number = ? 
+            ORDER BY item_number ASC
+        """, (po_number,))
+        po_items = cursor.fetchall()
+        
+        conn.close()
+        
+        # Calculate stats
+        delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
+        partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
+        not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
+        total_items = len(po_items)
+        
+        # Calculate financial summary
+        total_value = sum(float(item['total_price'] or 0) for item in po_items)
+        vat_amount = total_value * 0.15
+        grand_total = total_value + vat_amount
+        
+        # Create presentation
+        prs = Presentation()
+        prs.slide_width = Inches(13.333)
+        prs.slide_height = Inches(7.5)
+        
+        slide_layout = prs.slide_layouts[6]  # Blank layout
+        
+        # Slide 1: Title Slide
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Title
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.0), Inches(12.333), Inches(1.5))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "Purchase Order Report"
+        p.font.size = Pt(44)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(102, 126, 234)
+        p.alignment = PP_ALIGN.CENTER
+        
+        # PO Number subtitle
+        subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.5), Inches(12.333), Inches(1))
+        tf = subtitle_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"PO Number: {po_number}"
+        p.font.size = Pt(28)
+        p.font.color.rgb = RGBColor(100, 100, 100)
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Status badge
+        status = po['status'] or 'Pending'
+        status_color = RGBColor(40, 167, 69) if status == 'Approved' else RGBColor(255, 193, 7) if status == 'Pending' else RGBColor(220, 53, 69)
+        
+        status_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12.333), Inches(0.6))
+        tf = status_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Status: {status}"
+        p.font.size = Pt(20)
+        p.font.color.rgb = status_color
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Date
+        date_box = slide.shapes.add_textbox(Inches(0.5), Inches(5.2), Inches(12.333), Inches(0.5))
+        tf = date_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Generated: {datetime.now().strftime('%Y-%m-%d')}"
+        p.font.size = Pt(14)
+        p.font.color.rgb = RGBColor(150, 150, 150)
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Slide 2: PO Details
+        slide = prs.slides.add_slide(slide_layout)
+        
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "Purchase Order Details"
+        p.font.size = Pt(32)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(102, 126, 234)
+        
+        # Details table
+        details_data = [
+            ['PO Number', po['po_number'] or 'N/A', 'PO Request #', po_request_number],
+            ['System', po['system'] or 'N/A', 'Project', (po['project_name_actual'] or 'N/A')[:30]],
+            ['Distributor', (po['distributor_name'] or 'N/A')[:25], 'Vendor', (po['vendor_name'] or 'N/A')[:25]],
+            ['Presale Eng.', (po['presale_engineer_name'] or 'N/A')[:20], 'Project Mgr', (po['project_manager_name'] or 'N/A')[:20]],
+            ['Created', str(po['created_at'])[:10] if po['created_at'] else 'N/A', 'Delivery Status', po['delivery_status'] or 'N/A']
+        ]
+        
+        table = slide.shapes.add_table(len(details_data), 4, Inches(0.5), Inches(1.3), Inches(12.3), Inches(0.6 * len(details_data))).table
+        
+        table.columns[0].width = Inches(2.0)
+        table.columns[1].width = Inches(4.0)
+        table.columns[2].width = Inches(2.0)
+        table.columns[3].width = Inches(4.3)
+        
+        for row_idx, row_data in enumerate(details_data):
+            for col_idx, cell_data in enumerate(row_data):
+                cell = table.cell(row_idx, col_idx)
+                cell.text = str(cell_data)
+                
+                if col_idx in [0, 2]:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(102, 126, 234)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                        para.font.bold = True
+                        para.font.size = Pt(11)
+                else:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(11)
+                
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Slide 3: Summary Dashboard
+        slide = prs.slides.add_slide(slide_layout)
+        
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "Summary Dashboard"
+        p.font.size = Pt(32)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(102, 126, 234)
+        
+        # Delivery Summary Cards
+        delivery_cards = [
+            ('Total Items', total_items, RGBColor(102, 126, 234)),
+            ('Delivered', delivered_count, RGBColor(40, 167, 69)),
+            ('Partial', partial_count, RGBColor(255, 193, 7)),
+            ('Not Delivered', not_delivered_count, RGBColor(220, 53, 69))
+        ]
+        
+        card_width = Inches(2.8)
+        card_height = Inches(1.5)
+        start_x = Inches(0.5)
+        start_y = Inches(1.5)
+        gap = Inches(0.3)
+        
+        for i, (label, value, color) in enumerate(delivery_cards):
+            x = start_x + (i * (card_width + gap))
+            shape = slide.shapes.add_shape(1, x, start_y, card_width, card_height)
+            shape.fill.solid()
+            shape.fill.fore_color.rgb = color
+            shape.line.fill.background()
+            
+            tf = shape.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = str(value)
+            p.font.size = Pt(42)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.alignment = PP_ALIGN.CENTER
+            
+            p2 = tf.add_paragraph()
+            p2.text = label
+            p2.font.size = Pt(14)
+            p2.font.color.rgb = RGBColor(255, 255, 255)
+            p2.alignment = PP_ALIGN.CENTER
+        
+        # Financial Summary Cards
+        fin_cards = [
+            ('Subtotal', f'{total_value:,.2f} SAR', RGBColor(59, 89, 152)),
+            ('VAT (15%)', f'{vat_amount:,.2f} SAR', RGBColor(111, 66, 193)),
+            ('Grand Total', f'{grand_total:,.2f} SAR', RGBColor(23, 162, 184))
+        ]
+        
+        card_width = Inches(3.8)
+        start_x = Inches(0.7)
+        start_y = Inches(3.5)
+        gap = Inches(0.3)
+        
+        for i, (label, value, color) in enumerate(fin_cards):
+            x = start_x + (i * (card_width + gap))
+            shape = slide.shapes.add_shape(1, x, start_y, card_width, card_height)
+            shape.fill.solid()
+            shape.fill.fore_color.rgb = color
+            shape.line.fill.background()
+            
+            tf = shape.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = value
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.alignment = PP_ALIGN.CENTER
+            
+            p2 = tf.add_paragraph()
+            p2.text = label
+            p2.font.size = Pt(14)
+            p2.font.color.rgb = RGBColor(255, 255, 255)
+            p2.alignment = PP_ALIGN.CENTER
+        
+        # Slide 4+: PO Items (6 per slide)
+        items_per_slide = 6
+        for slide_start in range(0, len(po_items), items_per_slide):
+            slide_items = list(po_items)[slide_start:slide_start + items_per_slide]
+            
+            slide = prs.slides.add_slide(slide_layout)
+            
+            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"PO Items ({slide_start + 1}-{min(slide_start + items_per_slide, len(po_items))} of {len(po_items)})"
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(102, 126, 234)
+            
+            # Items table
+            rows = len(slide_items) + 1
+            cols = 7
+            row_height = Inches(0.7)
+            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.0), Inches(12.7), row_height * rows).table
+            
+            table.columns[0].width = Inches(0.5)
+            table.columns[1].width = Inches(1.5)
+            table.columns[2].width = Inches(4.0)
+            table.columns[3].width = Inches(1.2)
+            table.columns[4].width = Inches(1.5)
+            table.columns[5].width = Inches(1.8)
+            table.columns[6].width = Inches(2.2)
+            
+            headers = ['#', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total', 'Delivery Status']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
+                cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                cell.text_frame.paragraphs[0].font.bold = True
+                cell.text_frame.paragraphs[0].font.size = Pt(10)
+                cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            for i, item in enumerate(slide_items, 1):
+                row_idx = i
+                
+                table.cell(row_idx, 0).text = str(slide_start + i)
+                table.cell(row_idx, 1).text = str(item['part_number'] or '')[:15]
+                table.cell(row_idx, 2).text = str(item['description'] or '')[:40]
+                table.cell(row_idx, 3).text = str(item['quantity'] or 0)
+                table.cell(row_idx, 4).text = f"{float(item['unit_price'] or 0):,.2f}"
+                table.cell(row_idx, 5).text = f"{float(item['total_price'] or 0):,.2f}"
+                
+                delivery_status = item['delivery_status'] or 'Not Delivered'
+                status_cell = table.cell(row_idx, 6)
+                status_cell.text = delivery_status
+                
+                if delivery_status == 'Delivered':
+                    status_cell.fill.solid()
+                    status_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                    for para in status_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                elif delivery_status == 'Partial':
+                    status_cell.fill.solid()
+                    status_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                else:
+                    status_cell.fill.solid()
+                    status_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                    for para in status_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                
+                for col in range(cols):
+                    cell = table.cell(row_idx, col)
+                    if col != 6:
+                        if i % 2 == 0:
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = RGBColor(230, 240, 255)
+                        else:
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Save to BytesIO
+        output = BytesIO()
+        prs.save(output)
+        output.seek(0)
+        
+        filename = f'PO_Report_{po_request_number}_{datetime.now().strftime("%Y%m%d")}.pptx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        flash(f'Error exporting PO Report: {str(e)}', 'danger')
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
+
+
 @app.route('/upload_vat_invoice/<po_request_number>', methods=['POST'])
 @login_required
 def upload_vat_invoice(po_request_number):

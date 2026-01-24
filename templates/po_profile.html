@@ -132,6 +132,19 @@
     <a href="{{ url_for('view_po_document', po_id=po.id, doc_type='po_document') }}" target="_blank" class="btn btn-info"><i class="fas fa-file-pdf mr-2"></i>View PO Document</a>
     <a href="{{ url_for('view_po_document', po_id=po.id, doc_type='quotation') }}" target="_blank" class="btn btn-success"><i class="fas fa-file-invoice mr-2"></i>View Quotation Document</a>
     <a href="{{ url_for('edit_po', po_id=po.id) }}" class="btn btn-warning"><i class="fas fa-edit mr-2"></i>Edit PO</a>
+    <div class="btn-group ml-2">
+        <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-download mr-2"></i>Export Report
+        </button>
+        <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('export_po_profile_excel', po_request_number=po_request_number) }}">
+                <i class="fas fa-file-excel mr-2 text-success"></i>Export to Excel
+            </a>
+            <a class="dropdown-item" href="{{ url_for('export_po_profile_pptx', po_request_number=po_request_number) }}">
+                <i class="fas fa-file-powerpoint mr-2 text-danger"></i>Export to PowerPoint
+            </a>
+        </div>
+    </div>
 </div>
 
 <div class="row">
