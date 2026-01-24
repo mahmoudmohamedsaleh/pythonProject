@@ -18682,6 +18682,22 @@ def export_po_profile_pptx(po_request_number):
         """, (po_number,))
         po_items = cursor.fetchall()
         
+        # Get delivery notes
+        cursor.execute("""
+            SELECT * FROM purchase_order_monitoring 
+            WHERE (po_number = ? OR po_number = ?) AND deleted_at IS NULL
+            ORDER BY order_date DESC
+        """, (po_number, po_request_number))
+        delivery_notes = cursor.fetchall()
+        
+        # Get VAT invoices
+        cursor.execute("""
+            SELECT * FROM vat_invoices 
+            WHERE po_request_number = ?
+            ORDER BY uploaded_at DESC
+        """, (po_request_number,))
+        vat_invoices = cursor.fetchall()
+        
         conn.close()
         
         # Calculate stats (safely handle missing columns)
@@ -18708,6 +18724,9 @@ def export_po_profile_pptx(po_request_number):
         
         slide_layout = prs.slide_layouts[6]  # Blank layout
         
+        # Default font name for compatibility
+        FONT_NAME = 'Arial'
+        
         # Slide 1: Title Slide
         slide = prs.slides.add_slide(slide_layout)
         
@@ -18718,6 +18737,7 @@ def export_po_profile_pptx(po_request_number):
         p.text = "Purchase Order Report"
         p.font.size = Pt(44)
         p.font.bold = True
+        p.font.name = FONT_NAME
         p.font.color.rgb = RGBColor(102, 126, 234)
         p.alignment = PP_ALIGN.CENTER
         
@@ -18727,6 +18747,7 @@ def export_po_profile_pptx(po_request_number):
         p = tf.paragraphs[0]
         p.text = f"PO Number: {po_number}"
         p.font.size = Pt(28)
+        p.font.name = FONT_NAME
         p.font.color.rgb = RGBColor(100, 100, 100)
         p.alignment = PP_ALIGN.CENTER
         
@@ -18739,6 +18760,7 @@ def export_po_profile_pptx(po_request_number):
         p = tf.paragraphs[0]
         p.text = f"Status: {status}"
         p.font.size = Pt(20)
+        p.font.name = FONT_NAME
         p.font.color.rgb = status_color
         p.alignment = PP_ALIGN.CENTER
         
@@ -18748,6 +18770,7 @@ def export_po_profile_pptx(po_request_number):
         p = tf.paragraphs[0]
         p.text = f"Generated: {datetime.now().strftime('%Y-%m-%d')}"
         p.font.size = Pt(14)
+        p.font.name = FONT_NAME
         p.font.color.rgb = RGBColor(150, 150, 150)
         p.alignment = PP_ALIGN.CENTER
         
@@ -18760,6 +18783,7 @@ def export_po_profile_pptx(po_request_number):
         p.text = "Purchase Order Details"
         p.font.size = Pt(32)
         p.font.bold = True
+        p.font.name = FONT_NAME
         p.font.color.rgb = RGBColor(102, 126, 234)
         
         # Details table
@@ -18807,6 +18831,7 @@ def export_po_profile_pptx(po_request_number):
         p.text = "Summary Dashboard"
         p.font.size = Pt(32)
         p.font.bold = True
+        p.font.name = FONT_NAME
         p.font.color.rgb = RGBColor(102, 126, 234)
         
         # Delivery Summary Cards
@@ -18892,6 +18917,7 @@ def export_po_profile_pptx(po_request_number):
             p.text = f"PO Items ({slide_start + 1}-{min(slide_start + items_per_slide, len(po_items))} of {len(po_items)})"
             p.font.size = Pt(28)
             p.font.bold = True
+            p.font.name = FONT_NAME
             p.font.color.rgb = RGBColor(102, 126, 234)
             
             # Items table
@@ -18958,9 +18984,154 @@ def export_po_profile_pptx(po_request_number):
                             cell.fill.solid()
                             cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
                     for para in cell.text_frame.paragraphs:
-                        para.font.size = Pt(9)
+                        para.font.size = Pt(10)
+                        para.font.name = FONT_NAME
                         para.alignment = PP_ALIGN.CENTER
                     cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Slide: Delivery Notes (if any)
+        if delivery_notes:
+            dn_per_slide = 8
+            for slide_start in range(0, len(delivery_notes), dn_per_slide):
+                slide_dns = list(delivery_notes)[slide_start:slide_start + dn_per_slide]
+                
+                slide = prs.slides.add_slide(slide_layout)
+                
+                title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+                tf = title_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"Delivery Notes ({slide_start + 1}-{min(slide_start + dn_per_slide, len(delivery_notes))} of {len(delivery_notes)})"
+                p.font.size = Pt(28)
+                p.font.bold = True
+                p.font.name = FONT_NAME
+                p.font.color.rgb = RGBColor(102, 126, 234)
+                
+                # Delivery Notes table
+                dn_rows = len(slide_dns) + 1
+                dn_cols = 5
+                dn_row_height = Inches(0.6)
+                dn_table = slide.shapes.add_table(dn_rows, dn_cols, Inches(0.5), Inches(1.0), Inches(12.3), dn_row_height * dn_rows).table
+                
+                dn_table.columns[0].width = Inches(1.0)
+                dn_table.columns[1].width = Inches(2.5)
+                dn_table.columns[2].width = Inches(2.5)
+                dn_table.columns[3].width = Inches(2.0)
+                dn_table.columns[4].width = Inches(4.3)
+                
+                dn_headers = ['ID', 'Order Date', 'Expected Delivery', 'Status', 'Notes']
+                for col, header in enumerate(dn_headers):
+                    cell = dn_table.cell(0, col)
+                    cell.text = header
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(23, 162, 184)
+                    cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    cell.text_frame.paragraphs[0].font.bold = True
+                    cell.text_frame.paragraphs[0].font.size = Pt(11)
+                    cell.text_frame.paragraphs[0].font.name = FONT_NAME
+                    cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                
+                for i, dn in enumerate(slide_dns, 1):
+                    row_idx = i
+                    dn_table.cell(row_idx, 0).text = str(dn['id'] or '')
+                    dn_table.cell(row_idx, 1).text = str(dn['order_date'] or '')[:10] if dn['order_date'] else ''
+                    dn_table.cell(row_idx, 2).text = str(dn['expected_delivery'] or '')[:10] if dn['expected_delivery'] else ''
+                    
+                    status_val = dn['status'] or ''
+                    status_cell = dn_table.cell(row_idx, 3)
+                    status_cell.text = status_val
+                    if status_val.lower() == 'delivered':
+                        status_cell.fill.solid()
+                        status_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                        for para in status_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                    elif status_val.lower() == 'pending':
+                        status_cell.fill.solid()
+                        status_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                    else:
+                        status_cell.fill.solid()
+                        status_cell.fill.fore_color.rgb = RGBColor(108, 117, 125)
+                        for para in status_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                    
+                    dn_table.cell(row_idx, 4).text = str(dn['notes'] or '')[:50]
+                    
+                    for col in range(dn_cols):
+                        cell = dn_table.cell(row_idx, col)
+                        if col != 3:
+                            if i % 2 == 0:
+                                cell.fill.solid()
+                                cell.fill.fore_color.rgb = RGBColor(230, 245, 255)
+                            else:
+                                cell.fill.solid()
+                                cell.fill.fore_color.rgb = RGBColor(245, 252, 255)
+                        for para in cell.text_frame.paragraphs:
+                            para.font.size = Pt(10)
+                            para.font.name = FONT_NAME
+                            para.alignment = PP_ALIGN.CENTER
+                        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Slide: VAT Invoices (if any)
+        if vat_invoices:
+            vat_per_slide = 8
+            for slide_start in range(0, len(vat_invoices), vat_per_slide):
+                slide_vats = list(vat_invoices)[slide_start:slide_start + vat_per_slide]
+                
+                slide = prs.slides.add_slide(slide_layout)
+                
+                title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+                tf = title_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"VAT Invoices ({slide_start + 1}-{min(slide_start + vat_per_slide, len(vat_invoices))} of {len(vat_invoices)})"
+                p.font.size = Pt(28)
+                p.font.bold = True
+                p.font.name = FONT_NAME
+                p.font.color.rgb = RGBColor(111, 66, 193)
+                
+                # VAT Invoices table
+                vat_rows = len(slide_vats) + 1
+                vat_cols = 4
+                vat_row_height = Inches(0.6)
+                vat_table = slide.shapes.add_table(vat_rows, vat_cols, Inches(0.5), Inches(1.0), Inches(12.3), vat_row_height * vat_rows).table
+                
+                vat_table.columns[0].width = Inches(3.5)
+                vat_table.columns[1].width = Inches(3.5)
+                vat_table.columns[2].width = Inches(2.5)
+                vat_table.columns[3].width = Inches(2.8)
+                
+                vat_headers = ['Invoice Name', 'File Name', 'Uploaded By', 'Upload Date']
+                for col, header in enumerate(vat_headers):
+                    cell = vat_table.cell(0, col)
+                    cell.text = header
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(111, 66, 193)
+                    cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    cell.text_frame.paragraphs[0].font.bold = True
+                    cell.text_frame.paragraphs[0].font.size = Pt(11)
+                    cell.text_frame.paragraphs[0].font.name = FONT_NAME
+                    cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                
+                for i, inv in enumerate(slide_vats, 1):
+                    row_idx = i
+                    vat_table.cell(row_idx, 0).text = str(inv['invoice_name'] or '')[:30]
+                    vat_table.cell(row_idx, 1).text = str(inv['file_name'] or '')[:30]
+                    vat_table.cell(row_idx, 2).text = str(inv['uploaded_by_username'] or '')
+                    vat_table.cell(row_idx, 3).text = str(inv['uploaded_at'] or '')[:10] if inv['uploaded_at'] else ''
+                    
+                    for col in range(vat_cols):
+                        cell = vat_table.cell(row_idx, col)
+                        if i % 2 == 0:
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = RGBColor(240, 230, 255)
+                        else:
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = RGBColor(250, 245, 255)
+                        for para in cell.text_frame.paragraphs:
+                            para.font.size = Pt(10)
+                            para.font.name = FONT_NAME
+                            para.alignment = PP_ALIGN.CENTER
+                        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         
         # Save to BytesIO
         output = BytesIO()
