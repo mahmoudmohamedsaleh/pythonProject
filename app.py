@@ -11684,7 +11684,7 @@ def export_rfq_engineer_report_pptx():
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
-    from pptx.enum.text import PP_ALIGN
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
     from io import BytesIO
     from datetime import datetime, date
     
@@ -11973,51 +11973,53 @@ def export_rfq_engineer_report_pptx():
     not_submitted_rfqs.sort(key=lambda x: x['deadline'] if x['deadline'] != '-' else '9999-99-99')
     
     if not_submitted_rfqs:
-        # Create follow-up slide(s) - max 8 rows per slide for readability
-        items_per_slide = 8
+        # Create follow-up slide(s) - max 6 rows per slide for better readability
+        items_per_slide = 6
         for slide_num in range(0, len(not_submitted_rfqs), items_per_slide):
             slide_rfqs = not_submitted_rfqs[slide_num:slide_num + items_per_slide]
             
             slide = prs.slides.add_slide(slide_layout)
             
             # Title
-            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+            title_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.3), Inches(12.533), Inches(0.7))
             tf = title_box.text_frame
             p = tf.paragraphs[0]
             p.text = 'Follow Up "RFQs Not Submitted":-'
-            p.font.size = Pt(28)
+            p.font.size = Pt(32)
             p.font.bold = True
-            p.font.color.rgb = RGBColor(102, 126, 234)
+            p.font.color.rgb = RGBColor(59, 89, 152)
             
-            # Create table
+            # Create table with better sizing
             rows = len(slide_rfqs) + 1
             cols = 8
-            table = slide.shapes.add_table(rows, cols, Inches(0.2), Inches(0.9), Inches(12.9), Inches(0.55 * rows)).table
+            row_height = Inches(0.7)
+            table_height = row_height * rows
+            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.7), table_height).table
             
-            # Set column widths
-            table.columns[0].width = Inches(0.4)   # #
-            table.columns[1].width = Inches(1.5)   # RFQ Reference
-            table.columns[2].width = Inches(2.2)   # Project Name
-            table.columns[3].width = Inches(1.3)   # Sales Engineer
-            table.columns[4].width = Inches(1.0)   # Last Status
-            table.columns[5].width = Inches(1.2)   # Request Date
-            table.columns[6].width = Inches(1.2)   # Deadline
+            # Set column widths for better proportions
+            table.columns[0].width = Inches(0.5)   # #
+            table.columns[1].width = Inches(1.8)   # RFQ Reference
+            table.columns[2].width = Inches(2.8)   # Project Name
+            table.columns[3].width = Inches(1.4)   # Sales Engineer
+            table.columns[4].width = Inches(1.1)   # Last Status
+            table.columns[5].width = Inches(1.3)   # Request Date
+            table.columns[6].width = Inches(1.3)   # Deadline
             table.columns[7].width = Inches(1.0)   # Overdue
             
-            # Headers
+            # Headers with better styling
             headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Engineer', 'Last Status', 'Request Date', 'Deadline', 'Overdue']
             for col, header in enumerate(headers):
                 cell = table.cell(0, col)
                 cell.text = header
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
-                for para in cell.text_frame.paragraphs:
-                    para.font.color.rgb = RGBColor(255, 255, 255)
-                    para.font.bold = True
-                    para.font.size = Pt(9)
-                    para.alignment = PP_ALIGN.CENTER
+                cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                cell.text_frame.paragraphs[0].font.bold = True
+                cell.text_frame.paragraphs[0].font.size = Pt(11)
+                cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             
-            # Data rows
+            # Data rows with improved formatting
             for i, rfq_item in enumerate(slide_rfqs, 1):
                 row_idx = i
                 
@@ -12029,7 +12031,7 @@ def export_rfq_engineer_report_pptx():
                 
                 # Project Name (truncate if too long)
                 proj_name = rfq_item['project_name'] or ''
-                table.cell(row_idx, 2).text = proj_name[:30] + '...' if len(proj_name) > 30 else proj_name
+                table.cell(row_idx, 2).text = proj_name[:35] + '...' if len(proj_name) > 35 else proj_name
                 
                 # Sales Engineer
                 table.cell(row_idx, 3).text = rfq_item['sales_engineer'] or ''
@@ -12053,26 +12055,39 @@ def export_rfq_engineer_report_pptx():
                         overdue_cell.fill.solid()
                         overdue_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
                         overdue_cell.text = f"{days_overdue}d"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                            para.font.bold = True
                     elif days_overdue > 3:
                         # Orange - moderately overdue (4-7 days)
                         overdue_cell.fill.solid()
                         overdue_cell.fill.fore_color.rgb = RGBColor(253, 126, 20)
                         overdue_cell.text = f"{days_overdue}d"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                            para.font.bold = True
                     elif days_overdue > 0:
                         # Yellow - slightly overdue (1-3 days)
                         overdue_cell.fill.solid()
                         overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
                         overdue_cell.text = f"{days_overdue}d"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.bold = True
                     elif days_overdue == 0:
                         # Yellow - due today
                         overdue_cell.fill.solid()
                         overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
                         overdue_cell.text = "Today"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.bold = True
                     else:
                         # Green - not yet due
                         overdue_cell.fill.solid()
                         overdue_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
                         overdue_cell.text = f"{abs(days_overdue)}d left"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                            para.font.bold = True
                 else:
                     overdue_cell.text = "-"
                 
@@ -12082,10 +12097,14 @@ def export_rfq_engineer_report_pptx():
                     # Light blue alternating rows
                     if i % 2 == 0 and col != 7:
                         cell.fill.solid()
-                        cell.fill.fore_color.rgb = RGBColor(230, 240, 255)
+                        cell.fill.fore_color.rgb = RGBColor(220, 235, 252)
+                    elif i % 2 == 1 and col != 7:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
                     for para in cell.text_frame.paragraphs:
-                        para.font.size = Pt(8)
+                        para.font.size = Pt(10)
                         para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
     # Save to BytesIO
     output = BytesIO()
