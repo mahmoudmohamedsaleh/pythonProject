@@ -543,9 +543,15 @@
                                 </a>
                             </li>
                             <li>
-                                <a href="{{ url_for('engineer_reports') }}" class="{{ 'active' if 'engineer_reports' in request.endpoint else '' }}">
+                                <a href="{{ url_for('engineer_reports') }}" class="{{ 'active' if request.endpoint == 'engineer_reports' else '' }}">
                                     <i class="fas fa-chart-bar"></i>
                                     <span>Engineer Reports</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('unified_engineer_reports') }}" class="{{ 'active' if 'unified_engineer_reports' in request.endpoint else '' }}">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>Unified Reports</span>
                                 </a>
                             </li>
                         </ul>

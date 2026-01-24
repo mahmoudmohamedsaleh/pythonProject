@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% block title %}Unified Engineer Reports{% endblock %}
+{% block content %}
+
+<style>
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+.report-type-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+.report-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.sales-card {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+.presale-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.stat-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    transition: transform 0.2s;
+    background: white;
+}
+.stat-card:hover {
+    transform: translateY(-3px);
+}
+.stat-card .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+}
+.stat-card.total .stat-value { color: #667eea; }
+.stat-card.won .stat-value { color: #28a745; }
+.stat-card.lost .stat-value { color: #dc3545; }
+.stat-card.ongoing .stat-value { color: #ffc107; }
+.report-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+.section-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+.quotation-section .section-header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+.rfq-section .section-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.rfts-section .section-header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.data-table th {
+    background: linear-gradient(135deg, #4a90d9 0%, #667eea 100%);
+    color: white;
+    padding: 12px 8px;
+    text-align: left;
+    font-size: 0.85rem;
+}
+.data-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.85rem;
+}
+.data-table tr:hover {
+    background: #f8f9fc;
+}
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.status-won { background: #d4edda; color: #155724; }
+.status-lost { background: #f8d7da; color: #721c24; }
+.status-ongoing { background: #fff3cd; color: #856404; }
+.filter-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+.export-btn {
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+.back-btn {
+    color: white;
+    text-decoration: none;
+}
+.back-btn:hover {
+    color: rgba(255,255,255,0.8);
+}
+.mini-stat {
+    font-size: 0.8rem;
+    color: #666;
+}
+</style>
+
+<div class="page-header">
+    <a href="{{ url_for('view_quotations') }}" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+    <h1 class="mt-2 mb-1"><i class="fas fa-chart-line"></i> Unified Engineer Reports</h1>
+    <p class="mb-0 opacity-75">Combined view of Quotations, RFQs, and RFTS by Sales or Presales Engineer</p>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card report-type-card sales-card p-4 text-center h-100 {% if report_type == 'sales' %}active{% endif %}" 
+             onclick="window.location.href='{{ url_for('unified_engineer_reports', type='sales', engineer=selected_engineer, year=selected_year, month=selected_month, week=selected_week, quarter=selected_quarter) }}'">
+            <i class="fas fa-user-tie fa-3x mb-3"></i>
+            <h4>Sales Engineer Reports</h4>
+            <p class="mb-0">View all reports by Sales Engineer</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card report-type-card presale-card p-4 text-center h-100 {% if report_type == 'presale' %}active{% endif %}"
+             onclick="window.location.href='{{ url_for('unified_engineer_reports', type='presale', engineer=selected_engineer, year=selected_year, month=selected_month, week=selected_week, quarter=selected_quarter) }}'">
+            <i class="fas fa-user-cog fa-3x mb-3"></i>
+            <h4>Presale Engineer Reports</h4>
+            <p class="mb-0">View all reports by Presale Engineer</p>
+        </div>
+    </div>
+</div>
+
+<div class="filter-section">
+    <h5 class="mb-3"><i class="fas fa-filter text-primary"></i> Filter Report</h5>
+    <form method="GET" action="{{ url_for('unified_engineer_reports') }}" class="row g-3 align-items-end">
+        <input type="hidden" name="type" value="{{ report_type }}">
+        <div class="col-md-3">
+            <label class="form-label">{{ 'Sales' if report_type == 'sales' else 'Presale' }} Engineer</label>
+            <select name="engineer" class="form-select">
+                <option value="">-- Select Engineer --</option>
+                {% for eng in engineers %}
+                <option value="{{ eng }}" {% if eng == selected_engineer %}selected{% endif %}>{{ eng }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Year</label>
+            <select name="year" class="form-select">
+                <option value="">All Years</option>
+                {% for year in years %}
+                <option value="{{ year }}" {% if year|string == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Month</label>
+            <select name="month" class="form-select">
+                <option value="">All Months</option>
+                {% for m in range(1, 13) %}
+                <option value="{{ '%02d'|format(m) }}" {% if '%02d'|format(m) == selected_month %}selected{% endif %}>
+                    {{ ['January','February','March','April','May','June','July','August','September','October','November','December'][m-1] }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Week</label>
+            <select name="week" class="form-select">
+                <option value="">All Weeks</option>
+                {% for w in range(1, 5) %}
+                <option value="{{ w }}" {% if w|string == selected_week %}selected{% endif %}>Week {{ w }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Quarter</label>
+            <select name="quarter" class="form-select">
+                <option value="">All Quarters</option>
+                {% for q in ['Q1', 'Q2', 'Q3', 'Q4'] %}
+                <option value="{{ q }}" {% if q == selected_quarter %}selected{% endif %}>{{ q }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
+        </div>
+    </form>
+</div>
+
+{% if selected_engineer %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card total p-3 text-center">
+            <div class="stat-label text-muted">TOTAL QUOTATIONS</div>
+            <div class="stat-value">{{ stats.quotations.total }}</div>
+            <div class="mini-stat">{{ stats.quotations.projects }} Projects</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card won p-3 text-center">
+            <div class="stat-label text-muted">WON</div>
+            <div class="stat-value">{{ stats.quotations.won }}</div>
+            <div class="mini-stat">{{ '{:,.2f}'.format(stats.quotations.won_value) }} SAR</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card lost p-3 text-center">
+            <div class="stat-label text-muted">LOST</div>
+            <div class="stat-value">{{ stats.quotations.lost }}</div>
+            <div class="mini-stat">{{ '{:,.2f}'.format(stats.quotations.lost_value) }} SAR</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card ongoing p-3 text-center">
+            <div class="stat-label text-muted">ONGOING</div>
+            <div class="stat-value">{{ stats.quotations.ongoing }}</div>
+            <div class="mini-stat">{{ '{:,.2f}'.format(stats.quotations.ongoing_value) }} SAR</div>
+        </div>
+    </div>
+</div>
+
+<div class="mb-4 text-end">
+    <a href="{{ url_for('export_unified_report_excel', type=report_type, engineer=selected_engineer, year=selected_year, month=selected_month, week=selected_week, quarter=selected_quarter) }}" class="btn btn-success export-btn me-2">
+        <i class="fas fa-file-excel"></i> Export Excel
+    </a>
+    <a href="{{ url_for('export_unified_report_pptx', type=report_type, engineer=selected_engineer, year=selected_year, month=selected_month, week=selected_week, quarter=selected_quarter) }}" class="btn btn-danger export-btn">
+        <i class="fas fa-file-powerpoint"></i> Export PowerPoint
+    </a>
+</div>
+
+<div class="report-section quotation-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> Quotations Report</h5>
+        <span class="badge bg-white text-success">{{ quotations|length }} Records</span>
+    </div>
+    {% if quotations %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Project Name</th>
+                    <th>Quote Reference</th>
+                    <th>Associated Eng</th>
+                    <th>Status</th>
+                    <th>Cost (SAR)</th>
+                    <th>Selling (SAR)</th>
+                    <th>Margin</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in quotations %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ q.project_name }}</td>
+                    <td>{{ q.quote_ref }}</td>
+                    <td>{{ q.associated_engineer }}</td>
+                    <td>
+                        <span class="status-badge status-{{ q.category|lower }}">{{ q.status or 'Ongoing' }}</span>
+                    </td>
+                    <td>{{ '{:,.2f}'.format(q.cost_price) }}</td>
+                    <td>{{ '{:,.2f}'.format(q.selling_price) }}</td>
+                    <td>{{ '{:.1f}'.format(q.margin) }}%</td>
+                    <td>{{ q.registered_date[:10] if q.registered_date else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center py-4">No quotations found for selected filters</p>
+    {% endif %}
+</div>
+
+<div class="report-section rfq-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> RFQ Report</h5>
+        <span class="badge bg-white text-primary">{{ rfqs|length }} Records</span>
+    </div>
+    {% if rfqs %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>RFQ Reference</th>
+                    <th>Project Name</th>
+                    <th>Client</th>
+                    <th>Associated Eng</th>
+                    <th>Status</th>
+                    <th>Created Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rfqs %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ r.rfq_reference }}</td>
+                    <td>{{ r.project_name }}</td>
+                    <td>{{ r.client_name }}</td>
+                    <td>{{ r.associated_engineer }}</td>
+                    <td>
+                        <span class="status-badge {% if r.status == 'Completed' %}status-won{% elif r.status == 'Cancelled' %}status-lost{% else %}status-ongoing{% endif %}">
+                            {{ r.status or 'Pending' }}
+                        </span>
+                    </td>
+                    <td>{{ r.created_date[:10] if r.created_date else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center py-4">No RFQs found for selected filters</p>
+    {% endif %}
+</div>
+
+<div class="report-section rfts-section">
+    <div class="section-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-tools"></i> RFTS Report</h5>
+        <span class="badge bg-white text-danger">{{ rfts|length }} Records</span>
+    </div>
+    {% if rfts %}
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>RFTS Reference</th>
+                    <th>Project Name</th>
+                    <th>Client</th>
+                    <th>Associated Eng</th>
+                    <th>Status</th>
+                    <th>Created Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rfts %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ r.rfts_reference }}</td>
+                    <td>{{ r.project_name }}</td>
+                    <td>{{ r.client_name }}</td>
+                    <td>{{ r.associated_engineer }}</td>
+                    <td>
+                        <span class="status-badge {% if r.status == 'Completed' %}status-won{% elif r.status == 'Cancelled' %}status-lost{% else %}status-ongoing{% endif %}">
+                            {{ r.status or 'Pending' }}
+                        </span>
+                    </td>
+                    <td>{{ r.created_date[:10] if r.created_date else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center py-4">No RFTS found for selected filters</p>
+    {% endif %}
+</div>
+
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="fas fa-info-circle"></i> Please select an engineer and apply filters to view the unified report
+</div>
+{% endif %}
+
+{% endblock %}

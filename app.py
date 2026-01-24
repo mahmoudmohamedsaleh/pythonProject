@@ -5753,6 +5753,747 @@ def delete_quotation(quotation_id):
     return jsonify({'success': True, 'message': 'Quotation deleted successfully'})
 
 
+@app.route('/unified_engineer_reports')
+@login_required
+def unified_engineer_reports():
+    """Unified Engineer Reports - Combined view of Quotations, RFQs, and RFTS"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    # Get available years
+    c.execute("SELECT DISTINCT strftime('%Y', registered_date) as year FROM projects WHERE registered_date IS NOT NULL ORDER BY year DESC")
+    years = [row[0] for row in c.fetchall() if row[0]]
+    
+    # Get list of engineers
+    if report_type == 'sales':
+        c.execute("SELECT DISTINCT sales_eng FROM projects WHERE sales_eng IS NOT NULL AND sales_eng != '' ORDER BY sales_eng")
+    else:
+        c.execute("SELECT DISTINCT presale_eng FROM projects WHERE presale_eng IS NOT NULL AND presale_eng != '' ORDER BY presale_eng")
+    engineers = [row[0] for row in c.fetchall()]
+    
+    quotations = []
+    rfqs = []
+    rfts = []
+    stats = {
+        'quotations': {'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0, 'projects': 0, 'won_value': 0, 'lost_value': 0, 'ongoing_value': 0},
+        'rfqs': {'total': 0, 'completed': 0, 'pending': 0, 'cancelled': 0},
+        'rfts': {'total': 0, 'completed': 0, 'pending': 0, 'cancelled': 0}
+    }
+    
+    if selected_engineer:
+        # Build date filter
+        date_conditions = ""
+        params_base = [selected_engineer]
+        
+        if selected_year:
+            date_conditions += " AND strftime('%Y', registered_date) = ?"
+            params_base.append(selected_year)
+        if selected_month:
+            date_conditions += " AND strftime('%m', registered_date) = ?"
+            params_base.append(selected_month)
+            if selected_week:
+                week_num = int(selected_week)
+                start_day = (week_num - 1) * 7 + 1
+                end_day = week_num * 7
+                date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+                params_base.extend([start_day, end_day])
+        elif selected_quarter:
+            quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+            if selected_quarter in quarter_map:
+                start_month, end_month = quarter_map[selected_quarter]
+                date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+                params_base.extend([start_month, end_month])
+        
+        # Get Quotations
+        eng_field = 'sales_eng' if report_type == 'sales' else 'presale_eng'
+        assoc_field = 'presale_eng' if report_type == 'sales' else 'sales_eng'
+        
+        query = f"""
+            SELECT id, project_name, quote_ref, {assoc_field}, status, quotation_cost, quotation_selling_price, margin, registered_date, quotation_note, feedback
+            FROM projects 
+            WHERE {eng_field} = ? {date_conditions}
+            ORDER BY registered_date DESC
+        """
+        c.execute(query, params_base)
+        
+        project_names = set()
+        for row in c.fetchall():
+            status = (row[4] or '').lower()
+            selling_price = float(row[6] or 0)
+            cost_price = float(row[5] or 0)
+            margin_val = float(row[7] or 0)
+            
+            if 'won' in status:
+                category = 'Won'
+                stats['quotations']['won'] += 1
+                stats['quotations']['won_value'] += selling_price
+            elif 'lost' in status:
+                category = 'Lost'
+                stats['quotations']['lost'] += 1
+                stats['quotations']['lost_value'] += selling_price
+            else:
+                category = 'Ongoing'
+                stats['quotations']['ongoing'] += 1
+                stats['quotations']['ongoing_value'] += selling_price
+            
+            stats['quotations']['total'] += 1
+            if row[1]:
+                project_names.add(row[1])
+            
+            quotations.append({
+                'id': row[0],
+                'project_name': row[1],
+                'quote_ref': row[2],
+                'associated_engineer': row[3],
+                'status': row[4],
+                'category': category,
+                'cost_price': cost_price,
+                'selling_price': selling_price,
+                'margin': margin_val,
+                'registered_date': row[8],
+                'note': row[9],
+                'feedback': row[10]
+            })
+        
+        stats['quotations']['projects'] = len(project_names)
+        
+        # Get RFQs
+        rfq_date_conditions = date_conditions.replace('registered_date', 'created_date')
+        rfq_params = params_base.copy()
+        
+        query = f"""
+            SELECT id, rfq_reference, project_name, client_name, {assoc_field}, status, created_date
+            FROM rfqs 
+            WHERE {eng_field} = ? {rfq_date_conditions}
+            ORDER BY created_date DESC
+        """
+        try:
+            c.execute(query, rfq_params)
+            for row in c.fetchall():
+                rfqs.append({
+                    'id': row[0],
+                    'rfq_reference': row[1],
+                    'project_name': row[2],
+                    'client_name': row[3],
+                    'associated_engineer': row[4],
+                    'status': row[5],
+                    'created_date': row[6]
+                })
+                stats['rfqs']['total'] += 1
+                if row[5] == 'Completed':
+                    stats['rfqs']['completed'] += 1
+                elif row[5] == 'Cancelled':
+                    stats['rfqs']['cancelled'] += 1
+                else:
+                    stats['rfqs']['pending'] += 1
+        except sqlite3.OperationalError:
+            pass  # RFQ table may not exist in some databases
+        
+        # Get RFTS
+        rfts_date_conditions = date_conditions.replace('registered_date', 'created_date')
+        rfts_params = params_base.copy()
+        
+        query = f"""
+            SELECT id, rfts_reference, project_name, client_name, {assoc_field}, status, created_date
+            FROM rfts 
+            WHERE {eng_field} = ? {rfts_date_conditions}
+            ORDER BY created_date DESC
+        """
+        try:
+            c.execute(query, rfts_params)
+            for row in c.fetchall():
+                rfts.append({
+                    'id': row[0],
+                    'rfts_reference': row[1],
+                    'project_name': row[2],
+                    'client_name': row[3],
+                    'associated_engineer': row[4],
+                    'status': row[5],
+                    'created_date': row[6]
+                })
+                stats['rfts']['total'] += 1
+                if row[5] == 'Completed':
+                    stats['rfts']['completed'] += 1
+                elif row[5] == 'Cancelled':
+                    stats['rfts']['cancelled'] += 1
+                else:
+                    stats['rfts']['pending'] += 1
+        except sqlite3.OperationalError:
+            pass  # RFTS table may not exist in some databases
+    
+    conn.close()
+    
+    return render_template('unified_engineer_reports.html',
+                           report_type=report_type,
+                           engineers=engineers,
+                           years=years,
+                           selected_engineer=selected_engineer,
+                           selected_year=selected_year,
+                           selected_quarter=selected_quarter,
+                           selected_month=selected_month,
+                           selected_week=selected_week,
+                           quotations=quotations,
+                           rfqs=rfqs,
+                           rfts=rfts,
+                           stats=stats)
+
+
+@app.route('/export_unified_report_excel')
+@login_required
+def export_unified_report_excel():
+    """Export Unified Engineer Report to Excel with all 3 report types"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('unified_engineer_reports', type=report_type))
+    
+    # Build date filter
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', registered_date) = ?"
+        params_base.append(selected_year)
+    if selected_month:
+        date_conditions += " AND strftime('%m', registered_date) = ?"
+        params_base.append(selected_month)
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    eng_field = 'sales_eng' if report_type == 'sales' else 'presale_eng'
+    assoc_field = 'presale_eng' if report_type == 'sales' else 'sales_eng'
+    
+    # Get Quotations
+    query = f"""
+        SELECT project_name, quote_ref, {assoc_field}, status, quotation_cost, quotation_selling_price, margin, registered_date, quotation_note, feedback
+        FROM projects 
+        WHERE {eng_field} = ? {date_conditions}
+        ORDER BY registered_date DESC
+    """
+    c.execute(query, params_base)
+    quotations = c.fetchall()
+    
+    # Get RFQs
+    rfq_date_conditions = date_conditions.replace('registered_date', 'created_date')
+    query = f"""
+        SELECT rfq_reference, project_name, client_name, {assoc_field}, status, created_date
+        FROM rfqs 
+        WHERE {eng_field} = ? {rfq_date_conditions}
+        ORDER BY created_date DESC
+    """
+    try:
+        c.execute(query, params_base)
+        rfqs = c.fetchall()
+    except sqlite3.OperationalError:
+        rfqs = []  # RFQ table may not exist
+    
+    # Get RFTS
+    rfts_date_conditions = date_conditions.replace('registered_date', 'created_date')
+    query = f"""
+        SELECT rfts_reference, project_name, client_name, {assoc_field}, status, created_date
+        FROM rfts 
+        WHERE {eng_field} = ? {rfts_date_conditions}
+        ORDER BY created_date DESC
+    """
+    try:
+        c.execute(query, params_base)
+        rfts_data = c.fetchall()
+    except sqlite3.OperationalError:
+        rfts_data = []  # RFTS table may not exist
+    
+    conn.close()
+    
+    # Create Excel workbook
+    wb = Workbook()
+    
+    # Styles
+    header_fill = PatternFill(start_color="667eea", end_color="667eea", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11, name='Calibri')
+    title_font = Font(bold=True, size=16, color="667eea", name='Calibri')
+    section_font = Font(bold=True, size=12, name='Calibri')
+    data_font = Font(size=10, name='Calibri')
+    won_fill = PatternFill(start_color="28a745", end_color="28a745", fill_type="solid")
+    lost_fill = PatternFill(start_color="dc3545", end_color="dc3545", fill_type="solid")
+    ongoing_fill = PatternFill(start_color="ffc107", end_color="ffc107", fill_type="solid")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    # Sheet 1: Quotations
+    ws1 = wb.active
+    ws1.title = "Quotations"
+    
+    ws1.merge_cells('A1:J1')
+    ws1['A1'] = f"{selected_engineer}'s Unified Report - Quotations"
+    ws1['A1'].font = title_font
+    ws1['A1'].alignment = Alignment(horizontal='center')
+    
+    row = 3
+    headers = ['Project Name', 'Quote Reference', 'Associated Eng', 'Status', 'Cost (SAR)', 'Selling (SAR)', 'Margin %', 'Date', 'Note', 'Feedback']
+    for col, header in enumerate(headers, 1):
+        cell = ws1.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row = 4
+    for q in quotations:
+        ws1.cell(row=row, column=1, value=q[0]).border = border
+        ws1.cell(row=row, column=2, value=q[1]).border = border
+        ws1.cell(row=row, column=3, value=q[2]).border = border
+        status_cell = ws1.cell(row=row, column=4, value=q[3] or 'Ongoing')
+        status_cell.border = border
+        status = (q[3] or '').lower()
+        if 'won' in status:
+            status_cell.fill = won_fill
+            status_cell.font = Font(color="FFFFFF", bold=True)
+        elif 'lost' in status:
+            status_cell.fill = lost_fill
+            status_cell.font = Font(color="FFFFFF", bold=True)
+        else:
+            status_cell.fill = ongoing_fill
+        cost_cell = ws1.cell(row=row, column=5, value=float(q[4] or 0))
+        cost_cell.border = border
+        cost_cell.number_format = '#,##0.00'
+        sell_cell = ws1.cell(row=row, column=6, value=float(q[5] or 0))
+        sell_cell.border = border
+        sell_cell.number_format = '#,##0.00'
+        ws1.cell(row=row, column=7, value=float(q[6] or 0)).border = border
+        ws1.cell(row=row, column=8, value=str(q[7])[:10] if q[7] else '').border = border
+        ws1.cell(row=row, column=9, value=q[8] or '-').border = border
+        ws1.cell(row=row, column=10, value=q[9] or '-').border = border
+        row += 1
+    
+    for i, width in enumerate([35, 28, 18, 15, 15, 15, 10, 12, 25, 25], 1):
+        ws1.column_dimensions[get_column_letter(i)].width = width
+    
+    # Sheet 2: RFQs
+    ws2 = wb.create_sheet("RFQs")
+    
+    ws2.merge_cells('A1:F1')
+    ws2['A1'] = f"{selected_engineer}'s Unified Report - RFQs"
+    ws2['A1'].font = title_font
+    ws2['A1'].alignment = Alignment(horizontal='center')
+    
+    row = 3
+    headers = ['RFQ Reference', 'Project Name', 'Client', 'Associated Eng', 'Status', 'Created Date']
+    for col, header in enumerate(headers, 1):
+        cell = ws2.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row = 4
+    for r in rfqs:
+        for col, val in enumerate(r, 1):
+            cell = ws2.cell(row=row, column=col, value=val if col != 6 else (str(val)[:10] if val else ''))
+            cell.border = border
+            cell.font = data_font
+        row += 1
+    
+    for i, width in enumerate([25, 35, 25, 18, 15, 12], 1):
+        ws2.column_dimensions[get_column_letter(i)].width = width
+    
+    # Sheet 3: RFTS
+    ws3 = wb.create_sheet("RFTS")
+    
+    ws3.merge_cells('A1:F1')
+    ws3['A1'] = f"{selected_engineer}'s Unified Report - RFTS"
+    ws3['A1'].font = title_font
+    ws3['A1'].alignment = Alignment(horizontal='center')
+    
+    row = 3
+    headers = ['RFTS Reference', 'Project Name', 'Client', 'Associated Eng', 'Status', 'Created Date']
+    for col, header in enumerate(headers, 1):
+        cell = ws3.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row = 4
+    for r in rfts_data:
+        for col, val in enumerate(r, 1):
+            cell = ws3.cell(row=row, column=col, value=val if col != 6 else (str(val)[:10] if val else ''))
+            cell.border = border
+            cell.font = data_font
+        row += 1
+    
+    for i, width in enumerate([25, 35, 25, 18, 15, 12], 1):
+        ws3.column_dimensions[get_column_letter(i)].width = width
+    
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_unified_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(output, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/export_unified_report_pptx')
+@login_required
+def export_unified_report_pptx():
+    """Export Unified Engineer Report to PowerPoint with all 3 report types"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from io import BytesIO
+    
+    FONT_NAME = 'Calibri'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('unified_engineer_reports', type=report_type))
+    
+    # Build date filter
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', registered_date) = ?"
+        params_base.append(selected_year)
+    if selected_month:
+        date_conditions += " AND strftime('%m', registered_date) = ?"
+        params_base.append(selected_month)
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    eng_field = 'sales_eng' if report_type == 'sales' else 'presale_eng'
+    assoc_field = 'presale_eng' if report_type == 'sales' else 'sales_eng'
+    
+    # Get Quotations
+    query = f"""
+        SELECT project_name, quote_ref, {assoc_field}, status, quotation_cost, quotation_selling_price, margin, registered_date
+        FROM projects 
+        WHERE {eng_field} = ? {date_conditions}
+        ORDER BY registered_date DESC
+    """
+    c.execute(query, params_base)
+    quotations = c.fetchall()
+    
+    # Get RFQs
+    rfq_date_conditions = date_conditions.replace('registered_date', 'created_date')
+    query = f"""
+        SELECT rfq_reference, project_name, client_name, {assoc_field}, status, created_date
+        FROM rfqs 
+        WHERE {eng_field} = ? {rfq_date_conditions}
+        ORDER BY created_date DESC
+    """
+    try:
+        c.execute(query, params_base)
+        rfqs = c.fetchall()
+    except sqlite3.OperationalError:
+        rfqs = []  # RFQ table may not exist
+    
+    # Get RFTS
+    rfts_date_conditions = date_conditions.replace('registered_date', 'created_date')
+    query = f"""
+        SELECT rfts_reference, project_name, client_name, {assoc_field}, status, created_date
+        FROM rfts 
+        WHERE {eng_field} = ? {rfts_date_conditions}
+        ORDER BY created_date DESC
+    """
+    try:
+        c.execute(query, params_base)
+        rfts_data = c.fetchall()
+    except sqlite3.OperationalError:
+        rfts_data = []  # RFTS table may not exist
+    
+    conn.close()
+    
+    # Create PowerPoint
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    # Title Slide
+    slide_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"{selected_engineer}'s Unified Report"
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.name = FONT_NAME
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    p.alignment = PP_ALIGN.CENTER
+    
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.5), Inches(12.333), Inches(0.5))
+    tf2 = subtitle_box.text_frame
+    p2 = tf2.paragraphs[0]
+    p2.text = "Quotations | RFQs | RFTS"
+    p2.font.size = Pt(24)
+    p2.font.name = FONT_NAME
+    p2.font.color.rgb = RGBColor(100, 100, 100)
+    p2.alignment = PP_ALIGN.CENTER
+    
+    # Summary Slide
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.6))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Report Summary"
+    p.font.size = Pt(28)
+    p.font.bold = True
+    p.font.name = FONT_NAME
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Summary stats
+    summary_box = slide.shapes.add_textbox(Inches(1), Inches(1.5), Inches(11.333), Inches(4))
+    tf = summary_box.text_frame
+    
+    p = tf.paragraphs[0]
+    p.text = f"Quotations: {len(quotations)} records"
+    p.font.size = Pt(20)
+    p.font.name = FONT_NAME
+    
+    p = tf.add_paragraph()
+    p.text = f"RFQs: {len(rfqs)} records"
+    p.font.size = Pt(20)
+    p.font.name = FONT_NAME
+    
+    p = tf.add_paragraph()
+    p.text = f"RFTS: {len(rfts_data)} records"
+    p.font.size = Pt(20)
+    p.font.name = FONT_NAME
+    
+    # Quotations Slides
+    if quotations:
+        rows_per_slide = 5
+        for slide_num in range(0, len(quotations), rows_per_slide):
+            slide = prs.slides.add_slide(slide_layout)
+            
+            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.7), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = "Quotations Report"
+            p.font.size = Pt(20)
+            p.font.bold = True
+            p.font.name = FONT_NAME
+            p.font.color.rgb = RGBColor(17, 153, 142)
+            
+            rows_count = min(rows_per_slide, len(quotations) - slide_num) + 1
+            table = slide.shapes.add_table(rows_count, 8, Inches(0.15), Inches(0.8), Inches(13.0), Inches(rows_count * 0.9)).table
+            
+            col_widths = [0.3, 2.5, 2.0, 1.2, 1.3, 1.5, 0.8, 1.2]
+            for i, w in enumerate(col_widths):
+                table.columns[i].width = Inches(w)
+            
+            headers = ['#', 'Project', 'Quote Ref', 'Assoc Eng', 'Cost', 'Selling', 'Margin', 'Date']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(17, 153, 142)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
+                    para.font.color.rgb = RGBColor(255, 255, 255)
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+            
+            for row_idx, q in enumerate(quotations[slide_num:slide_num + rows_per_slide], 1):
+                data = [
+                    str(slide_num + row_idx),
+                    (q[0] or '')[:20],
+                    q[1] or '-',
+                    (q[2] or '')[:10],
+                    f"SAR {float(q[4] or 0):,.0f}",
+                    f"SAR {float(q[5] or 0):,.0f}",
+                    f"{float(q[6] or 0):.1f}%",
+                    str(q[7])[:10] if q[7] else '-'
+                ]
+                for col, value in enumerate(data):
+                    cell = table.cell(row_idx, col)
+                    cell.text = value
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    if row_idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(232, 244, 253)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+    
+    # RFQ Slides
+    if rfqs:
+        rows_per_slide = 6
+        for slide_num in range(0, len(rfqs), rows_per_slide):
+            slide = prs.slides.add_slide(slide_layout)
+            
+            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.7), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = "RFQ Report"
+            p.font.size = Pt(20)
+            p.font.bold = True
+            p.font.name = FONT_NAME
+            p.font.color.rgb = RGBColor(102, 126, 234)
+            
+            rows_count = min(rows_per_slide, len(rfqs) - slide_num) + 1
+            table = slide.shapes.add_table(rows_count, 6, Inches(0.5), Inches(0.8), Inches(12.3), Inches(rows_count * 0.8)).table
+            
+            col_widths = [0.4, 2.5, 2.5, 2.0, 1.5, 1.3]
+            for i, w in enumerate(col_widths):
+                table.columns[i].width = Inches(w)
+            
+            headers = ['#', 'RFQ Reference', 'Project', 'Client', 'Status', 'Date']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(102, 126, 234)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
+                    para.font.color.rgb = RGBColor(255, 255, 255)
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+            
+            for row_idx, r in enumerate(rfqs[slide_num:slide_num + rows_per_slide], 1):
+                data = [
+                    str(slide_num + row_idx),
+                    r[0] or '-',
+                    (r[1] or '')[:25],
+                    (r[2] or '')[:20],
+                    r[4] or 'Pending',
+                    str(r[5])[:10] if r[5] else '-'
+                ]
+                for col, value in enumerate(data):
+                    cell = table.cell(row_idx, col)
+                    cell.text = value
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    if row_idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(232, 244, 253)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+    
+    # RFTS Slides
+    if rfts_data:
+        rows_per_slide = 6
+        for slide_num in range(0, len(rfts_data), rows_per_slide):
+            slide = prs.slides.add_slide(slide_layout)
+            
+            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.7), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = "RFTS Report"
+            p.font.size = Pt(20)
+            p.font.bold = True
+            p.font.name = FONT_NAME
+            p.font.color.rgb = RGBColor(240, 93, 251)
+            
+            rows_count = min(rows_per_slide, len(rfts_data) - slide_num) + 1
+            table = slide.shapes.add_table(rows_count, 6, Inches(0.5), Inches(0.8), Inches(12.3), Inches(rows_count * 0.8)).table
+            
+            col_widths = [0.4, 2.5, 2.5, 2.0, 1.5, 1.3]
+            for i, w in enumerate(col_widths):
+                table.columns[i].width = Inches(w)
+            
+            headers = ['#', 'RFTS Reference', 'Project', 'Client', 'Status', 'Date']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(240, 93, 251)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
+                    para.font.color.rgb = RGBColor(255, 255, 255)
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+            
+            for row_idx, r in enumerate(rfts_data[slide_num:slide_num + rows_per_slide], 1):
+                data = [
+                    str(slide_num + row_idx),
+                    r[0] or '-',
+                    (r[1] or '')[:25],
+                    (r[2] or '')[:20],
+                    r[4] or 'Pending',
+                    str(r[5])[:10] if r[5] else '-'
+                ]
+                for col, value in enumerate(data):
+                    cell = table.cell(row_idx, col)
+                    cell.text = value
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    if row_idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(232, 244, 253)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+    
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_unified_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    return send_file(output, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+
+
 @app.route('/engineer_reports')
 @login_required
 def engineer_reports():
@@ -6079,7 +6820,7 @@ def export_engineer_report_excel():
     for project_name in project_names:
         if report_type == 'sales':
             query = f"""
-                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, quotation_note, feedback
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, quotation_note, feedback, quotation_cost, margin
                 FROM projects 
                 WHERE project_name = ? AND sales_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6087,7 +6828,7 @@ def export_engineer_report_excel():
             """
         else:
             query = f"""
-                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, quotation_note, feedback
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, quotation_note, feedback, quotation_cost, margin
                 FROM projects 
                 WHERE project_name = ? AND presale_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6102,6 +6843,8 @@ def export_engineer_report_excel():
             selling_price = float(row[4] or 0)
             note = row[6] or ''
             feedback = row[7] or ''
+            cost_price = float(row[8] or 0)
+            margin = float(row[9] or 0)
             if 'won' in status:
                 won_count += 1
                 total_won += selling_price
@@ -6122,7 +6865,9 @@ def export_engineer_report_excel():
                 'selling_price': selling_price,
                 'registered_date': row[5],
                 'note': note,
-                'feedback': feedback
+                'feedback': feedback,
+                'cost_price': cost_price,
+                'margin': margin
             })
         
         if quotations:
@@ -6151,7 +6896,7 @@ def export_engineer_report_excel():
     )
     
     # Title
-    ws.merge_cells('A1:H1')
+    ws.merge_cells('A1:J1')
     ws['A1'] = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
     ws['A1'].font = title_font
     ws['A1'].alignment = Alignment(horizontal='center')
@@ -6168,13 +6913,13 @@ def export_engineer_report_excel():
     if selected_quarter and not selected_month:
         filter_text.append(f"Quarter: {selected_quarter}")
     
-    ws.merge_cells('A2:H2')
+    ws.merge_cells('A2:J2')
     ws['A2'] = ' | '.join(filter_text) if filter_text else 'All Time'
     ws['A2'].alignment = Alignment(horizontal='center')
     
     # Summary section
     row = 4
-    ws.merge_cells(f'A{row}:H{row}')
+    ws.merge_cells(f'A{row}:J{row}')
     ws[f'A{row}'] = 'SUMMARY'
     ws[f'A{row}'].font = subtitle_font
     ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
@@ -6197,13 +6942,13 @@ def export_engineer_report_excel():
     
     # Projects and Quotations
     row = 8
-    ws.merge_cells(f'A{row}:H{row}')
+    ws.merge_cells(f'A{row}:J{row}')
     ws[f'A{row}'] = 'PROJECTS & QUOTATIONS'
     ws[f'A{row}'].font = subtitle_font
     ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
     
     row = 9
-    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Status', 'Selling Price (SAR)', 'Registered Date', 'Note', 'Client Feedback']
+    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Status', 'Cost (SAR)', 'Selling Price (SAR)', 'Margin %', 'Registered Date', 'Note', 'Client Feedback']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=row, column=col, value=header)
         cell.font = header_font
@@ -6227,19 +6972,25 @@ def export_engineer_report_excel():
                 status_cell.font = Font(color="FFFFFF", bold=True)
             else:
                 status_cell.fill = ongoing_fill
-            price_cell = ws.cell(row=row, column=5, value=q['selling_price'])
+            cost_cell = ws.cell(row=row, column=5, value=q.get('cost_price', 0))
+            cost_cell.border = border
+            cost_cell.number_format = '#,##0.00'
+            price_cell = ws.cell(row=row, column=6, value=q['selling_price'])
             price_cell.border = border
             price_cell.number_format = '#,##0.00'
-            date_cell = ws.cell(row=row, column=6, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
+            margin_cell = ws.cell(row=row, column=7, value=q.get('margin', 0))
+            margin_cell.border = border
+            margin_cell.number_format = '0.0%' if q.get('margin', 0) <= 1 else '0.0'
+            date_cell = ws.cell(row=row, column=8, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
             date_cell.border = border
-            note_cell = ws.cell(row=row, column=7, value=q.get('note', '') or '-')
+            note_cell = ws.cell(row=row, column=9, value=q.get('note', '') or '-')
             note_cell.border = border
-            feedback_cell = ws.cell(row=row, column=8, value=q.get('feedback', '') or '-')
+            feedback_cell = ws.cell(row=row, column=10, value=q.get('feedback', '') or '-')
             feedback_cell.border = border
             row += 1
     
-    # Adjust column widths - updated for 8 columns
-    column_widths = [40, 25, 25, 15, 20, 15, 30, 30]
+    # Adjust column widths - updated for 10 columns
+    column_widths = [35, 28, 20, 15, 18, 20, 10, 15, 25, 25]
     for i, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     
