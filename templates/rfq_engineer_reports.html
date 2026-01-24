@@ -449,7 +449,7 @@
                                         </td>
                                         <td>{{ rfq.deadline or '-' }}</td>
                                         <td>
-                                            {% if rfq.days_remaining is not none %}
+                                            {% if rfq.status_category in ['queue', 'studying', 'pricing'] and rfq.days_remaining is not none %}
                                                 {% if rfq.days_remaining < 0 %}
                                                 <span class="badge badge-danger"><i class="fas fa-exclamation-triangle mr-1"></i>{{ rfq.days_remaining|abs }} days overdue</span>
                                                 {% elif rfq.days_remaining == 0 %}
