@@ -6476,8 +6476,8 @@ def export_engineer_report_pptx():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     
-    # Define consistent font
-    FONT_NAME = 'Arial'
+    # Define consistent font - Calibri for cleaner modern look
+    FONT_NAME = 'Calibri'
     
     # Title Slide
     slide_layout = prs.slide_layouts[6]  # Blank layout
