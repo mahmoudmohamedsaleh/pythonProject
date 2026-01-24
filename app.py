@@ -6079,7 +6079,7 @@ def export_engineer_report_excel():
     for project_name in project_names:
         if report_type == 'sales':
             query = f"""
-                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, quotation_note, feedback
                 FROM projects 
                 WHERE project_name = ? AND sales_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6087,7 +6087,7 @@ def export_engineer_report_excel():
             """
         else:
             query = f"""
-                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, quotation_note, feedback
                 FROM projects 
                 WHERE project_name = ? AND presale_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6100,6 +6100,8 @@ def export_engineer_report_excel():
         for row in c.fetchall():
             status = (row[3] or '').lower()
             selling_price = float(row[4] or 0)
+            note = row[6] or ''
+            feedback = row[7] or ''
             if 'won' in status:
                 won_count += 1
                 total_won += selling_price
@@ -6118,7 +6120,9 @@ def export_engineer_report_excel():
                 'status': row[3],
                 'category': category,
                 'selling_price': selling_price,
-                'registered_date': row[5]
+                'registered_date': row[5],
+                'note': note,
+                'feedback': feedback
             })
         
         if quotations:
@@ -6147,7 +6151,7 @@ def export_engineer_report_excel():
     )
     
     # Title
-    ws.merge_cells('A1:F1')
+    ws.merge_cells('A1:H1')
     ws['A1'] = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
     ws['A1'].font = title_font
     ws['A1'].alignment = Alignment(horizontal='center')
@@ -6164,13 +6168,13 @@ def export_engineer_report_excel():
     if selected_quarter and not selected_month:
         filter_text.append(f"Quarter: {selected_quarter}")
     
-    ws.merge_cells('A2:F2')
+    ws.merge_cells('A2:H2')
     ws['A2'] = ' | '.join(filter_text) if filter_text else 'All Time'
     ws['A2'].alignment = Alignment(horizontal='center')
     
     # Summary section
     row = 4
-    ws.merge_cells(f'A{row}:F{row}')
+    ws.merge_cells(f'A{row}:H{row}')
     ws[f'A{row}'] = 'SUMMARY'
     ws[f'A{row}'].font = subtitle_font
     ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
@@ -6193,13 +6197,13 @@ def export_engineer_report_excel():
     
     # Projects and Quotations
     row = 8
-    ws.merge_cells(f'A{row}:F{row}')
+    ws.merge_cells(f'A{row}:H{row}')
     ws[f'A{row}'] = 'PROJECTS & QUOTATIONS'
     ws[f'A{row}'].font = subtitle_font
     ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
     
     row = 9
-    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Status', 'Selling Price (SAR)', 'Registered Date']
+    headers = ['Project Name', 'Quote Reference', 'Associated Engineer', 'Status', 'Selling Price (SAR)', 'Registered Date', 'Note', 'Client Feedback']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=row, column=col, value=header)
         cell.font = header_font
@@ -6228,10 +6232,14 @@ def export_engineer_report_excel():
             price_cell.number_format = '#,##0.00'
             date_cell = ws.cell(row=row, column=6, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
             date_cell.border = border
+            note_cell = ws.cell(row=row, column=7, value=q.get('note', '') or '-')
+            note_cell.border = border
+            feedback_cell = ws.cell(row=row, column=8, value=q.get('feedback', '') or '-')
+            feedback_cell.border = border
             row += 1
     
-    # Adjust column widths
-    column_widths = [40, 25, 25, 15, 20, 15]
+    # Adjust column widths - updated for 8 columns
+    column_widths = [40, 25, 25, 15, 20, 15, 30, 30]
     for i, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     
