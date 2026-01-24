@@ -1,0 +1,450 @@
+{% extends 'base.html' %}
+{% block title %}PO Reports{% endblock %}
+{% block content %}
+
+<style>
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+.stat-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    height: 100%;
+}
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.stat-card.active {
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+}
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+.stat-icon.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.stat-icon.success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
+.stat-icon.warning { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; }
+.stat-icon.info { background: linear-gradient(135deg, #17a2b8 0%, #3498db 100%); color: white; }
+.stat-icon.danger { background: linear-gradient(135deg, #dc3545 0%, #f8719e 100%); color: white; }
+.project-card {
+    border-left: 4px solid #667eea;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+.project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.project-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.project-header:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+.po-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.amount-badge {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.filter-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+}
+.filter-card .card-header {
+    background: white;
+    border-bottom: 2px solid #f1f3f5;
+    font-weight: 600;
+    border-radius: 15px 15px 0 0 !important;
+}
+.export-btn {
+    border-radius: 10px;
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.export-btn:hover {
+    transform: translateY(-2px);
+}
+.btn-excel {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    color: white;
+}
+.btn-excel:hover {
+    background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
+    color: white;
+}
+.btn-pptx {
+    background: linear-gradient(135deg, #dc3545 0%, #f8719e 100%);
+    border: none;
+    color: white;
+}
+.btn-pptx:hover {
+    background: linear-gradient(135deg, #f8719e 0%, #dc3545 100%);
+    color: white;
+}
+.table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 0.75rem;
+}
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+.status-approved {
+    background-color: #28a745;
+    color: white;
+}
+.status-pending {
+    background-color: #ffc107;
+    color: #212529;
+}
+.status-rejected {
+    background-color: #dc3545;
+    color: white;
+}
+.status-delivered {
+    background-color: #28a745;
+    color: white;
+}
+.status-partial {
+    background-color: #ffc107;
+    color: #212529;
+}
+.status-not-delivered {
+    background-color: #dc3545;
+    color: white;
+}
+.back-btn {
+    color: white;
+    text-decoration: none;
+}
+.back-btn:hover {
+    color: rgba(255,255,255,0.8);
+}
+.no-data {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+.no-data i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+</style>
+
+<div class="container-fluid py-4">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <a href="{{ url_for('view_po_status') }}" class="back-btn mb-2 d-inline-block">
+                    <i class="fas fa-arrow-left me-2"></i>Back to PO Status
+                </a>
+                <h1 class="mb-1"><i class="fas fa-chart-bar me-3"></i>PO Reports</h1>
+                <p class="mb-0 opacity-75">View and export purchase order reports grouped by project</p>
+            </div>
+            <div class="d-flex gap-2 mt-3 mt-md-0">
+                <form method="POST" action="{{ url_for('export_po_report_excel') }}" class="d-inline">
+                    <input type="hidden" name="project" value="{{ project_filter }}">
+                    <input type="hidden" name="vendor" value="{{ vendor_filter }}">
+                    <input type="hidden" name="distributor" value="{{ distributor_filter }}">
+                    <input type="hidden" name="year" value="{{ year_filter }}">
+                    <input type="hidden" name="quarter" value="{{ quarter_filter }}">
+                    <input type="hidden" name="delivery_status" value="{{ delivery_status_filter }}">
+                    <button type="submit" class="btn btn-excel export-btn">
+                        <i class="fas fa-file-excel me-2"></i>Export Excel
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('export_po_report_pptx') }}" class="d-inline">
+                    <input type="hidden" name="project" value="{{ project_filter }}">
+                    <input type="hidden" name="vendor" value="{{ vendor_filter }}">
+                    <input type="hidden" name="distributor" value="{{ distributor_filter }}">
+                    <input type="hidden" name="year" value="{{ year_filter }}">
+                    <input type="hidden" name="quarter" value="{{ quarter_filter }}">
+                    <input type="hidden" name="delivery_status" value="{{ delivery_status_filter }}">
+                    <button type="submit" class="btn btn-pptx export-btn">
+                        <i class="fas fa-file-powerpoint me-2"></i>Export PowerPoint
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card card p-3">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon primary me-3">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small text-uppercase">Projects</div>
+                        <div class="h3 mb-0 fw-bold">{{ total_projects }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card card p-3">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon info me-3">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small text-uppercase">Total POs</div>
+                        <div class="h3 mb-0 fw-bold">{{ total_pos }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card card p-3">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon success me-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small text-uppercase">Approved</div>
+                        <div class="h3 mb-0 fw-bold">{{ total_approved }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="stat-card card p-3">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon warning me-3">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small text-uppercase">Total Amount</div>
+                        <div class="h4 mb-0 fw-bold">{{ "{:,.0f}".format(total_amount) }} <small class="text-muted">SAR</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card filter-card">
+        <div class="card-header">
+            <i class="fas fa-filter me-2"></i>Filter Purchase Orders
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('po_reports') }}">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Project</label>
+                        <select name="project" class="form-select">
+                            <option value="">All Projects</option>
+                            {% for proj in projects %}
+                            <option value="{{ proj.project_name }}" {% if project_filter == proj.project_name %}selected{% endif %}>
+                                {{ proj.project_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Vendor</label>
+                        <select name="vendor" class="form-select">
+                            <option value="">All Vendors</option>
+                            {% for v in vendors %}
+                            <option value="{{ v.name }}" {% if vendor_filter == v.name %}selected{% endif %}>{{ v.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Distributor</label>
+                        <select name="distributor" class="form-select">
+                            <option value="">All Distributors</option>
+                            {% for d in distributors %}
+                            <option value="{{ d.name }}" {% if distributor_filter == d.name %}selected{% endif %}>{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All Years</option>
+                            {% for y in years %}
+                            <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Quarter</label>
+                        <select name="quarter" class="form-select">
+                            <option value="">All Quarters</option>
+                            <option value="Q1" {% if quarter_filter == 'Q1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
+                            <option value="Q2" {% if quarter_filter == 'Q2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
+                            <option value="Q3" {% if quarter_filter == 'Q3' %}selected{% endif %}>Q3 (Jul-Sep)</option>
+                            <option value="Q4" {% if quarter_filter == 'Q4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Delivery Status</label>
+                        <select name="delivery_status" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="Delivered" {% if delivery_status_filter == 'Delivered' %}selected{% endif %}>Delivered</option>
+                            <option value="Partial Delivery" {% if delivery_status_filter == 'Partial Delivery' %}selected{% endif %}>Partial Delivery</option>
+                            <option value="Order Placed" {% if delivery_status_filter == 'Order Placed' %}selected{% endif %}>Order Placed</option>
+                            <option value="Not Delivered" {% if delivery_status_filter == 'Not Delivered' %}selected{% endif %}>Not Delivered</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="fas fa-search me-2"></i>Apply Filters
+                        </button>
+                        <a href="{{ url_for('po_reports') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if projects_data %}
+    <div class="projects-container">
+        {% for project_name, proj_data in projects_data.items() %}
+        <div class="project-card">
+            <div class="project-header" data-bs-toggle="collapse" data-bs-target="#project-{{ loop.index }}">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-chevron-down me-3 text-muted toggle-icon"></i>
+                        <div>
+                            <h5 class="mb-1 fw-bold">
+                                <a href="{{ url_for('project_profile', project_id=proj_data.project_id) }}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+                                    {{ project_name }}
+                                </a>
+                            </h5>
+                            <small class="text-muted">{{ proj_data.client_name or 'No client specified' }}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap mt-2 mt-md-0">
+                        <span class="po-badge">{{ proj_data.total_pos }} POs</span>
+                        <span class="amount-badge">{{ "{:,.0f}".format(proj_data.total_amount) }} SAR</span>
+                        <span class="badge bg-success">{{ proj_data.approved_count }} Approved</span>
+                        {% if proj_data.pending_count > 0 %}
+                        <span class="badge bg-warning text-dark">{{ proj_data.pending_count }} Pending</span>
+                        {% endif %}
+                        {% if proj_data.rejected_count > 0 %}
+                        <span class="badge bg-danger">{{ proj_data.rejected_count }} Rejected</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div id="project-{{ loop.index }}" class="collapse show">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Vendor</th>
+                                    <th>Distributor</th>
+                                    <th>System</th>
+                                    <th>Amount (SAR)</th>
+                                    <th>Approval</th>
+                                    <th>Delivery</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in proj_data.pos %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('po_profile', po_request_number=po.po_request_number) }}" class="text-decoration-none fw-semibold">
+                                            {{ po.po_number or po.po_request_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ po.vendor or '-' }}</td>
+                                    <td>{{ po.distributor or '-' }}</td>
+                                    <td>{{ po.system or '-' }}</td>
+                                    <td class="fw-semibold">{{ "{:,.2f}".format(po.total_amount or 0) }}</td>
+                                    <td>
+                                        {% set approval = po.po_approval_status or 'Pending' %}
+                                        <span class="badge {% if approval == 'Approved' %}status-approved{% elif approval == 'Pending' %}status-pending{% else %}status-rejected{% endif %}">
+                                            {{ approval }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% set delivery = po.po_delivery_status or 'Pending' %}
+                                        <span class="badge {% if 'Delivered' in delivery and 'Not' not in delivery %}status-delivered{% elif 'Partial' in delivery %}status-partial{% else %}status-not-delivered{% endif %}">
+                                            {{ delivery[:20] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('po_profile', po_request_number=po.po_request_number) }}" class="btn btn-sm btn-outline-primary" title="View PO Profile">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-data">
+        <i class="fas fa-folder-open"></i>
+        <h4>No Purchase Orders Found</h4>
+        <p class="text-muted">Try adjusting your filters or check back later.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.querySelectorAll('.project-header').forEach(header => {
+    header.addEventListener('click', function() {
+        const icon = this.querySelector('.toggle-icon');
+        icon.classList.toggle('fa-chevron-down');
+        icon.classList.toggle('fa-chevron-up');
+    });
+});
+</script>
+
+{% endblock %}

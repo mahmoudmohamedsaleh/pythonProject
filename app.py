@@ -1052,6 +1052,7 @@ def seed_permissions():
         
         # Purchasing
         ('view_po_status', 'PO Status', 'Purchasing', 'View purchase order status'),
+        ('view_po_reports', 'PO Reports', 'Purchasing', 'View and export purchase order reports by project'),
         
         # Task Management
         ('view_tasks', 'Tasks', 'Task Management', 'View and manage tasks'),
@@ -16882,6 +16883,593 @@ def view_po_status():
                            vendor_filter=vendor_filter,
                            po_delivery_status_filter=po_delivery_status_filter,
                            po_approval_status_filter=po_approval_status_filter)
+
+@app.route('/po_reports', methods=['GET', 'POST'])
+@permission_required('view_po_reports')
+def po_reports():
+    """PO Reports page - View and export purchase order reports grouped by project"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get all projects that have purchase orders
+    c.execute('''
+        SELECT DISTINCT rp.id, rp.project_name, rp.client_name
+        FROM register_project rp
+        INNER JOIN purchase_orders po ON po.project_name = rp.project_name
+        ORDER BY rp.project_name
+    ''')
+    projects = c.fetchall()
+    
+    # Get filter values
+    project_filter = request.args.get('project', '') or request.form.get('project', '')
+    vendor_filter = request.args.get('vendor', '') or request.form.get('vendor', '')
+    distributor_filter = request.args.get('distributor', '') or request.form.get('distributor', '')
+    year_filter = request.args.get('year', '') or request.form.get('year', '')
+    quarter_filter = request.args.get('quarter', '') or request.form.get('quarter', '')
+    delivery_status_filter = request.args.get('delivery_status', '') or request.form.get('delivery_status', '')
+    
+    # Get distinct vendors
+    c.execute('''
+        SELECT DISTINCT v.name
+        FROM purchase_orders po
+        LEFT JOIN vendors v ON po.vendor = v.name
+        WHERE v.name IS NOT NULL
+        ORDER BY v.name
+    ''')
+    vendors = c.fetchall()
+    
+    # Get distinct distributors
+    c.execute('''
+        SELECT DISTINCT d.name
+        FROM purchase_orders po
+        LEFT JOIN distributors d ON po.distributor = d.name
+        WHERE d.name IS NOT NULL
+        ORDER BY d.name
+    ''')
+    distributors = c.fetchall()
+    
+    # Get distinct years from PO creation dates
+    c.execute('''
+        SELECT DISTINCT strftime('%Y', created_at) as year
+        FROM purchase_orders
+        WHERE created_at IS NOT NULL
+        ORDER BY year DESC
+    ''')
+    years = [row['year'] for row in c.fetchall() if row['year']]
+    
+    # Build main query for project-grouped data
+    query = '''
+        SELECT 
+            rp.id as project_id,
+            rp.project_name,
+            rp.client_name,
+            po.id as po_id,
+            po.po_request_number,
+            po.po_number,
+            po.vendor,
+            po.distributor,
+            po.total_amount,
+            po.po_approval_status,
+            po.po_delivery_status,
+            po.presale_engineer,
+            po.project_manager,
+            po.system,
+            po.created_at,
+            (SELECT COUNT(*) FROM po_items WHERE po_number = po.po_number) as item_count,
+            (SELECT SUM(quantity) FROM po_items WHERE po_number = po.po_number) as total_qty,
+            (SELECT SUM(COALESCE(quantity_delivered, 0)) FROM po_items WHERE po_number = po.po_number) as delivered_qty
+        FROM purchase_orders po
+        JOIN register_project rp ON po.project_name = rp.project_name
+        WHERE 1=1
+    '''
+    params = []
+    
+    if project_filter:
+        query += " AND rp.project_name = ?"
+        params.append(project_filter)
+    
+    if vendor_filter:
+        query += " AND po.vendor = ?"
+        params.append(vendor_filter)
+    
+    if distributor_filter:
+        query += " AND po.distributor = ?"
+        params.append(distributor_filter)
+    
+    if year_filter:
+        query += " AND strftime('%Y', po.created_at) = ?"
+        params.append(year_filter)
+    
+    if quarter_filter:
+        if quarter_filter == 'Q1':
+            query += " AND strftime('%m', po.created_at) IN ('01', '02', '03')"
+        elif quarter_filter == 'Q2':
+            query += " AND strftime('%m', po.created_at) IN ('04', '05', '06')"
+        elif quarter_filter == 'Q3':
+            query += " AND strftime('%m', po.created_at) IN ('07', '08', '09')"
+        elif quarter_filter == 'Q4':
+            query += " AND strftime('%m', po.created_at) IN ('10', '11', '12')"
+    
+    if delivery_status_filter:
+        query += " AND po.po_delivery_status = ?"
+        params.append(delivery_status_filter)
+    
+    query += " ORDER BY rp.project_name, po.id DESC"
+    
+    c.execute(query, params)
+    all_pos = c.fetchall()
+    
+    # Group POs by project
+    projects_data = {}
+    for po in all_pos:
+        project_name = po['project_name']
+        if project_name not in projects_data:
+            projects_data[project_name] = {
+                'project_id': po['project_id'],
+                'project_name': project_name,
+                'client_name': po['client_name'],
+                'pos': [],
+                'total_amount': 0,
+                'total_pos': 0,
+                'approved_count': 0,
+                'pending_count': 0,
+                'rejected_count': 0,
+                'delivered_count': 0,
+                'partial_count': 0,
+                'not_delivered_count': 0
+            }
+        
+        projects_data[project_name]['pos'].append(po)
+        projects_data[project_name]['total_pos'] += 1
+        projects_data[project_name]['total_amount'] += float(po['total_amount'] or 0)
+        
+        # Count by approval status
+        if po['po_approval_status'] == 'Approved':
+            projects_data[project_name]['approved_count'] += 1
+        elif po['po_approval_status'] == 'Pending':
+            projects_data[project_name]['pending_count'] += 1
+        elif po['po_approval_status'] == 'Rejected':
+            projects_data[project_name]['rejected_count'] += 1
+        
+        # Count by delivery status
+        delivery_status = po['po_delivery_status'] or ''
+        if 'Delivered' in delivery_status and 'Not' not in delivery_status:
+            projects_data[project_name]['delivered_count'] += 1
+        elif 'Partial' in delivery_status:
+            projects_data[project_name]['partial_count'] += 1
+        else:
+            projects_data[project_name]['not_delivered_count'] += 1
+    
+    # Calculate overall statistics
+    total_projects = len(projects_data)
+    total_pos = sum(p['total_pos'] for p in projects_data.values())
+    total_amount = sum(p['total_amount'] for p in projects_data.values())
+    total_approved = sum(p['approved_count'] for p in projects_data.values())
+    total_delivered = sum(p['delivered_count'] for p in projects_data.values())
+    
+    conn.close()
+    
+    return render_template('po_reports.html',
+                           projects=projects,
+                           projects_data=projects_data,
+                           vendors=vendors,
+                           distributors=distributors,
+                           years=years,
+                           project_filter=project_filter,
+                           vendor_filter=vendor_filter,
+                           distributor_filter=distributor_filter,
+                           year_filter=year_filter,
+                           quarter_filter=quarter_filter,
+                           delivery_status_filter=delivery_status_filter,
+                           total_projects=total_projects,
+                           total_pos=total_pos,
+                           total_amount=total_amount,
+                           total_approved=total_approved,
+                           total_delivered=total_delivered)
+
+@app.route('/export_po_report_excel', methods=['POST'])
+@permission_required('view_po_reports')
+def export_po_report_excel():
+    """Export PO Reports to Excel file"""
+    import pandas as pd
+    from io import BytesIO
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get filter values
+    project_filter = request.form.get('project', '')
+    vendor_filter = request.form.get('vendor', '')
+    distributor_filter = request.form.get('distributor', '')
+    year_filter = request.form.get('year', '')
+    quarter_filter = request.form.get('quarter', '')
+    delivery_status_filter = request.form.get('delivery_status', '')
+    
+    # Build query
+    query = '''
+        SELECT 
+            rp.project_name as "Project Name",
+            rp.client_name as "Client",
+            po.po_request_number as "PO Request #",
+            po.po_number as "PO Number",
+            po.vendor as "Vendor",
+            po.distributor as "Distributor",
+            po.system as "System",
+            po.total_amount as "Total Amount (SAR)",
+            po.po_approval_status as "Approval Status",
+            po.po_delivery_status as "Delivery Status",
+            po.presale_engineer as "Presale Engineer",
+            po.project_manager as "Account Manager",
+            po.created_at as "Created Date"
+        FROM purchase_orders po
+        JOIN register_project rp ON po.project_name = rp.project_name
+        WHERE 1=1
+    '''
+    params = []
+    
+    if project_filter:
+        query += " AND rp.project_name = ?"
+        params.append(project_filter)
+    if vendor_filter:
+        query += " AND po.vendor = ?"
+        params.append(vendor_filter)
+    if distributor_filter:
+        query += " AND po.distributor = ?"
+        params.append(distributor_filter)
+    if year_filter:
+        query += " AND strftime('%Y', po.created_at) = ?"
+        params.append(year_filter)
+    if quarter_filter:
+        if quarter_filter == 'Q1':
+            query += " AND strftime('%m', po.created_at) IN ('01', '02', '03')"
+        elif quarter_filter == 'Q2':
+            query += " AND strftime('%m', po.created_at) IN ('04', '05', '06')"
+        elif quarter_filter == 'Q3':
+            query += " AND strftime('%m', po.created_at) IN ('07', '08', '09')"
+        elif quarter_filter == 'Q4':
+            query += " AND strftime('%m', po.created_at) IN ('10', '11', '12')"
+    if delivery_status_filter:
+        query += " AND po.po_delivery_status = ?"
+        params.append(delivery_status_filter)
+    
+    query += " ORDER BY rp.project_name, po.id DESC"
+    
+    c.execute(query, params)
+    rows = c.fetchall()
+    
+    # Get PO items for each PO
+    items_query = '''
+        SELECT 
+            po.project_name as "Project Name",
+            po.po_number as "PO Number",
+            pi.part_number as "Part Number",
+            pi.description as "Description",
+            pi.quantity as "Quantity",
+            pi.unit_price as "Unit Price",
+            pi.total_price as "Total Price",
+            COALESCE(pi.quantity_delivered, 0) as "Delivered Qty",
+            (pi.quantity - COALESCE(pi.quantity_delivered, 0)) as "Remaining Qty",
+            pi.delivery_status as "Item Status"
+        FROM po_items pi
+        JOIN purchase_orders po ON pi.po_number = po.po_number
+        JOIN register_project rp ON po.project_name = rp.project_name
+        WHERE 1=1
+    '''
+    if project_filter:
+        items_query += " AND rp.project_name = ?"
+    
+    items_params = [project_filter] if project_filter else []
+    items_query += " ORDER BY po.project_name, po.po_number, pi.id"
+    
+    c.execute(items_query, items_params)
+    items_rows = c.fetchall()
+    
+    conn.close()
+    
+    # Create Excel file
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        # Summary sheet
+        df_summary = pd.DataFrame([dict(row) for row in rows])
+        if not df_summary.empty:
+            df_summary.to_excel(writer, sheet_name='PO Summary', index=False)
+            workbook = writer.book
+            worksheet = writer.sheets['PO Summary']
+            
+            header_format = workbook.add_format({
+                'bold': True, 'bg_color': '#667eea', 'font_color': 'white',
+                'border': 1, 'align': 'center', 'valign': 'vcenter'
+            })
+            money_format = workbook.add_format({'num_format': '#,##0.00', 'border': 1})
+            
+            for col_num, value in enumerate(df_summary.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+                worksheet.set_column(col_num, col_num, 18)
+        
+        # Items sheet
+        df_items = pd.DataFrame([dict(row) for row in items_rows])
+        if not df_items.empty:
+            df_items.to_excel(writer, sheet_name='PO Items', index=False)
+            worksheet_items = writer.sheets['PO Items']
+            
+            for col_num, value in enumerate(df_items.columns.values):
+                worksheet_items.write(0, col_num, value, header_format)
+                worksheet_items.set_column(col_num, col_num, 16)
+    
+    output.seek(0)
+    
+    filename = f"PO_Report_{project_filter or 'All_Projects'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/export_po_report_pptx', methods=['POST'])
+@permission_required('view_po_reports')
+def export_po_report_pptx():
+    """Export PO Reports to PowerPoint presentation"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from io import BytesIO
+    
+    FONT_NAME = 'Arial'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Get filter values
+    project_filter = request.form.get('project', '')
+    vendor_filter = request.form.get('vendor', '')
+    distributor_filter = request.form.get('distributor', '')
+    year_filter = request.form.get('year', '')
+    quarter_filter = request.form.get('quarter', '')
+    delivery_status_filter = request.form.get('delivery_status', '')
+    
+    # Build query for POs
+    query = '''
+        SELECT 
+            rp.project_name,
+            rp.client_name,
+            po.id as po_id,
+            po.po_request_number,
+            po.po_number,
+            po.vendor,
+            po.distributor,
+            po.total_amount,
+            po.po_approval_status,
+            po.po_delivery_status,
+            po.presale_engineer,
+            po.project_manager,
+            po.system,
+            po.created_at
+        FROM purchase_orders po
+        JOIN register_project rp ON po.project_name = rp.project_name
+        WHERE 1=1
+    '''
+    params = []
+    
+    if project_filter:
+        query += " AND rp.project_name = ?"
+        params.append(project_filter)
+    if vendor_filter:
+        query += " AND po.vendor = ?"
+        params.append(vendor_filter)
+    if distributor_filter:
+        query += " AND po.distributor = ?"
+        params.append(distributor_filter)
+    if year_filter:
+        query += " AND strftime('%Y', po.created_at) = ?"
+        params.append(year_filter)
+    if quarter_filter:
+        if quarter_filter == 'Q1':
+            query += " AND strftime('%m', po.created_at) IN ('01', '02', '03')"
+        elif quarter_filter == 'Q2':
+            query += " AND strftime('%m', po.created_at) IN ('04', '05', '06')"
+        elif quarter_filter == 'Q3':
+            query += " AND strftime('%m', po.created_at) IN ('07', '08', '09')"
+        elif quarter_filter == 'Q4':
+            query += " AND strftime('%m', po.created_at) IN ('10', '11', '12')"
+    if delivery_status_filter:
+        query += " AND po.po_delivery_status = ?"
+        params.append(delivery_status_filter)
+    
+    query += " ORDER BY rp.project_name, po.id DESC"
+    
+    c.execute(query, params)
+    all_pos = c.fetchall()
+    
+    # Group by project
+    projects_data = {}
+    for po in all_pos:
+        project_name = po['project_name']
+        if project_name not in projects_data:
+            projects_data[project_name] = {
+                'client_name': po['client_name'],
+                'pos': [],
+                'total_amount': 0
+            }
+        projects_data[project_name]['pos'].append(po)
+        projects_data[project_name]['total_amount'] += float(po['total_amount'] or 0)
+    
+    # Create presentation
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    slide_layout = prs.slide_layouts[6]
+    
+    # Title slide
+    slide = prs.slides.add_slide(slide_layout)
+    title_shape = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(3))
+    title_shape.fill.solid()
+    title_shape.fill.fore_color.rgb = RGBColor(102, 126, 234)
+    title_shape.line.fill.background()
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(12.333), Inches(1.5))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Purchase Order Report"
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.name = FONT_NAME
+    p.font.color.rgb = RGBColor(255, 255, 255)
+    p.alignment = PP_ALIGN.CENTER
+    
+    p2 = tf.add_paragraph()
+    filter_text = project_filter if project_filter else "All Projects"
+    p2.text = f"{filter_text} - {datetime.now().strftime('%B %d, %Y')}"
+    p2.font.size = Pt(24)
+    p2.font.name = FONT_NAME
+    p2.font.color.rgb = RGBColor(255, 255, 255)
+    p2.alignment = PP_ALIGN.CENTER
+    
+    # Summary stats box
+    stats_box = slide.shapes.add_textbox(Inches(2), Inches(4), Inches(9.333), Inches(2.5))
+    tf = stats_box.text_frame
+    p = tf.paragraphs[0]
+    total_projects = len(projects_data)
+    total_pos_count = sum(len(p['pos']) for p in projects_data.values())
+    total_amount = sum(p['total_amount'] for p in projects_data.values())
+    p.text = f"Projects: {total_projects}  |  Purchase Orders: {total_pos_count}  |  Total Value: {total_amount:,.2f} SAR"
+    p.font.size = Pt(20)
+    p.font.name = FONT_NAME
+    p.font.color.rgb = RGBColor(60, 60, 60)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Project slides
+    for project_name, proj_data in projects_data.items():
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Project header
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(1.3))
+        header.fill.solid()
+        header.fill.fore_color.rgb = RGBColor(102, 126, 234)
+        header.line.fill.background()
+        
+        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.5))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = project_name[:60]
+        p.font.size = Pt(24)
+        p.font.bold = True
+        p.font.name = FONT_NAME
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        
+        p2 = tf.add_paragraph()
+        p2.text = f"Client: {proj_data['client_name'] or 'N/A'}  |  POs: {len(proj_data['pos'])}  |  Total: {proj_data['total_amount']:,.2f} SAR"
+        p2.font.size = Pt(14)
+        p2.font.name = FONT_NAME
+        p2.font.color.rgb = RGBColor(220, 220, 255)
+        
+        # PO table
+        pos_to_show = proj_data['pos'][:8]
+        rows = len(pos_to_show) + 1
+        cols = 6
+        table = slide.shapes.add_table(rows, cols, Inches(0.2), Inches(1.5), Inches(12.9), Inches(0.5) * rows).table
+        
+        table.columns[0].width = Inches(2.0)
+        table.columns[1].width = Inches(2.5)
+        table.columns[2].width = Inches(2.5)
+        table.columns[3].width = Inches(2.0)
+        table.columns[4].width = Inches(1.8)
+        table.columns[5].width = Inches(2.1)
+        
+        headers = ['PO Number', 'Vendor', 'Distributor', 'Amount (SAR)', 'Approval', 'Delivery']
+        for col, header in enumerate(headers):
+            cell = table.cell(0, col)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
+            cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            cell.text_frame.paragraphs[0].font.bold = True
+            cell.text_frame.paragraphs[0].font.size = Pt(10)
+            cell.text_frame.paragraphs[0].font.name = FONT_NAME
+            cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for i, po in enumerate(pos_to_show, 1):
+            table.cell(i, 0).text = str(po['po_number'] or po['po_request_number'] or '')[:20]
+            table.cell(i, 1).text = str(po['vendor'] or '')[:25]
+            table.cell(i, 2).text = str(po['distributor'] or '')[:25]
+            table.cell(i, 3).text = f"{float(po['total_amount'] or 0):,.2f}"
+            
+            # Approval status
+            approval_cell = table.cell(i, 4)
+            approval_status = po['po_approval_status'] or ''
+            approval_cell.text = approval_status
+            approval_cell.fill.solid()
+            if approval_status == 'Approved':
+                approval_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                approval_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            elif approval_status == 'Pending':
+                approval_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+            else:
+                approval_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                approval_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            
+            # Delivery status
+            delivery_cell = table.cell(i, 5)
+            delivery_status = po['po_delivery_status'] or 'Pending'
+            delivery_cell.text = delivery_status[:15]
+            delivery_cell.fill.solid()
+            if 'Delivered' in delivery_status and 'Not' not in delivery_status:
+                delivery_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                delivery_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            elif 'Partial' in delivery_status:
+                delivery_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+            else:
+                delivery_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                delivery_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            
+            for col in range(4):
+                cell = table.cell(i, col)
+                if i % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(230, 240, 255)
+                else:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
+            
+            for col in range(cols):
+                cell = table.cell(i, col)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(9)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        if len(proj_data['pos']) > 8:
+            note_box = slide.shapes.add_textbox(Inches(0.5), Inches(6.8), Inches(12.333), Inches(0.4))
+            tf = note_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"+ {len(proj_data['pos']) - 8} more POs (see Excel export for full list)"
+            p.font.size = Pt(11)
+            p.font.italic = True
+            p.font.name = FONT_NAME
+            p.font.color.rgb = RGBColor(108, 117, 125)
+            p.alignment = PP_ALIGN.CENTER
+    
+    conn.close()
+    
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"PO_Report_{project_filter or 'All_Projects'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        as_attachment=True,
+        download_name=filename
+    )
 
 @app.route('/delete_po/<int:po_id>', methods=['POST'])
 @login_required
