@@ -418,6 +418,7 @@
                                         <th>RFQ Status</th>
                                         <th>Priority</th>
                                         <th>Deadline</th>
+                                        <th>Time Left</th>
                                         <th>Requested</th>
                                         <th>Actions</th>
                                     </tr>
@@ -447,6 +448,21 @@
                                             {% endif %}
                                         </td>
                                         <td>{{ rfq.deadline or '-' }}</td>
+                                        <td>
+                                            {% if rfq.days_remaining is not none %}
+                                                {% if rfq.days_remaining < 0 %}
+                                                <span class="badge badge-danger"><i class="fas fa-exclamation-triangle mr-1"></i>{{ rfq.days_remaining|abs }} days overdue</span>
+                                                {% elif rfq.days_remaining == 0 %}
+                                                <span class="badge badge-warning"><i class="fas fa-clock mr-1"></i>Due today</span>
+                                                {% elif rfq.days_remaining <= 3 %}
+                                                <span class="badge badge-warning"><i class="fas fa-hourglass-half mr-1"></i>{{ rfq.days_remaining }} days</span>
+                                                {% else %}
+                                                <span class="badge badge-success"><i class="fas fa-calendar-check mr-1"></i>{{ rfq.days_remaining }} days</span>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
                                         <td>{{ rfq.requested_time[:10] if rfq.requested_time else '-' }}</td>
                                         <td>
                                             <a href="{{ url_for('rfq_profile', rfq_id=rfq.id) }}" class="btn btn-info btn-sm" title="View RFQ">

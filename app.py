@@ -11292,6 +11292,18 @@ def rfq_engineer_reports():
                 projects_dict[project_name]['has_cancelled'] = True
                 summary['cancelled'] += 1
             
+            # Calculate days remaining until deadline
+            days_remaining = None
+            deadline_str = rfq[9]
+            if deadline_str:
+                try:
+                    from datetime import datetime, date
+                    deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                    today = date.today()
+                    days_remaining = (deadline_date - today).days
+                except:
+                    pass
+            
             projects_dict[project_name]['rfqs'].append({
                 'id': rfq[0],
                 'rfq_reference': rfq[1],
@@ -11307,7 +11319,8 @@ def rfq_engineer_reports():
                 'requested_time': rfq[11],
                 'system': rfq[12],
                 'status_category': status_category,
-                'associated_engineer': rfq[5] if report_type == 'sales' else rfq[6]
+                'associated_engineer': rfq[5] if report_type == 'sales' else rfq[6],
+                'days_remaining': days_remaining
             })
         
         # Convert to list and sort by number of RFQs
