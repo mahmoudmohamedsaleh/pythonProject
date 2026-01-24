@@ -3,278 +3,678 @@
 {% block content %}
 
 <style>
-.page-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --dark-gradient: linear-gradient(135deg, #434343 0%, #000000 100%);
+}
+
+.po-reports-hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
     color: white;
-    padding: 2rem;
-    border-radius: 15px;
+    padding: 2.5rem 2rem;
+    border-radius: 24px;
     margin-bottom: 2rem;
-    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 20px 60px rgba(102, 126, 234, 0.4);
+    position: relative;
+    overflow: hidden;
 }
-.stat-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+
+.po-reports-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 60%;
+    height: 200%;
+    background: rgba(255,255,255,0.08);
+    transform: rotate(25deg);
+    pointer-events: none;
+}
+
+.po-reports-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 50%;
+    height: 150%;
+    background: rgba(255,255,255,0.05);
+    transform: rotate(-15deg);
+    pointer-events: none;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    letter-spacing: -0.5px;
+}
+
+.hero-subtitle {
+    opacity: 0.9;
+    font-size: 1.1rem;
+    font-weight: 400;
+}
+
+.back-link {
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+    font-weight: 500;
     transition: all 0.3s ease;
-    cursor: pointer;
-    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    margin-bottom: 1rem;
 }
-.stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+
+.back-link:hover {
+    background: rgba(255,255,255,0.25);
+    color: white;
+    transform: translateX(-5px);
 }
-.stat-card.active {
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.5);
+
+.export-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
-.stat-icon {
-    width: 50px;
-    height: 50px;
+
+.export-btn-modern {
+    padding: 0.75rem 1.5rem;
     border-radius: 12px;
+    font-weight: 600;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.export-btn-modern:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.btn-excel-modern {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.btn-excel-modern:hover {
+    color: white;
+}
+
+.btn-pptx-modern {
+    background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+    color: white;
+}
+
+.btn-pptx-modern:hover {
+    color: white;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 1200px) {
+    .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.stat-card-modern {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.stat-card-modern:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+.stat-card-modern:hover::before {
+    opacity: 1;
+}
+
+.stat-card-modern.purple::before { background: var(--primary-gradient); }
+.stat-card-modern.blue::before { background: var(--info-gradient); }
+.stat-card-modern.green::before { background: var(--success-gradient); }
+.stat-card-modern.orange::before { background: linear-gradient(135deg, #f5af19 0%, #f12711 100%); }
+
+.stat-icon-modern {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-}
-.stat-icon.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-.stat-icon.success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; }
-.stat-icon.warning { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: white; }
-.stat-icon.info { background: linear-gradient(135deg, #17a2b8 0%, #3498db 100%); color: white; }
-.stat-icon.danger { background: linear-gradient(135deg, #dc3545 0%, #f8719e 100%); color: white; }
-.project-card {
-    border-left: 4px solid #667eea;
+    color: white;
     margin-bottom: 1rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    overflow: hidden;
-    transition: all 0.3s ease;
 }
-.project-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-}
-.project-header {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    padding: 1rem 1.25rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-.project-header:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-}
-.po-badge {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 0.25rem 0.6rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
+
+.stat-icon-modern.purple { background: var(--primary-gradient); }
+.stat-icon-modern.blue { background: var(--info-gradient); }
+.stat-icon-modern.green { background: var(--success-gradient); }
+.stat-icon-modern.orange { background: linear-gradient(135deg, #f5af19 0%, #f12711 100%); }
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     font-weight: 600;
+    margin-bottom: 0.25rem;
 }
-.amount-badge {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    color: white;
-    padding: 0.25rem 0.6rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1a1a2e;
+    line-height: 1.2;
 }
-.filter-card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    margin-bottom: 2rem;
-}
-.filter-card .card-header {
-    background: white;
-    border-bottom: 2px solid #f1f3f5;
-    font-weight: 600;
-    border-radius: 15px 15px 0 0 !important;
-}
-.export-btn {
-    border-radius: 10px;
-    padding: 0.6rem 1.2rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-.export-btn:hover {
-    transform: translateY(-2px);
-}
-.btn-excel {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border: none;
-    color: white;
-}
-.btn-excel:hover {
-    background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
-    color: white;
-}
-.btn-pptx {
-    background: linear-gradient(135deg, #dc3545 0%, #f8719e 100%);
-    border: none;
-    color: white;
-}
-.btn-pptx:hover {
-    background: linear-gradient(135deg, #f8719e 0%, #dc3545 100%);
-    color: white;
-}
-.table thead th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    font-weight: 600;
-    white-space: nowrap;
-    padding: 0.75rem;
-}
-.table tbody tr {
-    transition: all 0.2s ease;
-}
-.table tbody tr:hover {
-    background-color: #f8f9fa;
-}
-.status-approved {
-    background-color: #28a745;
-    color: white;
-}
-.status-pending {
-    background-color: #ffc107;
-    color: #212529;
-}
-.status-rejected {
-    background-color: #dc3545;
-    color: white;
-}
-.status-delivered {
-    background-color: #28a745;
-    color: white;
-}
-.status-partial {
-    background-color: #ffc107;
-    color: #212529;
-}
-.status-not-delivered {
-    background-color: #dc3545;
-    color: white;
-}
-.back-btn {
-    color: white;
-    text-decoration: none;
-}
-.back-btn:hover {
-    color: rgba(255,255,255,0.8);
-}
-.no-data {
-    text-align: center;
-    padding: 3rem;
+
+.stat-value small {
+    font-size: 0.9rem;
+    font-weight: 500;
     color: #6c757d;
 }
-.no-data i {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
+
+.filter-section {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.filter-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.filter-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--primary-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.filter-header-text {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1a1a2e;
+}
+
+.filter-body {
+    padding: 1.5rem;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.filter-select {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.filter-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+    background-color: white;
+}
+
+.filter-btn {
+    padding: 0.75rem 2rem;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.filter-btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    color: white;
+}
+
+.filter-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.filter-btn-clear {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    color: #6c757d;
+}
+
+.filter-btn-clear:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.project-section {
+    margin-bottom: 1.5rem;
+}
+
+.project-card-modern {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: all 0.4s ease;
+    border: 1px solid rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+}
+
+.project-card-modern:hover {
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+}
+
+.project-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.project-header-modern::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 100%);
+    pointer-events: none;
+}
+
+.project-title-modern {
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.project-title-modern a {
+    color: white;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.project-title-modern a:hover {
+    opacity: 0.85;
+    text-decoration: underline;
+}
+
+.project-client {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.9rem;
+}
+
+.project-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.project-badge {
+    padding: 0.4rem 0.9rem;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.badge-po-count {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.badge-amount {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.badge-approved {
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+}
+
+.badge-pending {
+    background: rgba(255, 193, 7, 0.9);
+    color: #1a1a2e;
+}
+
+.badge-rejected {
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+}
+
+.po-table-container {
+    padding: 0;
+}
+
+.po-table-modern {
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.po-table-modern thead th {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: none;
+    white-space: nowrap;
+}
+
+.po-table-modern tbody tr {
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #f1f3f5;
+}
+
+.po-table-modern tbody tr:hover {
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.po-table-modern tbody td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.po-number-link {
+    color: #667eea;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.po-number-link:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+.amount-cell {
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.status-badge-modern {
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-approved-modern {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.status-pending-modern {
+    background: linear-gradient(135deg, #f5af19 0%, #f12711 100%);
+    color: white;
+}
+
+.status-rejected-modern {
+    background: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%);
+    color: white;
+}
+
+.status-delivered-modern {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.status-partial-modern {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.status-not-delivered-modern {
+    background: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%);
+    color: white;
+}
+
+.action-btn-modern {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.action-btn-modern:hover {
+    transform: scale(1.1);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.toggle-icon-modern {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.toggle-icon-modern i {
+    color: white;
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.collapsed .toggle-icon-modern i {
+    transform: rotate(-90deg);
+}
+
+.no-data-modern {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+}
+
+.no-data-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.no-data-icon i {
+    font-size: 2.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.no-data-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 0.5rem;
+}
+
+.no-data-text {
+    color: #6c757d;
+    font-size: 1rem;
 }
 </style>
 
 <div class="container-fluid py-4">
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <div>
-                <a href="{{ url_for('view_po_status') }}" class="back-btn mb-2 d-inline-block">
-                    <i class="fas fa-arrow-left me-2"></i>Back to PO Status
-                </a>
-                <h1 class="mb-1"><i class="fas fa-chart-bar me-3"></i>PO Reports</h1>
-                <p class="mb-0 opacity-75">View and export purchase order reports grouped by project</p>
-            </div>
-            <div class="d-flex gap-2 mt-3 mt-md-0">
-                <form method="POST" action="{{ url_for('export_po_report_excel') }}" class="d-inline">
-                    <input type="hidden" name="project" value="{{ project_filter }}">
-                    <input type="hidden" name="vendor" value="{{ vendor_filter }}">
-                    <input type="hidden" name="distributor" value="{{ distributor_filter }}">
-                    <input type="hidden" name="year" value="{{ year_filter }}">
-                    <input type="hidden" name="quarter" value="{{ quarter_filter }}">
-                    <input type="hidden" name="delivery_status" value="{{ delivery_status_filter }}">
-                    <button type="submit" class="btn btn-excel export-btn">
-                        <i class="fas fa-file-excel me-2"></i>Export Excel
-                    </button>
-                </form>
-                <form method="POST" action="{{ url_for('export_po_report_pptx') }}" class="d-inline">
-                    <input type="hidden" name="project" value="{{ project_filter }}">
-                    <input type="hidden" name="vendor" value="{{ vendor_filter }}">
-                    <input type="hidden" name="distributor" value="{{ distributor_filter }}">
-                    <input type="hidden" name="year" value="{{ year_filter }}">
-                    <input type="hidden" name="quarter" value="{{ quarter_filter }}">
-                    <input type="hidden" name="delivery_status" value="{{ delivery_status_filter }}">
-                    <button type="submit" class="btn btn-pptx export-btn">
-                        <i class="fas fa-file-powerpoint me-2"></i>Export PowerPoint
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row mb-4">
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stat-card card p-3">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon primary me-3">
-                        <i class="fas fa-folder-open"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small text-uppercase">Projects</div>
-                        <div class="h3 mb-0 fw-bold">{{ total_projects }}</div>
-                    </div>
+    <div class="po-reports-hero">
+        <div class="hero-content">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                <div>
+                    <a href="{{ url_for('view_po_status') }}" class="back-link">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to PO Status</span>
+                    </a>
+                    <h1 class="hero-title">
+                        <i class="fas fa-chart-line me-3"></i>PO Reports
+                    </h1>
+                    <p class="hero-subtitle">Comprehensive purchase order analytics grouped by project</p>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stat-card card p-3">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon info me-3">
-                        <i class="fas fa-file-invoice"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small text-uppercase">Total POs</div>
-                        <div class="h3 mb-0 fw-bold">{{ total_pos }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stat-card card p-3">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon success me-3">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small text-uppercase">Approved</div>
-                        <div class="h3 mb-0 fw-bold">{{ total_approved }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 col-sm-6 mb-3">
-            <div class="stat-card card p-3">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon warning me-3">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small text-uppercase">Total Amount</div>
-                        <div class="h4 mb-0 fw-bold">{{ "{:,.0f}".format(total_amount) }} <small class="text-muted">SAR</small></div>
-                    </div>
+                <div class="export-buttons">
+                    <form method="POST" action="{{ url_for('export_po_report_excel') }}" class="d-inline">
+                        <input type="hidden" name="project" value="{{ project_filter }}">
+                        <input type="hidden" name="vendor" value="{{ vendor_filter }}">
+                        <input type="hidden" name="distributor" value="{{ distributor_filter }}">
+                        <input type="hidden" name="year" value="{{ year_filter }}">
+                        <input type="hidden" name="quarter" value="{{ quarter_filter }}">
+                        <input type="hidden" name="delivery_status" value="{{ delivery_status_filter }}">
+                        <button type="submit" class="export-btn-modern btn-excel-modern">
+                            <i class="fas fa-file-excel"></i>
+                            <span>Export Excel</span>
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('export_po_report_pptx') }}" class="d-inline">
+                        <input type="hidden" name="project" value="{{ project_filter }}">
+                        <input type="hidden" name="vendor" value="{{ vendor_filter }}">
+                        <input type="hidden" name="distributor" value="{{ distributor_filter }}">
+                        <input type="hidden" name="year" value="{{ year_filter }}">
+                        <input type="hidden" name="quarter" value="{{ quarter_filter }}">
+                        <input type="hidden" name="delivery_status" value="{{ delivery_status_filter }}">
+                        <button type="submit" class="export-btn-modern btn-pptx-modern">
+                            <i class="fas fa-file-powerpoint"></i>
+                            <span>Export PowerPoint</span>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="card filter-card">
-        <div class="card-header">
-            <i class="fas fa-filter me-2"></i>Filter Purchase Orders
+    <div class="stats-row">
+        <div class="stat-card-modern purple">
+            <div class="stat-icon-modern purple">
+                <i class="fas fa-project-diagram"></i>
+            </div>
+            <div class="stat-label">Projects</div>
+            <div class="stat-value">{{ total_projects }}</div>
         </div>
-        <div class="card-body">
+        <div class="stat-card-modern blue">
+            <div class="stat-icon-modern blue">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stat-label">Total Purchase Orders</div>
+            <div class="stat-value">{{ total_pos }}</div>
+        </div>
+        <div class="stat-card-modern green">
+            <div class="stat-icon-modern green">
+                <i class="fas fa-check-double"></i>
+            </div>
+            <div class="stat-label">Approved</div>
+            <div class="stat-value">{{ total_approved }}</div>
+        </div>
+        <div class="stat-card-modern orange">
+            <div class="stat-icon-modern orange">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="stat-label">Total Amount</div>
+            <div class="stat-value">{{ "{:,.0f}".format(total_amount) }} <small>SAR</small></div>
+        </div>
+    </div>
+    
+    <div class="filter-section">
+        <div class="filter-header">
+            <div class="filter-header-icon">
+                <i class="fas fa-sliders-h"></i>
+            </div>
+            <span class="filter-header-text">Filter Purchase Orders</span>
+        </div>
+        <div class="filter-body">
             <form method="GET" action="{{ url_for('po_reports') }}">
                 <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Project</label>
-                        <select name="project" class="form-select">
+                    <div class="col-lg-4 col-md-6">
+                        <label class="filter-label">Project</label>
+                        <select name="project" class="form-select filter-select">
                             <option value="">All Projects</option>
                             {% for proj in projects %}
                             <option value="{{ proj.project_name }}" {% if project_filter == proj.project_name %}selected{% endif %}>
@@ -283,36 +683,36 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Vendor</label>
-                        <select name="vendor" class="form-select">
+                    <div class="col-lg-4 col-md-6">
+                        <label class="filter-label">Vendor</label>
+                        <select name="vendor" class="form-select filter-select">
                             <option value="">All Vendors</option>
                             {% for v in vendors %}
                             <option value="{{ v.name }}" {% if vendor_filter == v.name %}selected{% endif %}>{{ v.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">Distributor</label>
-                        <select name="distributor" class="form-select">
+                    <div class="col-lg-4 col-md-6">
+                        <label class="filter-label">Distributor</label>
+                        <select name="distributor" class="form-select filter-select">
                             <option value="">All Distributors</option>
                             {% for d in distributors %}
                             <option value="{{ d.name }}" {% if distributor_filter == d.name %}selected{% endif %}>{{ d.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Year</label>
-                        <select name="year" class="form-select">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="filter-label">Year</label>
+                        <select name="year" class="form-select filter-select">
                             <option value="">All Years</option>
                             {% for y in years %}
                             <option value="{{ y }}" {% if year_filter == y %}selected{% endif %}>{{ y }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Quarter</label>
-                        <select name="quarter" class="form-select">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="filter-label">Quarter</label>
+                        <select name="quarter" class="form-select filter-select">
                             <option value="">All Quarters</option>
                             <option value="Q1" {% if quarter_filter == 'Q1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
                             <option value="Q2" {% if quarter_filter == 'Q2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
@@ -320,9 +720,9 @@
                             <option value="Q4" {% if quarter_filter == 'Q4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Delivery Status</label>
-                        <select name="delivery_status" class="form-select">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="filter-label">Delivery Status</label>
+                        <select name="delivery_status" class="form-select filter-select">
                             <option value="">All Status</option>
                             <option value="Delivered" {% if delivery_status_filter == 'Delivered' %}selected{% endif %}>Delivered</option>
                             <option value="Partial Delivery" {% if delivery_status_filter == 'Partial Delivery' %}selected{% endif %}>Partial Delivery</option>
@@ -330,11 +730,11 @@
                             <option value="Not Delivered" {% if delivery_status_filter == 'Not Delivered' %}selected{% endif %}>Not Delivered</option>
                         </select>
                     </div>
-                    <div class="col-md-3 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary flex-grow-1">
+                    <div class="col-lg-3 col-md-6 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn filter-btn filter-btn-primary flex-grow-1">
                             <i class="fas fa-search me-2"></i>Apply Filters
                         </button>
-                        <a href="{{ url_for('po_reports') }}" class="btn btn-outline-secondary">
+                        <a href="{{ url_for('po_reports') }}" class="btn filter-btn filter-btn-clear">
                             <i class="fas fa-times"></i>
                         </a>
                     </div>
@@ -346,75 +746,89 @@
     {% if projects_data %}
     <div class="projects-container">
         {% for project_name, proj_data in projects_data.items() %}
-        <div class="project-card">
-            <div class="project-header" data-bs-toggle="collapse" data-bs-target="#project-{{ loop.index }}">
-                <div class="d-flex justify-content-between align-items-center flex-wrap">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-chevron-down me-3 text-muted toggle-icon"></i>
+        <div class="project-card-modern">
+            <div class="project-header-modern" data-bs-toggle="collapse" data-bs-target="#project-{{ loop.index }}" aria-expanded="true">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="toggle-icon-modern">
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
                         <div>
-                            <h5 class="mb-1 fw-bold">
-                                <a href="{{ url_for('project_profile', project_id=proj_data.project_id) }}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+                            <div class="project-title-modern">
+                                <a href="{{ url_for('project_profile', project_id=proj_data.project_id) }}" onclick="event.stopPropagation();">
                                     {{ project_name }}
                                 </a>
-                            </h5>
-                            <small class="text-muted">{{ proj_data.client_name or 'No client specified' }}</small>
+                            </div>
+                            <div class="project-client">
+                                <i class="fas fa-building me-1"></i>{{ proj_data.client_name or 'No client specified' }}
+                            </div>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 flex-wrap mt-2 mt-md-0">
-                        <span class="po-badge">{{ proj_data.total_pos }} POs</span>
-                        <span class="amount-badge">{{ "{:,.0f}".format(proj_data.total_amount) }} SAR</span>
-                        <span class="badge bg-success">{{ proj_data.approved_count }} Approved</span>
+                    <div class="project-badges">
+                        <span class="project-badge badge-po-count">
+                            <i class="fas fa-file-alt me-1"></i>{{ proj_data.total_pos }} POs
+                        </span>
+                        <span class="project-badge badge-amount">
+                            <i class="fas fa-coins me-1"></i>{{ "{:,.0f}".format(proj_data.total_amount) }} SAR
+                        </span>
+                        <span class="project-badge badge-approved">
+                            <i class="fas fa-check me-1"></i>{{ proj_data.approved_count }} Approved
+                        </span>
                         {% if proj_data.pending_count > 0 %}
-                        <span class="badge bg-warning text-dark">{{ proj_data.pending_count }} Pending</span>
+                        <span class="project-badge badge-pending">
+                            <i class="fas fa-clock me-1"></i>{{ proj_data.pending_count }} Pending
+                        </span>
                         {% endif %}
                         {% if proj_data.rejected_count > 0 %}
-                        <span class="badge bg-danger">{{ proj_data.rejected_count }} Rejected</span>
+                        <span class="project-badge badge-rejected">
+                            <i class="fas fa-times me-1"></i>{{ proj_data.rejected_count }} Rejected
+                        </span>
                         {% endif %}
                     </div>
                 </div>
             </div>
             <div id="project-{{ loop.index }}" class="collapse show">
-                <div class="card-body p-0">
+                <div class="po-table-container">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table po-table-modern">
                             <thead>
                                 <tr>
-                                    <th>PO Number</th>
-                                    <th>Vendor</th>
-                                    <th>Distributor</th>
-                                    <th>System</th>
-                                    <th>Amount (SAR)</th>
-                                    <th>Approval</th>
-                                    <th>Delivery</th>
-                                    <th>Actions</th>
+                                    <th><i class="fas fa-hashtag me-2"></i>PO Number</th>
+                                    <th><i class="fas fa-industry me-2"></i>Vendor</th>
+                                    <th><i class="fas fa-truck me-2"></i>Distributor</th>
+                                    <th><i class="fas fa-cogs me-2"></i>System</th>
+                                    <th><i class="fas fa-money-bill-wave me-2"></i>Amount</th>
+                                    <th><i class="fas fa-clipboard-check me-2"></i>Approval</th>
+                                    <th><i class="fas fa-shipping-fast me-2"></i>Delivery</th>
+                                    <th><i class="fas fa-ellipsis-h me-2"></i>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for po in proj_data.pos %}
                                 <tr>
                                     <td>
-                                        <a href="{{ url_for('po_profile', po_request_number=po.po_request_number) }}" class="text-decoration-none fw-semibold">
+                                        <a href="{{ url_for('po_profile', po_request_number=po.po_request_number) }}" class="po-number-link">
                                             {{ po.po_number or po.po_request_number }}
                                         </a>
                                     </td>
                                     <td>{{ po.vendor or '-' }}</td>
                                     <td>{{ po.distributor or '-' }}</td>
                                     <td>{{ po.system or '-' }}</td>
-                                    <td class="fw-semibold">{{ "{:,.2f}".format(po.total_amount or 0) }}</td>
+                                    <td class="amount-cell">{{ "{:,.2f}".format(po.total_amount or 0) }}</td>
                                     <td>
                                         {% set approval = po.po_approval_status or 'Pending' %}
-                                        <span class="badge {% if approval == 'Approved' %}status-approved{% elif approval == 'Pending' %}status-pending{% else %}status-rejected{% endif %}">
+                                        <span class="status-badge-modern {% if approval == 'Approved' %}status-approved-modern{% elif approval == 'Pending' %}status-pending-modern{% else %}status-rejected-modern{% endif %}">
                                             {{ approval }}
                                         </span>
                                     </td>
                                     <td>
                                         {% set delivery = po.po_delivery_status or 'Pending' %}
-                                        <span class="badge {% if 'Delivered' in delivery and 'Not' not in delivery %}status-delivered{% elif 'Partial' in delivery %}status-partial{% else %}status-not-delivered{% endif %}">
-                                            {{ delivery[:20] }}
+                                        <span class="status-badge-modern {% if 'Delivered' in delivery and 'Not' not in delivery %}status-delivered-modern{% elif 'Partial' in delivery %}status-partial-modern{% else %}status-not-delivered-modern{% endif %}">
+                                            {{ delivery[:18] }}
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="{{ url_for('po_profile', po_request_number=po.po_request_number) }}" class="btn btn-sm btn-outline-primary" title="View PO Profile">
+                                        <a href="{{ url_for('po_profile', po_request_number=po.po_request_number) }}" class="action-btn-modern" title="View PO Profile">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </td>
@@ -429,20 +843,23 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="no-data">
-        <i class="fas fa-folder-open"></i>
-        <h4>No Purchase Orders Found</h4>
-        <p class="text-muted">Try adjusting your filters or check back later.</p>
+    <div class="no-data-modern">
+        <div class="no-data-icon">
+            <i class="fas fa-folder-open"></i>
+        </div>
+        <h4 class="no-data-title">No Purchase Orders Found</h4>
+        <p class="no-data-text">Try adjusting your filters or check back later for new data.</p>
     </div>
     {% endif %}
 </div>
 
 <script>
-document.querySelectorAll('.project-header').forEach(header => {
+document.querySelectorAll('.project-header-modern').forEach(header => {
     header.addEventListener('click', function() {
-        const icon = this.querySelector('.toggle-icon');
-        icon.classList.toggle('fa-chevron-down');
-        icon.classList.toggle('fa-chevron-up');
+        const icon = this.querySelector('.toggle-icon-modern i');
+        const isExpanded = this.getAttribute('aria-expanded') === 'true';
+        icon.style.transform = isExpanded ? 'rotate(-90deg)' : 'rotate(0deg)';
+        this.setAttribute('aria-expanded', !isExpanded);
     });
 });
 </script>

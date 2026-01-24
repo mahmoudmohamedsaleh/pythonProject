@@ -17493,8 +17493,22 @@ def export_po_report_pptx():
             c.execute('''
                 SELECT id, order_date, expected_delivery, status, notes
                 FROM purchase_order_monitoring WHERE po_number = ?
+                ORDER BY expected_delivery DESC
             ''', (po_number,))
             delivery_notes = c.fetchall()
+            
+            # Get the latest expected delivery/follow-up info for this PO
+            latest_expected_delivery = ''
+            latest_follow_up_notes = ''
+            if delivery_notes:
+                for dn in delivery_notes:
+                    if dn['expected_delivery']:
+                        latest_expected_delivery = str(dn['expected_delivery'])[:10]
+                        break
+                for dn in delivery_notes:
+                    if dn['notes']:
+                        latest_follow_up_notes = str(dn['notes'])[:30]
+                        break
             
             # Get VAT invoices
             c.execute('''
@@ -17533,21 +17547,22 @@ def export_po_report_pptx():
                     
                     # Items table with delivery info
                     rows = len(slide_items) + 1
-                    item_cols = 9
+                    item_cols = 10
                     row_height = Inches(0.65)
-                    item_table = slide.shapes.add_table(rows, item_cols, Inches(0.2), Inches(1.2), Inches(12.9), row_height * rows).table
+                    item_table = slide.shapes.add_table(rows, item_cols, Inches(0.15), Inches(1.2), Inches(13.0), row_height * rows).table
                     
-                    item_table.columns[0].width = Inches(0.4)
-                    item_table.columns[1].width = Inches(1.3)
-                    item_table.columns[2].width = Inches(3.0)
-                    item_table.columns[3].width = Inches(0.8)
-                    item_table.columns[4].width = Inches(1.3)
-                    item_table.columns[5].width = Inches(1.4)
-                    item_table.columns[6].width = Inches(1.0)
-                    item_table.columns[7].width = Inches(1.0)
-                    item_table.columns[8].width = Inches(1.8)
+                    item_table.columns[0].width = Inches(0.35)
+                    item_table.columns[1].width = Inches(1.1)
+                    item_table.columns[2].width = Inches(2.5)
+                    item_table.columns[3].width = Inches(0.6)
+                    item_table.columns[4].width = Inches(1.1)
+                    item_table.columns[5].width = Inches(1.1)
+                    item_table.columns[6].width = Inches(0.9)
+                    item_table.columns[7].width = Inches(0.9)
+                    item_table.columns[8].width = Inches(1.4)
+                    item_table.columns[9].width = Inches(3.0)
                     
-                    item_headers = ['#', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total', 'Delivered', 'Remaining', 'Status']
+                    item_headers = ['#', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total', 'Delivered', 'Remaining', 'Status', 'Follow Up / Expected']
                     for col, hdr in enumerate(item_headers):
                         cell = item_table.cell(0, col)
                         cell.text = hdr
@@ -17615,6 +17630,26 @@ def export_po_report_pptx():
                             status_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
                             status_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
                         
+                        # Follow Up / Expected Delivery column
+                        followup_cell = item_table.cell(row_idx, 9)
+                        followup_text = ''
+                        if latest_expected_delivery:
+                            followup_text = f"Exp: {latest_expected_delivery}"
+                            if latest_follow_up_notes:
+                                followup_text += f" | {latest_follow_up_notes}"
+                        elif latest_follow_up_notes:
+                            followup_text = latest_follow_up_notes
+                        else:
+                            followup_text = '-'
+                        followup_cell.text = followup_text[:35]
+                        followup_cell.fill.solid()
+                        followup_cell.fill.fore_color.rgb = RGBColor(23, 162, 184)
+                        followup_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                        followup_cell.text_frame.paragraphs[0].font.size = Pt(8)
+                        followup_cell.text_frame.paragraphs[0].font.name = FONT_NAME
+                        followup_cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                        followup_cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                        
                         for col in range(6):
                             cell = item_table.cell(row_idx, col)
                             if i % 2 == 0:
@@ -17627,7 +17662,7 @@ def export_po_report_pptx():
                         for col in range(item_cols):
                             cell = item_table.cell(row_idx, col)
                             for para in cell.text_frame.paragraphs:
-                                para.font.size = Pt(9)
+                                para.font.size = Pt(8)
                                 para.font.name = FONT_NAME
                                 para.alignment = PP_ALIGN.CENTER
                             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
