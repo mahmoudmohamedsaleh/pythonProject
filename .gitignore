@@ -54,4 +54,3 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
-ProjectStatus.db git add .gitignore git commit -m Permanently ignore large database file
