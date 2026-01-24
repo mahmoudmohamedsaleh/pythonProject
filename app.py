@@ -18496,11 +18496,11 @@ def export_po_profile_excel(po_request_number):
             row += 1
             details = [
                 ('PO Number', po['po_number'] or 'N/A', 'PO Request Number', po_request_number),
-                ('System', po['system'] or 'N/A', 'Status', po['status'] or 'N/A'),
+                ('System', po['system'] or 'N/A', 'Status', po['po_approval_status'] or 'N/A'),
                 ('Distributor', po['distributor_name'] or 'N/A', 'Vendor', po['vendor_name'] or 'N/A'),
                 ('Presale Engineer', po['presale_engineer_name'] or 'N/A', 'Project Manager', po['project_manager_name'] or 'N/A'),
-                ('Project', po['project_name_actual'] or 'N/A', 'Created Date', str(po['created_at'])[:10] if po['created_at'] else 'N/A'),
-                ('Delivery Status', po['delivery_status'] or 'N/A', 'Vendor Notes', (po['vendor_notes'] or 'N/A')[:50])
+                ('Project', po['project_name_actual'] or 'N/A', 'Created Date', str(po['created_at'])[:10] if po.get('created_at') else 'N/A'),
+                ('Delivery Status', po['po_delivery_status'] or 'N/A', 'Vendor Notes', (po['po_notes_vendor'] or 'N/A')[:50])
             ]
             
             for label1, val1, label2, val2 in details:
@@ -18709,7 +18709,7 @@ def export_po_profile_pptx(po_request_number):
         p.alignment = PP_ALIGN.CENTER
         
         # Status badge
-        status = po['status'] or 'Pending'
+        status = po['po_approval_status'] or 'Pending'
         status_color = RGBColor(40, 167, 69) if status == 'Approved' else RGBColor(255, 193, 7) if status == 'Pending' else RGBColor(220, 53, 69)
         
         status_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12.333), Inches(0.6))
@@ -18746,7 +18746,7 @@ def export_po_profile_pptx(po_request_number):
             ['System', po['system'] or 'N/A', 'Project', (po['project_name_actual'] or 'N/A')[:30]],
             ['Distributor', (po['distributor_name'] or 'N/A')[:25], 'Vendor', (po['vendor_name'] or 'N/A')[:25]],
             ['Presale Eng.', (po['presale_engineer_name'] or 'N/A')[:20], 'Project Mgr', (po['project_manager_name'] or 'N/A')[:20]],
-            ['Created', str(po['created_at'])[:10] if po['created_at'] else 'N/A', 'Delivery Status', po['delivery_status'] or 'N/A']
+            ['Created', str(po['created_at'])[:10] if po.get('created_at') else 'N/A', 'Delivery Status', po['po_delivery_status'] or 'N/A']
         ]
         
         table = slide.shapes.add_table(len(details_data), 4, Inches(0.5), Inches(1.3), Inches(12.3), Inches(0.6 * len(details_data))).table
