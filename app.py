@@ -12947,6 +12947,846 @@ def download_filtered_technical_support():
 
     # Send the file to the user
     return send_file(output, download_name='filtered_technical_support_requests.xlsx', as_attachment=True)
+
+
+###################################
+# RFTS Engineer Reports - Similar to RFQ Engineer Reports but for Technical Support
+@app.route('/rfts_engineer_reports')
+@login_required
+@permission_required('view_rfts')
+def rfts_engineer_reports():
+    """RFTS Engineer Reports - View RFTS statistics by Sales or Presale Engineer"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    # Get available years from RFTS
+    c.execute("SELECT DISTINCT strftime('%Y', requested_time) as year FROM technical_support_requests WHERE requested_time IS NOT NULL ORDER BY year DESC")
+    years = [row[0] for row in c.fetchall() if row[0]]
+    
+    # Get list of engineers based on report type
+    if report_type == 'sales':
+        c.execute("SELECT DISTINCT sales_engineer FROM technical_support_requests WHERE sales_engineer IS NOT NULL AND sales_engineer != '' ORDER BY sales_engineer")
+    else:
+        c.execute("SELECT DISTINCT presale_engineer FROM technical_support_requests WHERE presale_engineer IS NOT NULL AND presale_engineer != '' ORDER BY presale_engineer")
+    
+    engineers = [row[0] for row in c.fetchall()]
+    
+    rfts_list = []
+    total_rfts_count = 0
+    
+    # Summary statistics - RFTS statuses: Queue, Studying, Done, Pending, In Progress
+    summary = {
+        'queue': 0, 'studying': 0, 'done': 0, 'pending': 0, 'in_progress': 0
+    }
+    
+    # Associated engineers stats (opposite type)
+    associated_stats = []
+    
+    # Projects list for grouped display
+    projects = []
+    
+    if selected_engineer:
+        # Build date filter conditions
+        date_conditions = ""
+        params_base = [selected_engineer]
+        
+        if selected_year:
+            date_conditions += " AND strftime('%Y', requested_time) = ?"
+            params_base.append(selected_year)
+        
+        if selected_month:
+            date_conditions += " AND strftime('%m', requested_time) = ?"
+            params_base.append(selected_month)
+            
+            if selected_week:
+                week_num = int(selected_week)
+                start_day = (week_num - 1) * 7 + 1
+                end_day = week_num * 7
+                date_conditions += " AND CAST(strftime('%d', requested_time) AS INTEGER) BETWEEN ? AND ?"
+                params_base.extend([start_day, end_day])
+        elif selected_quarter:
+            quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+            if selected_quarter in quarter_map:
+                start_month, end_month = quarter_map[selected_quarter]
+                date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
+                params_base.extend([start_month, end_month])
+        
+        # Get RFTS for this engineer with date filters
+        if report_type == 'sales':
+            query = f"""
+                SELECT id, reference, request_type, project_name, priority,
+                       presale_engineer, sales_engineer, request_status,
+                       request_result, deadline, note, requested_time, system
+                FROM technical_support_requests 
+                WHERE sales_engineer = ?
+                {date_conditions}
+                ORDER BY requested_time DESC
+            """
+        else:
+            query = f"""
+                SELECT id, reference, request_type, project_name, priority,
+                       presale_engineer, sales_engineer, request_status,
+                       request_result, deadline, note, requested_time, system
+                FROM technical_support_requests 
+                WHERE presale_engineer = ?
+                {date_conditions}
+                ORDER BY requested_time DESC
+            """
+        c.execute(query, params_base)
+        rfts_raw = c.fetchall()
+        total_rfts_count = len(rfts_raw)
+        
+        # Group RFTS by project name
+        projects_dict = {}
+        for rfts in rfts_raw:
+            project_name = rfts[3] or 'Unknown Project'
+            if project_name not in projects_dict:
+                projects_dict[project_name] = {
+                    'name': project_name,
+                    'rfts_list': [],
+                    'has_queue': False,
+                    'has_studying': False,
+                    'has_done': False,
+                    'has_pending': False,
+                    'has_in_progress': False
+                }
+            
+            status = (rfts[7] or '').lower()
+            status_category = 'queue'
+            if 'queue' in status:
+                status_category = 'queue'
+                projects_dict[project_name]['has_queue'] = True
+                summary['queue'] += 1
+            elif 'study' in status:
+                status_category = 'studying'
+                projects_dict[project_name]['has_studying'] = True
+                summary['studying'] += 1
+            elif 'done' in status:
+                status_category = 'done'
+                projects_dict[project_name]['has_done'] = True
+                summary['done'] += 1
+            elif 'pending' in status:
+                status_category = 'pending'
+                projects_dict[project_name]['has_pending'] = True
+                summary['pending'] += 1
+            elif 'progress' in status:
+                status_category = 'in_progress'
+                projects_dict[project_name]['has_in_progress'] = True
+                summary['in_progress'] += 1
+            else:
+                status_category = 'queue'
+                projects_dict[project_name]['has_queue'] = True
+                summary['queue'] += 1
+            
+            # Calculate days remaining until deadline
+            days_remaining = None
+            deadline_str = rfts[9]
+            if deadline_str:
+                try:
+                    from datetime import datetime, date
+                    deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                    today = date.today()
+                    days_remaining = (deadline_date - today).days
+                except:
+                    pass
+            
+            projects_dict[project_name]['rfts_list'].append({
+                'id': rfts[0],
+                'reference': rfts[1],
+                'request_type': rfts[2],
+                'project_name': rfts[3],
+                'priority': rfts[4],
+                'presale_engineer': rfts[5],
+                'sales_engineer': rfts[6],
+                'request_status': rfts[7],
+                'request_result': rfts[8],
+                'deadline': rfts[9],
+                'note': rfts[10],
+                'requested_time': rfts[11],
+                'system': rfts[12] if len(rfts) > 12 else '',
+                'status_category': status_category,
+                'associated_engineer': rfts[5] if report_type == 'sales' else rfts[6],
+                'days_remaining': days_remaining
+            })
+        
+        # Convert to list and sort by number of RFTS
+        projects = list(projects_dict.values())
+        projects.sort(key=lambda x: len(x['rfts_list']), reverse=True)
+        
+        # Get associated engineers stats (the opposite type)
+        if report_type == 'sales':
+            assoc_query = f"""
+                SELECT presale_engineer,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%queue%' THEN 1 ELSE 0 END) as queue_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%study%' THEN 1 ELSE 0 END) as studying_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%done%' THEN 1 ELSE 0 END) as done_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%pending%' THEN 1 ELSE 0 END) as pending_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%progress%' THEN 1 ELSE 0 END) as in_progress_count,
+                       COUNT(*) as total
+                FROM technical_support_requests
+                WHERE sales_engineer = ? AND presale_engineer IS NOT NULL AND presale_engineer != ''
+                {date_conditions}
+                GROUP BY presale_engineer
+                ORDER BY total DESC
+            """
+        else:
+            assoc_query = f"""
+                SELECT sales_engineer,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%queue%' THEN 1 ELSE 0 END) as queue_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%study%' THEN 1 ELSE 0 END) as studying_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%done%' THEN 1 ELSE 0 END) as done_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%pending%' THEN 1 ELSE 0 END) as pending_count,
+                       SUM(CASE WHEN LOWER(request_status) LIKE '%progress%' THEN 1 ELSE 0 END) as in_progress_count,
+                       COUNT(*) as total
+                FROM technical_support_requests
+                WHERE presale_engineer = ? AND sales_engineer IS NOT NULL AND sales_engineer != ''
+                {date_conditions}
+                GROUP BY sales_engineer
+                ORDER BY total DESC
+            """
+        c.execute(assoc_query, params_base)
+        assoc_rows = c.fetchall()
+        for row in assoc_rows:
+            associated_stats.append({
+                'engineer': row[0],
+                'queue': row[1],
+                'studying': row[2],
+                'done': row[3],
+                'pending': row[4],
+                'in_progress': row[5],
+                'total': row[6]
+            })
+    
+    conn.close()
+    
+    return render_template('rfts_engineer_reports.html',
+                           report_type=report_type,
+                           engineers=engineers,
+                           selected_engineer=selected_engineer,
+                           years=years,
+                           selected_year=selected_year,
+                           selected_quarter=selected_quarter,
+                           selected_month=selected_month,
+                           selected_week=selected_week,
+                           projects=projects,
+                           total_rfts=total_rfts_count,
+                           summary=summary,
+                           associated_stats=associated_stats)
+
+
+###################################
+# Export RFTS Engineer Report to Excel
+@app.route('/export_rfts_engineer_report_excel')
+@login_required
+@permission_required('view_rfts')
+def export_rfts_engineer_report_excel():
+    """Export RFTS Engineer Report to Excel"""
+    import pandas as pd
+    from io import BytesIO
+    from datetime import datetime, date
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('rfts_engineer_reports', type=report_type))
+    
+    # Build date filter conditions
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', requested_time) = ?"
+        params_base.append(selected_year)
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', requested_time) = ?"
+        params_base.append(selected_month)
+        
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', requested_time) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    # Get RFTS for this engineer
+    if report_type == 'sales':
+        query = f"""
+            SELECT id, reference, request_type, project_name, priority,
+                   presale_engineer, sales_engineer, request_status,
+                   request_result, deadline, note, requested_time
+            FROM technical_support_requests 
+            WHERE sales_engineer = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    else:
+        query = f"""
+            SELECT id, reference, request_type, project_name, priority,
+                   presale_engineer, sales_engineer, request_status,
+                   request_result, deadline, note, requested_time
+            FROM technical_support_requests 
+            WHERE presale_engineer = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    
+    c.execute(query, params_base)
+    rfts_data = c.fetchall()
+    conn.close()
+    
+    # Create summary stats
+    summary = {'queue': 0, 'studying': 0, 'done': 0, 'pending': 0, 'in_progress': 0}
+    today = date.today()
+    
+    for rfts in rfts_data:
+        status = (rfts[7] or '').lower()
+        if 'queue' in status:
+            summary['queue'] += 1
+        elif 'study' in status:
+            summary['studying'] += 1
+        elif 'done' in status:
+            summary['done'] += 1
+        elif 'pending' in status:
+            summary['pending'] += 1
+        elif 'progress' in status:
+            summary['in_progress'] += 1
+        else:
+            summary['queue'] += 1
+    
+    # Prepare data for Excel
+    excel_data = []
+    for rfts in rfts_data:
+        days_remaining = None
+        deadline_str = rfts[9]
+        if deadline_str:
+            try:
+                deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                days_remaining = (deadline_date - today).days
+            except:
+                pass
+        
+        time_left = ''
+        status = (rfts[7] or '').lower()
+        if days_remaining is not None and status not in ['done']:
+            if days_remaining < 0:
+                time_left = f'{abs(days_remaining)} days overdue'
+            elif days_remaining == 0:
+                time_left = 'Due today'
+            else:
+                time_left = f'{days_remaining} days left'
+        
+        excel_data.append({
+            'Reference': rfts[1],
+            'Type': rfts[2],
+            'Project Name': rfts[3],
+            'Priority': rfts[4],
+            'Presale Engineer': rfts[5],
+            'Sales Engineer': rfts[6],
+            'Status': rfts[7],
+            'Result': rfts[8] or '',
+            'Deadline': rfts[9] or '',
+            'Time Left': time_left,
+            'Note': rfts[10] or '',
+            'Requested Time': rfts[11][:10] if rfts[11] else ''
+        })
+    
+    # Create Excel file with multiple sheets
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        # Summary sheet
+        summary_df = pd.DataFrame([{
+            'Engineer': selected_engineer,
+            'Report Type': 'Sales Engineer' if report_type == 'sales' else 'Presale Engineer',
+            'Total RFTS': len(rfts_data),
+            'Queue': summary['queue'],
+            'Studying': summary['studying'],
+            'In Progress': summary['in_progress'],
+            'Done': summary['done'],
+            'Pending': summary['pending'],
+            'Period': f"{selected_year or 'All'} {selected_quarter or ''} {selected_month or ''}"
+        }])
+        summary_df.to_excel(writer, sheet_name='Summary', index=False)
+        
+        # RFTS Details sheet
+        df = pd.DataFrame(excel_data)
+        df.to_excel(writer, sheet_name='RFTS Details', index=False)
+        
+        # Format the worksheets
+        workbook = writer.book
+        header_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#667eea',
+            'font_color': 'white',
+            'border': 1
+        })
+        
+        for sheet_name in ['Summary', 'RFTS Details']:
+            worksheet = writer.sheets[sheet_name]
+            if sheet_name == 'Summary':
+                for col, col_name in enumerate(summary_df.columns):
+                    worksheet.write(0, col, col_name, header_format)
+                    worksheet.set_column(col, col, 15)
+            else:
+                for col, col_name in enumerate(df.columns):
+                    worksheet.write(0, col, col_name, header_format)
+                    worksheet.set_column(col, col, 18)
+    
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_rfts_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+###################################
+# Export RFTS Engineer Report to PowerPoint
+@app.route('/export_rfts_engineer_report_pptx')
+@login_required
+@permission_required('view_rfts')
+def export_rfts_engineer_report_pptx():
+    """Export RFTS Engineer Report to PowerPoint with professional presentation"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from io import BytesIO
+    from datetime import datetime, date
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('rfts_engineer_reports', type=report_type))
+    
+    # Build date filter conditions
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', requested_time) = ?"
+        params_base.append(selected_year)
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', requested_time) = ?"
+        params_base.append(selected_month)
+        
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', requested_time) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    # Get RFTS for this engineer
+    if report_type == 'sales':
+        query = f"""
+            SELECT id, reference, request_type, project_name, priority,
+                   presale_engineer, sales_engineer, request_status,
+                   request_result, deadline, note, requested_time
+            FROM technical_support_requests 
+            WHERE sales_engineer = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    else:
+        query = f"""
+            SELECT id, reference, request_type, project_name, priority,
+                   presale_engineer, sales_engineer, request_status,
+                   request_result, deadline, note, requested_time
+            FROM technical_support_requests 
+            WHERE presale_engineer = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    
+    c.execute(query, params_base)
+    rfts_data = c.fetchall()
+    conn.close()
+    
+    # Calculate summary
+    summary = {'queue': 0, 'studying': 0, 'done': 0, 'pending': 0, 'in_progress': 0}
+    projects_dict = {}
+    today = date.today()
+    
+    for rfts in rfts_data:
+        status = (rfts[7] or '').lower()
+        if 'queue' in status:
+            status_category = 'queue'
+            summary['queue'] += 1
+        elif 'study' in status:
+            status_category = 'studying'
+            summary['studying'] += 1
+        elif 'done' in status:
+            status_category = 'done'
+            summary['done'] += 1
+        elif 'pending' in status:
+            status_category = 'pending'
+            summary['pending'] += 1
+        elif 'progress' in status:
+            status_category = 'in_progress'
+            summary['in_progress'] += 1
+        else:
+            status_category = 'queue'
+            summary['queue'] += 1
+        
+        project_name = rfts[3] or 'Unknown Project'
+        if project_name not in projects_dict:
+            projects_dict[project_name] = []
+        projects_dict[project_name].append({
+            'reference': rfts[1],
+            'request_type': rfts[2],
+            'status': rfts[7],
+            'status_category': status_category
+        })
+    
+    # Create presentation
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    slide_layout = prs.slide_layouts[6]  # Blank layout
+    
+    # Title Slide
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.5))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"RFTS Engineer Report"
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    p.alignment = PP_ALIGN.CENTER
+    
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(4), Inches(12.333), Inches(1))
+    tf = subtitle_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"{'Sales' if report_type == 'sales' else 'Presale'} Engineer: {selected_engineer}"
+    p.font.size = Pt(28)
+    p.font.color.rgb = RGBColor(100, 100, 100)
+    p.alignment = PP_ALIGN.CENTER
+    
+    period_text = ""
+    if selected_year:
+        period_text = selected_year
+    if selected_quarter:
+        period_text += f" {selected_quarter}"
+    if selected_month:
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        period_text += f" {months[int(selected_month)-1]}"
+    
+    if period_text:
+        period_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.8), Inches(12.333), Inches(0.6))
+        tf = period_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Period: {period_text}"
+        p.font.size = Pt(20)
+        p.font.color.rgb = RGBColor(150, 150, 150)
+        p.alignment = PP_ALIGN.CENTER
+    
+    # Summary Dashboard Slide
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Summary Dashboard"
+    p.font.size = Pt(32)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    
+    # Summary cards
+    card_data = [
+        ('Total', len(rfts_data), RGBColor(102, 126, 234)),
+        ('Queue', summary['queue'], RGBColor(255, 193, 7)),
+        ('Studying', summary['studying'], RGBColor(23, 162, 184)),
+        ('In Progress', summary['in_progress'], RGBColor(111, 66, 193)),
+        ('Done', summary['done'], RGBColor(40, 167, 69)),
+        ('Pending', summary['pending'], RGBColor(220, 53, 69))
+    ]
+    
+    card_width = Inches(2.0)
+    card_height = Inches(1.2)
+    start_x = Inches(0.5)
+    start_y = Inches(1.5)
+    gap = Inches(0.1)
+    
+    for i, (label, value, color) in enumerate(card_data):
+        x = start_x + (i * (card_width + gap))
+        shape = slide.shapes.add_shape(1, x, start_y, card_width, card_height)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = color
+        shape.line.fill.background()
+        
+        tf = shape.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = str(value)
+        p.font.size = Pt(36)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.alignment = PP_ALIGN.CENTER
+        
+        p2 = tf.add_paragraph()
+        p2.text = label
+        p2.font.size = Pt(14)
+        p2.font.color.rgb = RGBColor(255, 255, 255)
+        p2.alignment = PP_ALIGN.CENTER
+    
+    # Projects Overview Slide(s) - max 6 per slide
+    items_per_slide = 6
+    project_list = list(projects_dict.items())
+    
+    for slide_start in range(0, len(project_list), items_per_slide):
+        slide_projects = project_list[slide_start:slide_start + items_per_slide]
+        
+        slide = prs.slides.add_slide(slide_layout)
+        
+        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Projects Overview ({slide_start + 1}-{min(slide_start + items_per_slide, len(project_list))} of {len(project_list)})"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(102, 126, 234)
+        
+        # Create table
+        rows = len(slide_projects) + 1
+        cols = 3
+        table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.0), Inches(12.7), Inches(0.7 * rows)).table
+        
+        table.columns[0].width = Inches(0.5)
+        table.columns[1].width = Inches(5.5)
+        table.columns[2].width = Inches(6.7)
+        
+        headers = ['#', 'Project Name', 'Status Breakdown']
+        for col, header in enumerate(headers):
+            cell = table.cell(0, col)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
+            cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            cell.text_frame.paragraphs[0].font.bold = True
+            cell.text_frame.paragraphs[0].font.size = Pt(11)
+            cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for i, (proj_name, rfts_items) in enumerate(slide_projects, 1):
+            row_idx = i
+            
+            if i % 2 == 0:
+                for col in range(cols):
+                    table.cell(row_idx, col).fill.solid()
+                    table.cell(row_idx, col).fill.fore_color.rgb = RGBColor(230, 240, 255)
+            
+            table.cell(row_idx, 0).text = str(slide_start + i)
+            table.cell(row_idx, 1).text = proj_name[:50] + '...' if len(proj_name) > 50 else proj_name
+            
+            status_counts = {}
+            for rfts_item in rfts_items:
+                cat = rfts_item['status_category']
+                status_counts[cat] = status_counts.get(cat, 0) + 1
+            status_str = ', '.join([f"{k.title().replace('_', ' ')}: {v}" for k, v in status_counts.items()])
+            table.cell(row_idx, 2).text = status_str
+            
+            for cell in table.rows[row_idx].cells:
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # Follow Up "RFTS Not Completed" Slide - Only Queue, Studying, In Progress, Pending statuses
+    not_completed_rfts = []
+    for rfts in rfts_data:
+        status = (rfts[7] or '').lower()
+        if 'done' not in status:
+            days_overdue = None
+            deadline_str = rfts[9]
+            if deadline_str:
+                try:
+                    deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                    days_overdue = (today - deadline_date).days
+                except:
+                    pass
+            
+            not_completed_rfts.append({
+                'reference': rfts[1],
+                'request_type': rfts[2],
+                'project_name': rfts[3],
+                'engineer': rfts[6] if report_type == 'presale' else rfts[5],
+                'request_status': rfts[7],
+                'requested_time': rfts[11][:10] if rfts[11] else '-',
+                'deadline': rfts[9] or '-',
+                'days_overdue': days_overdue
+            })
+    
+    not_completed_rfts.sort(key=lambda x: x['deadline'] if x['deadline'] != '-' else '9999-99-99')
+    
+    if not_completed_rfts:
+        items_per_slide = 6
+        for slide_num in range(0, len(not_completed_rfts), items_per_slide):
+            slide_rfts = not_completed_rfts[slide_num:slide_num + items_per_slide]
+            
+            slide = prs.slides.add_slide(slide_layout)
+            
+            title_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.3), Inches(12.533), Inches(0.7))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = 'Follow Up "RFTS Not Completed":-'
+            p.font.size = Pt(32)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(59, 89, 152)
+            
+            rows = len(slide_rfts) + 1
+            cols = 8
+            row_height = Inches(0.7)
+            table_height = row_height * rows
+            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.7), table_height).table
+            
+            table.columns[0].width = Inches(0.5)
+            table.columns[1].width = Inches(1.5)
+            table.columns[2].width = Inches(1.2)
+            table.columns[3].width = Inches(2.5)
+            table.columns[4].width = Inches(1.3)
+            table.columns[5].width = Inches(1.1)
+            table.columns[6].width = Inches(1.2)
+            table.columns[7].width = Inches(1.0)
+            
+            headers = ['#', 'Reference', 'Type', 'Project Name', 'Engineer', 'Status', 'Deadline', 'Overdue']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
+                cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                cell.text_frame.paragraphs[0].font.bold = True
+                cell.text_frame.paragraphs[0].font.size = Pt(10)
+                cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            for i, rfts_item in enumerate(slide_rfts, 1):
+                row_idx = i
+                
+                table.cell(row_idx, 0).text = str(slide_num + i)
+                table.cell(row_idx, 1).text = rfts_item['reference'] or ''
+                table.cell(row_idx, 2).text = rfts_item['request_type'] or ''
+                
+                proj_name = rfts_item['project_name'] or ''
+                table.cell(row_idx, 3).text = proj_name[:30] + '...' if len(proj_name) > 30 else proj_name
+                
+                table.cell(row_idx, 4).text = rfts_item['engineer'] or ''
+                table.cell(row_idx, 5).text = rfts_item['request_status'] or 'Queue'
+                table.cell(row_idx, 6).text = rfts_item['deadline']
+                
+                overdue_cell = table.cell(row_idx, 7)
+                days_overdue = rfts_item['days_overdue']
+                
+                if days_overdue is not None:
+                    if days_overdue > 7:
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                        overdue_cell.text = f"{days_overdue}d"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                            para.font.bold = True
+                    elif days_overdue > 3:
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(253, 126, 20)
+                        overdue_cell.text = f"{days_overdue}d"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                            para.font.bold = True
+                    elif days_overdue > 0:
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                        overdue_cell.text = f"{days_overdue}d"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.bold = True
+                    elif days_overdue == 0:
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                        overdue_cell.text = "Today"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.bold = True
+                    else:
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                        overdue_cell.text = f"{abs(days_overdue)}d left"
+                        for para in overdue_cell.text_frame.paragraphs:
+                            para.font.color.rgb = RGBColor(255, 255, 255)
+                            para.font.bold = True
+                else:
+                    overdue_cell.text = "-"
+                
+                for col in range(cols):
+                    cell = table.cell(row_idx, col)
+                    if i % 2 == 0 and col != 7:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(220, 235, 252)
+                    elif i % 2 == 1 and col != 7:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # Save to BytesIO
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_rfts_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 #########33
 @app.route('/edit_request', methods=['GET', 'POST'])
 @login_required
