@@ -18920,21 +18920,23 @@ def export_po_profile_pptx(po_request_number):
             p.font.name = FONT_NAME
             p.font.color.rgb = RGBColor(102, 126, 234)
             
-            # Items table
+            # Items table with Delivered Qty and Not Delivered columns
             rows = len(slide_items) + 1
-            cols = 7
+            cols = 9
             row_height = Inches(0.7)
-            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.0), Inches(12.7), row_height * rows).table
+            table = slide.shapes.add_table(rows, cols, Inches(0.2), Inches(1.0), Inches(12.9), row_height * rows).table
             
-            table.columns[0].width = Inches(0.5)
-            table.columns[1].width = Inches(1.5)
-            table.columns[2].width = Inches(4.0)
-            table.columns[3].width = Inches(1.2)
-            table.columns[4].width = Inches(1.5)
-            table.columns[5].width = Inches(1.8)
-            table.columns[6].width = Inches(2.2)
+            table.columns[0].width = Inches(0.4)
+            table.columns[1].width = Inches(1.3)
+            table.columns[2].width = Inches(3.2)
+            table.columns[3].width = Inches(0.8)
+            table.columns[4].width = Inches(1.3)
+            table.columns[5].width = Inches(1.4)
+            table.columns[6].width = Inches(1.0)
+            table.columns[7].width = Inches(1.0)
+            table.columns[8].width = Inches(1.7)
             
-            headers = ['#', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total', 'Delivery Status']
+            headers = ['#', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total', 'Delivered', 'Remaining', 'Status']
             for col, header in enumerate(headers):
                 cell = table.cell(0, col)
                 cell.text = header
@@ -18942,22 +18944,62 @@ def export_po_profile_pptx(po_request_number):
                 cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
                 cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
                 cell.text_frame.paragraphs[0].font.bold = True
-                cell.text_frame.paragraphs[0].font.size = Pt(10)
+                cell.text_frame.paragraphs[0].font.size = Pt(9)
+                cell.text_frame.paragraphs[0].font.name = FONT_NAME
                 cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             
             for i, item in enumerate(slide_items, 1):
                 row_idx = i
                 
+                # Get quantity values
+                total_qty = int(item['quantity'] or 0)
+                try:
+                    delivered_qty = int(item['quantity_delivered'] or 0)
+                except:
+                    delivered_qty = 0
+                remaining_qty = total_qty - delivered_qty
+                if remaining_qty < 0:
+                    remaining_qty = 0
+                
                 table.cell(row_idx, 0).text = str(slide_start + i)
-                table.cell(row_idx, 1).text = str(item['part_number'] or '')[:15]
-                table.cell(row_idx, 2).text = str(item['description'] or '')[:40]
-                table.cell(row_idx, 3).text = str(item['quantity'] or 0)
+                table.cell(row_idx, 1).text = str(item['part_number'] or '')[:12]
+                table.cell(row_idx, 2).text = str(item['description'] or '')[:35]
+                table.cell(row_idx, 3).text = str(total_qty)
                 table.cell(row_idx, 4).text = f"{float(item['unit_price'] or 0):,.2f}"
                 table.cell(row_idx, 5).text = f"{float(item['total_price'] or 0):,.2f}"
                 
+                # Delivered Qty column
+                delivered_cell = table.cell(row_idx, 6)
+                delivered_cell.text = str(delivered_qty)
+                delivered_cell.fill.solid()
+                if delivered_qty >= total_qty:
+                    delivered_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                    for para in delivered_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                elif delivered_qty > 0:
+                    delivered_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                else:
+                    delivered_cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
+                
+                # Remaining (Not Delivered) column
+                remaining_cell = table.cell(row_idx, 7)
+                remaining_cell.text = str(remaining_qty)
+                remaining_cell.fill.solid()
+                if remaining_qty == 0:
+                    remaining_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                    for para in remaining_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                elif remaining_qty < total_qty:
+                    remaining_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                else:
+                    remaining_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                    for para in remaining_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                
+                # Delivery Status column
                 delivery_status = get_delivery_status(item)
-                status_cell = table.cell(row_idx, 6)
+                status_cell = table.cell(row_idx, 8)
                 status_cell.text = delivery_status
                 
                 if delivery_status == 'Delivered':
@@ -18974,20 +19016,28 @@ def export_po_profile_pptx(po_request_number):
                     for para in status_cell.text_frame.paragraphs:
                         para.font.color.rgb = RGBColor(255, 255, 255)
                 
+                for col in range(6):  # Only style first 6 columns (not delivery-related)
+                    cell = table.cell(row_idx, col)
+                    if i % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(230, 240, 255)
+                    else:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
+                
                 for col in range(cols):
                     cell = table.cell(row_idx, col)
-                    if col != 6:
-                        if i % 2 == 0:
-                            cell.fill.solid()
-                            cell.fill.fore_color.rgb = RGBColor(230, 240, 255)
-                        else:
-                            cell.fill.solid()
-                            cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
                     for para in cell.text_frame.paragraphs:
-                        para.font.size = Pt(10)
+                        para.font.size = Pt(9)
                         para.font.name = FONT_NAME
                         para.alignment = PP_ALIGN.CENTER
                     cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Get base URL for download links
+        import os
+        base_url = os.environ.get('REPLIT_DEV_DOMAIN', '')
+        if base_url:
+            base_url = f"https://{base_url}"
         
         # Slide: Delivery Notes (if any)
         if delivery_notes:
@@ -19008,17 +19058,18 @@ def export_po_profile_pptx(po_request_number):
                 
                 # Delivery Notes table
                 dn_rows = len(slide_dns) + 1
-                dn_cols = 5
+                dn_cols = 6
                 dn_row_height = Inches(0.6)
-                dn_table = slide.shapes.add_table(dn_rows, dn_cols, Inches(0.5), Inches(1.0), Inches(12.3), dn_row_height * dn_rows).table
+                dn_table = slide.shapes.add_table(dn_rows, dn_cols, Inches(0.3), Inches(1.0), Inches(12.7), dn_row_height * dn_rows).table
                 
-                dn_table.columns[0].width = Inches(1.0)
-                dn_table.columns[1].width = Inches(2.5)
-                dn_table.columns[2].width = Inches(2.5)
-                dn_table.columns[3].width = Inches(2.0)
-                dn_table.columns[4].width = Inches(4.3)
+                dn_table.columns[0].width = Inches(0.8)
+                dn_table.columns[1].width = Inches(2.0)
+                dn_table.columns[2].width = Inches(2.0)
+                dn_table.columns[3].width = Inches(1.6)
+                dn_table.columns[4].width = Inches(3.5)
+                dn_table.columns[5].width = Inches(2.8)
                 
-                dn_headers = ['ID', 'Order Date', 'Expected Delivery', 'Status', 'Notes']
+                dn_headers = ['ID', 'Order Date', 'Expected Delivery', 'Status', 'Notes', 'Download']
                 for col, header in enumerate(dn_headers):
                     cell = dn_table.cell(0, col)
                     cell.text = header
@@ -19033,7 +19084,8 @@ def export_po_profile_pptx(po_request_number):
                 
                 for i, dn in enumerate(slide_dns, 1):
                     row_idx = i
-                    dn_table.cell(row_idx, 0).text = str(dn['id'] or '')
+                    dn_id = dn['id'] or ''
+                    dn_table.cell(row_idx, 0).text = str(dn_id)
                     dn_table.cell(row_idx, 1).text = str(dn['order_date'] or '')[:10] if dn['order_date'] else ''
                     dn_table.cell(row_idx, 2).text = str(dn['expected_delivery'] or '')[:10] if dn['expected_delivery'] else ''
                     
@@ -19054,9 +19106,26 @@ def export_po_profile_pptx(po_request_number):
                         for para in status_cell.text_frame.paragraphs:
                             para.font.color.rgb = RGBColor(255, 255, 255)
                     
-                    dn_table.cell(row_idx, 4).text = str(dn['notes'] or '')[:50]
+                    dn_table.cell(row_idx, 4).text = str(dn['notes'] or '')[:40]
                     
-                    for col in range(dn_cols):
+                    # Add download link
+                    download_cell = dn_table.cell(row_idx, 5)
+                    download_cell.text = "Download File"
+                    download_cell.fill.solid()
+                    download_cell.fill.fore_color.rgb = RGBColor(0, 123, 255)
+                    for para in download_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                        para.font.bold = True
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+                        # Add hyperlink
+                        if base_url and dn_id:
+                            run = para.runs[0] if para.runs else para.add_run()
+                            run.hyperlink.address = f"{base_url}/download_delivery_note/{dn_id}"
+                    download_cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    
+                    for col in range(dn_cols - 1):  # Skip last column (download)
                         cell = dn_table.cell(row_idx, col)
                         if col != 3:
                             if i % 2 == 0:
@@ -19090,16 +19159,17 @@ def export_po_profile_pptx(po_request_number):
                 
                 # VAT Invoices table
                 vat_rows = len(slide_vats) + 1
-                vat_cols = 4
+                vat_cols = 5
                 vat_row_height = Inches(0.6)
-                vat_table = slide.shapes.add_table(vat_rows, vat_cols, Inches(0.5), Inches(1.0), Inches(12.3), vat_row_height * vat_rows).table
+                vat_table = slide.shapes.add_table(vat_rows, vat_cols, Inches(0.3), Inches(1.0), Inches(12.7), vat_row_height * vat_rows).table
                 
-                vat_table.columns[0].width = Inches(3.5)
-                vat_table.columns[1].width = Inches(3.5)
-                vat_table.columns[2].width = Inches(2.5)
-                vat_table.columns[3].width = Inches(2.8)
+                vat_table.columns[0].width = Inches(3.0)
+                vat_table.columns[1].width = Inches(3.0)
+                vat_table.columns[2].width = Inches(2.0)
+                vat_table.columns[3].width = Inches(2.0)
+                vat_table.columns[4].width = Inches(2.7)
                 
-                vat_headers = ['Invoice Name', 'File Name', 'Uploaded By', 'Upload Date']
+                vat_headers = ['Invoice Name', 'File Name', 'Uploaded By', 'Upload Date', 'Download']
                 for col, header in enumerate(vat_headers):
                     cell = vat_table.cell(0, col)
                     cell.text = header
@@ -19114,12 +19184,30 @@ def export_po_profile_pptx(po_request_number):
                 
                 for i, inv in enumerate(slide_vats, 1):
                     row_idx = i
-                    vat_table.cell(row_idx, 0).text = str(inv['invoice_name'] or '')[:30]
-                    vat_table.cell(row_idx, 1).text = str(inv['file_name'] or '')[:30]
+                    inv_id = inv['id'] or ''
+                    vat_table.cell(row_idx, 0).text = str(inv['invoice_name'] or '')[:25]
+                    vat_table.cell(row_idx, 1).text = str(inv['file_name'] or '')[:25]
                     vat_table.cell(row_idx, 2).text = str(inv['uploaded_by_username'] or '')
                     vat_table.cell(row_idx, 3).text = str(inv['uploaded_at'] or '')[:10] if inv['uploaded_at'] else ''
                     
-                    for col in range(vat_cols):
+                    # Add download link
+                    download_cell = vat_table.cell(row_idx, 4)
+                    download_cell.text = "Download Invoice"
+                    download_cell.fill.solid()
+                    download_cell.fill.fore_color.rgb = RGBColor(111, 66, 193)
+                    for para in download_cell.text_frame.paragraphs:
+                        para.font.color.rgb = RGBColor(255, 255, 255)
+                        para.font.bold = True
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+                        # Add hyperlink
+                        if base_url and inv_id:
+                            run = para.runs[0] if para.runs else para.add_run()
+                            run.hyperlink.address = f"{base_url}/download_vat_invoice_file/{inv_id}"
+                    download_cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    
+                    for col in range(vat_cols - 1):  # Skip last column (download)
                         cell = vat_table.cell(row_idx, col)
                         if i % 2 == 0:
                             cell.fill.solid()
