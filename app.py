@@ -11943,6 +11943,150 @@ def export_rfq_engineer_report_pptx():
                 for para in cell.text_frame.paragraphs:
                     para.font.size = Pt(11)
     
+    # Follow Up "RFQs Not Submitted" Slide - Only Queue, Studying, Pricing statuses
+    not_submitted_rfqs = []
+    for rfq in rfqs:
+        status = (rfq[7] or '').lower()
+        if 'queue' in status or 'study' in status or 'pric' in status:
+            # Calculate days overdue
+            days_overdue = None
+            deadline_str = rfq[9]
+            if deadline_str:
+                try:
+                    deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                    days_overdue = (today - deadline_date).days
+                except:
+                    pass
+            
+            not_submitted_rfqs.append({
+                'rfq_reference': rfq[1],
+                'project_name': rfq[2],
+                'sales_engineer': rfq[6] if report_type == 'presale' else rfq[5],
+                'rfq_status': rfq[7],
+                'note': rfq[10] or '',
+                'requested_time': rfq[11][:10] if rfq[11] else '-',
+                'deadline': rfq[9] or '-',
+                'days_overdue': days_overdue
+            })
+    
+    # Sort by deadline (oldest first - most urgent)
+    not_submitted_rfqs.sort(key=lambda x: x['deadline'] if x['deadline'] != '-' else '9999-99-99')
+    
+    if not_submitted_rfqs:
+        # Create follow-up slide(s) - max 8 rows per slide for readability
+        items_per_slide = 8
+        for slide_num in range(0, len(not_submitted_rfqs), items_per_slide):
+            slide_rfqs = not_submitted_rfqs[slide_num:slide_num + items_per_slide]
+            
+            slide = prs.slides.add_slide(slide_layout)
+            
+            # Title
+            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = 'Follow Up "RFQs Not Submitted":-'
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(102, 126, 234)
+            
+            # Create table
+            rows = len(slide_rfqs) + 1
+            cols = 8
+            table = slide.shapes.add_table(rows, cols, Inches(0.2), Inches(0.9), Inches(12.9), Inches(0.55 * rows)).table
+            
+            # Set column widths
+            table.columns[0].width = Inches(0.4)   # #
+            table.columns[1].width = Inches(1.5)   # RFQ Reference
+            table.columns[2].width = Inches(2.2)   # Project Name
+            table.columns[3].width = Inches(1.3)   # Sales Engineer
+            table.columns[4].width = Inches(1.0)   # Last Status
+            table.columns[5].width = Inches(1.2)   # Request Date
+            table.columns[6].width = Inches(1.2)   # Deadline
+            table.columns[7].width = Inches(1.0)   # Overdue
+            
+            # Headers
+            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Engineer', 'Last Status', 'Request Date', 'Deadline', 'Overdue']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
+                for para in cell.text_frame.paragraphs:
+                    para.font.color.rgb = RGBColor(255, 255, 255)
+                    para.font.bold = True
+                    para.font.size = Pt(9)
+                    para.alignment = PP_ALIGN.CENTER
+            
+            # Data rows
+            for i, rfq_item in enumerate(slide_rfqs, 1):
+                row_idx = i
+                
+                # Row number
+                table.cell(row_idx, 0).text = str(slide_num + i)
+                
+                # RFQ Reference
+                table.cell(row_idx, 1).text = rfq_item['rfq_reference'] or ''
+                
+                # Project Name (truncate if too long)
+                proj_name = rfq_item['project_name'] or ''
+                table.cell(row_idx, 2).text = proj_name[:30] + '...' if len(proj_name) > 30 else proj_name
+                
+                # Sales Engineer
+                table.cell(row_idx, 3).text = rfq_item['sales_engineer'] or ''
+                
+                # Last Status
+                table.cell(row_idx, 4).text = rfq_item['rfq_status'] or 'Queue'
+                
+                # Request Date
+                table.cell(row_idx, 5).text = rfq_item['requested_time']
+                
+                # Deadline
+                table.cell(row_idx, 6).text = rfq_item['deadline']
+                
+                # Overdue cell with color coding
+                overdue_cell = table.cell(row_idx, 7)
+                days_overdue = rfq_item['days_overdue']
+                
+                if days_overdue is not None:
+                    if days_overdue > 7:
+                        # Red - very overdue (more than 7 days)
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                        overdue_cell.text = f"{days_overdue}d"
+                    elif days_overdue > 3:
+                        # Orange - moderately overdue (4-7 days)
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(253, 126, 20)
+                        overdue_cell.text = f"{days_overdue}d"
+                    elif days_overdue > 0:
+                        # Yellow - slightly overdue (1-3 days)
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                        overdue_cell.text = f"{days_overdue}d"
+                    elif days_overdue == 0:
+                        # Yellow - due today
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                        overdue_cell.text = "Today"
+                    else:
+                        # Green - not yet due
+                        overdue_cell.fill.solid()
+                        overdue_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                        overdue_cell.text = f"{abs(days_overdue)}d left"
+                else:
+                    overdue_cell.text = "-"
+                
+                # Format all cells in this row
+                for col in range(cols):
+                    cell = table.cell(row_idx, col)
+                    # Light blue alternating rows
+                    if i % 2 == 0 and col != 7:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(230, 240, 255)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(8)
+                        para.alignment = PP_ALIGN.CENTER
+    
     # Save to BytesIO
     output = BytesIO()
     prs.save(output)
