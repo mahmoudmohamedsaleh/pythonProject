@@ -82,6 +82,28 @@
 .back-btn:hover {
     color: rgba(255,255,255,0.8);
 }
+.project-card {
+    border-left: 4px solid #667eea;
+    margin-bottom: 0.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+.project-card .project-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.project-card .project-header:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+.collapse-icon {
+    transition: transform 0.3s ease;
+}
+.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
 .rfq-table th {
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     font-weight: 600;
@@ -354,63 +376,93 @@
             </span>
             {% endif %}
         </span>
-        <span class="badge badge-light">
-            <i class="fas fa-clipboard-list mr-1"></i>{{ total_rfqs }} RFQs
-        </span>
+        <div>
+            <span class="badge badge-light mr-2">
+                <i class="fas fa-project-diagram mr-1"></i>{{ projects|length }} Projects
+            </span>
+            <span class="badge badge-light">
+                <i class="fas fa-clipboard-list mr-1"></i>{{ total_rfqs }} RFQs
+            </span>
+        </div>
     </div>
     <div class="card-body p-0">
-        {% if rfqs %}
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 rfq-table">
-                <thead>
-                    <tr>
-                        <th>RFQ Reference</th>
-                        <th>Project Name</th>
-                        <th>{% if report_type == 'sales' %}Presale Engineer{% else %}Sales Engineer{% endif %}</th>
-                        <th>RFQ Status</th>
-                        <th>Priority</th>
-                        <th>Deadline</th>
-                        <th>Requested</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for rfq in rfqs %}
-                    {% set status_lower = rfq[7]|lower if rfq[7] else '' %}
-                    {% set status_class = 'queue' if 'queue' in status_lower else ('studying' if 'study' in status_lower else ('pricing' if 'pric' in status_lower else ('quoted' if 'quoted' in status_lower else ('cancelled' if 'cancel' in status_lower else 'queue')))) %}
-                    <tr class="rfq-row" 
-                        data-status="{{ status_class }}"
-                        data-assoc-engineer="{{ rfq[5] if report_type == 'sales' else rfq[6] }}">
-                        <td><strong class="text-primary">{{ rfq[1] }}</strong></td>
-                        <td>{{ rfq[2] }}</td>
-                        <td>
-                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.4rem 0.8rem;">
-                                <i class="fas fa-user mr-1"></i>{{ rfq[5] if report_type == 'sales' else rfq[6] or 'N/A' }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="status-badge status-{{ status_class }}">{{ rfq[7] or 'Queue' }}</span>
-                        </td>
-                        <td>
-                            {% if rfq[4] == 'High' %}
-                            <span class="badge badge-danger"><i class="fas fa-exclamation-circle mr-1"></i>High</span>
-                            {% elif rfq[4] == 'Medium' %}
-                            <span class="badge badge-warning"><i class="fas fa-minus-circle mr-1"></i>Medium</span>
-                            {% else %}
-                            <span class="badge badge-secondary"><i class="fas fa-arrow-circle-down mr-1"></i>Low</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ rfq[9] or '-' }}</td>
-                        <td>{{ rfq[11][:10] if rfq[11] else '-' }}</td>
-                        <td>
-                            <a href="{{ url_for('rfq_profile', rfq_id=rfq[0]) }}" class="btn btn-info btn-sm" title="View RFQ">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        {% if projects %}
+        <div class="accordion" id="projectAccordion">
+            {% for project in projects %}
+            <div class="border-bottom project-card" 
+                 data-has-queue="{{ 'true' if project.has_queue else 'false' }}"
+                 data-has-studying="{{ 'true' if project.has_studying else 'false' }}"
+                 data-has-pricing="{{ 'true' if project.has_pricing else 'false' }}"
+                 data-has-quoted="{{ 'true' if project.has_quoted else 'false' }}"
+                 data-has-cancelled="{{ 'true' if project.has_cancelled else 'false' }}">
+                <div class="d-flex justify-content-between align-items-center project-header collapsed" 
+                     data-toggle="collapse" data-target="#project{{ loop.index }}" 
+                     aria-expanded="false">
+                    <div>
+                        <i class="fas fa-chevron-down mr-2 text-muted collapse-icon"></i>
+                        <i class="fas fa-folder mr-2 text-warning"></i>
+                        <strong>{{ project.name }}</strong>
+                    </div>
+                    <span class="badge badge-primary px-3 py-2">{{ project.rfqs|length }} RFQ(s)</span>
+                </div>
+                <div id="project{{ loop.index }}" class="collapse" data-parent="#projectAccordion">
+                    <div class="p-3" style="background: #fafbfc;">
+                        {% if project.rfqs %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 rfq-table" style="background: white;">
+                                <thead>
+                                    <tr>
+                                        <th>RFQ Reference</th>
+                                        <th>Project Name</th>
+                                        <th>{% if report_type == 'sales' %}Presale Engineer{% else %}Sales Engineer{% endif %}</th>
+                                        <th>RFQ Status</th>
+                                        <th>Priority</th>
+                                        <th>Deadline</th>
+                                        <th>Requested</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for rfq in project.rfqs %}
+                                    <tr class="rfq-row" 
+                                        data-status="{{ rfq.status_category }}"
+                                        data-assoc-engineer="{{ rfq.associated_engineer }}">
+                                        <td><strong class="text-primary">{{ rfq.rfq_reference }}</strong></td>
+                                        <td>{{ rfq.project_name }}</td>
+                                        <td>
+                                            <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.4rem 0.8rem;">
+                                                <i class="fas fa-user mr-1"></i>{{ rfq.associated_engineer or 'N/A' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-{{ rfq.status_category }}">{{ rfq.rfq_status or 'Queue' }}</span>
+                                        </td>
+                                        <td>
+                                            {% if rfq.priority == 'High' %}
+                                            <span class="badge badge-danger"><i class="fas fa-exclamation-circle mr-1"></i>High</span>
+                                            {% elif rfq.priority == 'Medium' %}
+                                            <span class="badge badge-warning"><i class="fas fa-minus-circle mr-1"></i>Medium</span>
+                                            {% else %}
+                                            <span class="badge badge-secondary"><i class="fas fa-arrow-circle-down mr-1"></i>Low</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ rfq.deadline or '-' }}</td>
+                                        <td>{{ rfq.requested_time[:10] if rfq.requested_time else '-' }}</td>
+                                        <td>
+                                            <a href="{{ url_for('rfq_profile', rfq_id=rfq.id) }}" class="btn btn-info btn-sm" title="View RFQ">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         {% else %}
         <div class="text-center py-5">
@@ -443,26 +495,35 @@ document.querySelectorAll('.stat-card').forEach(card => {
     });
 });
 
+document.querySelectorAll('.project-header').forEach(header => {
+    header.addEventListener('click', function() {
+        this.classList.toggle('collapsed');
+    });
+});
+
 function applyFilter(filter) {
     document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
     document.querySelector(`.stat-card[data-filter="${filter}"]`).classList.add('active');
     
-    const rows = document.querySelectorAll('.rfq-row');
-    let visibleCount = 0;
+    const projects = document.querySelectorAll('.project-card');
     
-    rows.forEach(row => {
+    projects.forEach(project => {
         if (filter === 'all') {
-            row.style.display = '';
-            visibleCount++;
+            project.style.display = '';
         } else {
-            const status = row.dataset.status;
-            if (status === filter) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
+            const hasStatus = project.dataset['has' + filter.charAt(0).toUpperCase() + filter.slice(1)] === 'true';
+            project.style.display = hasStatus ? '' : 'none';
         }
+        
+        const rows = project.querySelectorAll('.rfq-row');
+        rows.forEach(row => {
+            if (filter === 'all') {
+                row.style.display = '';
+            } else {
+                const status = row.dataset.status;
+                row.style.display = (status === filter) ? '' : 'none';
+            }
+        });
     });
     
     if (filter !== 'all') {
@@ -477,11 +538,14 @@ function filterByAssocEngineer(engineer) {
     const rows = document.querySelectorAll('.rfq-row');
     rows.forEach(row => {
         const assocEng = row.dataset.assocEngineer;
-        if (assocEng === engineer) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = (assocEng === engineer) ? '' : 'none';
+    });
+    
+    const projects = document.querySelectorAll('.project-card');
+    projects.forEach(project => {
+        const visibleRows = project.querySelectorAll('.rfq-row[style=""]').length;
+        const hiddenRows = project.querySelectorAll('.rfq-row[style="display: none;"]').length;
+        project.style.display = (visibleRows > 0 || hiddenRows === 0) ? '' : 'none';
     });
     
     document.getElementById('activeFilterBadge').style.display = 'block';
@@ -493,11 +557,13 @@ function filterByAssocAndStatus(engineer, status) {
     rows.forEach(row => {
         const assocEng = row.dataset.assocEngineer;
         const rowStatus = row.dataset.status;
-        if (assocEng === engineer && rowStatus === status) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = (assocEng === engineer && rowStatus === status) ? '' : 'none';
+    });
+    
+    const projects = document.querySelectorAll('.project-card');
+    projects.forEach(project => {
+        const visibleRows = project.querySelectorAll('.rfq-row:not([style*="display: none"])').length;
+        project.style.display = (visibleRows > 0) ? '' : 'none';
     });
     
     document.getElementById('activeFilterBadge').style.display = 'block';
@@ -507,6 +573,9 @@ function filterByAssocAndStatus(engineer, status) {
 function clearFilter() {
     document.querySelectorAll('.rfq-row').forEach(row => {
         row.style.display = '';
+    });
+    document.querySelectorAll('.project-card').forEach(project => {
+        project.style.display = '';
     });
     document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
     document.querySelector('.stat-card[data-filter="all"]').classList.add('active');

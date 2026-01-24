@@ -11251,22 +11251,68 @@ def rfq_engineer_reports():
                 ORDER BY requested_time DESC
             """
         c.execute(query, params_base)
-        rfqs = c.fetchall()
-        total_rfqs_count = len(rfqs)
+        rfqs_raw = c.fetchall()
+        total_rfqs_count = len(rfqs_raw)
         
-        # Calculate summary statistics
-        for rfq in rfqs:
+        # Group RFQs by project name
+        projects_dict = {}
+        for rfq in rfqs_raw:
+            project_name = rfq[2] or 'Unknown Project'
+            if project_name not in projects_dict:
+                projects_dict[project_name] = {
+                    'name': project_name,
+                    'rfqs': [],
+                    'has_queue': False,
+                    'has_studying': False,
+                    'has_pricing': False,
+                    'has_quoted': False,
+                    'has_cancelled': False
+                }
+            
             status = rfq[7].lower() if rfq[7] else ''
+            status_category = 'queue'
             if 'queue' in status:
+                status_category = 'queue'
+                projects_dict[project_name]['has_queue'] = True
                 summary['queue'] += 1
             elif 'study' in status:
+                status_category = 'studying'
+                projects_dict[project_name]['has_studying'] = True
                 summary['studying'] += 1
             elif 'pricing' in status or 'price' in status:
+                status_category = 'pricing'
+                projects_dict[project_name]['has_pricing'] = True
                 summary['pricing'] += 1
             elif 'quoted' in status:
+                status_category = 'quoted'
+                projects_dict[project_name]['has_quoted'] = True
                 summary['quoted'] += 1
             elif 'cancel' in status:
+                status_category = 'cancelled'
+                projects_dict[project_name]['has_cancelled'] = True
                 summary['cancelled'] += 1
+            
+            projects_dict[project_name]['rfqs'].append({
+                'id': rfq[0],
+                'rfq_reference': rfq[1],
+                'project_name': rfq[2],
+                'project_status': rfq[3],
+                'priority': rfq[4],
+                'presale_engineer': rfq[5],
+                'sales_engineer': rfq[6],
+                'rfq_status': rfq[7],
+                'quotation_status': rfq[8],
+                'deadline': rfq[9],
+                'note': rfq[10],
+                'requested_time': rfq[11],
+                'system': rfq[12],
+                'status_category': status_category,
+                'associated_engineer': rfq[5] if report_type == 'sales' else rfq[6]
+            })
+        
+        # Convert to list and sort by number of RFQs
+        projects = list(projects_dict.values())
+        projects.sort(key=lambda x: len(x['rfqs']), reverse=True)
         
         # Get associated engineers stats (the opposite type)
         if report_type == 'sales':
@@ -11316,11 +11362,15 @@ def rfq_engineer_reports():
     
     conn.close()
     
+    # If no engineer selected, projects will be empty list
+    if not selected_engineer:
+        projects = []
+    
     return render_template('rfq_engineer_reports.html',
                            report_type=report_type,
                            engineers=engineers,
                            selected_engineer=selected_engineer,
-                           rfqs=rfqs,
+                           projects=projects,
                            total_rfqs=total_rfqs_count,
                            summary=summary,
                            associated_stats=associated_stats,
