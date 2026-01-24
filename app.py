@@ -18449,10 +18449,16 @@ def export_po_profile_excel(po_request_number):
         
         conn.close()
         
-        # Calculate delivery stats
-        delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
-        partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
-        not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
+        # Calculate delivery stats (safely handle missing columns)
+        def get_delivery_status(item):
+            try:
+                return item['delivery_status'] if 'delivery_status' in item.keys() else 'Not Delivered'
+            except:
+                return 'Not Delivered'
+        
+        delivered_count = sum(1 for item in po_items if get_delivery_status(item) == 'Delivered')
+        partial_count = sum(1 for item in po_items if get_delivery_status(item) == 'Partial')
+        not_delivered_count = sum(1 for item in po_items if get_delivery_status(item) == 'Not Delivered')
         total_items = len(po_items)
         
         # Calculate financial summary
@@ -18540,6 +18546,16 @@ def export_po_profile_excel(po_request_number):
             if po_items:
                 items_data = []
                 for item in po_items:
+                    # Safely access columns that might not exist
+                    try:
+                        qty_delivered = item['quantity_delivered'] if 'quantity_delivered' in item.keys() else 0
+                    except:
+                        qty_delivered = 0
+                    try:
+                        del_status = item['delivery_status'] if 'delivery_status' in item.keys() else 'Not Delivered'
+                    except:
+                        del_status = 'Not Delivered'
+                    
                     items_data.append({
                         'Item #': item['item_number'] or '',
                         'Part Number': item['part_number'] or '',
@@ -18547,8 +18563,8 @@ def export_po_profile_excel(po_request_number):
                         'Quantity': item['quantity'] or 0,
                         'Unit Price': float(item['unit_price'] or 0),
                         'Total Price': float(item['total_price'] or 0),
-                        'Qty Delivered': item['quantity_delivered'] or 0,
-                        'Delivery Status': item['delivery_status'] or 'Not Delivered'
+                        'Qty Delivered': qty_delivered or 0,
+                        'Delivery Status': del_status or 'Not Delivered'
                     })
                 items_df = pd.DataFrame(items_data)
                 items_df.to_excel(writer, sheet_name='PO Items', index=False, startrow=1)
@@ -18564,11 +18580,11 @@ def export_po_profile_excel(po_request_number):
                 dn_data = []
                 for dn in delivery_notes:
                     dn_data.append({
-                        'DN Number': dn['order_number'] or '',
+                        'ID': dn['id'] or '',
                         'Order Date': str(dn['order_date'])[:10] if dn['order_date'] else '',
-                        'Delivery Date': str(dn['delivery_date'])[:10] if dn['delivery_date'] else '',
-                        'Status': dn['order_status'] or '',
-                        'Description': dn['item_description'] or ''
+                        'Expected Delivery': str(dn['expected_delivery'])[:10] if dn['expected_delivery'] else '',
+                        'Status': dn['status'] or '',
+                        'Notes': dn['notes'] or ''
                     })
                 dn_df = pd.DataFrame(dn_data)
                 dn_df.to_excel(writer, sheet_name='Delivery Notes', index=False, startrow=1)
@@ -18584,9 +18600,9 @@ def export_po_profile_excel(po_request_number):
                 vat_data = []
                 for inv in vat_invoices:
                     vat_data.append({
-                        'Invoice Number': inv['invoice_number'] or '',
-                        'Amount': float(inv['amount'] or 0),
-                        'Uploaded By': inv['uploaded_by'] or '',
+                        'Invoice Name': inv['invoice_name'] or '',
+                        'File Name': inv['file_name'] or '',
+                        'Uploaded By': inv['uploaded_by_username'] or '',
                         'Upload Date': str(inv['uploaded_at'])[:10] if inv['uploaded_at'] else ''
                     })
                 vat_df = pd.DataFrame(vat_data)
@@ -18668,10 +18684,16 @@ def export_po_profile_pptx(po_request_number):
         
         conn.close()
         
-        # Calculate stats
-        delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
-        partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
-        not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
+        # Calculate stats (safely handle missing columns)
+        def get_delivery_status(item):
+            try:
+                return item['delivery_status'] if 'delivery_status' in item.keys() else 'Not Delivered'
+            except:
+                return 'Not Delivered'
+        
+        delivered_count = sum(1 for item in po_items if get_delivery_status(item) == 'Delivered')
+        partial_count = sum(1 for item in po_items if get_delivery_status(item) == 'Partial')
+        not_delivered_count = sum(1 for item in po_items if get_delivery_status(item) == 'Not Delivered')
         total_items = len(po_items)
         
         # Calculate financial summary
@@ -18908,7 +18930,7 @@ def export_po_profile_pptx(po_request_number):
                 table.cell(row_idx, 4).text = f"{float(item['unit_price'] or 0):,.2f}"
                 table.cell(row_idx, 5).text = f"{float(item['total_price'] or 0):,.2f}"
                 
-                delivery_status = item['delivery_status'] or 'Not Delivered'
+                delivery_status = get_delivery_status(item)
                 status_cell = table.cell(row_idx, 6)
                 status_cell.text = delivery_status
                 
