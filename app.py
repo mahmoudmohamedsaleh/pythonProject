@@ -6656,7 +6656,7 @@ def export_engineer_report_pptx():
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.color.rgb = RGBColor(255, 255, 255)
-            p.font.size = Pt(9)
+            p.font.size = Pt(11)
             p.font.name = FONT_NAME
             p.alignment = PP_ALIGN.CENTER
         
@@ -6729,7 +6729,7 @@ def export_engineer_report_pptx():
                 
                 # Style all paragraphs in the cell (for multi-line content)
                 for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(7)
+                    para.font.size = Pt(10)
                     para.font.name = FONT_NAME
                     para.alignment = PP_ALIGN.CENTER
                     # Color code the status column
