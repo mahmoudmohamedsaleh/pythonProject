@@ -363,6 +363,18 @@
             </button>
         </span>
     </div>
+    <div class="ml-auto">
+        <div class="btn-group">
+            <a href="{{ url_for('export_rfq_engineer_report_excel', type=report_type, engineer=selected_engineer, year=selected_year or '', month=selected_month or '', week=selected_week or '', quarter=selected_quarter or '') }}" 
+               class="btn btn-success">
+                <i class="fas fa-file-excel mr-1"></i>Export Excel
+            </a>
+            <a href="{{ url_for('export_rfq_engineer_report_pptx', type=report_type, engineer=selected_engineer, year=selected_year or '', month=selected_month or '', week=selected_week or '', quarter=selected_quarter or '') }}" 
+               class="btn btn-warning text-white">
+                <i class="fas fa-file-powerpoint mr-1"></i>Export PowerPoint
+            </a>
+        </div>
+    </div>
 </div>
 
 <div class="card">

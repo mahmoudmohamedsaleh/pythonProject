@@ -11393,6 +11393,571 @@ def rfq_engineer_reports():
                            selected_month=selected_month,
                            selected_week=selected_week)
 
+
+@app.route('/export_rfq_engineer_report_excel')
+@login_required
+def export_rfq_engineer_report_excel():
+    """Export RFQ Engineer Report to Excel with professional formatting"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    from datetime import datetime, date
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('rfq_engineer_reports', type=report_type))
+    
+    # Build date filter conditions
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', requested_time) = ?"
+        params_base.append(selected_year)
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', requested_time) = ?"
+        params_base.append(selected_month)
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', requested_time) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    # Get RFQs based on report type
+    if report_type == 'sales':
+        query = f"""
+            SELECT id, rfq_reference, project_name, project_status, priority,
+                   sales_engineer_presale, sales_engineer_sales, rfq_status,
+                   quotation_status, deadline, note, requested_time, system
+            FROM rfq_requests
+            WHERE sales_engineer_sales = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    else:
+        query = f"""
+            SELECT id, rfq_reference, project_name, project_status, priority,
+                   sales_engineer_presale, sales_engineer_sales, rfq_status,
+                   quotation_status, deadline, note, requested_time, system
+            FROM rfq_requests
+            WHERE sales_engineer_presale = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    
+    c.execute(query, params_base)
+    rfqs = c.fetchall()
+    
+    # Count statuses
+    summary = {'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
+    rfq_list = []
+    today = date.today()
+    
+    for rfq in rfqs:
+        status = (rfq[7] or '').lower()
+        if 'queue' in status:
+            status_category = 'queue'
+            summary['queue'] += 1
+        elif 'study' in status:
+            status_category = 'studying'
+            summary['studying'] += 1
+        elif 'pric' in status:
+            status_category = 'pricing'
+            summary['pricing'] += 1
+        elif 'quoted' in status:
+            status_category = 'quoted'
+            summary['quoted'] += 1
+        elif 'cancel' in status:
+            status_category = 'cancelled'
+            summary['cancelled'] += 1
+        else:
+            status_category = 'queue'
+            summary['queue'] += 1
+        
+        # Calculate days remaining
+        days_remaining = None
+        deadline_str = rfq[9]
+        if deadline_str:
+            try:
+                deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                days_remaining = (deadline_date - today).days
+            except:
+                pass
+        
+        rfq_list.append({
+            'id': rfq[0],
+            'rfq_reference': rfq[1],
+            'project_name': rfq[2],
+            'priority': rfq[4],
+            'presale_engineer': rfq[5],
+            'sales_engineer': rfq[6],
+            'rfq_status': rfq[7],
+            'deadline': rfq[9],
+            'requested_time': rfq[11],
+            'status_category': status_category,
+            'associated_engineer': rfq[5] if report_type == 'sales' else rfq[6],
+            'days_remaining': days_remaining
+        })
+    
+    conn.close()
+    
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "RFQ Engineer Report"
+    
+    # Styles
+    header_fill = PatternFill(start_color="667eea", end_color="667eea", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    title_font = Font(bold=True, size=16, color="667eea")
+    subtitle_font = Font(bold=True, size=12)
+    queue_fill = PatternFill(start_color="ffc107", end_color="ffc107", fill_type="solid")
+    studying_fill = PatternFill(start_color="17a2b8", end_color="17a2b8", fill_type="solid")
+    pricing_fill = PatternFill(start_color="6f42c1", end_color="6f42c1", fill_type="solid")
+    quoted_fill = PatternFill(start_color="28a745", end_color="28a745", fill_type="solid")
+    cancelled_fill = PatternFill(start_color="dc3545", end_color="dc3545", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Title
+    ws.merge_cells('A1:H1')
+    ws['A1'] = f"{selected_engineer}'s RFQ {'Sales' if report_type == 'sales' else 'Presale'} Report"
+    ws['A1'].font = title_font
+    ws['A1'].alignment = Alignment(horizontal='center')
+    
+    # Filter info
+    filter_text = []
+    if selected_year:
+        filter_text.append(f"Year: {selected_year}")
+    if selected_month:
+        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        filter_text.append(f"Month: {months[int(selected_month)-1]}")
+    if selected_week:
+        filter_text.append(f"Week: {selected_week}")
+    if selected_quarter and not selected_month:
+        filter_text.append(f"Quarter: {selected_quarter}")
+    
+    ws.merge_cells('A2:H2')
+    ws['A2'] = ' | '.join(filter_text) if filter_text else 'All Time'
+    ws['A2'].alignment = Alignment(horizontal='center')
+    
+    # Summary section
+    row = 4
+    ws.merge_cells(f'A{row}:H{row}')
+    ws[f'A{row}'] = 'SUMMARY'
+    ws[f'A{row}'].font = subtitle_font
+    ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
+    
+    row = 5
+    summary_headers = ['Total RFQs', 'Queue', 'Studying', 'Pricing', 'Quoted', 'Cancelled']
+    for col, header in enumerate(summary_headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = Font(bold=True)
+        cell.border = border
+    
+    row = 6
+    total_rfqs = len(rfq_list)
+    summary_data = [total_rfqs, summary['queue'], summary['studying'], summary['pricing'], summary['quoted'], summary['cancelled']]
+    status_fills = [None, queue_fill, studying_fill, pricing_fill, quoted_fill, cancelled_fill]
+    for col, value in enumerate(summary_data, 1):
+        cell = ws.cell(row=row, column=col, value=value)
+        cell.border = border
+        if col > 1 and status_fills[col-1]:
+            cell.fill = status_fills[col-1]
+            if col in [2, 4, 5, 6]:
+                cell.font = Font(color="FFFFFF", bold=True)
+    
+    # RFQ Details
+    row = 8
+    ws.merge_cells(f'A{row}:H{row}')
+    ws[f'A{row}'] = 'RFQ DETAILS'
+    ws[f'A{row}'].font = subtitle_font
+    ws[f'A{row}'].fill = PatternFill(start_color="e9ecef", end_color="e9ecef", fill_type="solid")
+    
+    row = 9
+    headers = ['RFQ Reference', 'Project Name', 'Associated Engineer', 'Status', 'Priority', 'Deadline', 'Time Left', 'Requested Date']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row = 10
+    for rfq in rfq_list:
+        ws.cell(row=row, column=1, value=rfq['rfq_reference']).border = border
+        ws.cell(row=row, column=2, value=rfq['project_name']).border = border
+        ws.cell(row=row, column=3, value=rfq['associated_engineer']).border = border
+        
+        status_cell = ws.cell(row=row, column=4, value=rfq['rfq_status'] or 'Queue')
+        status_cell.border = border
+        if rfq['status_category'] == 'queue':
+            status_cell.fill = queue_fill
+        elif rfq['status_category'] == 'studying':
+            status_cell.fill = studying_fill
+            status_cell.font = Font(color="FFFFFF", bold=True)
+        elif rfq['status_category'] == 'pricing':
+            status_cell.fill = pricing_fill
+            status_cell.font = Font(color="FFFFFF", bold=True)
+        elif rfq['status_category'] == 'quoted':
+            status_cell.fill = quoted_fill
+            status_cell.font = Font(color="FFFFFF", bold=True)
+        elif rfq['status_category'] == 'cancelled':
+            status_cell.fill = cancelled_fill
+            status_cell.font = Font(color="FFFFFF", bold=True)
+        
+        ws.cell(row=row, column=5, value=rfq['priority']).border = border
+        ws.cell(row=row, column=6, value=rfq['deadline'] or '-').border = border
+        
+        # Time left - only for queue, studying, pricing
+        time_left_cell = ws.cell(row=row, column=7)
+        time_left_cell.border = border
+        if rfq['status_category'] in ['queue', 'studying', 'pricing'] and rfq['days_remaining'] is not None:
+            if rfq['days_remaining'] < 0:
+                time_left_cell.value = f"{abs(rfq['days_remaining'])} days overdue"
+                time_left_cell.fill = PatternFill(start_color="dc3545", end_color="dc3545", fill_type="solid")
+                time_left_cell.font = Font(color="FFFFFF", bold=True)
+            elif rfq['days_remaining'] == 0:
+                time_left_cell.value = "Due today"
+                time_left_cell.fill = PatternFill(start_color="ffc107", end_color="ffc107", fill_type="solid")
+            elif rfq['days_remaining'] <= 3:
+                time_left_cell.value = f"{rfq['days_remaining']} days"
+                time_left_cell.fill = PatternFill(start_color="ffc107", end_color="ffc107", fill_type="solid")
+            else:
+                time_left_cell.value = f"{rfq['days_remaining']} days"
+                time_left_cell.fill = PatternFill(start_color="28a745", end_color="28a745", fill_type="solid")
+                time_left_cell.font = Font(color="FFFFFF")
+        else:
+            time_left_cell.value = "-"
+        
+        date_cell = ws.cell(row=row, column=8, value=rfq['requested_time'][:10] if rfq['requested_time'] else '-')
+        date_cell.border = border
+        row += 1
+    
+    # Adjust column widths
+    column_widths = [25, 40, 20, 15, 12, 15, 18, 15]
+    for i, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+    
+    # Save to BytesIO
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_rfq_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/export_rfq_engineer_report_pptx')
+@login_required
+def export_rfq_engineer_report_pptx():
+    """Export RFQ Engineer Report to PowerPoint with professional presentation"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from io import BytesIO
+    from datetime import datetime, date
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    if not selected_engineer:
+        flash('Please select an engineer first', 'warning')
+        return redirect(url_for('rfq_engineer_reports', type=report_type))
+    
+    # Build date filter conditions
+    date_conditions = ""
+    params_base = [selected_engineer]
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', requested_time) = ?"
+        params_base.append(selected_year)
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', requested_time) = ?"
+        params_base.append(selected_month)
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', requested_time) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+    
+    # Get RFQs
+    if report_type == 'sales':
+        query = f"""
+            SELECT id, rfq_reference, project_name, project_status, priority,
+                   sales_engineer_presale, sales_engineer_sales, rfq_status,
+                   quotation_status, deadline, note, requested_time, system
+            FROM rfq_requests
+            WHERE sales_engineer_sales = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    else:
+        query = f"""
+            SELECT id, rfq_reference, project_name, project_status, priority,
+                   sales_engineer_presale, sales_engineer_sales, rfq_status,
+                   quotation_status, deadline, note, requested_time, system
+            FROM rfq_requests
+            WHERE sales_engineer_presale = ?
+            {date_conditions}
+            ORDER BY requested_time DESC
+        """
+    
+    c.execute(query, params_base)
+    rfqs = c.fetchall()
+    
+    # Count statuses and group by project
+    summary = {'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
+    projects_dict = {}
+    today = date.today()
+    
+    for rfq in rfqs:
+        status = (rfq[7] or '').lower()
+        if 'queue' in status:
+            status_category = 'queue'
+            summary['queue'] += 1
+        elif 'study' in status:
+            status_category = 'studying'
+            summary['studying'] += 1
+        elif 'pric' in status:
+            status_category = 'pricing'
+            summary['pricing'] += 1
+        elif 'quoted' in status:
+            status_category = 'quoted'
+            summary['quoted'] += 1
+        elif 'cancel' in status:
+            status_category = 'cancelled'
+            summary['cancelled'] += 1
+        else:
+            status_category = 'queue'
+            summary['queue'] += 1
+        
+        project_name = rfq[2] or 'Unassigned Project'
+        if project_name not in projects_dict:
+            projects_dict[project_name] = []
+        
+        projects_dict[project_name].append({
+            'rfq_reference': rfq[1],
+            'priority': rfq[4],
+            'rfq_status': rfq[7],
+            'deadline': rfq[9],
+            'status_category': status_category
+        })
+    
+    conn.close()
+    
+    # Create PowerPoint presentation
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    # Title Slide
+    slide_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"{selected_engineer}'s RFQ Report"
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Subtitle with filters
+    filter_text = []
+    if selected_year:
+        filter_text.append(f"Year: {selected_year}")
+    if selected_month:
+        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        filter_text.append(f"Month: {months[int(selected_month)-1]}")
+    if selected_week:
+        filter_text.append(f"Week: {selected_week}")
+    if selected_quarter and not selected_month:
+        filter_text.append(f"Quarter: {selected_quarter}")
+    
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.7), Inches(12.333), Inches(0.5))
+    tf = subtitle_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = ' | '.join(filter_text) if filter_text else 'All Time Report'
+    p.font.size = Pt(24)
+    p.font.color.rgb = RGBColor(100, 100, 100)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Summary Slide
+    slide = prs.slides.add_slide(slide_layout)
+    
+    bg = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+    bg.line.fill.background()
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(12.333), Inches(1))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "RFQ Summary Dashboard"
+    p.font.size = Pt(40)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    
+    total_rfqs = len(rfqs)
+    
+    # Summary boxes
+    box_data = [
+        ("Total RFQs", str(total_rfqs), f"{len(projects_dict)} Projects", RGBColor(102, 126, 234)),
+        ("Queue", str(summary['queue']), "Pending", RGBColor(255, 193, 7)),
+        ("Studying", str(summary['studying']), "In Progress", RGBColor(23, 162, 184)),
+        ("Pricing", str(summary['pricing']), "Costing", RGBColor(111, 66, 193)),
+        ("Quoted", str(summary['quoted']), "Completed", RGBColor(40, 167, 69)),
+        ("Cancelled", str(summary['cancelled']), "Dropped", RGBColor(220, 53, 69))
+    ]
+    
+    box_width = Inches(2.0)
+    box_height = Inches(2.5)
+    start_left = Inches(0.4)
+    spacing = Inches(2.15)
+    top = Inches(2.0)
+    
+    for i, (label, count, sublabel, color) in enumerate(box_data):
+        left = start_left + (i * spacing)
+        
+        shape = slide.shapes.add_shape(1, left, top, box_width, box_height)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        shape.line.color.rgb = color
+        shape.line.width = Pt(3)
+        
+        tb = slide.shapes.add_textbox(left, top + Inches(0.2), box_width, Inches(0.4))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(14)
+        p.font.color.rgb = RGBColor(100, 100, 100)
+        p.alignment = PP_ALIGN.CENTER
+        
+        tb = slide.shapes.add_textbox(left, top + Inches(0.7), box_width, Inches(1.0))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = count
+        p.font.size = Pt(56)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.alignment = PP_ALIGN.CENTER
+        
+        tb = slide.shapes.add_textbox(left, top + Inches(1.8), box_width, Inches(0.4))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = sublabel
+        p.font.size = Pt(12)
+        p.font.color.rgb = color
+        p.alignment = PP_ALIGN.CENTER
+    
+    # Projects Overview Slide
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Projects Overview"
+    p.font.size = Pt(32)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(102, 126, 234)
+    
+    # Add table with top projects
+    sorted_projects = sorted(projects_dict.items(), key=lambda x: len(x[1]), reverse=True)[:10]
+    
+    if sorted_projects:
+        rows = len(sorted_projects) + 1
+        cols = 3
+        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.333), Inches(0.5 * rows)).table
+        
+        table.cell(0, 0).text = "Project Name"
+        table.cell(0, 1).text = "RFQs Count"
+        table.cell(0, 2).text = "Status Distribution"
+        
+        for cell in table.rows[0].cells:
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(102, 126, 234)
+            for para in cell.text_frame.paragraphs:
+                para.font.color.rgb = RGBColor(255, 255, 255)
+                para.font.bold = True
+                para.font.size = Pt(12)
+        
+        for i, (project_name, rfq_list) in enumerate(sorted_projects, 1):
+            table.cell(i, 0).text = project_name[:50] + '...' if len(project_name) > 50 else project_name
+            table.cell(i, 1).text = str(len(rfq_list))
+            
+            status_counts = {}
+            for rfq in rfq_list:
+                cat = rfq['status_category']
+                status_counts[cat] = status_counts.get(cat, 0) + 1
+            status_str = ', '.join([f"{k.title()}: {v}" for k, v in status_counts.items()])
+            table.cell(i, 2).text = status_str
+            
+            for cell in table.rows[i].cells:
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(11)
+    
+    # Save to BytesIO
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_rfq_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 ###################################3
 @app.route('/delete_rfq/<int:rfq_id>', methods=['POST'])
 @role_required('Technical Team Leader') # Only allows this role to access the route
