@@ -6416,7 +6416,7 @@ def export_engineer_report_pptx():
     for project_name in project_names:
         if report_type == 'sales':
             query = f"""
-                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, quotation_cost, margin
+                SELECT id, quote_ref, presale_eng, status, quotation_selling_price, registered_date, quotation_cost, margin, quotation_note, feedback
                 FROM projects 
                 WHERE project_name = ? AND sales_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6424,7 +6424,7 @@ def export_engineer_report_pptx():
             """
         else:
             query = f"""
-                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, quotation_cost, margin
+                SELECT id, quote_ref, sales_eng, status, quotation_selling_price, registered_date, quotation_cost, margin, quotation_note, feedback
                 FROM projects 
                 WHERE project_name = ? AND presale_eng = ?
                 {date_conditions.replace('?', '?', 1) if date_conditions else ''}
@@ -6439,6 +6439,8 @@ def export_engineer_report_pptx():
             selling_price = float(row[4] or 0)
             cost_price = float(row[6] or 0)
             margin_val = float(row[7] or 0)
+            note = row[8] or ''
+            feedback = row[9] or ''
             if 'won' in status:
                 won_count += 1
                 total_won += selling_price
@@ -6459,7 +6461,9 @@ def export_engineer_report_pptx():
                 'selling_price': selling_price,
                 'registered_date': row[5],
                 'cost_price': cost_price,
-                'margin': margin_val
+                'margin': margin_val,
+                'note': note,
+                'feedback': feedback
             })
         
         if quotations:
@@ -6624,24 +6628,24 @@ def export_engineer_report_pptx():
         run2.font.name = FONT_NAME
         run2.font.color.rgb = RGBColor(220, 53, 69)
         
-        # Calculate rows and create table with proper dimensions
+        # Calculate rows and create table with proper dimensions - 12 columns now
         rows_count = min(quotations_per_slide, len(all_quotations) - slide_num) + 1
-        row_height = Inches(1.0)  # Fixed row height for consistency
+        row_height = Inches(1.1)  # Taller rows for more content
         table_height = row_height * rows_count
-        table = slide.shapes.add_table(rows_count, 10, Inches(0.15), Inches(0.9), Inches(13.0), table_height).table
+        table = slide.shapes.add_table(rows_count, 12, Inches(0.1), Inches(0.9), Inches(13.1), table_height).table
         
-        # Set optimized column widths for better content fit
-        col_widths = [0.32, 2.1, 1.5, 0.95, 0.82, 0.55, 1.25, 1.4, 0.65, 0.85]
+        # Optimized column widths for 12 columns to fit slide width (total ~13.1 inches)
+        col_widths = [0.25, 1.55, 1.1, 0.7, 0.65, 0.42, 0.9, 1.0, 0.5, 0.55, 1.25, 1.2]
         for i, w in enumerate(col_widths):
             table.columns[i].width = Inches(w)
         
         # Set consistent row heights
         for row in table.rows:
-            row.height = Inches(0.85)
-        table.rows[0].height = Inches(0.5)  # Header row smaller
+            row.height = Inches(0.95)
+        table.rows[0].height = Inches(0.45)  # Header row smaller
         
-        # Headers with professional styling
-        headers = ['#', 'Quote Reference', 'Project Name', 'Presale Eng', 'Date', 'Age', 'Cost Price', 'Selling Price', 'Margin', 'Status']
+        # Headers with professional styling - 12 columns
+        headers = ['#', 'Quote Ref', 'Project', 'Presale', 'Date', 'Age', 'Cost', 'Selling', 'Margin', 'Status', 'Note', 'Client Feedback']
         for col, header in enumerate(headers):
             cell = table.cell(0, col)
             cell.text = header
@@ -6681,23 +6685,33 @@ def export_engineer_report_pptx():
             # Get presale engineer
             presale_eng = q.get('associated_engineer') or ''
             
+            # Get note and feedback
+            note = q.get('note', '') or ''
+            client_feedback = q.get('feedback', '') or ''
+            
             # Truncate long text to fit cells
             quote_ref = q.get('quote_ref', '') or '-'
-            project_name = (q.get('project_name', '') or '')[:18]
-            if len(q.get('project_name', '') or '') > 18:
+            project_name = (q.get('project_name', '') or '')[:12]
+            if len(q.get('project_name', '') or '') > 12:
                 project_name += '..'
+            
+            # Truncate note and feedback to fit
+            note_display = note[:30] + '..' if len(note) > 30 else (note or '-')
+            feedback_display = client_feedback[:30] + '..' if len(client_feedback) > 30 else (client_feedback or '-')
             
             data = [
                 str(slide_num + row_idx),
                 quote_ref,
                 project_name,
-                presale_eng[:10] if presale_eng else '-',
+                presale_eng[:8] if presale_eng else '-',
                 str(registered_date)[:10] if registered_date else '-',
                 age_str,
-                f"SAR\n{cost:,.2f}" if cost > 0 else '-',
-                f"SAR\n{sell:,.2f}" if sell > 0 else '-',
+                f"SAR\n{cost:,.0f}" if cost > 0 else '-',
+                f"SAR\n{sell:,.0f}" if sell > 0 else '-',
                 f"{margin:.1f}%",
-                q.get('category', 'Ongoing')
+                q.get('category', 'Ongoing'),
+                note_display,
+                feedback_display
             ]
             
             for col, value in enumerate(data):
@@ -6715,7 +6729,7 @@ def export_engineer_report_pptx():
                 
                 # Style all paragraphs in the cell (for multi-line content)
                 for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(8)
+                    para.font.size = Pt(7)
                     para.font.name = FONT_NAME
                     para.alignment = PP_ALIGN.CENTER
                     # Color code the status column
@@ -6729,6 +6743,9 @@ def export_engineer_report_pptx():
                         else:
                             para.font.color.rgb = RGBColor(255, 153, 0)
                             para.font.bold = True
+                    # Left align note and feedback columns for readability
+                    if col >= 10:
+                        para.alignment = PP_ALIGN.LEFT
     
     # Calculate associated engineer stats for Presale/Sales Engineers Performance slide
     engineer_stats = {}
