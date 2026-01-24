@@ -12123,7 +12123,7 @@ def export_rfq_engineer_report_pptx():
 
 ###################################3
 @app.route('/delete_rfq/<int:rfq_id>', methods=['POST'])
-@role_required('Technical Team Leader') # Only allows this role to access the route
+@role_required('Admin', 'Technical Team Leader')  # Allow Admin and Technical Team Leader
 def delete_rfq(rfq_id):
     try:
         conn = sqlite3.connect('ProjectStatus.db')
