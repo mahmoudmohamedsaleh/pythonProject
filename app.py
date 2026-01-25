@@ -14597,7 +14597,7 @@ def export_client_profile_excel(client_type, client_id):
         ('Contact Person', client['contact_person'] if client['contact_person'] else 'N/A'),
         ('Phone', client['phone'] if client['phone'] else 'N/A'),
         ('Email', client['email'] if client['email'] else 'N/A'),
-        ('Address', client['address'] if client['address'] else 'N/A'),
+        ('Notes', client['note'] if client['note'] else 'N/A'),
         ('Assigned Engineer', client['assigned_engineer_name'] if client['assigned_engineer_name'] else 'Not Assigned'),
         ('Client Status', 'Client' if client['is_client'] else 'Prospect'),
         ('Tier', client['client_tier'] if client['client_tier'] else 'Standard'),
@@ -14881,7 +14881,7 @@ def export_client_profile_pptx(client_type, client_id):
     info_items = [
         f"Phone: {client['phone'] if client['phone'] else 'N/A'}",
         f"Email: {client['email'] if client['email'] else 'N/A'}",
-        f"Address: {client['address'] if client['address'] else 'N/A'}",
+        f"Notes: {client['note'] if client['note'] else 'N/A'}",
         f"Client Status: {'Client' if client['is_client'] else 'Prospect'}",
         f"Tier: {client['client_tier'] if client['client_tier'] else 'Standard'}",
     ]
