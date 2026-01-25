@@ -3398,6 +3398,26 @@ def index():
                            deals_stage_labels=deals_stage_labels,
                            deals_stage_data=deals_stage_data
                            )
+
+@app.route('/download_database')
+@login_required
+def download_database():
+    """Download the database file - restricted to admin users only"""
+    if session.get('role') not in ['General Manager'] and session.get('username') not in ['admin', 'M.Saleh']:
+        flash('You do not have permission to download the database!', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        return send_file(
+            'ProjectStatus.db',
+            mimetype='application/octet-stream',
+            as_attachment=True,
+            download_name=f'ProjectStatus_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+        )
+    except Exception as e:
+        flash(f'Error downloading database: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+
 ##########3
 import random
 @app.route('/register_engineer', methods=['GET', 'POST'])
