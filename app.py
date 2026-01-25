@@ -14503,6 +14503,523 @@ def client_profile(client_type, client_id):
                          current_date=current_date)
 
 
+@app.route('/export_client_profile_excel/<client_type>/<int:client_id>')
+@login_required
+def export_client_profile_excel(client_type, client_id):
+    """Export client profile data to Excel"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get client details based on type
+    table_map = {'end_user': 'end_users', 'contractor': 'contractors', 'consultant': 'consultants'}
+    client_table = table_map.get(client_type)
+    
+    if not client_table:
+        flash('Invalid client type!', 'danger')
+        return redirect(url_for('view_all_clients'))
+    
+    cursor.execute(f"""
+        SELECT c.*, e.username as assigned_engineer_name
+        FROM {client_table} c
+        LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        WHERE c.id = ?
+    """, (client_id,))
+    client = cursor.fetchone()
+    
+    if not client:
+        flash('Client not found!', 'danger')
+        return redirect(url_for('view_all_clients'))
+    
+    # Get projects
+    if client_type == 'end_user':
+        projects_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+    elif client_type == 'contractor':
+        projects_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+    else:
+        projects_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+    
+    cursor.execute(projects_query, (client_id,))
+    projects = cursor.fetchall()
+    
+    # Get follow-ups
+    cursor.execute("""
+        SELECT * FROM client_follow_ups
+        WHERE client_type = ? AND client_id = ?
+        ORDER BY follow_up_date DESC
+    """, (client_type, client_id))
+    follow_ups = cursor.fetchall()
+    
+    conn.close()
+    
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Client Profile"
+    
+    # Styles
+    FONT_NAME = 'Calibri'
+    header_font = Font(name=FONT_NAME, bold=True, size=14, color='FFFFFF')
+    title_font = Font(name=FONT_NAME, bold=True, size=16, color='667eea')
+    label_font = Font(name=FONT_NAME, bold=True, size=11)
+    value_font = Font(name=FONT_NAME, size=11)
+    header_fill = PatternFill(start_color='667eea', end_color='667eea', fill_type='solid')
+    alt_fill = PatternFill(start_color='f8f9fa', end_color='f8f9fa', fill_type='solid')
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    
+    # Client Info Section
+    ws['A1'] = f"Client Profile: {client['name']}"
+    ws['A1'].font = title_font
+    ws.merge_cells('A1:D1')
+    
+    type_labels = {'end_user': 'End User', 'contractor': 'Contractor', 'consultant': 'Consultant'}
+    ws['A2'] = f"Type: {type_labels.get(client_type, client_type)}"
+    ws['A2'].font = value_font
+    
+    # Contact Information
+    row = 4
+    ws[f'A{row}'] = "Contact Information"
+    ws[f'A{row}'].font = header_font
+    ws[f'A{row}'].fill = header_fill
+    ws.merge_cells(f'A{row}:D{row}')
+    
+    row += 1
+    info_fields = [
+        ('Company Name', client['name']),
+        ('Contact Person', client.get('contact_person', 'N/A')),
+        ('Phone', client.get('phone', 'N/A')),
+        ('Email', client.get('email', 'N/A')),
+        ('Address', client.get('address', 'N/A')),
+        ('Assigned Engineer', client.get('assigned_engineer_name', 'Not Assigned')),
+        ('Client Status', 'Client' if client.get('is_client') else 'Prospect'),
+        ('Tier', client.get('client_tier', 'Standard')),
+    ]
+    
+    for label, value in info_fields:
+        ws[f'A{row}'] = label
+        ws[f'A{row}'].font = label_font
+        ws[f'B{row}'] = str(value) if value else 'N/A'
+        ws[f'B{row}'].font = value_font
+        row += 1
+    
+    # Statistics
+    row += 1
+    ws[f'A{row}'] = "Statistics"
+    ws[f'A{row}'].font = header_font
+    ws[f'A{row}'].fill = header_fill
+    ws.merge_cells(f'A{row}:D{row}')
+    
+    row += 1
+    total_deal_value = sum(p['deal_value'] or 0 for p in projects)
+    pending_followups = len([f for f in follow_ups if f['status'] == 'Pending'])
+    
+    stats = [
+        ('Total Projects', len(projects)),
+        ('Total Deal Value (SAR)', f"{total_deal_value:,.2f}"),
+        ('Pending Follow-ups', pending_followups),
+    ]
+    
+    for label, value in stats:
+        ws[f'A{row}'] = label
+        ws[f'A{row}'].font = label_font
+        ws[f'B{row}'] = str(value)
+        ws[f'B{row}'].font = value_font
+        row += 1
+    
+    # Projects Sheet
+    if projects:
+        ws_projects = wb.create_sheet(title="Projects")
+        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Status', 'Registered Date', 'City']
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws_projects.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, project in enumerate(projects, 2):
+            ws_projects.cell(row=idx, column=1, value=project['project_name']).font = value_font
+            ws_projects.cell(row=idx, column=2, value=project.get('stage', 'N/A')).font = value_font
+            ws_projects.cell(row=idx, column=3, value=project.get('deal_value', 0) or 0).font = value_font
+            ws_projects.cell(row=idx, column=4, value=project.get('status', 'N/A')).font = value_font
+            ws_projects.cell(row=idx, column=5, value=project.get('registered_date', 'N/A')).font = value_font
+            ws_projects.cell(row=idx, column=6, value=project.get('city', 'N/A')).font = value_font
+            
+            for col in range(1, 7):
+                ws_projects.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_projects.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 7):
+            ws_projects.column_dimensions[get_column_letter(col)].width = 20
+    
+    # Follow-ups Sheet
+    if follow_ups:
+        ws_followups = wb.create_sheet(title="Follow-ups")
+        headers = ['Date', 'Type', 'Status', 'Notes', 'Assigned To', 'Created By']
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws_followups.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, fu in enumerate(follow_ups, 2):
+            ws_followups.cell(row=idx, column=1, value=fu.get('follow_up_date', 'N/A')).font = value_font
+            ws_followups.cell(row=idx, column=2, value=fu.get('follow_up_type', 'N/A')).font = value_font
+            ws_followups.cell(row=idx, column=3, value=fu.get('status', 'N/A')).font = value_font
+            ws_followups.cell(row=idx, column=4, value=fu.get('notes', '')).font = value_font
+            ws_followups.cell(row=idx, column=5, value=fu.get('assigned_to', 'N/A')).font = value_font
+            ws_followups.cell(row=idx, column=6, value=fu.get('created_by', 'N/A')).font = value_font
+            
+            for col in range(1, 7):
+                ws_followups.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_followups.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 7):
+            ws_followups.column_dimensions[get_column_letter(col)].width = 18
+    
+    # Column widths for main sheet
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 40
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    safe_name = client['name'].replace(' ', '_').replace('/', '-')[:30]
+    filename = f"Client_Profile_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/export_client_profile_pptx/<client_type>/<int:client_id>')
+@login_required
+def export_client_profile_pptx(client_type, client_id):
+    """Export client profile data to PowerPoint"""
+    import io
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get client details based on type
+    table_map = {'end_user': 'end_users', 'contractor': 'contractors', 'consultant': 'consultants'}
+    client_table = table_map.get(client_type)
+    
+    if not client_table:
+        flash('Invalid client type!', 'danger')
+        return redirect(url_for('view_all_clients'))
+    
+    cursor.execute(f"""
+        SELECT c.*, e.username as assigned_engineer_name
+        FROM {client_table} c
+        LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        WHERE c.id = ?
+    """, (client_id,))
+    client = cursor.fetchone()
+    
+    if not client:
+        flash('Client not found!', 'danger')
+        return redirect(url_for('view_all_clients'))
+    
+    # Get projects
+    if client_type == 'end_user':
+        projects_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+    elif client_type == 'contractor':
+        projects_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+    else:
+        projects_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+    
+    cursor.execute(projects_query, (client_id,))
+    projects = cursor.fetchall()
+    
+    # Get follow-ups
+    cursor.execute("""
+        SELECT * FROM client_follow_ups
+        WHERE client_type = ? AND client_id = ?
+        ORDER BY follow_up_date DESC
+    """, (client_type, client_id))
+    follow_ups = cursor.fetchall()
+    
+    conn.close()
+    
+    # Create presentation
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    FONT_NAME = 'Calibri'
+    
+    type_labels = {'end_user': 'End User', 'contractor': 'Contractor', 'consultant': 'Consultant'}
+    type_colors = {
+        'end_user': RGBColor(17, 153, 142),
+        'contractor': RGBColor(240, 147, 251),
+        'consultant': RGBColor(79, 172, 254)
+    }
+    main_color = type_colors.get(client_type, RGBColor(102, 126, 234))
+    
+    # Slide 1: Title/Overview
+    slide_layout = prs.slide_layouts[6]  # Blank
+    slide = prs.slides.add_slide(slide_layout)
+    
+    # Header background
+    header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(2.5))
+    header.fill.solid()
+    header.fill.fore_color.rgb = main_color
+    header.line.fill.background()
+    
+    # Client Type Badge
+    badge = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(2), Inches(0.4))
+    tf = badge.text_frame
+    tf.word_wrap = False
+    p = tf.paragraphs[0]
+    p.text = type_labels.get(client_type, client_type)
+    p.font.size = Pt(14)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(255, 255, 255)
+    p.font.name = FONT_NAME
+    
+    # Client Name
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.9), Inches(10), Inches(1))
+    tf = title_box.text_frame
+    tf.word_wrap = True
+    p = tf.paragraphs[0]
+    p.text = client['name']
+    p.font.size = Pt(36)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(255, 255, 255)
+    p.font.name = FONT_NAME
+    
+    # Contact & Engineer
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(10), Inches(0.5))
+    tf = subtitle_box.text_frame
+    p = tf.paragraphs[0]
+    contact = client.get('contact_person', 'No contact')
+    engineer = client.get('assigned_engineer_name', 'Not assigned')
+    p.text = f"Contact: {contact}  |  Managed by: {engineer}"
+    p.font.size = Pt(16)
+    p.font.color.rgb = RGBColor(255, 255, 255)
+    p.font.name = FONT_NAME
+    
+    # Statistics boxes
+    total_deal_value = sum(p['deal_value'] or 0 for p in projects)
+    pending_followups = len([f for f in follow_ups if f['status'] == 'Pending'])
+    
+    stats_data = [
+        (len(projects), "Total Projects", RGBColor(102, 126, 234)),
+        (len(follow_ups), "Follow-ups", RGBColor(17, 153, 142)),
+        (f"{total_deal_value:,.0f}", "Deal Value (SAR)", RGBColor(240, 147, 251)),
+        (pending_followups, "Pending", RGBColor(79, 172, 254)),
+    ]
+    
+    box_width = 2.8
+    box_height = 1.5
+    start_x = 0.7
+    box_y = 3
+    
+    for i, (value, label, color) in enumerate(stats_data):
+        box = slide.shapes.add_shape(5, Inches(start_x + i * 3.1), Inches(box_y), Inches(box_width), Inches(box_height))
+        box.fill.solid()
+        box.fill.fore_color.rgb = color
+        box.line.fill.background()
+        
+        # Value
+        val_box = slide.shapes.add_textbox(Inches(start_x + i * 3.1), Inches(box_y + 0.3), Inches(box_width), Inches(0.6))
+        tf = val_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = str(value)
+        p.font.size = Pt(32)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Label
+        lbl_box = slide.shapes.add_textbox(Inches(start_x + i * 3.1), Inches(box_y + 0.9), Inches(box_width), Inches(0.4))
+        tf = lbl_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(14)
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+    
+    # Contact Information Section
+    info_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.8), Inches(6), Inches(2.5))
+    tf = info_box.text_frame
+    tf.word_wrap = True
+    
+    p = tf.paragraphs[0]
+    p.text = "Contact Information"
+    p.font.size = Pt(18)
+    p.font.bold = True
+    p.font.color.rgb = main_color
+    p.font.name = FONT_NAME
+    
+    info_items = [
+        f"Phone: {client.get('phone', 'N/A')}",
+        f"Email: {client.get('email', 'N/A')}",
+        f"Address: {client.get('address', 'N/A')}",
+        f"Client Status: {'Client' if client.get('is_client') else 'Prospect'}",
+        f"Tier: {client.get('client_tier', 'Standard')}",
+    ]
+    
+    for item in info_items:
+        p = tf.add_paragraph()
+        p.text = item
+        p.font.size = Pt(12)
+        p.font.color.rgb = RGBColor(80, 80, 80)
+        p.font.name = FONT_NAME
+        p.space_before = Pt(4)
+    
+    # Slide 2: Projects Table (if projects exist)
+    if projects:
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # Title
+        title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(10), Inches(0.6))
+        tf = title.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Projects for {client['name']}"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = main_color
+        p.font.name = FONT_NAME
+        
+        # Projects table
+        cols = 5
+        rows = min(len(projects) + 1, 12)  # Limit rows
+        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.5)).table
+        
+        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Status', 'Date']
+        col_widths = [4, 2, 2, 2, 2.3]
+        
+        for i, (header, width) in enumerate(zip(headers, col_widths)):
+            table.columns[i].width = Inches(width)
+            cell = table.cell(0, i)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = main_color
+            for para in cell.text_frame.paragraphs:
+                para.font.bold = True
+                para.font.size = Pt(11)
+                para.font.color.rgb = RGBColor(255, 255, 255)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for idx, proj in enumerate(projects[:rows-1], 1):
+            data = [
+                proj['project_name'][:40] if proj['project_name'] else 'N/A',
+                proj.get('stage', 'N/A') or 'N/A',
+                f"{proj.get('deal_value', 0) or 0:,.0f}",
+                proj.get('status', 'N/A') or 'N/A',
+                proj.get('registered_date', 'N/A') or 'N/A',
+            ]
+            for col, val in enumerate(data):
+                cell = table.cell(idx, col)
+                cell.text = str(val)
+                if idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(240, 245, 255)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # Slide 3: Follow-ups (if exist)
+    if follow_ups:
+        slide = prs.slides.add_slide(slide_layout)
+        
+        title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(10), Inches(0.6))
+        tf = title.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Follow-ups for {client['name']}"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = main_color
+        p.font.name = FONT_NAME
+        
+        cols = 5
+        rows = min(len(follow_ups) + 1, 12)
+        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.5)).table
+        
+        headers = ['Date', 'Type', 'Status', 'Notes', 'Assigned To']
+        col_widths = [2, 2, 2, 4, 2.3]
+        
+        for i, (header, width) in enumerate(zip(headers, col_widths)):
+            table.columns[i].width = Inches(width)
+            cell = table.cell(0, i)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = main_color
+            for para in cell.text_frame.paragraphs:
+                para.font.bold = True
+                para.font.size = Pt(11)
+                para.font.color.rgb = RGBColor(255, 255, 255)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for idx, fu in enumerate(follow_ups[:rows-1], 1):
+            data = [
+                fu.get('follow_up_date', 'N/A') or 'N/A',
+                fu.get('follow_up_type', 'N/A') or 'N/A',
+                fu.get('status', 'N/A') or 'N/A',
+                (fu.get('notes', '') or '')[:50],
+                fu.get('assigned_to', 'N/A') or 'N/A',
+            ]
+            for col, val in enumerate(data):
+                cell = table.cell(idx, col)
+                cell.text = str(val)
+                if idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(240, 245, 255)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    safe_name = client['name'].replace(' ', '_').replace('/', '-')[:30]
+    filename = f"Client_Profile_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pptx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 def get_client_name(cursor, client_type, client_id):
     """Helper function to get client name based on type"""
     table_map = {
