@@ -14978,11 +14978,13 @@ def client_profile(client_type, client_id):
 @app.route('/export_client_profile_excel/<client_type>/<int:client_id>')
 @login_required
 def export_client_profile_excel(client_type, client_id):
-    """Export client profile data to Excel"""
+    """Export client profile data to Excel - organized by project with full reports"""
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
+    
+    FONT_NAME = 'Calibri'
     
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -15034,52 +15036,7 @@ def export_client_profile_excel(client_type, client_id):
     cursor.execute(projects_query, (client_id,))
     projects = cursor.fetchall()
     
-    # Get quotations for all projects
-    # Get quotations, RFQs, POs and RFTS for all projects
-    all_quotations = []
-    all_rfqs = []
-    all_pos = []
-    all_rfts = []
-    all_po_items = []
-    for proj in projects:
-        cursor.execute("""
-            SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
-        """, (proj['project_name'],))
-        quotations = cursor.fetchall()
-        for q in quotations:
-            all_quotations.append({'project_name': proj['project_name'], **dict(q)})
-        
-        cursor.execute("""
-            SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC
-        """, (proj['project_name'],))
-        rfqs = cursor.fetchall()
-        for r in rfqs:
-            all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
-        
-        cursor.execute("""
-            SELECT * FROM purchase_orders WHERE project_name = ? ORDER BY created_at DESC
-        """, (proj['project_name'],))
-        pos = cursor.fetchall()
-        for po in pos:
-            all_pos.append({'project_name': proj['project_name'], **dict(po)})
-        
-        cursor.execute("""
-            SELECT * FROM technical_support_requests WHERE project_name = ? ORDER BY requested_time DESC
-        """, (proj['project_name'],))
-        rfts_list = cursor.fetchall()
-        for rt in rfts_list:
-            all_rfts.append({'project_name': proj['project_name'], **dict(rt)})
-        
-        # Get PO Items for each PO
-        for po in pos:
-            po_number = po['po_number']
-            if po_number:
-                cursor.execute("""
-                    SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number
-                """, (po_number,))
-                items = cursor.fetchall()
-                for item in items:
-                    all_po_items.append({'project_name': proj['project_name'], 'po_number': po_number, **dict(item)})
+    # Get follow-ups
     cursor.execute("""
         SELECT * FROM client_follow_ups
         WHERE client_type = ? AND client_id = ?
@@ -15087,36 +15044,37 @@ def export_client_profile_excel(client_type, client_id):
     """, (client_type, client_id))
     follow_ups = cursor.fetchall()
     
-    conn.close()
-    
     # Create workbook
     wb = Workbook()
     ws = wb.active
-    ws.title = "Client Profile"
+    ws.title = "Client Summary"
     
     # Styles
-    FONT_NAME = 'Calibri'
-    header_font = Font(name=FONT_NAME, bold=True, size=14, color='FFFFFF')
-    title_font = Font(name=FONT_NAME, bold=True, size=16, color='667eea')
-    label_font = Font(name=FONT_NAME, bold=True, size=11)
+    title_font = Font(name=FONT_NAME, size=18, bold=True, color='1a5276')
+    header_font = Font(name=FONT_NAME, size=12, bold=True, color='FFFFFF')
+    label_font = Font(name=FONT_NAME, size=11, bold=True)
     value_font = Font(name=FONT_NAME, size=11)
-    header_fill = PatternFill(start_color='667eea', end_color='667eea', fill_type='solid')
-    alt_fill = PatternFill(start_color='f8f9fa', end_color='f8f9fa', fill_type='solid')
     thin_border = Border(
         left=Side(style='thin'), right=Side(style='thin'),
         top=Side(style='thin'), bottom=Side(style='thin')
     )
+    header_fill = PatternFill(start_color='1a5276', end_color='1a5276', fill_type='solid')
+    alt_fill = PatternFill(start_color='f8f9fa', end_color='f8f9fa', fill_type='solid')
+    green_fill = PatternFill(start_color='28a745', end_color='28a745', fill_type='solid')
+    yellow_fill = PatternFill(start_color='ffc107', end_color='ffc107', fill_type='solid')
+    red_fill = PatternFill(start_color='dc3545', end_color='dc3545', fill_type='solid')
+    orange_fill = PatternFill(start_color='fd7e14', end_color='fd7e14', fill_type='solid')
+    purple_fill = PatternFill(start_color='6f42c1', end_color='6f42c1', fill_type='solid')
     
-    # Client Info Section
-    ws['A1'] = f"Client Profile: {client['name']}"
+    # Client Summary Sheet
+    type_labels = {'end_user': 'End User', 'contractor': 'Contractor', 'consultant': 'Consultant'}
+    ws['A1'] = f"Client Profile Report: {client['name']}"
     ws['A1'].font = title_font
     ws.merge_cells('A1:D1')
     
-    type_labels = {'end_user': 'End User', 'contractor': 'Contractor', 'consultant': 'Consultant'}
     ws['A2'] = f"Type: {type_labels.get(client_type, client_type)}"
     ws['A2'].font = value_font
     
-    # Contact Information
     row = 4
     ws[f'A{row}'] = "Contact Information"
     ws[f'A{row}'].font = header_font
@@ -15166,196 +15124,249 @@ def export_client_profile_excel(client_type, client_id):
         ws[f'B{row}'].font = value_font
         row += 1
     
-    # Projects Sheet
-    if projects:
-        ws_projects = wb.create_sheet(title="Projects")
-        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Probability', 'Sales Engineer', 'Scope of Work', 'Registered Date']
-        
-        green_fill = PatternFill(start_color='28a745', end_color='28a745', fill_type='solid')
-        for col, header in enumerate(headers, 1):
-            cell = ws_projects.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = green_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = thin_border
-        
-        for idx, project in enumerate(projects, 2):
-            ws_projects.cell(row=idx, column=1, value=project['project_name']).font = value_font
-            ws_projects.cell(row=idx, column=2, value=project['stage'] if project['stage'] else 'N/A').font = value_font
-            ws_projects.cell(row=idx, column=3, value=project['deal_value'] if project['deal_value'] else 0).font = value_font
-            ws_projects.cell(row=idx, column=4, value=f"{project['probability']}%" if project['probability'] else 'N/A').font = value_font
-            ws_projects.cell(row=idx, column=5, value=project['sales_engineer_name'] if project['sales_engineer_name'] else 'N/A').font = value_font
-            ws_projects.cell(row=idx, column=6, value=project['scope_of_work'] if project['scope_of_work'] else 'N/A').font = value_font
-            ws_projects.cell(row=idx, column=7, value=project['registered_date'] if project['registered_date'] else 'N/A').font = value_font
-            
-            for col in range(1, 8):
-                ws_projects.cell(row=idx, column=col).border = thin_border
-                if idx % 2 == 0:
-                    ws_projects.cell(row=idx, column=col).fill = alt_fill
-        
-        for col in range(1, 8):
-            ws_projects.column_dimensions[get_column_letter(col)].width = 20
+    # Projects List
+    row += 1
+    ws[f'A{row}'] = "Projects List"
+    ws[f'A{row}'].font = header_font
+    ws[f'A{row}'].fill = green_fill
+    ws.merge_cells(f'A{row}:D{row}')
     
-    # Quotations Sheet
-    if all_quotations:
-        ws_quot = wb.create_sheet(title="Quotations")
-        quot_headers = ['Project Name', 'Quote Ref', 'System', 'Presale Eng', 'Sales Eng', 'Cost (SAR)', 'Selling Price (SAR)', 'Margin %', 'Status']
-        
-        blue_fill = PatternFill(start_color='17a2b8', end_color='17a2b8', fill_type='solid')
-        for col, header in enumerate(quot_headers, 1):
-            cell = ws_quot.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = blue_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = thin_border
-        
-        for idx, q in enumerate(all_quotations, 2):
-            ws_quot.cell(row=idx, column=1, value=q.get('project_name', '')).font = value_font
-            ws_quot.cell(row=idx, column=2, value=q.get('quote_ref', '')).font = value_font
-            ws_quot.cell(row=idx, column=3, value=q.get('system', '')).font = value_font
-            ws_quot.cell(row=idx, column=4, value=q.get('presale_eng', '')).font = value_font
-            ws_quot.cell(row=idx, column=5, value=q.get('sales_eng', '')).font = value_font
-            ws_quot.cell(row=idx, column=6, value=q.get('quotation_cost', 0) or 0).font = value_font
-            ws_quot.cell(row=idx, column=7, value=q.get('quotation_selling_price', 0) or 0).font = value_font
-            ws_quot.cell(row=idx, column=8, value=f"{q.get('margin', 0) or 0}%").font = value_font
-            ws_quot.cell(row=idx, column=9, value=q.get('status', '')).font = value_font
-            
-            for col in range(1, 10):
-                ws_quot.cell(row=idx, column=col).border = thin_border
-                if idx % 2 == 0:
-                    ws_quot.cell(row=idx, column=col).fill = alt_fill
-        
-        for col in range(1, 10):
-            ws_quot.column_dimensions[get_column_letter(col)].width = 18
+    row += 1
+    for idx, proj in enumerate(projects, 1):
+        ws[f'A{row}'] = f"{idx}. {proj['project_name']}"
+        ws[f'A{row}'].font = value_font
+        ws[f'B{row}'] = f"Deal: {proj['deal_value'] or 0:,.0f} SAR"
+        ws[f'B{row}'].font = value_font
+        ws[f'C{row}'] = f"Stage: {proj['stage'] or 'N/A'}"
+        ws[f'C{row}'].font = value_font
+        row += 1
     
-    # RFQs Sheet
-    if all_rfqs:
-        ws_rfq = wb.create_sheet(title="RFQs")
-        rfq_headers = ['Project Name', 'RFQ Reference', 'Priority', 'Presale Eng', 'Sales Eng', 'RFQ Status', 'Deadline', 'Requested Date']
-        
-        yellow_fill = PatternFill(start_color='ffc107', end_color='ffc107', fill_type='solid')
-        for col, header in enumerate(rfq_headers, 1):
-            cell = ws_rfq.cell(row=1, column=col, value=header)
-            cell.font = Font(name=FONT_NAME, bold=True, size=14, color='333333')
-            cell.fill = yellow_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = thin_border
-        
-        for idx, r in enumerate(all_rfqs, 2):
-            ws_rfq.cell(row=idx, column=1, value=r.get('project_name', '')).font = value_font
-            ws_rfq.cell(row=idx, column=2, value=r.get('rfq_reference', '')).font = value_font
-            ws_rfq.cell(row=idx, column=3, value=r.get('priority', '')).font = value_font
-            ws_rfq.cell(row=idx, column=4, value=r.get('sales_engineer_presale', '')).font = value_font
-            ws_rfq.cell(row=idx, column=5, value=r.get('sales_engineer_sales', '')).font = value_font
-            ws_rfq.cell(row=idx, column=6, value=r.get('rfq_status', '')).font = value_font
-            ws_rfq.cell(row=idx, column=7, value=r.get('deadline', '')).font = value_font
-            ws_rfq.cell(row=idx, column=8, value=r.get('requested_time', '')).font = value_font
-            
-            for col in range(1, 9):
-                ws_rfq.cell(row=idx, column=col).border = thin_border
-                if idx % 2 == 0:
-                    ws_rfq.cell(row=idx, column=col).fill = alt_fill
-        
-        for col in range(1, 9):
-            ws_rfq.column_dimensions[get_column_letter(col)].width = 18
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 20
     
-    # Purchase Orders Sheet
-    if all_pos:
-        ws_pos = wb.create_sheet(title="Purchase Orders")
-        po_headers = ['Project Name', 'PO Number', 'Vendor', 'Distributor', 'System', 'Amount (SAR)', 'Approval', 'Delivery', 'Created Date']
+    # Create a sheet for EACH PROJECT with full report
+    for proj in projects:
+        project_name = proj['project_name']
+        # Create safe sheet name (max 31 chars, no special chars)
+        safe_sheet_name = project_name.replace('/', '-').replace('\\', '-').replace('*', '-').replace('?', '-').replace('[', '-').replace(']', '-').replace(':', '-')[:28]
         
-        red_fill = PatternFill(start_color='dc3545', end_color='dc3545', fill_type='solid')
-        for col, header in enumerate(po_headers, 1):
-            cell = ws_pos.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = red_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = thin_border
+        ws_proj = wb.create_sheet(title=safe_sheet_name)
         
-        for idx, po in enumerate(all_pos, 2):
-            ws_pos.cell(row=idx, column=1, value=po.get('project_name', '')).font = value_font
-            ws_pos.cell(row=idx, column=2, value=po.get('po_number', '')).font = value_font
-            ws_pos.cell(row=idx, column=3, value=po.get('vendor', '')).font = value_font
-            ws_pos.cell(row=idx, column=4, value=po.get('distributor', '')).font = value_font
-            ws_pos.cell(row=idx, column=5, value=po.get('system', '')).font = value_font
-            ws_pos.cell(row=idx, column=6, value=po.get('total_amount', 0) or 0).font = value_font
-            ws_pos.cell(row=idx, column=7, value=po.get('po_approval_status', '')).font = value_font
-            ws_pos.cell(row=idx, column=8, value=po.get('po_delivery_status', '')).font = value_font
-            ws_pos.cell(row=idx, column=9, value=po.get('created_at', '')).font = value_font
+        # Project Header
+        ws_proj['A1'] = f"Project Report: {project_name}"
+        ws_proj['A1'].font = title_font
+        ws_proj.merge_cells('A1:F1')
+        
+        row = 3
+        ws_proj[f'A{row}'] = "Project Information"
+        ws_proj[f'A{row}'].font = header_font
+        ws_proj[f'A{row}'].fill = header_fill
+        ws_proj.merge_cells(f'A{row}:F{row}')
+        
+        row += 1
+        proj_info = [
+            ('Project Name', project_name),
+            ('Stage', proj['stage'] or 'N/A'),
+            ('Deal Value (SAR)', f"{proj['deal_value'] or 0:,.2f}"),
+            ('Probability', f"{proj['probability']}%" if proj['probability'] else 'N/A'),
+            ('Sales Engineer', proj['sales_engineer_name'] or 'N/A'),
+            ('Scope of Work', proj['scope_of_work'] or 'N/A'),
+            ('Registered Date', proj['registered_date'] or 'N/A'),
+        ]
+        for label, value in proj_info:
+            ws_proj[f'A{row}'] = label
+            ws_proj[f'A{row}'].font = label_font
+            ws_proj[f'B{row}'] = str(value)
+            ws_proj[f'B{row}'].font = value_font
+            row += 1
+        
+        # Quotations for this project
+        cursor.execute("""
+            SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
+        """, (project_name,))
+        quotations = cursor.fetchall()
+        
+        row += 1
+        ws_proj[f'A{row}'] = f"Quotations ({len(quotations)})"
+        ws_proj[f'A{row}'].font = header_font
+        ws_proj[f'A{row}'].fill = green_fill
+        ws_proj.merge_cells(f'A{row}:F{row}')
+        
+        row += 1
+        if quotations:
+            quot_headers = ['Quote Ref', 'System', 'Presale Eng', 'Cost (SAR)', 'Selling Price (SAR)', 'Status']
+            for col, header in enumerate(quot_headers, 1):
+                cell = ws_proj.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.fill = green_fill
+                cell.border = thin_border
+            row += 1
             
-            for col in range(1, 10):
-                ws_pos.cell(row=idx, column=col).border = thin_border
-                if idx % 2 == 0:
-                    ws_pos.cell(row=idx, column=col).fill = alt_fill
+            for q in quotations:
+                ws_proj.cell(row=row, column=1, value=q['quote_reference'] or '').font = value_font
+                ws_proj.cell(row=row, column=2, value=q['system'] or '').font = value_font
+                ws_proj.cell(row=row, column=3, value=q['presale_engineer'] or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=q['cost'] or 0).font = value_font
+                ws_proj.cell(row=row, column=5, value=q['selling_price'] or 0).font = value_font
+                ws_proj.cell(row=row, column=6, value=q['status'] or '').font = value_font
+                for col in range(1, 7):
+                    ws_proj.cell(row=row, column=col).border = thin_border
+                row += 1
+        else:
+            ws_proj[f'A{row}'] = "No quotations"
+            ws_proj[f'A{row}'].font = value_font
+            row += 1
         
-        for col in range(1, 10):
-            ws_pos.column_dimensions[get_column_letter(col)].width = 18
-    # RFTS Sheet
-    if all_rfts:
-        ws_rfts = wb.create_sheet(title="RFTS")
-        rfts_headers = ['Project Name', 'RFTS Reference', 'System', 'Request Type', 'Presale Engineer', 'Priority', 'Status', 'Deadline', 'Requested Date']
+        # RFQs for this project
+        cursor.execute("""
+            SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC
+        """, (project_name,))
+        rfqs = cursor.fetchall()
         
-        purple_fill = PatternFill(start_color='6f42c1', end_color='6f42c1', fill_type='solid')
-        for col, header in enumerate(rfts_headers, 1):
-            cell = ws_rfts.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = purple_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = thin_border
+        row += 1
+        ws_proj[f'A{row}'] = f"RFQs ({len(rfqs)})"
+        ws_proj[f'A{row}'].font = header_font
+        ws_proj[f'A{row}'].fill = yellow_fill
+        ws_proj.merge_cells(f'A{row}:F{row}')
         
-        for idx, rt in enumerate(all_rfts, 2):
-            ws_rfts.cell(row=idx, column=1, value=rt.get('project_name', '')).font = value_font
-            ws_rfts.cell(row=idx, column=2, value=rt.get('rfts_reference', '')).font = value_font
-            ws_rfts.cell(row=idx, column=3, value=rt.get('system', '')).font = value_font
-            ws_rfts.cell(row=idx, column=4, value=rt.get('request_type', '')).font = value_font
-            ws_rfts.cell(row=idx, column=5, value=rt.get('presale_engineer', '')).font = value_font
-            ws_rfts.cell(row=idx, column=6, value=rt.get('priority', '')).font = value_font
-            ws_rfts.cell(row=idx, column=7, value=rt.get('request_status', '')).font = value_font
-            ws_rfts.cell(row=idx, column=8, value=rt.get('deadline', '')).font = value_font
-            ws_rfts.cell(row=idx, column=9, value=rt.get('requested_time', '')).font = value_font
+        row += 1
+        if rfqs:
+            rfq_headers = ['RFQ Ref', 'System', 'Type', 'Presale Eng', 'Status', 'Requested']
+            for col, header in enumerate(rfq_headers, 1):
+                cell = ws_proj.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.fill = yellow_fill
+                cell.border = thin_border
+            row += 1
             
-            for col in range(1, 10):
-                ws_rfts.cell(row=idx, column=col).border = thin_border
-                if idx % 2 == 0:
-                    ws_rfts.cell(row=idx, column=col).fill = alt_fill
+            for r in rfqs:
+                ws_proj.cell(row=row, column=1, value=r['rfq_reference'] or '').font = value_font
+                ws_proj.cell(row=row, column=2, value=r['system'] or '').font = value_font
+                ws_proj.cell(row=row, column=3, value=r['request_type'] or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=r['presale_engineer'] or '').font = value_font
+                ws_proj.cell(row=row, column=5, value=r['request_status'] or '').font = value_font
+                ws_proj.cell(row=row, column=6, value=r['requested_time'] or '').font = value_font
+                for col in range(1, 7):
+                    ws_proj.cell(row=row, column=col).border = thin_border
+                row += 1
+        else:
+            ws_proj[f'A{row}'] = "No RFQs"
+            ws_proj[f'A{row}'].font = value_font
+            row += 1
         
-        for col in range(1, 10):
-            ws_rfts.column_dimensions[get_column_letter(col)].width = 18
-
-    # PO Items Sheet (detailed line items for each PO)
-    if all_po_items:
-        ws_po_items = wb.create_sheet(title="PO Items")
-        po_items_headers = ['Project Name', 'PO Number', 'Item #', 'Part Number', 'Description', 'Quantity', 'Unit Price (SAR)', 'Total Price (SAR)', 'Qty Delivered', 'Delivery Status', 'Notes']
+        # Purchase Orders for this project
+        cursor.execute("""
+            SELECT * FROM purchase_orders WHERE project_name = ? ORDER BY created_at DESC
+        """, (project_name,))
+        pos = cursor.fetchall()
         
-        orange_fill = PatternFill(start_color='fd7e14', end_color='fd7e14', fill_type='solid')
-        for col, header in enumerate(po_items_headers, 1):
-            cell = ws_po_items.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = orange_fill
-            cell.alignment = Alignment(horizontal='center')
-            cell.border = thin_border
+        row += 1
+        ws_proj[f'A{row}'] = f"Purchase Orders ({len(pos)})"
+        ws_proj[f'A{row}'].font = header_font
+        ws_proj[f'A{row}'].fill = red_fill
+        ws_proj.merge_cells(f'A{row}:F{row}')
         
-        for idx, item in enumerate(all_po_items, 2):
-            ws_po_items.cell(row=idx, column=1, value=item.get('project_name', '')).font = value_font
-            ws_po_items.cell(row=idx, column=2, value=item.get('po_number', '')).font = value_font
-            ws_po_items.cell(row=idx, column=3, value=item.get('item_number', '')).font = value_font
-            ws_po_items.cell(row=idx, column=4, value=item.get('part_number', '')).font = value_font
-            ws_po_items.cell(row=idx, column=5, value=item.get('description', '')).font = value_font
-            ws_po_items.cell(row=idx, column=6, value=item.get('quantity', 0)).font = value_font
-            ws_po_items.cell(row=idx, column=7, value=item.get('unit_price', 0)).font = value_font
-            ws_po_items.cell(row=idx, column=8, value=item.get('total_price', 0)).font = value_font
-            ws_po_items.cell(row=idx, column=9, value=item.get('quantity_delivered', 0)).font = value_font
-            ws_po_items.cell(row=idx, column=10, value=item.get('delivery_status', '')).font = value_font
-            ws_po_items.cell(row=idx, column=11, value=item.get('notes', '')).font = value_font
+        row += 1
+        if pos:
+            po_headers = ['PO Number', 'Vendor', 'System', 'Total (SAR)', 'Approval', 'Delivery']
+            for col, header in enumerate(po_headers, 1):
+                cell = ws_proj.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.fill = red_fill
+                cell.border = thin_border
+            row += 1
             
-            for col in range(1, 12):
-                ws_po_items.cell(row=idx, column=col).border = thin_border
-                if idx % 2 == 0:
-                    ws_po_items.cell(row=idx, column=col).fill = alt_fill
+            for po in pos:
+                ws_proj.cell(row=row, column=1, value=po['po_number'] or '').font = value_font
+                ws_proj.cell(row=row, column=2, value=po['vendor'] or po['distributor'] or '').font = value_font
+                ws_proj.cell(row=row, column=3, value=po['system'] or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=po['total_amount'] or 0).font = value_font
+                ws_proj.cell(row=row, column=5, value=po['po_approval_status'] or '').font = value_font
+                ws_proj.cell(row=row, column=6, value=po['po_delivery_status'] or '').font = value_font
+                for col in range(1, 7):
+                    ws_proj.cell(row=row, column=col).border = thin_border
+                row += 1
+                
+                # PO Items for this PO
+                if po['po_number']:
+                    cursor.execute("""
+                        SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number
+                    """, (po['po_number'],))
+                    items = cursor.fetchall()
+                    
+                    if items:
+                        row += 1
+                        item_headers = ['Item #', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total']
+                        for col, header in enumerate(item_headers, 1):
+                            cell = ws_proj.cell(row=row, column=col, value=header)
+                            cell.font = Font(name=FONT_NAME, size=10, bold=True, color='FFFFFF')
+                            cell.fill = orange_fill
+                            cell.border = thin_border
+                        row += 1
+                        
+                        for item in items:
+                            ws_proj.cell(row=row, column=1, value=item['item_number'] or '').font = value_font
+                            ws_proj.cell(row=row, column=2, value=item['part_number'] or '').font = value_font
+                            ws_proj.cell(row=row, column=3, value=item['description'] or '').font = value_font
+                            ws_proj.cell(row=row, column=4, value=item['quantity'] or 0).font = value_font
+                            ws_proj.cell(row=row, column=5, value=item['unit_price'] or 0).font = value_font
+                            ws_proj.cell(row=row, column=6, value=item['total_price'] or 0).font = value_font
+                            for col in range(1, 7):
+                                ws_proj.cell(row=row, column=col).border = thin_border
+                            row += 1
+                        row += 1
+        else:
+            ws_proj[f'A{row}'] = "No purchase orders"
+            ws_proj[f'A{row}'].font = value_font
+            row += 1
         
-        for col in range(1, 12):
-            ws_po_items.column_dimensions[get_column_letter(col)].width = 18
-
+        # RFTS for this project
+        cursor.execute("""
+            SELECT * FROM technical_support_requests WHERE project_name = ? ORDER BY requested_time DESC
+        """, (project_name,))
+        rfts_list = cursor.fetchall()
+        
+        row += 1
+        ws_proj[f'A{row}'] = f"Technical Support Requests ({len(rfts_list)})"
+        ws_proj[f'A{row}'].font = header_font
+        ws_proj[f'A{row}'].fill = purple_fill
+        ws_proj.merge_cells(f'A{row}:F{row}')
+        
+        row += 1
+        if rfts_list:
+            rfts_headers = ['RFTS Ref', 'System', 'Type', 'Engineer', 'Priority', 'Status']
+            for col, header in enumerate(rfts_headers, 1):
+                cell = ws_proj.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.fill = purple_fill
+                cell.border = thin_border
+            row += 1
+            
+            for rt in rfts_list:
+                ws_proj.cell(row=row, column=1, value=rt['rfts_reference'] or '').font = value_font
+                ws_proj.cell(row=row, column=2, value=rt['system'] or '').font = value_font
+                ws_proj.cell(row=row, column=3, value=rt['request_type'] or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=rt['presale_engineer'] or '').font = value_font
+                ws_proj.cell(row=row, column=5, value=rt['priority'] or '').font = value_font
+                ws_proj.cell(row=row, column=6, value=rt['request_status'] or '').font = value_font
+                for col in range(1, 7):
+                    ws_proj.cell(row=row, column=col).border = thin_border
+                row += 1
+        else:
+            ws_proj[f'A{row}'] = "No technical support requests"
+            ws_proj[f'A{row}'].font = value_font
+            row += 1
+        
+        # Set column widths for project sheet
+        ws_proj.column_dimensions['A'].width = 20
+        ws_proj.column_dimensions['B'].width = 25
+        ws_proj.column_dimensions['C'].width = 30
+        ws_proj.column_dimensions['D'].width = 15
+        ws_proj.column_dimensions['E'].width = 15
+        ws_proj.column_dimensions['F'].width = 15
+    
     # Follow-ups Sheet
     if follow_ups:
         ws_followups = wb.create_sheet(title="Follow-ups")
@@ -15384,9 +15395,7 @@ def export_client_profile_excel(client_type, client_id):
         for col in range(1, 7):
             ws_followups.column_dimensions[get_column_letter(col)].width = 18
     
-    # Column widths for main sheet
-    ws.column_dimensions['A'].width = 25
-    ws.column_dimensions['B'].width = 40
+    conn.close()
     
     # Save to BytesIO
     output = io.BytesIO()
@@ -15407,12 +15416,14 @@ def export_client_profile_excel(client_type, client_id):
 @app.route('/export_client_profile_pptx/<client_type>/<int:client_id>')
 @login_required
 def export_client_profile_pptx(client_type, client_id):
-    """Export client profile data to PowerPoint"""
+    """Export client profile data to PowerPoint - organized by project with full reports"""
     import io
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    
+    FONT_NAME = 'Calibri'
     
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
@@ -15438,7 +15449,7 @@ def export_client_profile_pptx(client_type, client_id):
         flash('Client not found!', 'danger')
         return redirect(url_for('view_all_clients'))
     
-    # Get projects with engineer names
+    # Get projects
     if client_type == 'end_user':
         projects_query = """
             SELECT rp.*, e.name as sales_engineer_name 
@@ -15464,154 +15475,80 @@ def export_client_profile_pptx(client_type, client_id):
     cursor.execute(projects_query, (client_id,))
     projects = cursor.fetchall()
     
-    # Get quotations, RFQs, POs and RFTS for all projects
-    all_quotations = []
-    all_rfqs = []
-    all_pos = []
-    all_rfts = []
-    all_po_items = []
-    for proj in projects:
-        cursor.execute("""
-            SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
-        """, (proj['project_name'],))
-        quotations = cursor.fetchall()
-        for q in quotations:
-            all_quotations.append({'project_name': proj['project_name'], **dict(q)})
-        
-        cursor.execute("""
-            SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC
-        """, (proj['project_name'],))
-        rfqs = cursor.fetchall()
-        for r in rfqs:
-            all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
-        
-        cursor.execute("""
-            SELECT * FROM purchase_orders WHERE project_name = ? ORDER BY created_at DESC
-        """, (proj['project_name'],))
-        pos = cursor.fetchall()
-        for po in pos:
-            all_pos.append({'project_name': proj['project_name'], **dict(po)})
-        
-        cursor.execute("""
-            SELECT * FROM technical_support_requests WHERE project_name = ? ORDER BY requested_time DESC
-        """, (proj['project_name'],))
-        rfts_list = cursor.fetchall()
-        for rt in rfts_list:
-            all_rfts.append({'project_name': proj['project_name'], **dict(rt)})
-        
-        # Get PO Items for each PO
-        for po in pos:
-            po_number = po['po_number']
-            if po_number:
-                cursor.execute("""
-                    SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number
-                """, (po_number,))
-                items = cursor.fetchall()
-                for item in items:
-                    all_po_items.append({'project_name': proj['project_name'], 'po_number': po_number, **dict(item)})
-    # Get follow-ups
-    cursor.execute("""
-        SELECT * FROM client_follow_ups
-        WHERE client_type = ? AND client_id = ?
-        ORDER BY follow_up_date DESC
-    """, (client_type, client_id))
-    follow_ups = cursor.fetchall()
-    
-    conn.close()
-    
     # Create presentation
     prs = Presentation()
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     
-    FONT_NAME = 'Calibri'
+    # Colors
+    main_color = RGBColor(26, 82, 118)
+    green_color = RGBColor(40, 167, 69)
+    yellow_color = RGBColor(255, 193, 7)
+    red_color = RGBColor(220, 53, 69)
+    orange_color = RGBColor(253, 126, 20)
+    purple_color = RGBColor(111, 66, 193)
     
-    type_labels = {'end_user': 'End User', 'contractor': 'Contractor', 'consultant': 'Consultant'}
-    type_colors = {
-        'end_user': RGBColor(17, 153, 142),
-        'contractor': RGBColor(240, 147, 251),
-        'consultant': RGBColor(79, 172, 254)
-    }
-    main_color = type_colors.get(client_type, RGBColor(102, 126, 234))
+    slide_layout = prs.slide_layouts[6]  # Blank layout
     
-    # Slide 1: Title/Overview
-    slide_layout = prs.slide_layouts[6]  # Blank
+    # Slide 1: Client Overview
     slide = prs.slides.add_slide(slide_layout)
     
-    # Header background
+    # Gradient header
     header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(2.5))
     header.fill.solid()
     header.fill.fore_color.rgb = main_color
     header.line.fill.background()
     
-    # Client Type Badge
-    badge = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(2), Inches(0.4))
-    tf = badge.text_frame
-    tf.word_wrap = False
-    p = tf.paragraphs[0]
-    p.text = type_labels.get(client_type, client_type)
-    p.font.size = Pt(14)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(255, 255, 255)
-    p.font.name = FONT_NAME
-    
-    # Client Name
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.9), Inches(10), Inches(1))
+    # Client name
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(12), Inches(1))
     tf = title_box.text_frame
-    tf.word_wrap = True
     p = tf.paragraphs[0]
     p.text = client['name']
-    p.font.size = Pt(36)
+    p.font.size = Pt(44)
     p.font.bold = True
     p.font.color.rgb = RGBColor(255, 255, 255)
     p.font.name = FONT_NAME
     
-    # Contact & Engineer
-    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(10), Inches(0.5))
-    tf = subtitle_box.text_frame
+    # Client type and contact
+    type_labels = {'end_user': 'End User', 'contractor': 'Contractor', 'consultant': 'Consultant'}
+    sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.6), Inches(12), Inches(0.6))
+    tf = sub_box.text_frame
     p = tf.paragraphs[0]
-    contact = client['contact_person'] if client['contact_person'] else 'No contact'
-    engineer = client['assigned_engineer_name'] if client['assigned_engineer_name'] else 'Not assigned'
-    p.text = f"Contact: {contact}  |  Managed by: {engineer}"
-    p.font.size = Pt(16)
-    p.font.color.rgb = RGBColor(255, 255, 255)
+    p.text = f"{type_labels.get(client_type, client_type)} | Contact: {client['contact_person'] or 'N/A'} | Managed by: {client['assigned_engineer_name'] or 'Not Assigned'}"
+    p.font.size = Pt(18)
+    p.font.color.rgb = RGBColor(200, 200, 200)
     p.font.name = FONT_NAME
     
     # Statistics boxes
     total_deal_value = sum(p['deal_value'] or 0 for p in projects)
-    pending_followups = len([f for f in follow_ups if f['status'] == 'Pending'])
     
-    stats_data = [
-        (len(projects), "Total Projects", RGBColor(102, 126, 234)),
-        (len(follow_ups), "Follow-ups", RGBColor(17, 153, 142)),
-        (f"{total_deal_value:,.0f}", "Deal Value (SAR)", RGBColor(240, 147, 251)),
-        (pending_followups, "Pending", RGBColor(79, 172, 254)),
+    stats = [
+        (str(len(projects)), 'Total Projects', RGBColor(233, 30, 99)),
+        (f"{total_deal_value:,.0f}", 'Total Deal Value (SAR)', RGBColor(156, 39, 176)),
     ]
     
-    box_width = 2.8
+    box_y = 3.0
+    box_width = 3.0
     box_height = 1.5
-    start_x = 0.7
-    box_y = 3
+    start_x = 0.5
     
-    for i, (value, label, color) in enumerate(stats_data):
-        box = slide.shapes.add_shape(5, Inches(start_x + i * 3.1), Inches(box_y), Inches(box_width), Inches(box_height))
+    for i, (value, label, color) in enumerate(stats):
+        box = slide.shapes.add_shape(1, Inches(start_x + i * 3.5), Inches(box_y), Inches(box_width), Inches(box_height))
         box.fill.solid()
         box.fill.fore_color.rgb = color
         box.line.fill.background()
         
-        # Value
-        val_box = slide.shapes.add_textbox(Inches(start_x + i * 3.1), Inches(box_y + 0.3), Inches(box_width), Inches(0.6))
+        val_box = slide.shapes.add_textbox(Inches(start_x + i * 3.5), Inches(box_y + 0.2), Inches(box_width), Inches(0.8))
         tf = val_box.text_frame
         p = tf.paragraphs[0]
-        p.text = str(value)
+        p.text = value
         p.font.size = Pt(32)
         p.font.bold = True
         p.font.color.rgb = RGBColor(255, 255, 255)
         p.font.name = FONT_NAME
         p.alignment = PP_ALIGN.CENTER
         
-        # Label
-        lbl_box = slide.shapes.add_textbox(Inches(start_x + i * 3.1), Inches(box_y + 0.9), Inches(box_width), Inches(0.4))
+        lbl_box = slide.shapes.add_textbox(Inches(start_x + i * 3.5), Inches(box_y + 0.9), Inches(box_width), Inches(0.5))
         tf = lbl_box.text_frame
         p = tf.paragraphs[0]
         p.text = label
@@ -15620,8 +15557,8 @@ def export_client_profile_pptx(client_type, client_id):
         p.font.name = FONT_NAME
         p.alignment = PP_ALIGN.CENTER
     
-    # Contact Information Section
-    info_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.8), Inches(6), Inches(2.5))
+    # Contact info
+    info_box = slide.shapes.add_textbox(Inches(0.5), Inches(5.0), Inches(6), Inches(2))
     tf = info_box.text_frame
     tf.word_wrap = True
     
@@ -15633,11 +15570,9 @@ def export_client_profile_pptx(client_type, client_id):
     p.font.name = FONT_NAME
     
     info_items = [
-        f"Phone: {client['phone'] if client['phone'] else 'N/A'}",
-        f"Email: {client['email'] if client['email'] else 'N/A'}",
-        f"Notes: {client['note'] if client['note'] else 'N/A'}",
-        f"Client Status: {'Client' if client['is_client'] else 'Prospect'}",
-        f"Tier: {client['client_tier'] if client['client_tier'] else 'Standard'}",
+        f"Phone: {client['phone'] or 'N/A'}",
+        f"Email: {client['email'] or 'N/A'}",
+        f"Tier: {client['client_tier'] or 'Standard'}",
     ]
     
     for item in info_items:
@@ -15646,312 +15581,410 @@ def export_client_profile_pptx(client_type, client_id):
         p.font.size = Pt(12)
         p.font.color.rgb = RGBColor(80, 80, 80)
         p.font.name = FONT_NAME
-        p.space_before = Pt(4)
     
-    # Slide 2: Projects Table (if projects exist)
-    if projects:
-        slide = prs.slides.add_slide(slide_layout)
-        
-        # Title
-        title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(10), Inches(0.6))
-        tf = title.text_frame
-        p = tf.paragraphs[0]
-        p.text = f"Projects for {client['name']}"
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = main_color
+    # Projects list on overview
+    proj_box = slide.shapes.add_textbox(Inches(7), Inches(5.0), Inches(6), Inches(2))
+    tf = proj_box.text_frame
+    tf.word_wrap = True
+    
+    p = tf.paragraphs[0]
+    p.text = f"Projects ({len(projects)})"
+    p.font.size = Pt(18)
+    p.font.bold = True
+    p.font.color.rgb = green_color
+    p.font.name = FONT_NAME
+    
+    for proj in projects[:5]:
+        p = tf.add_paragraph()
+        p.text = f"• {proj['project_name'][:40]}"
+        p.font.size = Pt(11)
+        p.font.color.rgb = RGBColor(80, 80, 80)
         p.font.name = FONT_NAME
-        
-        # Projects table
-        cols = 5
-        rows = min(len(projects) + 1, 12)  # Limit rows
-        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.5)).table
-        
-        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Probability', 'Date']
-        col_widths = [4, 2, 2, 2, 2.3]
-        
-        for i, (header, width) in enumerate(zip(headers, col_widths)):
-            table.columns[i].width = Inches(width)
-            cell = table.cell(0, i)
-            cell.text = header
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = main_color
-            for para in cell.text_frame.paragraphs:
-                para.font.bold = True
-                para.font.size = Pt(11)
-                para.font.color.rgb = RGBColor(255, 255, 255)
-                para.font.name = FONT_NAME
-                para.alignment = PP_ALIGN.CENTER
-            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        for idx, proj in enumerate(projects[:rows-1], 1):
-            data = [
-                proj['project_name'][:40] if proj['project_name'] else 'N/A',
-                proj['stage'] if proj['stage'] else 'N/A',
-                f"{proj['deal_value'] if proj['deal_value'] else 0:,.0f}",
-                proj['probability'] if proj['probability'] else 'N/A',
-                proj['registered_date'] if proj['registered_date'] else 'N/A',
-            ]
-            for col, val in enumerate(data):
-                cell = table.cell(idx, col)
-                cell.text = str(val)
-                if idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(240, 245, 255)
-                for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(10)
-                    para.font.name = FONT_NAME
-                    para.alignment = PP_ALIGN.CENTER
-                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
-    # Slide 3: Follow-ups (if exist)
-    if follow_ups:
-        slide = prs.slides.add_slide(slide_layout)
-        
-        title = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(10), Inches(0.6))
-        tf = title.text_frame
-        p = tf.paragraphs[0]
-        p.text = f"Follow-ups for {client['name']}"
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = main_color
+    if len(projects) > 5:
+        p = tf.add_paragraph()
+        p.text = f"... and {len(projects) - 5} more"
+        p.font.size = Pt(10)
+        p.font.color.rgb = RGBColor(150, 150, 150)
         p.font.name = FONT_NAME
-        
-        cols = 5
-        rows = min(len(follow_ups) + 1, 12)
-        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.5)).table
-        
-        headers = ['Date', 'Type', 'Status', 'Notes', 'Assigned To']
-        col_widths = [2, 2, 2, 4, 2.3]
-        
-        for i, (header, width) in enumerate(zip(headers, col_widths)):
-            table.columns[i].width = Inches(width)
-            cell = table.cell(0, i)
-            cell.text = header
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = main_color
-            for para in cell.text_frame.paragraphs:
-                para.font.bold = True
-                para.font.size = Pt(11)
-                para.font.color.rgb = RGBColor(255, 255, 255)
-                para.font.name = FONT_NAME
-                para.alignment = PP_ALIGN.CENTER
-            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        for idx, fu in enumerate(follow_ups[:rows-1], 1):
-            data = [
-                fu['follow_up_date'] if fu['follow_up_date'] else 'N/A',
-                fu['follow_up_type'] if fu['follow_up_type'] else 'N/A',
-                fu['status'] if fu['status'] else 'N/A',
-                (fu['notes'] if fu['notes'] else '')[:50],
-                fu['assigned_to'] if fu['assigned_to'] else 'N/A',
-            ]
-            for col, val in enumerate(data):
-                cell = table.cell(idx, col)
-                cell.text = str(val)
-                if idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(240, 245, 255)
-                for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(10)
-                    para.font.name = FONT_NAME
-                    para.alignment = PP_ALIGN.CENTER
-                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
-    # Slide: Purchase Orders
-    if all_pos:
-        slide_layout = prs.slide_layouts[6]
+    # For EACH PROJECT, create slides with full report
+    for proj in projects:
+        project_name = proj['project_name']
+        
+        # Get data for this project
+        cursor.execute("SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC", (project_name,))
+        quotations = cursor.fetchall()
+        
+        cursor.execute("SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC", (project_name,))
+        rfqs = cursor.fetchall()
+        
+        cursor.execute("SELECT * FROM purchase_orders WHERE project_name = ? ORDER BY created_at DESC", (project_name,))
+        pos = cursor.fetchall()
+        
+        cursor.execute("SELECT * FROM technical_support_requests WHERE project_name = ? ORDER BY requested_time DESC", (project_name,))
+        rfts_list = cursor.fetchall()
+        
+        # Project Header Slide
         slide = prs.slides.add_slide(slide_layout)
         
-        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(1.5))
         header.fill.solid()
-        header.fill.fore_color.rgb = RGBColor(220, 53, 69)
+        header.fill.fore_color.rgb = main_color
         header.line.fill.background()
         
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(12), Inches(0.8))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
-        p.text = "Purchase Orders"
-        p.font.size = Pt(28)
+        p.text = f"Project: {project_name[:50]}"
+        p.font.size = Pt(32)
         p.font.bold = True
         p.font.color.rgb = RGBColor(255, 255, 255)
         p.font.name = FONT_NAME
         
-        cols = 6
-        rows = min(len(all_pos) + 1, 12)
-        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
-        headers = ['Project', 'PO Number', 'Vendor', 'Amount (SAR)', 'Approval', 'Delivery']
-        col_widths = [2.5, 2, 2.5, 2.3, 1.5, 1.5]
+        # Project info
+        info_y = 1.8
+        info_items = [
+            f"Stage: {proj['stage'] or 'N/A'}",
+            f"Deal Value: {proj['deal_value'] or 0:,.0f} SAR",
+            f"Probability: {proj['probability'] or 0}%",
+            f"Sales Engineer: {proj['sales_engineer_name'] or 'N/A'}",
+        ]
         
-        for i, (header, width) in enumerate(zip(headers, col_widths)):
-            table.columns[i].width = Inches(width)
-            cell = table.cell(0, i)
-            cell.text = header
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
-            for para in cell.text_frame.paragraphs:
-                para.font.bold = True
-                para.font.size = Pt(11)
-                para.font.color.rgb = RGBColor(255, 255, 255)
-                para.font.name = FONT_NAME
-                para.alignment = PP_ALIGN.CENTER
-            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        info_box = slide.shapes.add_textbox(Inches(0.5), Inches(info_y), Inches(12), Inches(1))
+        tf = info_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = " | ".join(info_items)
+        p.font.size = Pt(14)
+        p.font.color.rgb = RGBColor(80, 80, 80)
+        p.font.name = FONT_NAME
         
-        for idx, po in enumerate(all_pos[:rows-1], 1):
-            data = [
-                (po.get('project_name', '') or '')[:25],
-                po.get('po_number', '') or '',
-                (po.get('vendor', '') or '')[:20],
-                f"{po.get('total_amount', 0) or 0:,.0f}",
-                po.get('po_approval_status', '') or '',
-                po.get('po_delivery_status', '') or '',
-            ]
-            for col, val in enumerate(data):
-                cell = table.cell(idx, col)
-                cell.text = str(val)
-                if idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(255, 240, 240)
+        # Summary boxes
+        summary_y = 2.6
+        summaries = [
+            (str(len(quotations)), 'Quotations', green_color),
+            (str(len(rfqs)), 'RFQs', yellow_color),
+            (str(len(pos)), 'POs', red_color),
+            (str(len(rfts_list)), 'RFTS', purple_color),
+        ]
+        
+        for i, (val, lbl, color) in enumerate(summaries):
+            box = slide.shapes.add_shape(1, Inches(0.5 + i * 3.1), Inches(summary_y), Inches(2.8), Inches(1.2))
+            box.fill.solid()
+            box.fill.fore_color.rgb = color
+            box.line.fill.background()
+            
+            val_box = slide.shapes.add_textbox(Inches(0.5 + i * 3.1), Inches(summary_y + 0.15), Inches(2.8), Inches(0.6))
+            tf = val_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = val
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+            
+            lbl_box = slide.shapes.add_textbox(Inches(0.5 + i * 3.1), Inches(summary_y + 0.7), Inches(2.8), Inches(0.4))
+            tf = lbl_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = lbl
+            p.font.size = Pt(14)
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+        
+        # Quotations Table (if any)
+        if quotations:
+            table_y = 4.0
+            cols = 6
+            rows = min(len(quotations) + 1, 7)
+            table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(table_y), Inches(12.3), Inches(rows * 0.4)).table
+            
+            headers = ['Quote Ref', 'System', 'Presale Eng', 'Cost (SAR)', 'Selling Price', 'Status']
+            col_widths = [2, 2.5, 2, 2, 2, 1.8]
+            
+            for i, (h, w) in enumerate(zip(headers, col_widths)):
+                table.columns[i].width = Inches(w)
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = green_color
                 for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
                     para.font.size = Pt(10)
+                    para.font.color.rgb = RGBColor(255, 255, 255)
                     para.font.name = FONT_NAME
                     para.alignment = PP_ALIGN.CENTER
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-                cell = table.cell(idx, col)
-                cell.text = str(val)
-                if idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(255, 240, 240)
+            
+            for idx, q in enumerate(quotations[:rows-1], 1):
+                data = [
+                    q['quote_reference'] or '',
+                    (q['system'] or '')[:20],
+                    (q['presale_engineer'] or '')[:15],
+                    f"{q['cost'] or 0:,.0f}",
+                    f"{q['selling_price'] or 0:,.0f}",
+                    q['status'] or '',
+                ]
+                for col, val in enumerate(data):
+                    cell = table.cell(idx, col)
+                    cell.text = str(val)
+                    if idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(230, 245, 230)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # RFQs slide (if many)
+        if rfqs:
+            slide = prs.slides.add_slide(slide_layout)
+            
+            header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+            header.fill.solid()
+            header.fill.fore_color.rgb = yellow_color
+            header.line.fill.background()
+            
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"RFQs - {project_name[:40]}"
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(0, 0, 0)
+            p.font.name = FONT_NAME
+            
+            cols = 6
+            rows = min(len(rfqs) + 1, 12)
+            table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+            
+            headers = ['RFQ Ref', 'System', 'Type', 'Presale Eng', 'Status', 'Requested']
+            col_widths = [2, 2.5, 2, 2, 1.8, 2]
+            
+            for i, (h, w) in enumerate(zip(headers, col_widths)):
+                table.columns[i].width = Inches(w)
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = yellow_color
                 for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
                     para.font.size = Pt(10)
+                    para.font.color.rgb = RGBColor(0, 0, 0)
                     para.font.name = FONT_NAME
                     para.alignment = PP_ALIGN.CENTER
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            for idx, r in enumerate(rfqs[:rows-1], 1):
+                data = [
+                    r['rfq_reference'] or '',
+                    (r['system'] or '')[:20],
+                    (r['request_type'] or '')[:15],
+                    (r['presale_engineer'] or '')[:15],
+                    r['request_status'] or '',
+                    (r['requested_time'] or '')[:10],
+                ]
+                for col, val in enumerate(data):
+                    cell = table.cell(idx, col)
+                    cell.text = str(val)
+                    if idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(255, 250, 230)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Purchase Orders slide (if any)
+        if pos:
+            slide = prs.slides.add_slide(slide_layout)
+            
+            header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+            header.fill.solid()
+            header.fill.fore_color.rgb = red_color
+            header.line.fill.background()
+            
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"Purchase Orders - {project_name[:40]}"
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.name = FONT_NAME
+            
+            cols = 6
+            rows = min(len(pos) + 1, 12)
+            table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+            
+            headers = ['PO Number', 'Vendor', 'System', 'Total (SAR)', 'Approval', 'Delivery']
+            col_widths = [2.2, 2.5, 2.3, 2, 1.6, 1.7]
+            
+            for i, (h, w) in enumerate(zip(headers, col_widths)):
+                table.columns[i].width = Inches(w)
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = red_color
+                for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
+                    para.font.size = Pt(10)
+                    para.font.color.rgb = RGBColor(255, 255, 255)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            for idx, po in enumerate(pos[:rows-1], 1):
+                data = [
+                    po['po_number'] or '',
+                    (po['vendor'] or po['distributor'] or '')[:20],
+                    (po['system'] or '')[:20],
+                    f"{po['total_amount'] or 0:,.0f}",
+                    (po['po_approval_status'] or '')[:12],
+                    (po['po_delivery_status'] or '')[:12],
+                ]
+                for col, val in enumerate(data):
+                    cell = table.cell(idx, col)
+                    cell.text = str(val)
+                    if idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(255, 235, 235)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            # PO Items for each PO
+            for po in pos[:3]:  # Limit to first 3 POs to avoid too many slides
+                if po['po_number']:
+                    cursor.execute("SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number", (po['po_number'],))
+                    items = cursor.fetchall()
+                    
+                    if items:
+                        slide = prs.slides.add_slide(slide_layout)
+                        
+                        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+                        header.fill.solid()
+                        header.fill.fore_color.rgb = orange_color
+                        header.line.fill.background()
+                        
+                        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+                        tf = title_box.text_frame
+                        p = tf.paragraphs[0]
+                        p.text = f"PO Items: {po['po_number']}"
+                        p.font.size = Pt(24)
+                        p.font.bold = True
+                        p.font.color.rgb = RGBColor(255, 255, 255)
+                        p.font.name = FONT_NAME
+                        
+                        cols = 6
+                        rows = min(len(items) + 1, 12)
+                        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+                        
+                        headers = ['Item #', 'Part Number', 'Description', 'Qty', 'Unit Price', 'Total']
+                        col_widths = [1, 2.5, 4, 1.2, 1.8, 1.8]
+                        
+                        for i, (h, w) in enumerate(zip(headers, col_widths)):
+                            table.columns[i].width = Inches(w)
+                            cell = table.cell(0, i)
+                            cell.text = h
+                            cell.fill.solid()
+                            cell.fill.fore_color.rgb = orange_color
+                            for para in cell.text_frame.paragraphs:
+                                para.font.bold = True
+                                para.font.size = Pt(10)
+                                para.font.color.rgb = RGBColor(255, 255, 255)
+                                para.font.name = FONT_NAME
+                                para.alignment = PP_ALIGN.CENTER
+                            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                        
+                        for idx, item in enumerate(items[:rows-1], 1):
+                            data = [
+                                str(item['item_number'] or ''),
+                                (item['part_number'] or '')[:20],
+                                (item['description'] or '')[:35],
+                                str(item['quantity'] or 0),
+                                f"{item['unit_price'] or 0:,.0f}",
+                                f"{item['total_price'] or 0:,.0f}",
+                            ]
+                            for col, val in enumerate(data):
+                                cell = table.cell(idx, col)
+                                cell.text = str(val)
+                                if idx % 2 == 0:
+                                    cell.fill.solid()
+                                    cell.fill.fore_color.rgb = RGBColor(255, 243, 230)
+                                for para in cell.text_frame.paragraphs:
+                                    para.font.size = Pt(9)
+                                    para.font.name = FONT_NAME
+                                    para.alignment = PP_ALIGN.CENTER
+                                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # RFTS slide (if any)
+        if rfts_list:
+            slide = prs.slides.add_slide(slide_layout)
+            
+            header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+            header.fill.solid()
+            header.fill.fore_color.rgb = purple_color
+            header.line.fill.background()
+            
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"RFTS - {project_name[:40]}"
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.color.rgb = RGBColor(255, 255, 255)
+            p.font.name = FONT_NAME
+            
+            cols = 6
+            rows = min(len(rfts_list) + 1, 12)
+            table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+            
+            headers = ['RFTS Ref', 'System', 'Type', 'Engineer', 'Priority', 'Status']
+            col_widths = [2.2, 2.5, 2, 2.3, 1.5, 1.8]
+            
+            for i, (h, w) in enumerate(zip(headers, col_widths)):
+                table.columns[i].width = Inches(w)
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = purple_color
+                for para in cell.text_frame.paragraphs:
+                    para.font.bold = True
+                    para.font.size = Pt(10)
+                    para.font.color.rgb = RGBColor(255, 255, 255)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            for idx, rt in enumerate(rfts_list[:rows-1], 1):
+                data = [
+                    rt['rfts_reference'] or '',
+                    (rt['system'] or '')[:20],
+                    (rt['request_type'] or '')[:15],
+                    (rt['presale_engineer'] or '')[:15],
+                    rt['priority'] or '',
+                    rt['request_status'] or '',
+                ]
+                for col, val in enumerate(data):
+                    cell = table.cell(idx, col)
+                    cell.text = str(val)
+                    if idx % 2 == 0:
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(245, 240, 255)
+                    for para in cell.text_frame.paragraphs:
+                        para.font.size = Pt(9)
+                        para.font.name = FONT_NAME
+                        para.alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
-    # Slide: RFTS (Technical Support Requests)
-    if all_rfts:
-        slide_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(slide_layout)
-        
-        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
-        header.fill.solid()
-        header.fill.fore_color.rgb = RGBColor(111, 66, 193)
-        header.line.fill.background()
-        
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
-        tf = title_box.text_frame
-        p = tf.paragraphs[0]
-        p.text = "Technical Support Requests (RFTS)"
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(255, 255, 255)
-        p.font.name = FONT_NAME
-        
-        cols = 7
-        rows = min(len(all_rfts) + 1, 12)
-        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
-        
-        headers = ['Project', 'RFTS Ref', 'System', 'Type', 'Engineer', 'Priority', 'Status']
-        col_widths = [2, 2, 2, 1.8, 2, 1.3, 1.2]
-        
-        for i, (header, width) in enumerate(zip(headers, col_widths)):
-            table.columns[i].width = Inches(width)
-            cell = table.cell(0, i)
-            cell.text = header
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(111, 66, 193)
-            for para in cell.text_frame.paragraphs:
-                para.font.bold = True
-                para.font.size = Pt(11)
-                para.font.color.rgb = RGBColor(255, 255, 255)
-                para.font.name = FONT_NAME
-                para.alignment = PP_ALIGN.CENTER
-            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        for idx, rt in enumerate(all_rfts[:rows-1], 1):
-            data = [
-                (rt.get('project_name', '') or '')[:20],
-                rt.get('rfts_reference', '') or '',
-                (rt.get('system', '') or '')[:15],
-                (rt.get('request_type', '') or '')[:15],
-                (rt.get('presale_engineer', '') or '')[:15],
-                rt.get('priority', '') or '',
-                rt.get('request_status', '') or '',
-            ]
-            for col, val in enumerate(data):
-                cell = table.cell(idx, col)
-                cell.text = str(val)
-                if idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(245, 240, 255)
-                for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(10)
-                    para.font.name = FONT_NAME
-                    para.alignment = PP_ALIGN.CENTER
-                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-
-
-    # Slide: PO Items (Purchase Order Line Items)
-    if all_po_items:
-        slide_layout = prs.slide_layouts[6]
-        slide = prs.slides.add_slide(slide_layout)
-        
-        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
-        header.fill.solid()
-        header.fill.fore_color.rgb = RGBColor(253, 126, 20)  # Orange
-        header.line.fill.background()
-        
-        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
-        tf = title_box.text_frame
-        p = tf.paragraphs[0]
-        p.text = "Purchase Order Line Items"
-        p.font.size = Pt(28)
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(255, 255, 255)
-        p.font.name = FONT_NAME
-        
-        cols = 7
-        rows = min(len(all_po_items) + 1, 12)
-        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
-        
-        headers = ['Project', 'PO Number', 'Part No', 'Description', 'Qty', 'Unit Price', 'Total']
-        col_widths = [2.2, 1.8, 1.5, 3.2, 1, 1.3, 1.3]
-        
-        for i, (header, width) in enumerate(zip(headers, col_widths)):
-            table.columns[i].width = Inches(width)
-            cell = table.cell(0, i)
-            cell.text = header
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(253, 126, 20)  # Orange
-            for para in cell.text_frame.paragraphs:
-                para.font.bold = True
-                para.font.size = Pt(11)
-                para.font.color.rgb = RGBColor(255, 255, 255)
-                para.font.name = FONT_NAME
-                para.alignment = PP_ALIGN.CENTER
-            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        for idx, item in enumerate(all_po_items[:rows-1], 1):
-            data = [
-                (item.get('project_name', '') or '')[:20],
-                item.get('po_number', '') or '',
-                (item.get('part_number', '') or '')[:15],
-                (item.get('description', '') or '')[:30],
-                str(item.get('quantity', 0) or 0),
-                f"{item.get('unit_price', 0) or 0:,.0f}",
-                f"{item.get('total_price', 0) or 0:,.0f}",
-            ]
-            for col, val in enumerate(data):
-                cell = table.cell(idx, col)
-                cell.text = str(val)
-                if idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(255, 243, 230)  # Light orange
-                for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(10)
-                    para.font.name = FONT_NAME
-                    para.alignment = PP_ALIGN.CENTER
-                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    conn.close()
+    
     # Save to BytesIO
     output = io.BytesIO()
     prs.save(output)
@@ -15966,7 +15999,6 @@ def export_client_profile_pptx(client_type, client_id):
         as_attachment=True,
         download_name=filename
     )
-
 
 def get_client_name(cursor, client_type, client_id):
     """Helper function to get client name based on type"""
