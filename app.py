@@ -15040,6 +15040,7 @@ def export_client_profile_excel(client_type, client_id):
     all_rfqs = []
     all_pos = []
     all_rfts = []
+    all_po_items = []
     for proj in projects:
         cursor.execute("""
             SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
@@ -15068,6 +15069,17 @@ def export_client_profile_excel(client_type, client_id):
         rfts_list = cursor.fetchall()
         for rt in rfts_list:
             all_rfts.append({'project_name': proj['project_name'], **dict(rt)})
+        
+        # Get PO Items for each PO
+        for po in pos:
+            po_number = po['po_number']
+            if po_number:
+                cursor.execute("""
+                    SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number
+                """, (po_number,))
+                items = cursor.fetchall()
+                for item in items:
+                    all_po_items.append({'project_name': proj['project_name'], 'po_number': po_number, **dict(item)})
     cursor.execute("""
         SELECT * FROM client_follow_ups
         WHERE client_type = ? AND client_id = ?
@@ -15310,6 +15322,40 @@ def export_client_profile_excel(client_type, client_id):
         for col in range(1, 10):
             ws_rfts.column_dimensions[get_column_letter(col)].width = 18
 
+    # PO Items Sheet (detailed line items for each PO)
+    if all_po_items:
+        ws_po_items = wb.create_sheet(title="PO Items")
+        po_items_headers = ['Project Name', 'PO Number', 'Item #', 'Part Number', 'Description', 'Quantity', 'Unit Price (SAR)', 'Total Price (SAR)', 'Qty Delivered', 'Delivery Status', 'Notes']
+        
+        orange_fill = PatternFill(start_color='fd7e14', end_color='fd7e14', fill_type='solid')
+        for col, header in enumerate(po_items_headers, 1):
+            cell = ws_po_items.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = orange_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, item in enumerate(all_po_items, 2):
+            ws_po_items.cell(row=idx, column=1, value=item.get('project_name', '')).font = value_font
+            ws_po_items.cell(row=idx, column=2, value=item.get('po_number', '')).font = value_font
+            ws_po_items.cell(row=idx, column=3, value=item.get('item_number', '')).font = value_font
+            ws_po_items.cell(row=idx, column=4, value=item.get('part_number', '')).font = value_font
+            ws_po_items.cell(row=idx, column=5, value=item.get('description', '')).font = value_font
+            ws_po_items.cell(row=idx, column=6, value=item.get('quantity', 0)).font = value_font
+            ws_po_items.cell(row=idx, column=7, value=item.get('unit_price', 0)).font = value_font
+            ws_po_items.cell(row=idx, column=8, value=item.get('total_price', 0)).font = value_font
+            ws_po_items.cell(row=idx, column=9, value=item.get('quantity_delivered', 0)).font = value_font
+            ws_po_items.cell(row=idx, column=10, value=item.get('delivery_status', '')).font = value_font
+            ws_po_items.cell(row=idx, column=11, value=item.get('notes', '')).font = value_font
+            
+            for col in range(1, 12):
+                ws_po_items.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_po_items.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 12):
+            ws_po_items.column_dimensions[get_column_letter(col)].width = 18
+
     # Follow-ups Sheet
     if follow_ups:
         ws_followups = wb.create_sheet(title="Follow-ups")
@@ -15423,6 +15469,7 @@ def export_client_profile_pptx(client_type, client_id):
     all_rfqs = []
     all_pos = []
     all_rfts = []
+    all_po_items = []
     for proj in projects:
         cursor.execute("""
             SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
@@ -15451,6 +15498,17 @@ def export_client_profile_pptx(client_type, client_id):
         rfts_list = cursor.fetchall()
         for rt in rfts_list:
             all_rfts.append({'project_name': proj['project_name'], **dict(rt)})
+        
+        # Get PO Items for each PO
+        for po in pos:
+            po_number = po['po_number']
+            if po_number:
+                cursor.execute("""
+                    SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number
+                """, (po_number,))
+                items = cursor.fetchall()
+                for item in items:
+                    all_po_items.append({'project_name': proj['project_name'], 'po_number': po_number, **dict(item)})
     # Get follow-ups
     cursor.execute("""
         SELECT * FROM client_follow_ups
@@ -15832,6 +15890,68 @@ def export_client_profile_pptx(client_type, client_id):
                     para.alignment = PP_ALIGN.CENTER
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
 
+
+    # Slide: PO Items (Purchase Order Line Items)
+    if all_po_items:
+        slide_layout = prs.slide_layouts[6]
+        slide = prs.slides.add_slide(slide_layout)
+        
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+        header.fill.solid()
+        header.fill.fore_color.rgb = RGBColor(253, 126, 20)  # Orange
+        header.line.fill.background()
+        
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "Purchase Order Line Items"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = FONT_NAME
+        
+        cols = 7
+        rows = min(len(all_po_items) + 1, 12)
+        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+        
+        headers = ['Project', 'PO Number', 'Part No', 'Description', 'Qty', 'Unit Price', 'Total']
+        col_widths = [2.2, 1.8, 1.5, 3.2, 1, 1.3, 1.3]
+        
+        for i, (header, width) in enumerate(zip(headers, col_widths)):
+            table.columns[i].width = Inches(width)
+            cell = table.cell(0, i)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(253, 126, 20)  # Orange
+            for para in cell.text_frame.paragraphs:
+                para.font.bold = True
+                para.font.size = Pt(11)
+                para.font.color.rgb = RGBColor(255, 255, 255)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for idx, item in enumerate(all_po_items[:rows-1], 1):
+            data = [
+                (item.get('project_name', '') or '')[:20],
+                item.get('po_number', '') or '',
+                (item.get('part_number', '') or '')[:15],
+                (item.get('description', '') or '')[:30],
+                str(item.get('quantity', 0) or 0),
+                f"{item.get('unit_price', 0) or 0:,.0f}",
+                f"{item.get('total_price', 0) or 0:,.0f}",
+            ]
+            for col, val in enumerate(data):
+                cell = table.cell(idx, col)
+                cell.text = str(val)
+                if idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(255, 243, 230)  # Light orange
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     # Save to BytesIO
     output = io.BytesIO()
     prs.save(output)
