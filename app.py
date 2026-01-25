@@ -4366,7 +4366,7 @@ def download_project_data_excel(project_id):
             quotation_cost AS "Cost (SAR)",
             quotation_selling_price AS "Selling Price (SAR)",
             margin AS "Margin %",
-            status AS "Status",
+            request_status AS "Status",
             registered_date AS "Registered Date",
             updated_time AS "Updated Date",
             sow AS "Scope of Work",
@@ -4429,7 +4429,7 @@ def download_project_data_excel(project_id):
             request_type AS "Request Type",
             presale_engineer AS "Presale Engineer",
             priority AS "Priority",
-            status AS "Status",
+            request_status AS "Status",
             deadline AS "Deadline",
             requested_time AS "Requested Date",
             note AS "Notes"
@@ -4855,7 +4855,7 @@ def download_project_data_pptx(project_id):
                 rfts['request_type'] or '',
                 rfts['presale_engineer'] or '',
                 rfts['priority'] or '',
-                rfts['status'] or '',
+                rfts['request_status'] or '',
                 rfts['deadline'] or ''
             ]
             for j, val in enumerate(row_data):
