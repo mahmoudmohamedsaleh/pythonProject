@@ -4442,7 +4442,7 @@ def download_project_data_excel(project_id):
     conn.close()
     
     total_quotation_value = df_quotations['Selling Price (SAR)'].sum() if not df_quotations.empty else 0
-    total_po_value = df_pos['Total Amount (SAR)'].sum() if not df_pos.empty else 0
+    total_po_value = df_pos['System'].sum() if not df_pos.empty else 0
     
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -4805,7 +4805,7 @@ def download_project_data_pptx(project_id):
         po_title_para.font.bold = True
         po_title_para.font.color.rgb = RGBColor(0xDC, 0x35, 0x45)
         
-        headers = ['PO Number', 'Distributor', 'Vendor', 'System', 'Amount', 'Approval', 'Delivery']
+        headers = ['PO Reference', 'Distributor', 'Vendor', 'System', 'Amount', 'Approval', 'Delivery']
         rows_to_show = min(len(purchase_orders), 12)
         po_table = slide4.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
         
@@ -15019,7 +15019,7 @@ def export_client_profile_excel(client_type, client_id):
             all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
         
         cursor.execute("""
-            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_number
+            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_request_reference
         """, (proj['project_name'],))
         pos = cursor.fetchall()
         for po in pos:
@@ -15213,7 +15213,7 @@ def export_client_profile_excel(client_type, client_id):
     # Purchase Orders Sheet
     if all_pos:
         ws_pos = wb.create_sheet(title="Purchase Orders")
-        po_headers = ['Project Name', 'PO Number', 'Vendor', 'Total Amount (SAR)', 'Status', 'Required Date', 'Notes']
+        po_headers = ['Project Name', 'PO Reference', 'Vendor', 'System', 'Status', 'Requested Date', 'Notes']
         
         red_fill = PatternFill(start_color='dc3545', end_color='dc3545', fill_type='solid')
         for col, header in enumerate(po_headers, 1):
@@ -15225,11 +15225,11 @@ def export_client_profile_excel(client_type, client_id):
         
         for idx, po in enumerate(all_pos, 2):
             ws_pos.cell(row=idx, column=1, value=po.get('project_name', '')).font = value_font
-            ws_pos.cell(row=idx, column=2, value=po.get('po_number', '')).font = value_font
-            ws_pos.cell(row=idx, column=3, value=po.get('vendor', '')).font = value_font
-            ws_pos.cell(row=idx, column=4, value=po.get('total_amount', 0) or 0).font = value_font
+            ws_pos.cell(row=idx, column=2, value=po.get('po_request_reference', '')).font = value_font
+            ws_pos.cell(row=idx, column=3, value=po.get('vendor_name', '')).font = value_font
+            ws_pos.cell(row=idx, column=4, value=po.get('system', '')).font = value_font
             ws_pos.cell(row=idx, column=5, value=po.get('request_status', '')).font = value_font
-            ws_pos.cell(row=idx, column=6, value=po.get('required_date', '')).font = value_font
+            ws_pos.cell(row=idx, column=6, value=po.get('requested_time', '')).font = value_font
             ws_pos.cell(row=idx, column=7, value=po.get('notes', '')).font = value_font
             
             for col in range(1, 8):
@@ -15401,7 +15401,7 @@ def export_client_profile_pptx(client_type, client_id):
             all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
         
         cursor.execute("""
-            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_number
+            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_request_reference
         """, (proj['project_name'],))
         pos = cursor.fetchall()
         for po in pos:
@@ -15685,7 +15685,7 @@ def export_client_profile_pptx(client_type, client_id):
         rows = min(len(all_pos) + 1, 12)
         table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
         
-        headers = ['Project', 'PO Number', 'Vendor', 'Amount (SAR)', 'Status', 'Required Date']
+        headers = ['Project', 'PO Reference', 'Vendor', 'System', 'Status', 'Requested Date']
         col_widths = [2.5, 2, 2.5, 2, 1.8, 1.5]
         
         for i, (header, width) in enumerate(zip(headers, col_widths)):
@@ -15705,11 +15705,11 @@ def export_client_profile_pptx(client_type, client_id):
         for idx, po in enumerate(all_pos[:rows-1], 1):
             data = [
                 (po.get('project_name', '') or '')[:25],
-                po.get('po_number', '') or '',
-                (po.get('vendor', '') or '')[:20],
-                f"{po.get('total_amount', 0) or 0:,.0f}",
+                po.get('po_request_reference', '') or '',
+                (po.get('vendor_name', '') or '')[:20],
+                f"{po.get('system', ''):,.0f}",
                 po.get('request_status', '') or '',
-                po.get('required_date', '') or '',
+                po.get('requested_time', '') or '',
             ]
             for col, val in enumerate(data):
                 cell = table.cell(idx, col)
@@ -18811,7 +18811,7 @@ def export_po_report_pptx():
         table.columns[4].width = Inches(1.8)
         table.columns[5].width = Inches(2.1)
         
-        headers_list = ['PO Number', 'Vendor', 'Distributor', 'Amount (SAR)', 'Approval', 'Delivery']
+        headers_list = ['PO Reference', 'Vendor', 'Distributor', 'System', 'Approval', 'Delivery']
         for col, hdr in enumerate(headers_list):
             cell = table.cell(0, col)
             cell.text = hdr
@@ -19522,7 +19522,7 @@ def download_filtered_po_excel():
 
     # Create a DataFrame from the results
     df = pd.DataFrame(purchase_orders, columns=[
-        'PO Request Number', 'PO Number','Project Name','System','PO Total Amount SAR', 'Distributor','Distributor Engineer','Disriributer_contact',
+        'PO Request Number', 'PO Reference','Project Name','System','PO Total Amount SAR', 'Distributor','Distributor Engineer','Disriributer_contact',
         'Distributor Email','PO Approval Status', 'PO Delivery Status', 'Presale Engineer',
         'Project Manager', 'Vendor Notes', 'Client Notes'
     ])
@@ -20861,7 +20861,7 @@ def export_po_profile_excel(po_request_number):
             
             row += 1
             details = [
-                ('PO Number', po['po_number'] or 'N/A', 'PO Request Number', po_request_number),
+                ('PO Reference', po['po_number'] or 'N/A', 'PO Request Number', po_request_number),
                 ('System', po['system'] or 'N/A', 'Status', po['po_approval_status'] or 'N/A'),
                 ('Distributor', po['distributor_name'] or 'N/A', 'Vendor', po['vendor_name'] or 'N/A'),
                 ('Presale Engineer', po['presale_engineer_name'] or 'N/A', 'Project Manager', po['project_manager_name'] or 'N/A'),
@@ -21148,7 +21148,7 @@ def export_po_profile_pptx(po_request_number):
         
         # Details table
         details_data = [
-            ['PO Number', po['po_number'] or 'N/A', 'PO Request #', po_request_number],
+            ['PO Reference', po['po_number'] or 'N/A', 'PO Request #', po_request_number],
             ['System', po['system'] or 'N/A', 'Project', (po['project_name_actual'] or 'N/A')[:30]],
             ['Distributor', (po['distributor_name'] or 'N/A')[:25], 'Vendor', (po['vendor_name'] or 'N/A')[:25]],
             ['Presale Eng.', (po['presale_engineer_name'] or 'N/A')[:20], 'Project Mgr', (po['project_manager_name'] or 'N/A')[:20]],
@@ -26117,7 +26117,7 @@ def export_price_history_excel(part_number):
         ws['A1'].alignment = Alignment(horizontal="center")
         
         # Headers
-        headers = ['Date', 'Old Price', 'New Price', 'Change', 'Change %', 'Currency', 'Supplier', 'PO Number', 'Changed By']
+        headers = ['Date', 'Old Price', 'New Price', 'Change', 'Change %', 'Currency', 'Supplier', 'PO Reference', 'Changed By']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=3, column=col, value=header)
             cell.font = header_font
