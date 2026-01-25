@@ -26805,7 +26805,7 @@ def generate_aggregate_powerpoint(selected_clients):
     import os
     from pptx import Presentation
     from pptx.util import Inches, Pt
-    from pptx.dml.color import RgbColor
+    from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
     
     conn = sqlite3.connect('ProjectStatus.db')
@@ -26831,7 +26831,7 @@ def generate_aggregate_powerpoint(selected_clients):
     p.text = "Aggregate Client Report"
     p.font.size = Pt(44)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(0x1a, 0x52, 0x76)
+    p.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
     p.alignment = PP_ALIGN.CENTER
     
     # Subtitle
@@ -26858,7 +26858,7 @@ def generate_aggregate_powerpoint(selected_clients):
     p.text = "Summary"
     p.font.size = Pt(32)
     p.font.bold = True
-    p.font.color.rgb = RgbColor(0x1a, 0x52, 0x76)
+    p.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
     
     # Client list
     total_projects = 0
@@ -26928,10 +26928,10 @@ def generate_aggregate_powerpoint(selected_clients):
         cell = table.cell(0, i)
         cell.text = header
         cell.fill.solid()
-        cell.fill.fore_color.rgb = RgbColor(0x1a, 0x52, 0x76)
+        cell.fill.fore_color.rgb = RGBColor(0x1a, 0x52, 0x76)
         p = cell.text_frame.paragraphs[0]
         p.font.bold = True
-        p.font.color.rgb = RgbColor(0xFF, 0xFF, 0xFF)
+        p.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         p.font.size = Pt(12)
     
     # Data
@@ -26953,10 +26953,10 @@ def generate_aggregate_powerpoint(selected_clients):
     for j in range(5):
         cell = table.cell(last_row, j)
         cell.fill.solid()
-        cell.fill.fore_color.rgb = RgbColor(0x28, 0xa7, 0x45)
+        cell.fill.fore_color.rgb = RGBColor(0x28, 0xa7, 0x45)
         p = cell.text_frame.paragraphs[0]
         p.font.bold = True
-        p.font.color.rgb = RgbColor(0xFF, 0xFF, 0xFF)
+        p.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
     
     # Individual client slides
     for client_data in client_data_list:
@@ -26970,7 +26970,7 @@ def generate_aggregate_powerpoint(selected_clients):
         p.text = client_data['name']
         p.font.size = Pt(28)
         p.font.bold = True
-        p.font.color.rgb = RgbColor(0x1a, 0x52, 0x76)
+        p.font.color.rgb = RGBColor(0x1a, 0x52, 0x76)
         
         # Info box
         info_text = f"Type: {client_data['type']} | Tier: {client_data['tier']} | Engineer: {client_data['engineer']}"
@@ -27000,10 +27000,10 @@ def generate_aggregate_powerpoint(selected_clients):
                 cell = table.cell(0, i)
                 cell.text = h
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = RgbColor(0x66, 0x7e, 0xea)
+                cell.fill.fore_color.rgb = RGBColor(0x66, 0x7e, 0xea)
                 p = cell.text_frame.paragraphs[0]
                 p.font.bold = True
-                p.font.color.rgb = RgbColor(0xFF, 0xFF, 0xFF)
+                p.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
                 p.font.size = Pt(11)
             
             for i, proj in enumerate(projects[:10], 1):
