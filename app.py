@@ -15244,9 +15244,9 @@ def export_client_profile_excel(client_type, client_id):
             for r in rfqs:
                 ws_proj.cell(row=row, column=1, value=r['rfq_reference'] or '').font = value_font
                 ws_proj.cell(row=row, column=2, value=r['system'] or '').font = value_font
-                ws_proj.cell(row=row, column=3, value=r.get('request_type', '') or r.get('rfq_status', '') or '').font = value_font
-                ws_proj.cell(row=row, column=4, value=r.get('sales_engineer_presale', '') or '').font = value_font
-                ws_proj.cell(row=row, column=5, value=r.get('rfq_status', '') or '').font = value_font
+                ws_proj.cell(row=row, column=3, value=r['rfq_status'] or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=r['sales_engineer_presale'] or '').font = value_font
+                ws_proj.cell(row=row, column=5, value=r['rfq_status'] or '').font = value_font
                 ws_proj.cell(row=row, column=6, value=r['requested_time'] or '').font = value_font
                 for col in range(1, 7):
                     ws_proj.cell(row=row, column=col).border = thin_border
@@ -15781,9 +15781,9 @@ def export_client_profile_pptx(client_type, client_id):
                 data = [
                     r['rfq_reference'] or '',
                     (r['system'] or '')[:20],
-                    (r.get('request_type', '') or r.get('rfq_status', '') or '')[:15],
-                    (r.get('sales_engineer_presale', '') or '')[:15],
-                    r.get('rfq_status', '') or '',
+                    (r['rfq_status'] or '')[:15],
+                    (r['sales_engineer_presale'] or '')[:15],
+                    r['rfq_status'] or '',
                     (r['requested_time'] or '')[:10],
                 ]
                 for col, val in enumerate(data):
