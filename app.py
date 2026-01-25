@@ -4327,17 +4327,37 @@ def toggle_quote_for_deal_value(project_id, quote_ref):
 @app.route('/download_project_data_excel/<int:project_id>')
 @login_required
 def download_project_data_excel(project_id):
-    """Export all project data (quotations, RFQs, POs) to Excel"""
+    """Export all project data (quotations, RFQs, POs) to Excel with enhanced formatting"""
     conn = sqlite3.connect('ProjectStatus.db')
-    
-    # Get project name for filename
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT project_name FROM register_project WHERE id = ?", (project_id,))
-    project_result = cursor.fetchone()
-    project_name = project_result[0] if project_result else "Project"
     
-    # Query to fetch quotations
-    quotations_query = '''
+    FONT_NAME = 'Calibri'
+    
+    cursor.execute("""
+        SELECT 
+            rp.*,
+            eu.name as end_user_name,
+            c.name as contractor_name,
+            cons.name as consultant_name,
+            e.name as sales_engineer_name
+        FROM register_project rp
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors c ON rp.contractor_id = c.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+        WHERE rp.id = ?
+    """, (project_id,))
+    project = cursor.fetchone()
+    
+    if not project:
+        flash('Project not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_projects'))
+    
+    project_name = project['project_name']
+    
+    quotations_query = """
         SELECT 
             quote_ref AS "Quote Reference",
             system AS "System",
@@ -4355,11 +4375,10 @@ def download_project_data_excel(project_id):
         FROM projects
         WHERE project_name = ?
         ORDER BY registered_date DESC
-    '''
+    """
     df_quotations = pd.read_sql_query(quotations_query, conn, params=(project_name,))
     
-    # Query to fetch RFQs
-    rfqs_query = '''
+    rfqs_query = """
         SELECT 
             rfq_reference AS "RFQ Reference",
             project_status AS "Project Status",
@@ -4374,11 +4393,10 @@ def download_project_data_excel(project_id):
         FROM rfq_requests
         WHERE project_name = ?
         ORDER BY requested_time DESC
-    '''
+    """
     df_rfqs = pd.read_sql_query(rfqs_query, conn, params=(project_name,))
     
-    # Query to fetch Purchase Orders
-    pos_query = '''
+    pos_query = """
         SELECT 
             po.po_request_number AS "PO Request Number",
             po.po_number AS "PO Number",
@@ -4400,37 +4418,111 @@ def download_project_data_excel(project_id):
         LEFT JOIN engineers pmeng ON po.project_manager = pmeng.id
         WHERE CAST(po.project_name AS TEXT) = CAST(? AS TEXT)
         ORDER BY po.created_at DESC
-    '''
-    df_pos = pd.read_sql_query(pos_query, conn, params=(project_id,))
+    """
+    df_pos = pd.read_sql_query(pos_query, conn, params=(project_name,))
     
     conn.close()
     
-    # Create Excel file with multiple sheets
+    total_quotation_value = df_quotations['Selling Price (SAR)'].sum() if not df_quotations.empty else 0
+    total_po_value = df_pos['Total Amount (SAR)'].sum() if not df_pos.empty else 0
+    
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df_quotations.to_excel(writer, sheet_name='Quotations', index=False)
-        df_rfqs.to_excel(writer, sheet_name='RFQs', index=False)
-        df_pos.to_excel(writer, sheet_name='Purchase Orders', index=False)
+        workbook = writer.book
         
-        # Auto-adjust column widths for all sheets
-        for sheet_name in writer.sheets:
-            worksheet = writer.sheets[sheet_name]
-            if sheet_name == 'Quotations':
-                df = df_quotations
-            elif sheet_name == 'RFQs':
-                df = df_rfqs
-            else:
-                df = df_pos
-                
-            for idx, col in enumerate(df.columns):
-                max_length = max(
-                    df[col].astype(str).map(len).max(),
-                    len(str(col))
-                )
-                worksheet.set_column(idx, idx, min(max_length + 2, 50))
+        title_format = workbook.add_format({
+            'bold': True, 'font_name': FONT_NAME, 'font_size': 16, 'font_color': '#667eea'
+        })
+        subtitle_format = workbook.add_format({
+            'font_name': FONT_NAME, 'font_size': 11, 'font_color': '#666666'
+        })
+        label_format = workbook.add_format({
+            'bold': True, 'font_name': FONT_NAME, 'font_size': 10, 'bg_color': '#f0f0f0', 'border': 1
+        })
+        value_format = workbook.add_format({
+            'font_name': FONT_NAME, 'font_size': 10, 'border': 1
+        })
+        
+        summary_sheet = workbook.add_worksheet('Project Summary')
+        summary_sheet.set_column('A:A', 25)
+        summary_sheet.set_column('B:B', 45)
+        
+        summary_sheet.write('A1', f'Project Profile: {project_name}', title_format)
+        summary_sheet.write('A2', f'Stage: {project["stage"] or "N/A"} | Probability: {project["probability"] or 0}%', subtitle_format)
+        
+        summary_data = [
+            ('Sales Engineer', project['sales_engineer_name'] or 'N/A'),
+            ('End User', project['end_user_name'] or 'N/A'),
+            ('Contractor', project['contractor_name'] or 'No Contractor'),
+            ('Consultant', project['consultant_name'] or 'No Consultant'),
+            ('Expected Close Date', project['expected_close_date'] or 'N/A'),
+            ('Deal Value', f"SAR {project['deal_value'] or 0:,.2f}"),
+            ('Scope of Work', project['sow'] or 'N/A'),
+        ]
+        
+        row = 4
+        for label, value in summary_data:
+            summary_sheet.write(row, 0, label, label_format)
+            summary_sheet.write(row, 1, str(value) if value else '', value_format)
+            row += 1
+        
+        row += 2
+        summary_sheet.write(row, 0, 'Statistics', title_format)
+        row += 1
+        stats = [
+            ('Total Quotations', len(df_quotations)),
+            ('Total Quotation Value', f"SAR {total_quotation_value:,.2f}"),
+            ('Total RFQs', len(df_rfqs)),
+            ('Total Purchase Orders', len(df_pos)),
+            ('Total PO Value', f"SAR {total_po_value:,.2f}"),
+        ]
+        for label, value in stats:
+            summary_sheet.write(row, 0, label, label_format)
+            summary_sheet.write(row, 1, str(value), value_format)
+            row += 1
+        
+        green_header = workbook.add_format({
+            'bold': True, 'font_name': FONT_NAME, 'font_size': 11,
+            'bg_color': '#28a745', 'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+        })
+        df_quotations.to_excel(writer, sheet_name='Quotations', index=False, startrow=1)
+        ws_quot = writer.sheets['Quotations']
+        ws_quot.write('A1', f'Quotations for {project_name}', title_format)
+        for col_num, col_name in enumerate(df_quotations.columns):
+            ws_quot.write(1, col_num, col_name, green_header)
+        for idx, col in enumerate(df_quotations.columns):
+            max_len = max(df_quotations[col].astype(str).map(len).max() if len(df_quotations) > 0 else 10, len(str(col)))
+            ws_quot.set_column(idx, idx, min(max_len + 2, 40))
+        
+        yellow_header = workbook.add_format({
+            'bold': True, 'font_name': FONT_NAME, 'font_size': 11,
+            'bg_color': '#ffc107', 'font_color': '#333333', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+        })
+        df_rfqs.to_excel(writer, sheet_name='RFQs', index=False, startrow=1)
+        ws_rfq = writer.sheets['RFQs']
+        ws_rfq.write('A1', f'RFQs for {project_name}', title_format)
+        for col_num, col_name in enumerate(df_rfqs.columns):
+            ws_rfq.write(1, col_num, col_name, yellow_header)
+        for idx, col in enumerate(df_rfqs.columns):
+            max_len = max(df_rfqs[col].astype(str).map(len).max() if len(df_rfqs) > 0 else 10, len(str(col)))
+            ws_rfq.set_column(idx, idx, min(max_len + 2, 40))
+        
+        red_header = workbook.add_format({
+            'bold': True, 'font_name': FONT_NAME, 'font_size': 11,
+            'bg_color': '#dc3545', 'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+        })
+        df_pos.to_excel(writer, sheet_name='Purchase Orders', index=False, startrow=1)
+        ws_po = writer.sheets['Purchase Orders']
+        ws_po.write('A1', f'Purchase Orders for {project_name}', title_format)
+        for col_num, col_name in enumerate(df_pos.columns):
+            ws_po.write(1, col_num, col_name, red_header)
+        for idx, col in enumerate(df_pos.columns):
+            max_len = max(df_pos[col].astype(str).map(len).max() if len(df_pos) > 0 else 10, len(str(col)))
+            ws_po.set_column(idx, idx, min(max_len + 2, 40))
     
     output.seek(0)
-    filename = f'{project_name}_Project_Data.xlsx'
+    safe_name = "".join(c for c in project_name if c.isalnum() or c in (' ', '-', '_')).strip()
+    filename = f'{safe_name}_Project_Data.xlsx'
     
     return send_file(output, 
                      download_name=filename, 
@@ -4442,7 +4534,7 @@ def download_project_data_pptx(project_id):
     """Export project profile data to PowerPoint presentation"""
     from pptx import Presentation
     from pptx.util import Inches, Pt
-    from pptx.dml.color import RgbColor
+    from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
     from pptx.oxml.ns import nsdecls
     from pptx.oxml import parse_xml
@@ -4541,7 +4633,7 @@ def download_project_data_pptx(project_id):
     title_para.font.name = FONT_NAME
     title_para.font.size = Pt(28)
     title_para.font.bold = True
-    title_para.font.color.rgb = RgbColor(102, 126, 234)
+    title_para.font.color.rgb = RGBColor(0x66, 0x7E, 0xEA)
     
     subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.1), Inches(12), Inches(0.4))
     subtitle_frame = subtitle_box.text_frame
@@ -4549,7 +4641,7 @@ def download_project_data_pptx(project_id):
     subtitle_para.text = f"Stage: {project['stage'] or 'N/A'} | Probability: {project['probability'] or 0}%"
     subtitle_para.font.name = FONT_NAME
     subtitle_para.font.size = Pt(14)
-    subtitle_para.font.color.rgb = RgbColor(100, 100, 100)
+    subtitle_para.font.color.rgb = RGBColor(0x64, 0x64, 0x64)
     
     info_table = slide.shapes.add_table(6, 2, Inches(0.5), Inches(1.8), Inches(5.5), Inches(2.5)).table
     info_data = [
@@ -4563,7 +4655,7 @@ def download_project_data_pptx(project_id):
     for i, (label, value) in enumerate(info_data):
         set_cell_bg(info_table.cell(i, 0), "667eea")
         add_styled_text(info_table.cell(i, 0), label, bold=True, size=11)
-        info_table.cell(i, 0).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+        info_table.cell(i, 0).text_frame.paragraphs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         add_styled_text(info_table.cell(i, 1), value, size=11)
     
     stats_table = slide.shapes.add_table(5, 2, Inches(6.5), Inches(1.8), Inches(4.5), Inches(2.1)).table
@@ -4577,7 +4669,7 @@ def download_project_data_pptx(project_id):
     for i, (label, value) in enumerate(stats_data):
         set_cell_bg(stats_table.cell(i, 0), "28a745")
         add_styled_text(stats_table.cell(i, 0), label, bold=True, size=11)
-        stats_table.cell(i, 0).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+        stats_table.cell(i, 0).text_frame.paragraphs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         add_styled_text(stats_table.cell(i, 1), str(value), size=11)
     
     scope_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(10), Inches(0.8))
@@ -4596,7 +4688,7 @@ def download_project_data_pptx(project_id):
         q_title_para.font.name = FONT_NAME
         q_title_para.font.size = Pt(24)
         q_title_para.font.bold = True
-        q_title_para.font.color.rgb = RgbColor(40, 167, 69)
+        q_title_para.font.color.rgb = RGBColor(0x28, 0xA7, 0x45)
         
         headers = ['Quote Ref', 'System', 'Presale Eng', 'Sales Eng', 'Cost', 'Selling Price', 'Status']
         rows_to_show = min(len(quotations), 12)
@@ -4605,7 +4697,7 @@ def download_project_data_pptx(project_id):
         for j, header in enumerate(headers):
             set_cell_bg(q_table.cell(0, j), "28a745")
             add_styled_text(q_table.cell(0, j), header, bold=True, size=10)
-            q_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+            q_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         
         for i, q in enumerate(quotations[:rows_to_show]):
             row_data = [
@@ -4629,7 +4721,7 @@ def download_project_data_pptx(project_id):
         r_title_para.font.name = FONT_NAME
         r_title_para.font.size = Pt(24)
         r_title_para.font.bold = True
-        r_title_para.font.color.rgb = RgbColor(255, 193, 7)
+        r_title_para.font.color.rgb = RGBColor(0xFF, 0xC1, 0x07)
         
         headers = ['RFQ Reference', 'Status', 'Priority', 'Presale Eng', 'Sales Eng', 'Deadline', 'RFQ Status']
         rows_to_show = min(len(rfqs), 12)
@@ -4661,7 +4753,7 @@ def download_project_data_pptx(project_id):
         po_title_para.font.name = FONT_NAME
         po_title_para.font.size = Pt(24)
         po_title_para.font.bold = True
-        po_title_para.font.color.rgb = RgbColor(220, 53, 69)
+        po_title_para.font.color.rgb = RGBColor(0xDC, 0x35, 0x45)
         
         headers = ['PO Number', 'Distributor', 'Vendor', 'System', 'Amount', 'Approval', 'Delivery']
         rows_to_show = min(len(purchase_orders), 12)
@@ -4670,7 +4762,7 @@ def download_project_data_pptx(project_id):
         for j, header in enumerate(headers):
             set_cell_bg(po_table.cell(0, j), "dc3545")
             add_styled_text(po_table.cell(0, j), header, bold=True, size=10)
-            po_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+            po_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         
         for i, po in enumerate(purchase_orders[:rows_to_show]):
             row_data = [
