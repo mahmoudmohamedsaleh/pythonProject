@@ -416,7 +416,7 @@
             </li>
             {% endif %}
 
-            {% set has_crm_items = user_has_permission('view_projects') or user_has_permission('view_pipeline_analysis') or user_has_permission('view_sales_performance') or user_has_permission('view_aging_dashboard') or user_has_permission('view_all_clients') or user_has_permission('view_end_users') or user_has_permission('view_contractors') or user_has_permission('view_consultants') %}
+            {% set has_crm_items = user_has_permission('view_projects') or user_has_permission('view_pipeline_analysis') or user_has_permission('view_sales_performance') or user_has_permission('view_aging_dashboard') or user_has_permission('view_all_clients') or user_has_permission('view_end_users') or user_has_permission('view_contractors') or user_has_permission('view_consultants') or user_has_permission('view_aggregate_reports') %}
             {% if has_crm_items %}
             <li class="menu-section">
                 <div class="menu-header" data-section="crm">
@@ -467,7 +467,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user_has_permission('view_all_clients') %}
+                    {% if user_has_permission('view_aggregate_reports') %}
                     <li class="nav-item tooltip-wrapper" data-tooltip="Aggregate Reports">
                         <a href="{{ url_for('aggregate_reports') }}" class="{{ 'active' if request.endpoint == 'aggregate_reports' else '' }}">
                             <i class="fas fa-file-alt"></i>

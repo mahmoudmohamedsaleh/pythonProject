@@ -1000,6 +1000,12 @@ def add_missing_permissions():
         ('download_quotation', 'Download Quotation', 'Sales', 'Download quotation PDF files'),
         ('download_cost_sheet', 'Download Cost Sheet', 'Sales', 'Download cost sheet Excel files'),
         ('view_active_users', 'Active Users', 'Administration', 'View and manage currently active user sessions'),
+        ('view_all_clients', 'All Clients', 'CRM', 'View all clients'),
+        ('view_aggregate_reports', 'Aggregate Reports', 'CRM', 'Access aggregate reports for multiple clients'),
+        ('export_client_profile_excel', 'Export Client Excel', 'CRM', 'Download client profile Excel reports'),
+        ('export_client_profile_pptx', 'Export Client PowerPoint', 'CRM', 'Download client profile PowerPoint reports'),
+        ('export_project_profile_excel', 'Export Project Excel', 'CRM', 'Download project profile Excel reports'),
+        ('export_project_profile_pptx', 'Export Project PowerPoint', 'CRM', 'Download project profile PowerPoint reports'),
     ]
     
     for code, label, category, description in new_permissions:
