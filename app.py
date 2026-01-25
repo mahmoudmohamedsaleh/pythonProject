@@ -6407,7 +6407,7 @@ def engineer_reports():
         
         for q in project['quotations']:
             status = (q['status'] or '').lower()
-            selling_price = float(q['selling_price'] or 0)
+            selling_price = float(q['quotation_selling_price'] or 0)
             # Check for won status variations (Won, Closed Won, etc.)
             if 'won' in status:
                 won_count += 1
@@ -6719,7 +6719,7 @@ def export_engineer_report_excel():
                 status_cell.font = Font(color="FFFFFF", bold=True)
             else:
                 status_cell.fill = ongoing_fill
-            price_cell = ws.cell(row=row, column=5, value=q['selling_price'])
+            price_cell = ws.cell(row=row, column=5, value=q['quotation_selling_price'])
             price_cell.border = border
             price_cell.number_format = '#,##0.00'
             date_cell = ws.cell(row=row, column=6, value=q['registered_date'].split(' ')[0] if q['registered_date'] else '')
@@ -6745,13 +6745,13 @@ def export_engineer_report_excel():
             engineer_stats[eng_name]['total'] += 1
             if q['category'] == 'Won':
                 engineer_stats[eng_name]['won'] += 1
-                engineer_stats[eng_name]['won_value'] += q['selling_price']
+                engineer_stats[eng_name]['won_value'] += q['quotation_selling_price']
             elif q['category'] == 'Lost':
                 engineer_stats[eng_name]['lost'] += 1
-                engineer_stats[eng_name]['lost_value'] += q['selling_price']
+                engineer_stats[eng_name]['lost_value'] += q['quotation_selling_price']
             else:
                 engineer_stats[eng_name]['ongoing'] += 1
-                engineer_stats[eng_name]['ongoing_value'] += q['selling_price']
+                engineer_stats[eng_name]['ongoing_value'] += q['quotation_selling_price']
     
     # Add Presale/Sales Engineers Performance sheet
     if engineer_stats:
@@ -7257,13 +7257,13 @@ def export_engineer_report_pptx():
             engineer_stats[eng_name]['total'] += 1
             if q['category'] == 'Won':
                 engineer_stats[eng_name]['won'] += 1
-                engineer_stats[eng_name]['won_value'] += q['selling_price']
+                engineer_stats[eng_name]['won_value'] += q['quotation_selling_price']
             elif q['category'] == 'Lost':
                 engineer_stats[eng_name]['lost'] += 1
-                engineer_stats[eng_name]['lost_value'] += q['selling_price']
+                engineer_stats[eng_name]['lost_value'] += q['quotation_selling_price']
             else:
                 engineer_stats[eng_name]['ongoing'] += 1
-                engineer_stats[eng_name]['ongoing_value'] += q['selling_price']
+                engineer_stats[eng_name]['ongoing_value'] += q['quotation_selling_price']
     
     # Presale/Sales Engineers Performance Slide(s) - Card Layout
     if engineer_stats:
@@ -15205,11 +15205,11 @@ def export_client_profile_excel(client_type, client_id):
             row += 1
             
             for q in quotations:
-                ws_proj.cell(row=row, column=1, value=q['quote_reference'] or '').font = value_font
+                ws_proj.cell(row=row, column=1, value=q['quote_ref'] or '').font = value_font
                 ws_proj.cell(row=row, column=2, value=q['system'] or '').font = value_font
-                ws_proj.cell(row=row, column=3, value=q['presale_engineer'] or '').font = value_font
-                ws_proj.cell(row=row, column=4, value=q['cost'] or 0).font = value_font
-                ws_proj.cell(row=row, column=5, value=q['selling_price'] or 0).font = value_font
+                ws_proj.cell(row=row, column=3, value=q['presale_eng'] or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=q['quotation_cost'] or 0).font = value_font
+                ws_proj.cell(row=row, column=5, value=q['quotation_selling_price'] or 0).font = value_font
                 ws_proj.cell(row=row, column=6, value=q['status'] or '').font = value_font
                 for col in range(1, 7):
                     ws_proj.cell(row=row, column=col).border = thin_border
@@ -15244,9 +15244,9 @@ def export_client_profile_excel(client_type, client_id):
             for r in rfqs:
                 ws_proj.cell(row=row, column=1, value=r['rfq_reference'] or '').font = value_font
                 ws_proj.cell(row=row, column=2, value=r['system'] or '').font = value_font
-                ws_proj.cell(row=row, column=3, value=r['request_type'] or '').font = value_font
-                ws_proj.cell(row=row, column=4, value=r['presale_engineer'] or '').font = value_font
-                ws_proj.cell(row=row, column=5, value=r['request_status'] or '').font = value_font
+                ws_proj.cell(row=row, column=3, value=r.get('request_type', '') or r.get('rfq_status', '') or '').font = value_font
+                ws_proj.cell(row=row, column=4, value=r.get('sales_engineer_presale', '') or '').font = value_font
+                ws_proj.cell(row=row, column=5, value=r.get('rfq_status', '') or '').font = value_font
                 ws_proj.cell(row=row, column=6, value=r['requested_time'] or '').font = value_font
                 for col in range(1, 7):
                     ws_proj.cell(row=row, column=col).border = thin_border
@@ -15719,11 +15719,11 @@ def export_client_profile_pptx(client_type, client_id):
             
             for idx, q in enumerate(quotations[:rows-1], 1):
                 data = [
-                    q['quote_reference'] or '',
+                    q['quote_ref'] or '',
                     (q['system'] or '')[:20],
-                    (q['presale_engineer'] or '')[:15],
-                    f"{q['cost'] or 0:,.0f}",
-                    f"{q['selling_price'] or 0:,.0f}",
+                    (q['presale_eng'] or '')[:15],
+                    f"{q['quotation_cost'] or 0:,.0f}",
+                    f"{q['quotation_selling_price'] or 0:,.0f}",
                     q['status'] or '',
                 ]
                 for col, val in enumerate(data):
@@ -15781,9 +15781,9 @@ def export_client_profile_pptx(client_type, client_id):
                 data = [
                     r['rfq_reference'] or '',
                     (r['system'] or '')[:20],
-                    (r['request_type'] or '')[:15],
-                    (r['presale_engineer'] or '')[:15],
-                    r['request_status'] or '',
+                    (r.get('request_type', '') or r.get('rfq_status', '') or '')[:15],
+                    (r.get('sales_engineer_presale', '') or '')[:15],
+                    r.get('rfq_status', '') or '',
                     (r['requested_time'] or '')[:10],
                 ]
                 for col, val in enumerate(data):
