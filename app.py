@@ -4690,7 +4690,7 @@ def download_project_data_pptx(project_id):
         q_title_para.font.bold = True
         q_title_para.font.color.rgb = RGBColor(0x28, 0xA7, 0x45)
         
-        headers = ['Quote Ref', 'System', 'Presale Eng', 'Sales Eng', 'Cost', 'Selling Price', 'Status']
+        headers = ['Quote Ref', 'System', 'Presale Eng', 'Sales Eng', 'Cost', 'Selling Price', 'Margin', 'Status']
         rows_to_show = min(len(quotations), 12)
         q_table = slide2.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
         
@@ -4707,6 +4707,7 @@ def download_project_data_pptx(project_id):
                 q['sales_eng'] or '',
                 f"SAR {q['quotation_cost'] or 0:,.2f}",
                 f"SAR {q['quotation_selling_price'] or 0:,.2f}",
+                f"{q['margin'] or 0}%",
                 q['status'] or ''
             ]
             for j, val in enumerate(row_data):
