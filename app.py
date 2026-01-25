@@ -14998,8 +14998,11 @@ def export_client_profile_excel(client_type, client_id):
     projects = cursor.fetchall()
     
     # Get quotations for all projects
+    # Get quotations, RFQs, POs and RFTS for all projects
     all_quotations = []
     all_rfqs = []
+    all_pos = []
+    all_rfts = []
     for proj in projects:
         cursor.execute("""
             SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
@@ -15014,8 +15017,20 @@ def export_client_profile_excel(client_type, client_id):
         rfqs = cursor.fetchall()
         for r in rfqs:
             all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
-    
-    # Get follow-ups
+        
+        cursor.execute("""
+            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_number
+        """, (proj['project_name'],))
+        pos = cursor.fetchall()
+        for po in pos:
+            all_pos.append({'project_name': proj['project_name'], **dict(po)})
+        
+        cursor.execute("""
+            SELECT * FROM technical_support_requests WHERE project_name = ? ORDER BY requested_time DESC
+        """, (proj['project_name'],))
+        rfts_list = cursor.fetchall()
+        for rt in rfts_list:
+            all_rfts.append({'project_name': proj['project_name'], **dict(rt)})
     cursor.execute("""
         SELECT * FROM client_follow_ups
         WHERE client_type = ? AND client_id = ?
@@ -15195,6 +15210,68 @@ def export_client_profile_excel(client_type, client_id):
         for col in range(1, 9):
             ws_rfq.column_dimensions[get_column_letter(col)].width = 18
     
+    # Purchase Orders Sheet
+    if all_pos:
+        ws_pos = wb.create_sheet(title="Purchase Orders")
+        po_headers = ['Project Name', 'PO Number', 'Vendor', 'Total Amount (SAR)', 'Status', 'Required Date', 'Notes']
+        
+        red_fill = PatternFill(start_color='dc3545', end_color='dc3545', fill_type='solid')
+        for col, header in enumerate(po_headers, 1):
+            cell = ws_pos.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = red_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, po in enumerate(all_pos, 2):
+            ws_pos.cell(row=idx, column=1, value=po.get('project_name', '')).font = value_font
+            ws_pos.cell(row=idx, column=2, value=po.get('po_number', '')).font = value_font
+            ws_pos.cell(row=idx, column=3, value=po.get('vendor', '')).font = value_font
+            ws_pos.cell(row=idx, column=4, value=po.get('total_amount', 0) or 0).font = value_font
+            ws_pos.cell(row=idx, column=5, value=po.get('request_status', '')).font = value_font
+            ws_pos.cell(row=idx, column=6, value=po.get('required_date', '')).font = value_font
+            ws_pos.cell(row=idx, column=7, value=po.get('notes', '')).font = value_font
+            
+            for col in range(1, 8):
+                ws_pos.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_pos.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 8):
+            ws_pos.column_dimensions[get_column_letter(col)].width = 20
+    
+    # RFTS Sheet
+    if all_rfts:
+        ws_rfts = wb.create_sheet(title="RFTS")
+        rfts_headers = ['Project Name', 'RFTS Reference', 'System', 'Request Type', 'Presale Engineer', 'Priority', 'Status', 'Deadline', 'Requested Date']
+        
+        purple_fill = PatternFill(start_color='6f42c1', end_color='6f42c1', fill_type='solid')
+        for col, header in enumerate(rfts_headers, 1):
+            cell = ws_rfts.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = purple_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, rt in enumerate(all_rfts, 2):
+            ws_rfts.cell(row=idx, column=1, value=rt.get('project_name', '')).font = value_font
+            ws_rfts.cell(row=idx, column=2, value=rt.get('rfts_reference', '')).font = value_font
+            ws_rfts.cell(row=idx, column=3, value=rt.get('system', '')).font = value_font
+            ws_rfts.cell(row=idx, column=4, value=rt.get('request_type', '')).font = value_font
+            ws_rfts.cell(row=idx, column=5, value=rt.get('presale_engineer', '')).font = value_font
+            ws_rfts.cell(row=idx, column=6, value=rt.get('priority', '')).font = value_font
+            ws_rfts.cell(row=idx, column=7, value=rt.get('request_status', '')).font = value_font
+            ws_rfts.cell(row=idx, column=8, value=rt.get('deadline', '')).font = value_font
+            ws_rfts.cell(row=idx, column=9, value=rt.get('requested_time', '')).font = value_font
+            
+            for col in range(1, 10):
+                ws_rfts.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_rfts.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 10):
+            ws_rfts.column_dimensions[get_column_letter(col)].width = 18
+
     # Follow-ups Sheet
     if follow_ups:
         ws_followups = wb.create_sheet(title="Follow-ups")
@@ -15303,9 +15380,11 @@ def export_client_profile_pptx(client_type, client_id):
     cursor.execute(projects_query, (client_id,))
     projects = cursor.fetchall()
     
-    # Get quotations for all projects
+    # Get quotations, RFQs, POs and RFTS for all projects
     all_quotations = []
     all_rfqs = []
+    all_pos = []
+    all_rfts = []
     for proj in projects:
         cursor.execute("""
             SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
@@ -15320,7 +15399,20 @@ def export_client_profile_pptx(client_type, client_id):
         rfqs = cursor.fetchall()
         for r in rfqs:
             all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
-    
+        
+        cursor.execute("""
+            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_number
+        """, (proj['project_name'],))
+        pos = cursor.fetchall()
+        for po in pos:
+            all_pos.append({'project_name': proj['project_name'], **dict(po)})
+        
+        cursor.execute("""
+            SELECT * FROM technical_support_requests WHERE project_name = ? ORDER BY requested_time DESC
+        """, (proj['project_name'],))
+        rfts_list = cursor.fetchall()
+        for rt in rfts_list:
+            all_rfts.append({'project_name': proj['project_name'], **dict(rt)})
     # Get follow-ups
     cursor.execute("""
         SELECT * FROM client_follow_ups
@@ -15570,6 +15662,129 @@ def export_client_profile_pptx(client_type, client_id):
                     para.alignment = PP_ALIGN.CENTER
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
+    # Slide: Purchase Orders
+    if all_pos:
+        slide_layout = prs.slide_layouts[6]
+        slide = prs.slides.add_slide(slide_layout)
+        
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+        header.fill.solid()
+        header.fill.fore_color.rgb = RGBColor(220, 53, 69)
+        header.line.fill.background()
+        
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "Purchase Orders"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = FONT_NAME
+        
+        cols = 6
+        rows = min(len(all_pos) + 1, 12)
+        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+        
+        headers = ['Project', 'PO Number', 'Vendor', 'Amount (SAR)', 'Status', 'Required Date']
+        col_widths = [2.5, 2, 2.5, 2, 1.8, 1.5]
+        
+        for i, (header, width) in enumerate(zip(headers, col_widths)):
+            table.columns[i].width = Inches(width)
+            cell = table.cell(0, i)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+            for para in cell.text_frame.paragraphs:
+                para.font.bold = True
+                para.font.size = Pt(11)
+                para.font.color.rgb = RGBColor(255, 255, 255)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for idx, po in enumerate(all_pos[:rows-1], 1):
+            data = [
+                (po.get('project_name', '') or '')[:25],
+                po.get('po_number', '') or '',
+                (po.get('vendor', '') or '')[:20],
+                f"{po.get('total_amount', 0) or 0:,.0f}",
+                po.get('request_status', '') or '',
+                po.get('required_date', '') or '',
+            ]
+            for col, val in enumerate(data):
+                cell = table.cell(idx, col)
+                cell.text = str(val)
+                if idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(255, 240, 240)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # Slide: RFTS (Technical Support Requests)
+    if all_rfts:
+        slide_layout = prs.slide_layouts[6]
+        slide = prs.slides.add_slide(slide_layout)
+        
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+        header.fill.solid()
+        header.fill.fore_color.rgb = RGBColor(111, 66, 193)
+        header.line.fill.background()
+        
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.5))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "Technical Support Requests (RFTS)"
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(255, 255, 255)
+        p.font.name = FONT_NAME
+        
+        cols = 7
+        rows = min(len(all_rfts) + 1, 12)
+        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
+        
+        headers = ['Project', 'RFTS Ref', 'System', 'Type', 'Engineer', 'Priority', 'Status']
+        col_widths = [2, 2, 2, 1.8, 2, 1.3, 1.2]
+        
+        for i, (header, width) in enumerate(zip(headers, col_widths)):
+            table.columns[i].width = Inches(width)
+            cell = table.cell(0, i)
+            cell.text = header
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(111, 66, 193)
+            for para in cell.text_frame.paragraphs:
+                para.font.bold = True
+                para.font.size = Pt(11)
+                para.font.color.rgb = RGBColor(255, 255, 255)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for idx, rt in enumerate(all_rfts[:rows-1], 1):
+            data = [
+                (rt.get('project_name', '') or '')[:20],
+                rt.get('rfts_reference', '') or '',
+                (rt.get('system', '') or '')[:15],
+                (rt.get('request_type', '') or '')[:15],
+                (rt.get('presale_engineer', '') or '')[:15],
+                rt.get('priority', '') or '',
+                rt.get('request_status', '') or '',
+            ]
+            for col, val in enumerate(data):
+                cell = table.cell(idx, col)
+                cell.text = str(val)
+                if idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(245, 240, 255)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+
     # Save to BytesIO
     output = io.BytesIO()
     prs.save(output)
