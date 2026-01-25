@@ -3402,8 +3402,8 @@ def index():
 @app.route('/download_database')
 @login_required
 def download_database():
-    """Download the database file - restricted to admin users only"""
-    if session.get('role') not in ['General Manager'] and session.get('username') not in ['admin', 'M.Saleh']:
+    """Download the database file - restricted to M.Saleh only"""
+    if session.get('username') != 'M.Saleh':
         flash('You do not have permission to download the database!', 'danger')
         return redirect(url_for('index'))
     
