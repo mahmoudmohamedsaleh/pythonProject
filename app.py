@@ -4457,7 +4457,7 @@ def download_project_data_excel(project_id):
             ('Consultant', project['consultant_name'] or 'No Consultant'),
             ('Expected Close Date', project['expected_close_date'] or 'N/A'),
             ('Deal Value', f"SAR {project['deal_value'] or 0:,.2f}"),
-            ('Scope of Work', project['sow'] or 'N/A'),
+            ('Scope of Work', project['scope_of_work'] or 'N/A'),
         ]
         
         row = 4
@@ -4675,7 +4675,7 @@ def download_project_data_pptx(project_id):
     scope_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(10), Inches(0.8))
     scope_frame = scope_box.text_frame
     scope_para = scope_frame.paragraphs[0]
-    scope_para.text = f"Scope of Work: {project['sow'] or 'N/A'}"
+    scope_para.text = f"Scope of Work: {project['scope_of_work'] or 'N/A'}"
     scope_para.font.name = FONT_NAME
     scope_para.font.size = Pt(12)
     
