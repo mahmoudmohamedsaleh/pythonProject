@@ -4421,6 +4421,24 @@ def download_project_data_excel(project_id):
     """
     df_pos = pd.read_sql_query(pos_query, conn, params=(project_name,))
     
+    # Query to fetch RFTS (Request for Technical Support)
+    rfts_query = """
+        SELECT 
+            rfts_reference AS "RFTS Reference",
+            system AS "System",
+            request_type AS "Request Type",
+            presale_engineer AS "Presale Engineer",
+            priority AS "Priority",
+            status AS "Status",
+            deadline AS "Deadline",
+            requested_time AS "Requested Date",
+            note AS "Notes"
+        FROM technical_support_requests
+        WHERE project_name = ?
+        ORDER BY requested_time DESC
+    """
+    df_rfts = pd.read_sql_query(rfts_query, conn, params=(project_name,))
+    
     conn.close()
     
     total_quotation_value = df_quotations['Selling Price (SAR)'].sum() if not df_quotations.empty else 0
@@ -4519,6 +4537,20 @@ def download_project_data_excel(project_id):
         for idx, col in enumerate(df_pos.columns):
             max_len = max(df_pos[col].astype(str).map(len).max() if len(df_pos) > 0 else 10, len(str(col)))
             ws_po.set_column(idx, idx, min(max_len + 2, 40))
+        
+        # RFTS Sheet
+        purple_header = workbook.add_format({
+            'bold': True, 'font_name': FONT_NAME, 'font_size': 11,
+            'bg_color': '#6f42c1', 'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+        })
+        df_rfts.to_excel(writer, sheet_name='RFTS', index=False, startrow=1)
+        ws_rfts = writer.sheets['RFTS']
+        ws_rfts.write('A1', f'Request For Technical Support - {project_name}', title_format)
+        for col_num, col_name in enumerate(df_rfts.columns):
+            ws_rfts.write(1, col_num, col_name, purple_header)
+        for idx, col in enumerate(df_rfts.columns):
+            max_len = max(df_rfts[col].astype(str).map(len).max() if len(df_rfts) > 0 else 10, len(str(col)))
+            ws_rfts.set_column(idx, idx, min(max_len + 2, 40))
     
     output.seek(0)
     safe_name = "".join(c for c in project_name if c.isalnum() or c in (' ', '-', '_')).strip()
@@ -4597,6 +4629,14 @@ def download_project_data_pptx(project_id):
         ORDER BY rfpo.requested_time DESC
     """, (project_name,))
     po_requests = cursor.fetchall()
+    
+    # Get RFTS (Request for Technical Support)
+    cursor.execute("""
+        SELECT * FROM technical_support_requests
+        WHERE project_name = ?
+        ORDER BY requested_time DESC
+    """, (project_name,))
+    rfts_requests = cursor.fetchall()
     
     conn.close()
     
@@ -4786,6 +4826,40 @@ def download_project_data_pptx(project_id):
             ]
             for j, val in enumerate(row_data):
                 add_styled_text(po_table.cell(i + 1, j), val, size=9)
+    
+    # RFTS Slide
+    if rfts_requests:
+        slide5 = prs.slides.add_slide(slide_layout)
+        rfts_title = slide5.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.6))
+        rfts_title_frame = rfts_title.text_frame
+        rfts_title_para = rfts_title_frame.paragraphs[0]
+        rfts_title_para.text = f"Request For Technical Support ({len(rfts_requests)})"
+        rfts_title_para.font.name = FONT_NAME
+        rfts_title_para.font.size = Pt(24)
+        rfts_title_para.font.bold = True
+        rfts_title_para.font.color.rgb = RGBColor(0x6F, 0x42, 0xC1)
+        
+        headers = ['RFTS Ref', 'System', 'Request Type', 'Presale Eng', 'Priority', 'Status', 'Deadline']
+        rows_to_show = min(len(rfts_requests), 12)
+        rfts_table = slide5.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
+        
+        for j, header in enumerate(headers):
+            set_cell_bg(rfts_table.cell(0, j), "6f42c1")
+            add_styled_text(rfts_table.cell(0, j), header, bold=True, size=10)
+            rfts_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        
+        for i, rfts in enumerate(rfts_requests[:rows_to_show]):
+            row_data = [
+                rfts['rfts_reference'] or '',
+                rfts['system'] or '',
+                rfts['request_type'] or '',
+                rfts['presale_engineer'] or '',
+                rfts['priority'] or '',
+                rfts['status'] or '',
+                rfts['deadline'] or ''
+            ]
+            for j, val in enumerate(row_data):
+                add_styled_text(rfts_table.cell(i + 1, j), val, size=9)
     
     output = BytesIO()
     prs.save(output)
