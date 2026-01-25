@@ -4436,9 +4436,268 @@ def download_project_data_excel(project_id):
                      download_name=filename, 
                      as_attachment=True,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-############333
+@app.route('/project/<int:project_id>/export/pptx')
+@login_required
+def download_project_data_pptx(project_id):
+    """Export project profile data to PowerPoint presentation"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RgbColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.oxml.ns import nsdecls
+    from pptx.oxml import parse_xml
+    
+    FONT_NAME = 'Calibri'
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            rp.*,
+            eu.name as end_user_name,
+            c.name as contractor_name,
+            cons.name as consultant_name,
+            e.name as sales_engineer_name
+        FROM register_project rp
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors c ON rp.contractor_id = c.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+        WHERE rp.id = ?
+    """, (project_id,))
+    project = cursor.fetchone()
+    
+    if not project:
+        flash('Project not found!', 'danger')
+        conn.close()
+        return redirect(url_for('view_projects'))
+    
+    project_name = project['project_name']
+    
+    cursor.execute("""
+        SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
+    """, (project_name,))
+    quotations = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC
+    """, (project_name,))
+    rfqs = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT po.*, d.name as distributor_name, v.name as vendor_name
+        FROM purchase_orders po
+        LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = CAST(d.id AS TEXT)
+        LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = CAST(v.id AS TEXT)
+        WHERE CAST(po.project_name AS TEXT) = CAST(? AS TEXT)
+        ORDER BY po.created_at DESC
+    """, (project_name,))
+    purchase_orders = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT rfpo.*, d.name as distributor_name, v.name as vendor_name
+        FROM po_requests rfpo
+        LEFT JOIN distributors d ON CAST(rfpo.distributor_id AS TEXT) = CAST(d.id AS TEXT)
+        LEFT JOIN vendors v ON rfpo.vendor_id = v.id
+        WHERE rfpo.project_name = ?
+        ORDER BY rfpo.requested_time DESC
+    """, (project_name,))
+    po_requests = cursor.fetchall()
+    
+    conn.close()
+    
+    total_quotation_value = sum(q['quotation_selling_price'] or 0 for q in quotations)
+    total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
+    
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    def add_styled_text(cell, text, bold=False, size=10):
+        cell.text = str(text) if text else ''
+        for paragraph in cell.text_frame.paragraphs:
+            paragraph.font.name = FONT_NAME
+            paragraph.font.size = Pt(size)
+            paragraph.font.bold = bold
+            paragraph.alignment = PP_ALIGN.LEFT
+        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    def set_cell_bg(cell, color_hex):
+        cell_xml = cell._tc
+        cell_xml.get_or_add_tcPr()
+        cell_xml.tcPr.append(parse_xml(
+            f'<a:solidFill {nsdecls("a")}><a:srgbClr val="{color_hex}"/></a:solidFill>'
+        ))
+    
+    slide_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(slide_layout)
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.8))
+    title_frame = title_box.text_frame
+    title_para = title_frame.paragraphs[0]
+    title_para.text = f"Project Profile: {project_name}"
+    title_para.font.name = FONT_NAME
+    title_para.font.size = Pt(28)
+    title_para.font.bold = True
+    title_para.font.color.rgb = RgbColor(102, 126, 234)
+    
+    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.1), Inches(12), Inches(0.4))
+    subtitle_frame = subtitle_box.text_frame
+    subtitle_para = subtitle_frame.paragraphs[0]
+    subtitle_para.text = f"Stage: {project['stage'] or 'N/A'} | Probability: {project['probability'] or 0}%"
+    subtitle_para.font.name = FONT_NAME
+    subtitle_para.font.size = Pt(14)
+    subtitle_para.font.color.rgb = RgbColor(100, 100, 100)
+    
+    info_table = slide.shapes.add_table(6, 2, Inches(0.5), Inches(1.8), Inches(5.5), Inches(2.5)).table
+    info_data = [
+        ('Sales Engineer', project['sales_engineer_name'] or 'N/A'),
+        ('End User', project['end_user_name'] or 'N/A'),
+        ('Contractor', project['contractor_name'] or 'No Contractor'),
+        ('Consultant', project['consultant_name'] or 'No Consultant'),
+        ('Expected Close', project['expected_close_date'] or 'N/A'),
+        ('Deal Value', f"SAR {project['deal_value'] or 0:,.2f}"),
+    ]
+    for i, (label, value) in enumerate(info_data):
+        set_cell_bg(info_table.cell(i, 0), "667eea")
+        add_styled_text(info_table.cell(i, 0), label, bold=True, size=11)
+        info_table.cell(i, 0).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+        add_styled_text(info_table.cell(i, 1), value, size=11)
+    
+    stats_table = slide.shapes.add_table(5, 2, Inches(6.5), Inches(1.8), Inches(4.5), Inches(2.1)).table
+    stats_data = [
+        ('Quotations', len(quotations)),
+        ('Total Quotation Value', f"SAR {total_quotation_value:,.2f}"),
+        ('RFQs', len(rfqs)),
+        ('PO Requests', len(po_requests)),
+        ('Purchase Orders', f"{len(purchase_orders)} (SAR {total_po_value:,.2f})"),
+    ]
+    for i, (label, value) in enumerate(stats_data):
+        set_cell_bg(stats_table.cell(i, 0), "28a745")
+        add_styled_text(stats_table.cell(i, 0), label, bold=True, size=11)
+        stats_table.cell(i, 0).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+        add_styled_text(stats_table.cell(i, 1), str(value), size=11)
+    
+    scope_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(10), Inches(0.8))
+    scope_frame = scope_box.text_frame
+    scope_para = scope_frame.paragraphs[0]
+    scope_para.text = f"Scope of Work: {project['sow'] or 'N/A'}"
+    scope_para.font.name = FONT_NAME
+    scope_para.font.size = Pt(12)
+    
+    if quotations:
+        slide2 = prs.slides.add_slide(slide_layout)
+        q_title = slide2.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.6))
+        q_title_frame = q_title.text_frame
+        q_title_para = q_title_frame.paragraphs[0]
+        q_title_para.text = f"Quotations ({len(quotations)})"
+        q_title_para.font.name = FONT_NAME
+        q_title_para.font.size = Pt(24)
+        q_title_para.font.bold = True
+        q_title_para.font.color.rgb = RgbColor(40, 167, 69)
+        
+        headers = ['Quote Ref', 'System', 'Presale Eng', 'Sales Eng', 'Cost', 'Selling Price', 'Status']
+        rows_to_show = min(len(quotations), 12)
+        q_table = slide2.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
+        
+        for j, header in enumerate(headers):
+            set_cell_bg(q_table.cell(0, j), "28a745")
+            add_styled_text(q_table.cell(0, j), header, bold=True, size=10)
+            q_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+        
+        for i, q in enumerate(quotations[:rows_to_show]):
+            row_data = [
+                q['quote_ref'] or '',
+                q['system'] or '',
+                q['presale_eng'] or '',
+                q['sales_eng'] or '',
+                f"SAR {q['quotation_cost'] or 0:,.2f}",
+                f"SAR {q['quotation_selling_price'] or 0:,.2f}",
+                q['status'] or ''
+            ]
+            for j, val in enumerate(row_data):
+                add_styled_text(q_table.cell(i + 1, j), val, size=9)
+    
+    if rfqs:
+        slide3 = prs.slides.add_slide(slide_layout)
+        r_title = slide3.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.6))
+        r_title_frame = r_title.text_frame
+        r_title_para = r_title_frame.paragraphs[0]
+        r_title_para.text = f"RFQs ({len(rfqs)})"
+        r_title_para.font.name = FONT_NAME
+        r_title_para.font.size = Pt(24)
+        r_title_para.font.bold = True
+        r_title_para.font.color.rgb = RgbColor(255, 193, 7)
+        
+        headers = ['RFQ Reference', 'Status', 'Priority', 'Presale Eng', 'Sales Eng', 'Deadline', 'RFQ Status']
+        rows_to_show = min(len(rfqs), 12)
+        r_table = slide3.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
+        
+        for j, header in enumerate(headers):
+            set_cell_bg(r_table.cell(0, j), "ffc107")
+            add_styled_text(r_table.cell(0, j), header, bold=True, size=10)
+        
+        for i, r in enumerate(rfqs[:rows_to_show]):
+            row_data = [
+                r['rfq_reference'] or '',
+                r['project_status'] or '',
+                r['priority'] or '',
+                r['sales_engineer_presale'] or '',
+                r['sales_engineer_sales'] or '',
+                r['deadline'] or '',
+                r['rfq_status'] or ''
+            ]
+            for j, val in enumerate(row_data):
+                add_styled_text(r_table.cell(i + 1, j), val, size=9)
+    
+    if purchase_orders:
+        slide4 = prs.slides.add_slide(slide_layout)
+        po_title = slide4.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.6))
+        po_title_frame = po_title.text_frame
+        po_title_para = po_title_frame.paragraphs[0]
+        po_title_para.text = f"Purchase Orders ({len(purchase_orders)})"
+        po_title_para.font.name = FONT_NAME
+        po_title_para.font.size = Pt(24)
+        po_title_para.font.bold = True
+        po_title_para.font.color.rgb = RgbColor(220, 53, 69)
+        
+        headers = ['PO Number', 'Distributor', 'Vendor', 'System', 'Amount', 'Approval', 'Delivery']
+        rows_to_show = min(len(purchase_orders), 12)
+        po_table = slide4.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
+        
+        for j, header in enumerate(headers):
+            set_cell_bg(po_table.cell(0, j), "dc3545")
+            add_styled_text(po_table.cell(0, j), header, bold=True, size=10)
+            po_table.cell(0, j).text_frame.paragraphs[0].font.color.rgb = RgbColor(255, 255, 255)
+        
+        for i, po in enumerate(purchase_orders[:rows_to_show]):
+            row_data = [
+                po['po_number'] or '',
+                po['distributor_name'] or '',
+                po['vendor_name'] or '',
+                po['system'] or '',
+                f"SAR {po['total_amount'] or 0:,.2f}",
+                po['po_approval_status'] or '',
+                po['po_delivery_status'] or ''
+            ]
+            for j, val in enumerate(row_data):
+                add_styled_text(po_table.cell(i + 1, j), val, size=9)
+    
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    safe_name = "".join(c for c in project_name if c.isalnum() or c in (' ', '-', '_')).strip()
+    filename = f'{safe_name}_Project_Profile.pptx'
+    
+    return send_file(output, 
+                     download_name=filename, 
+                     as_attachment=True,
+                     mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+
 @app.route('/charts')
-#@role_required('editor')
 def charts():
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
