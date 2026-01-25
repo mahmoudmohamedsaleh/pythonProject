@@ -26377,17 +26377,6 @@ def export_price_history_excel(part_number):
         return redirect(request.referrer or url_for('quotation_products_dashboard'))
 
 
-if __name__ == '__main__':
-    init_db()
-    seed_permissions()
-    seed_default_role_permissions()
-    seed_default_roles()
-    host = os.getenv('HOST', '0.0.0.0')
-    port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', '0') == '1'
-    app.run(host=host, port=port, debug=debug)
-
-
 @app.route('/aggregate_reports')
 @login_required
 def aggregate_reports():
@@ -26802,3 +26791,14 @@ def generate_aggregate_report():
         'filename': filename
     })
 
+
+
+if __name__ == '__main__':
+    init_db()
+    seed_permissions()
+    seed_default_role_permissions()
+    seed_default_roles()
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', '0') == '1'
+    app.run(host=host, port=port, debug=debug)
