@@ -15019,7 +15019,7 @@ def export_client_profile_excel(client_type, client_id):
             all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
         
         cursor.execute("""
-            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_request_reference
+            SELECT * FROM purchase_orders WHERE project_name = ? ORDER BY created_at DESC
         """, (proj['project_name'],))
         pos = cursor.fetchall()
         for po in pos:
@@ -15213,7 +15213,7 @@ def export_client_profile_excel(client_type, client_id):
     # Purchase Orders Sheet
     if all_pos:
         ws_pos = wb.create_sheet(title="Purchase Orders")
-        po_headers = ['Project Name', 'PO Reference', 'Vendor', 'System', 'Status', 'Requested Date', 'Notes']
+        po_headers = ['Project Name', 'PO Number', 'Vendor', 'Distributor', 'System', 'Amount (SAR)', 'Approval', 'Delivery', 'Created Date']
         
         red_fill = PatternFill(start_color='dc3545', end_color='dc3545', fill_type='solid')
         for col, header in enumerate(po_headers, 1):
@@ -15225,21 +15225,22 @@ def export_client_profile_excel(client_type, client_id):
         
         for idx, po in enumerate(all_pos, 2):
             ws_pos.cell(row=idx, column=1, value=po.get('project_name', '')).font = value_font
-            ws_pos.cell(row=idx, column=2, value=po.get('po_request_reference', '')).font = value_font
-            ws_pos.cell(row=idx, column=3, value=po.get('vendor_name', '')).font = value_font
-            ws_pos.cell(row=idx, column=4, value=po.get('system', '')).font = value_font
-            ws_pos.cell(row=idx, column=5, value=po.get('request_status', '')).font = value_font
-            ws_pos.cell(row=idx, column=6, value=po.get('requested_time', '')).font = value_font
-            ws_pos.cell(row=idx, column=7, value=po.get('notes', '')).font = value_font
+            ws_pos.cell(row=idx, column=2, value=po.get('po_number', '')).font = value_font
+            ws_pos.cell(row=idx, column=3, value=po.get('vendor', '')).font = value_font
+            ws_pos.cell(row=idx, column=4, value=po.get('distributor', '')).font = value_font
+            ws_pos.cell(row=idx, column=5, value=po.get('system', '')).font = value_font
+            ws_pos.cell(row=idx, column=6, value=po.get('total_amount', 0) or 0).font = value_font
+            ws_pos.cell(row=idx, column=7, value=po.get('po_approval_status', '')).font = value_font
+            ws_pos.cell(row=idx, column=8, value=po.get('po_delivery_status', '')).font = value_font
+            ws_pos.cell(row=idx, column=9, value=po.get('created_at', '')).font = value_font
             
-            for col in range(1, 8):
+            for col in range(1, 10):
                 ws_pos.cell(row=idx, column=col).border = thin_border
                 if idx % 2 == 0:
                     ws_pos.cell(row=idx, column=col).fill = alt_fill
         
-        for col in range(1, 8):
-            ws_pos.column_dimensions[get_column_letter(col)].width = 20
-    
+        for col in range(1, 10):
+            ws_pos.column_dimensions[get_column_letter(col)].width = 18
     # RFTS Sheet
     if all_rfts:
         ws_rfts = wb.create_sheet(title="RFTS")
@@ -15401,7 +15402,7 @@ def export_client_profile_pptx(client_type, client_id):
             all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
         
         cursor.execute("""
-            SELECT * FROM po_requests WHERE project_name = ? ORDER BY po_request_reference
+            SELECT * FROM purchase_orders WHERE project_name = ? ORDER BY created_at DESC
         """, (proj['project_name'],))
         pos = cursor.fetchall()
         for po in pos:
@@ -15684,9 +15685,8 @@ def export_client_profile_pptx(client_type, client_id):
         cols = 6
         rows = min(len(all_pos) + 1, 12)
         table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.45)).table
-        
-        headers = ['Project', 'PO Reference', 'Vendor', 'System', 'Status', 'Requested Date']
-        col_widths = [2.5, 2, 2.5, 2, 1.8, 1.5]
+        headers = ['Project', 'PO Number', 'Vendor', 'Amount (SAR)', 'Approval', 'Delivery']
+        col_widths = [2.5, 2, 2.5, 2.3, 1.5, 1.5]
         
         for i, (header, width) in enumerate(zip(headers, col_widths)):
             table.columns[i].width = Inches(width)
@@ -15705,13 +15705,23 @@ def export_client_profile_pptx(client_type, client_id):
         for idx, po in enumerate(all_pos[:rows-1], 1):
             data = [
                 (po.get('project_name', '') or '')[:25],
-                po.get('po_request_reference', '') or '',
-                (po.get('vendor_name', '') or '')[:20],
-                po.get('system', '') or '',
-                po.get('request_status', '') or '',
-                po.get('requested_time', '') or '',
+                po.get('po_number', '') or '',
+                (po.get('vendor', '') or '')[:20],
+                f"{po.get('total_amount', 0) or 0:,.0f}",
+                po.get('po_approval_status', '') or '',
+                po.get('po_delivery_status', '') or '',
             ]
             for col, val in enumerate(data):
+                cell = table.cell(idx, col)
+                cell.text = str(val)
+                if idx % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(255, 240, 240)
+                for para in cell.text_frame.paragraphs:
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
                 cell = table.cell(idx, col)
                 cell.text = str(val)
                 if idx % 2 == 0:
