@@ -14897,16 +14897,49 @@ def export_client_profile_excel(client_type, client_id):
         flash('Client not found!', 'danger')
         return redirect(url_for('view_all_clients'))
     
-    # Get projects
+    # Get projects with engineer names
     if client_type == 'end_user':
-        projects_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+        projects_query = """
+            SELECT rp.*, e.name as sales_engineer_name 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.end_user_id = ? ORDER BY rp.registered_date DESC
+        """
     elif client_type == 'contractor':
-        projects_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+        projects_query = """
+            SELECT rp.*, e.name as sales_engineer_name 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.contractor_id = ? ORDER BY rp.registered_date DESC
+        """
     else:
-        projects_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+        projects_query = """
+            SELECT rp.*, e.name as sales_engineer_name 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.consultant_id = ? ORDER BY rp.registered_date DESC
+        """
     
     cursor.execute(projects_query, (client_id,))
     projects = cursor.fetchall()
+    
+    # Get quotations for all projects
+    all_quotations = []
+    all_rfqs = []
+    for proj in projects:
+        cursor.execute("""
+            SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
+        """, (proj['project_name'],))
+        quotations = cursor.fetchall()
+        for q in quotations:
+            all_quotations.append({'project_name': proj['project_name'], **dict(q)})
+        
+        cursor.execute("""
+            SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC
+        """, (proj['project_name'],))
+        rfqs = cursor.fetchall()
+        for r in rfqs:
+            all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
     
     # Get follow-ups
     cursor.execute("""
@@ -14998,12 +15031,13 @@ def export_client_profile_excel(client_type, client_id):
     # Projects Sheet
     if projects:
         ws_projects = wb.create_sheet(title="Projects")
-        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Probability', 'Registered Date']
+        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Probability', 'Sales Engineer', 'Scope of Work', 'Registered Date']
         
+        green_fill = PatternFill(start_color='28a745', end_color='28a745', fill_type='solid')
         for col, header in enumerate(headers, 1):
             cell = ws_projects.cell(row=1, column=col, value=header)
             cell.font = header_font
-            cell.fill = header_fill
+            cell.fill = green_fill
             cell.alignment = Alignment(horizontal='center')
             cell.border = thin_border
         
@@ -15011,16 +15045,81 @@ def export_client_profile_excel(client_type, client_id):
             ws_projects.cell(row=idx, column=1, value=project['project_name']).font = value_font
             ws_projects.cell(row=idx, column=2, value=project['stage'] if project['stage'] else 'N/A').font = value_font
             ws_projects.cell(row=idx, column=3, value=project['deal_value'] if project['deal_value'] else 0).font = value_font
-            ws_projects.cell(row=idx, column=4, value=project['probability'] if project['probability'] else 'N/A').font = value_font
-            ws_projects.cell(row=idx, column=5, value=project['registered_date'] if project['registered_date'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=4, value=f"{project['probability']}%" if project['probability'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=5, value=project['sales_engineer_name'] if project['sales_engineer_name'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=6, value=project['scope_of_work'] if project['scope_of_work'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=7, value=project['registered_date'] if project['registered_date'] else 'N/A').font = value_font
             
-            for col in range(1, 6):
+            for col in range(1, 8):
                 ws_projects.cell(row=idx, column=col).border = thin_border
                 if idx % 2 == 0:
                     ws_projects.cell(row=idx, column=col).fill = alt_fill
         
-        for col in range(1, 6):
+        for col in range(1, 8):
             ws_projects.column_dimensions[get_column_letter(col)].width = 20
+    
+    # Quotations Sheet
+    if all_quotations:
+        ws_quot = wb.create_sheet(title="Quotations")
+        quot_headers = ['Project Name', 'Quote Ref', 'System', 'Presale Eng', 'Sales Eng', 'Cost (SAR)', 'Selling Price (SAR)', 'Margin %', 'Status']
+        
+        blue_fill = PatternFill(start_color='17a2b8', end_color='17a2b8', fill_type='solid')
+        for col, header in enumerate(quot_headers, 1):
+            cell = ws_quot.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = blue_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, q in enumerate(all_quotations, 2):
+            ws_quot.cell(row=idx, column=1, value=q.get('project_name', '')).font = value_font
+            ws_quot.cell(row=idx, column=2, value=q.get('quote_ref', '')).font = value_font
+            ws_quot.cell(row=idx, column=3, value=q.get('system', '')).font = value_font
+            ws_quot.cell(row=idx, column=4, value=q.get('presale_eng', '')).font = value_font
+            ws_quot.cell(row=idx, column=5, value=q.get('sales_eng', '')).font = value_font
+            ws_quot.cell(row=idx, column=6, value=q.get('quotation_cost', 0) or 0).font = value_font
+            ws_quot.cell(row=idx, column=7, value=q.get('quotation_selling_price', 0) or 0).font = value_font
+            ws_quot.cell(row=idx, column=8, value=f"{q.get('margin', 0) or 0}%").font = value_font
+            ws_quot.cell(row=idx, column=9, value=q.get('status', '')).font = value_font
+            
+            for col in range(1, 10):
+                ws_quot.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_quot.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 10):
+            ws_quot.column_dimensions[get_column_letter(col)].width = 18
+    
+    # RFQs Sheet
+    if all_rfqs:
+        ws_rfq = wb.create_sheet(title="RFQs")
+        rfq_headers = ['Project Name', 'RFQ Reference', 'Priority', 'Presale Eng', 'Sales Eng', 'RFQ Status', 'Deadline', 'Requested Date']
+        
+        yellow_fill = PatternFill(start_color='ffc107', end_color='ffc107', fill_type='solid')
+        for col, header in enumerate(rfq_headers, 1):
+            cell = ws_rfq.cell(row=1, column=col, value=header)
+            cell.font = Font(name=FONT_NAME, bold=True, size=14, color='333333')
+            cell.fill = yellow_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = thin_border
+        
+        for idx, r in enumerate(all_rfqs, 2):
+            ws_rfq.cell(row=idx, column=1, value=r.get('project_name', '')).font = value_font
+            ws_rfq.cell(row=idx, column=2, value=r.get('rfq_reference', '')).font = value_font
+            ws_rfq.cell(row=idx, column=3, value=r.get('priority', '')).font = value_font
+            ws_rfq.cell(row=idx, column=4, value=r.get('sales_engineer_presale', '')).font = value_font
+            ws_rfq.cell(row=idx, column=5, value=r.get('sales_engineer_sales', '')).font = value_font
+            ws_rfq.cell(row=idx, column=6, value=r.get('rfq_status', '')).font = value_font
+            ws_rfq.cell(row=idx, column=7, value=r.get('deadline', '')).font = value_font
+            ws_rfq.cell(row=idx, column=8, value=r.get('requested_time', '')).font = value_font
+            
+            for col in range(1, 9):
+                ws_rfq.cell(row=idx, column=col).border = thin_border
+                if idx % 2 == 0:
+                    ws_rfq.cell(row=idx, column=col).fill = alt_fill
+        
+        for col in range(1, 9):
+            ws_rfq.column_dimensions[get_column_letter(col)].width = 18
     
     # Follow-ups Sheet
     if follow_ups:
@@ -15104,16 +15203,49 @@ def export_client_profile_pptx(client_type, client_id):
         flash('Client not found!', 'danger')
         return redirect(url_for('view_all_clients'))
     
-    # Get projects
+    # Get projects with engineer names
     if client_type == 'end_user':
-        projects_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+        projects_query = """
+            SELECT rp.*, e.name as sales_engineer_name 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.end_user_id = ? ORDER BY rp.registered_date DESC
+        """
     elif client_type == 'contractor':
-        projects_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+        projects_query = """
+            SELECT rp.*, e.name as sales_engineer_name 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.contractor_id = ? ORDER BY rp.registered_date DESC
+        """
     else:
-        projects_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+        projects_query = """
+            SELECT rp.*, e.name as sales_engineer_name 
+            FROM register_project rp
+            LEFT JOIN engineers e ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.consultant_id = ? ORDER BY rp.registered_date DESC
+        """
     
     cursor.execute(projects_query, (client_id,))
     projects = cursor.fetchall()
+    
+    # Get quotations for all projects
+    all_quotations = []
+    all_rfqs = []
+    for proj in projects:
+        cursor.execute("""
+            SELECT * FROM projects WHERE project_name = ? ORDER BY registered_date DESC
+        """, (proj['project_name'],))
+        quotations = cursor.fetchall()
+        for q in quotations:
+            all_quotations.append({'project_name': proj['project_name'], **dict(q)})
+        
+        cursor.execute("""
+            SELECT * FROM rfq_requests WHERE project_name = ? ORDER BY requested_time DESC
+        """, (proj['project_name'],))
+        rfqs = cursor.fetchall()
+        for r in rfqs:
+            all_rfqs.append({'project_name': proj['project_name'], **dict(r)})
     
     # Get follow-ups
     cursor.execute("""
