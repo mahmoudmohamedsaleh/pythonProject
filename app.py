@@ -14637,7 +14637,7 @@ def export_client_profile_excel(client_type, client_id):
     # Projects Sheet
     if projects:
         ws_projects = wb.create_sheet(title="Projects")
-        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Status', 'Registered Date', 'City']
+        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Probability', 'Registered Date']
         
         for col, header in enumerate(headers, 1):
             cell = ws_projects.cell(row=1, column=col, value=header)
@@ -14650,16 +14650,15 @@ def export_client_profile_excel(client_type, client_id):
             ws_projects.cell(row=idx, column=1, value=project['project_name']).font = value_font
             ws_projects.cell(row=idx, column=2, value=project['stage'] if project['stage'] else 'N/A').font = value_font
             ws_projects.cell(row=idx, column=3, value=project['deal_value'] if project['deal_value'] else 0).font = value_font
-            ws_projects.cell(row=idx, column=4, value=project['status'] if project['status'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=4, value=project['probability'] if project['probability'] else 'N/A').font = value_font
             ws_projects.cell(row=idx, column=5, value=project['registered_date'] if project['registered_date'] else 'N/A').font = value_font
-            ws_projects.cell(row=idx, column=6, value=project['city'] if project['city'] else 'N/A').font = value_font
             
-            for col in range(1, 7):
+            for col in range(1, 6):
                 ws_projects.cell(row=idx, column=col).border = thin_border
                 if idx % 2 == 0:
                     ws_projects.cell(row=idx, column=col).fill = alt_fill
         
-        for col in range(1, 7):
+        for col in range(1, 6):
             ws_projects.column_dimensions[get_column_letter(col)].width = 20
     
     # Follow-ups Sheet
@@ -14913,7 +14912,7 @@ def export_client_profile_pptx(client_type, client_id):
         rows = min(len(projects) + 1, 12)  # Limit rows
         table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.3), Inches(rows * 0.5)).table
         
-        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Status', 'Date']
+        headers = ['Project Name', 'Stage', 'Deal Value (SAR)', 'Probability', 'Date']
         col_widths = [4, 2, 2, 2, 2.3]
         
         for i, (header, width) in enumerate(zip(headers, col_widths)):
@@ -14935,7 +14934,7 @@ def export_client_profile_pptx(client_type, client_id):
                 proj['project_name'][:40] if proj['project_name'] else 'N/A',
                 proj['stage'] if proj['stage'] else 'N/A',
                 f"{proj['deal_value'] if proj['deal_value'] else 0:,.0f}",
-                proj['status'] if proj['status'] else 'N/A',
+                proj['probability'] if proj['probability'] else 'N/A',
                 proj['registered_date'] if proj['registered_date'] else 'N/A',
             ]
             for col, val in enumerate(data):
