@@ -4366,7 +4366,7 @@ def download_project_data_excel(project_id):
             quotation_cost AS "Cost (SAR)",
             quotation_selling_price AS "Selling Price (SAR)",
             margin AS "Margin %",
-            request_status AS "Status",
+            status AS "Status",
             registered_date AS "Registered Date",
             updated_time AS "Updated Date",
             sow AS "Scope of Work",
