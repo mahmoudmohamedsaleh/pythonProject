@@ -14594,13 +14594,13 @@ def export_client_profile_excel(client_type, client_id):
     row += 1
     info_fields = [
         ('Company Name', client['name']),
-        ('Contact Person', client.get('contact_person', 'N/A')),
-        ('Phone', client.get('phone', 'N/A')),
-        ('Email', client.get('email', 'N/A')),
-        ('Address', client.get('address', 'N/A')),
-        ('Assigned Engineer', client.get('assigned_engineer_name', 'Not Assigned')),
-        ('Client Status', 'Client' if client.get('is_client') else 'Prospect'),
-        ('Tier', client.get('client_tier', 'Standard')),
+        ('Contact Person', client['contact_person'] if client['contact_person'] else 'N/A'),
+        ('Phone', client['phone'] if client['phone'] else 'N/A'),
+        ('Email', client['email'] if client['email'] else 'N/A'),
+        ('Address', client['address'] if client['address'] else 'N/A'),
+        ('Assigned Engineer', client['assigned_engineer_name'] if client['assigned_engineer_name'] else 'Not Assigned'),
+        ('Client Status', 'Client' if client['is_client'] else 'Prospect'),
+        ('Tier', client['client_tier'] if client['client_tier'] else 'Standard'),
     ]
     
     for label, value in info_fields:
@@ -14816,8 +14816,8 @@ def export_client_profile_pptx(client_type, client_id):
     subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(10), Inches(0.5))
     tf = subtitle_box.text_frame
     p = tf.paragraphs[0]
-    contact = client.get('contact_person', 'No contact')
-    engineer = client.get('assigned_engineer_name', 'Not assigned')
+    contact = client['contact_person'] if client['contact_person'] else 'No contact'
+    engineer = client['assigned_engineer_name'] if client['assigned_engineer_name'] else 'Not assigned'
     p.text = f"Contact: {contact}  |  Managed by: {engineer}"
     p.font.size = Pt(16)
     p.font.color.rgb = RGBColor(255, 255, 255)
@@ -14879,11 +14879,11 @@ def export_client_profile_pptx(client_type, client_id):
     p.font.name = FONT_NAME
     
     info_items = [
-        f"Phone: {client.get('phone', 'N/A')}",
-        f"Email: {client.get('email', 'N/A')}",
-        f"Address: {client.get('address', 'N/A')}",
-        f"Client Status: {'Client' if client.get('is_client') else 'Prospect'}",
-        f"Tier: {client.get('client_tier', 'Standard')}",
+        f"Phone: {client['phone'] if client['phone'] else 'N/A'}",
+        f"Email: {client['email'] if client['email'] else 'N/A'}",
+        f"Address: {client['address'] if client['address'] else 'N/A'}",
+        f"Client Status: {'Client' if client['is_client'] else 'Prospect'}",
+        f"Tier: {client['client_tier'] if client['client_tier'] else 'Standard'}",
     ]
     
     for item in info_items:
