@@ -4439,10 +4439,32 @@ def download_project_data_excel(project_id):
     """
     df_rfts = pd.read_sql_query(rfts_query, conn, params=(project_name,))
     
+    
+    # Query to fetch PO Items for all POs in this project
+    po_items_query = """
+        SELECT 
+            poi.po_number AS "PO Number",
+            poi.item_number AS "Item #",
+            poi.part_number AS "Part Number",
+            poi.description AS "Description",
+            poi.quantity AS "Quantity",
+            poi.unit_price AS "Unit Price (SAR)",
+            poi.total_price AS "Total Price (SAR)",
+            poi.quantity_delivered AS "Qty Delivered",
+            poi.delivery_status AS "Delivery Status",
+            poi.delivery_date AS "Delivery Date",
+            poi.notes AS "Notes"
+        FROM po_items poi
+        WHERE poi.po_number IN (
+            SELECT po_number FROM purchase_orders WHERE project_name = ?
+        )
+        ORDER BY poi.po_number, poi.item_number
+    """
+    df_po_items = pd.read_sql_query(po_items_query, conn, params=(project_name,))
     conn.close()
     
     total_quotation_value = df_quotations['Selling Price (SAR)'].sum() if not df_quotations.empty else 0
-    total_po_value = df_pos['System'].sum() if not df_pos.empty else 0
+    total_po_value = df_pos['Total Amount (SAR)'].sum() if not df_pos.empty else 0
     
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -4538,6 +4560,21 @@ def download_project_data_excel(project_id):
             max_len = max(df_pos[col].astype(str).map(len).max() if len(df_pos) > 0 else 10, len(str(col)))
             ws_po.set_column(idx, idx, min(max_len + 2, 40))
         
+        
+        # PO Items Sheet (detailed line items for each PO)
+        if not df_po_items.empty:
+            orange_header = workbook.add_format({
+                'bold': True, 'font_name': FONT_NAME, 'font_size': 11,
+                'bg_color': '#fd7e14', 'font_color': 'white', 'border': 1, 'align': 'center', 'valign': 'vcenter'
+            })
+            df_po_items.to_excel(writer, sheet_name='PO Items', index=False, startrow=1)
+            ws_po_items = writer.sheets['PO Items']
+            ws_po_items.write('A1', f'PO Line Items for {project_name}', title_format)
+            for col_num, col_name in enumerate(df_po_items.columns):
+                ws_po_items.write(1, col_num, col_name, orange_header)
+            for idx, col in enumerate(df_po_items.columns):
+                max_len = max(df_po_items[col].astype(str).map(len).max() if len(df_po_items) > 0 else 10, len(str(col)))
+                ws_po_items.set_column(idx, idx, min(max_len + 2, 45))
         # RFTS Sheet
         purple_header = workbook.add_format({
             'bold': True, 'font_name': FONT_NAME, 'font_size': 11,
