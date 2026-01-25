@@ -396,6 +396,7 @@
             </li>
             {% endif %}
             
+            {% if user_has_permission('view_company_profile') %}
             <li class="menu-section">
                 <div class="menu-header" data-section="company">
                     <div class="header-text">
@@ -413,6 +414,7 @@
                     </li>
                 </ul>
             </li>
+            {% endif %}
 
             {% set has_crm_items = user_has_permission('view_projects') or user_has_permission('view_pipeline_analysis') or user_has_permission('view_sales_performance') or user_has_permission('view_aging_dashboard') or user_has_permission('view_all_clients') or user_has_permission('view_end_users') or user_has_permission('view_contractors') or user_has_permission('view_consultants') %}
             {% if has_crm_items %}
@@ -636,7 +638,7 @@
             </li>
             {% endif %}
 
-            {% set has_srm_items = user_has_permission('view_vendors') or user_has_permission('view_distributors') or user_has_permission('view_products') %}
+            {% set has_srm_items = user_has_permission('view_vendors') or user_has_permission('view_distributors') or user_has_permission('view_quotation_products') %}
             {% if has_srm_items %}
             <li class="menu-section">
                 <div class="menu-header" data-section="srm">
@@ -663,7 +665,7 @@
                         </a>
                     </li>
                     {% endif %}
-                    {% if user_has_permission('view_products') %}
+                    {% if user_has_permission('view_quotation_products') %}
                     <li class="nav-item tooltip-wrapper" data-tooltip="Quotation Products">
                         <a href="{{ url_for('quotation_products_dashboard') }}" class="{{ 'active' if 'quotation_products' in request.endpoint else '' }}">
                             <i class="fas fa-box-open"></i>
@@ -695,7 +697,7 @@
             </li>
             {% endif %}
             
-            {% set has_admin_items = user_has_permission('manage_users') or user_has_permission('manage_permissions') or user_has_permission('view_pending_registrations') or user_has_permission('view_password_reset_otps') or user_has_permission('view_active_users') %}
+            {% set has_admin_items = user_has_permission('manage_users') or user_has_permission('manage_permissions') or user_has_permission('view_pending_registrations') or user_has_permission('view_password_reset_otps') or user_has_permission('view_active_users') or user_has_permission('view_pending_approvals') or user_has_permission('manage_clients') %}
             {% if has_admin_items %}
             <li class="menu-section">
                 <div class="menu-header" data-section="admin">
@@ -706,7 +708,7 @@
                     <i class="fas fa-chevron-down toggle-icon"></i>
                 </div>
                 <ul class="menu-items">
-                    {% if session.get('user_role') in ['General Manager', 'Technical Team Leader'] %}
+                    {% if user_has_permission('view_pending_approvals') %}
                     <li class="nav-item tooltip-wrapper" data-tooltip="Pending Approvals" style="position: relative;">
                         <a href="{{ url_for('pending_project_approvals') }}" class="{{ 'active' if 'pending_project_approvals' in request.endpoint else '' }}">
                             <i class="fas fa-clock"></i>
@@ -714,6 +716,8 @@
                             <span id="pending-approvals-badge" class="badge badge-warning ml-2"></span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if user_has_permission('manage_clients') %}
                     <li class="nav-item tooltip-wrapper" data-tooltip="Manage Clients">
                         <a href="{{ url_for('manage_clients') }}" class="{{ 'active' if 'manage_clients' in request.endpoint else '' }}">
                             <i class="fas fa-star"></i>
