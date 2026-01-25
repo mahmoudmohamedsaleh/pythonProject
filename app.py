@@ -14648,11 +14648,11 @@ def export_client_profile_excel(client_type, client_id):
         
         for idx, project in enumerate(projects, 2):
             ws_projects.cell(row=idx, column=1, value=project['project_name']).font = value_font
-            ws_projects.cell(row=idx, column=2, value=project.get('stage', 'N/A')).font = value_font
-            ws_projects.cell(row=idx, column=3, value=project.get('deal_value', 0) or 0).font = value_font
-            ws_projects.cell(row=idx, column=4, value=project.get('status', 'N/A')).font = value_font
-            ws_projects.cell(row=idx, column=5, value=project.get('registered_date', 'N/A')).font = value_font
-            ws_projects.cell(row=idx, column=6, value=project.get('city', 'N/A')).font = value_font
+            ws_projects.cell(row=idx, column=2, value=project['stage'] if project['stage'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=3, value=project['deal_value'] if project['deal_value'] else 0).font = value_font
+            ws_projects.cell(row=idx, column=4, value=project['status'] if project['status'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=5, value=project['registered_date'] if project['registered_date'] else 'N/A').font = value_font
+            ws_projects.cell(row=idx, column=6, value=project['city'] if project['city'] else 'N/A').font = value_font
             
             for col in range(1, 7):
                 ws_projects.cell(row=idx, column=col).border = thin_border
@@ -14675,12 +14675,12 @@ def export_client_profile_excel(client_type, client_id):
             cell.border = thin_border
         
         for idx, fu in enumerate(follow_ups, 2):
-            ws_followups.cell(row=idx, column=1, value=fu.get('follow_up_date', 'N/A')).font = value_font
-            ws_followups.cell(row=idx, column=2, value=fu.get('follow_up_type', 'N/A')).font = value_font
-            ws_followups.cell(row=idx, column=3, value=fu.get('status', 'N/A')).font = value_font
-            ws_followups.cell(row=idx, column=4, value=fu.get('notes', '')).font = value_font
-            ws_followups.cell(row=idx, column=5, value=fu.get('assigned_to', 'N/A')).font = value_font
-            ws_followups.cell(row=idx, column=6, value=fu.get('created_by', 'N/A')).font = value_font
+            ws_followups.cell(row=idx, column=1, value=fu['follow_up_date'] if fu['follow_up_date'] else 'N/A').font = value_font
+            ws_followups.cell(row=idx, column=2, value=fu['follow_up_type'] if fu['follow_up_type'] else 'N/A').font = value_font
+            ws_followups.cell(row=idx, column=3, value=fu['status'] if fu['status'] else 'N/A').font = value_font
+            ws_followups.cell(row=idx, column=4, value=fu['notes'] if fu['notes'] else '').font = value_font
+            ws_followups.cell(row=idx, column=5, value=fu['assigned_to'] if fu['assigned_to'] else 'N/A').font = value_font
+            ws_followups.cell(row=idx, column=6, value=fu['created_by'] if fu['created_by'] else 'N/A').font = value_font
             
             for col in range(1, 7):
                 ws_followups.cell(row=idx, column=col).border = thin_border
@@ -14933,10 +14933,10 @@ def export_client_profile_pptx(client_type, client_id):
         for idx, proj in enumerate(projects[:rows-1], 1):
             data = [
                 proj['project_name'][:40] if proj['project_name'] else 'N/A',
-                proj.get('stage', 'N/A') or 'N/A',
-                f"{proj.get('deal_value', 0) or 0:,.0f}",
-                proj.get('status', 'N/A') or 'N/A',
-                proj.get('registered_date', 'N/A') or 'N/A',
+                proj['stage'] if proj['stage'] else 'N/A',
+                f"{proj['deal_value'] if proj['deal_value'] else 0:,.0f}",
+                proj['status'] if proj['status'] else 'N/A',
+                proj['registered_date'] if proj['registered_date'] else 'N/A',
             ]
             for col, val in enumerate(data):
                 cell = table.cell(idx, col)
@@ -14986,11 +14986,11 @@ def export_client_profile_pptx(client_type, client_id):
         
         for idx, fu in enumerate(follow_ups[:rows-1], 1):
             data = [
-                fu.get('follow_up_date', 'N/A') or 'N/A',
-                fu.get('follow_up_type', 'N/A') or 'N/A',
-                fu.get('status', 'N/A') or 'N/A',
-                (fu.get('notes', '') or '')[:50],
-                fu.get('assigned_to', 'N/A') or 'N/A',
+                fu['follow_up_date'] if fu['follow_up_date'] else 'N/A',
+                fu['follow_up_type'] if fu['follow_up_type'] else 'N/A',
+                fu['status'] if fu['status'] else 'N/A',
+                (fu['notes'] if fu['notes'] else '')[:50],
+                fu['assigned_to'] if fu['assigned_to'] else 'N/A',
             ]
             for col, val in enumerate(data):
                 cell = table.cell(idx, col)
