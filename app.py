@@ -15707,7 +15707,7 @@ def export_client_profile_pptx(client_type, client_id):
                 (po.get('project_name', '') or '')[:25],
                 po.get('po_request_reference', '') or '',
                 (po.get('vendor_name', '') or '')[:20],
-                f"{po.get('system', ''):,.0f}",
+                po.get('system', '') or '',
                 po.get('request_status', '') or '',
                 po.get('requested_time', '') or '',
             ]
