@@ -467,6 +467,14 @@
                         </a>
                     </li>
                     {% endif %}
+                    {% if user_has_permission('view_all_clients') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Aggregate Reports">
+                        <a href="{{ url_for('aggregate_reports') }}" class="{{ 'active' if request.endpoint == 'aggregate_reports' else '' }}">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Aggregate Reports</span>
+                        </a>
+                    </li>
+                    {% endif %}
                     {% if user_has_permission('view_end_users') %}
                     <li class="nav-item tooltip-wrapper" data-tooltip="End Users">
                         <a href="{{ url_for('view_end_users') }}" class="{{ 'active' if 'end_user' in request.endpoint else '' }}">

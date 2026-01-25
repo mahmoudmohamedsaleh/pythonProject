@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+
+{% block title %}Aggregate Reports{% endblock %}
+
+{% block content %}
+<style>
+    .ar-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 30px;
+        color: white;
+        margin-bottom: 25px;
+    }
+    .ar-hero h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+    .ar-hero p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    .ar-filter-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+    .ar-client-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 15px;
+        max-height: 500px;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    .ar-client-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    .ar-client-card:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+    }
+    .ar-client-card.selected {
+        border-color: #28a745;
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    }
+    .ar-client-card.selected::after {
+        content: '\f00c';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: #28a745;
+        font-size: 1.2rem;
+    }
+    .ar-client-name {
+        font-weight: 600;
+        font-size: 1rem;
+        color: #333;
+        margin-bottom: 8px;
+    }
+    .ar-client-info {
+        font-size: 0.85rem;
+        color: #666;
+    }
+    .ar-client-type {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .ar-type-end_user { background: #e3f2fd; color: #1976d2; }
+    .ar-type-contractor { background: #fff3e0; color: #f57c00; }
+    .ar-type-consultant { background: #f3e5f5; color: #7b1fa2; }
+    .ar-tier-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-left: 5px;
+    }
+    .ar-tier-VIP { background: #ffd700; color: #333; }
+    .ar-tier-Key { background: #c0c0c0; color: #333; }
+    .ar-tier-Standard { background: #e9ecef; color: #666; }
+    .ar-tier-New { background: #d4edda; color: #155724; }
+    .ar-selected-panel {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        padding: 20px;
+        position: sticky;
+        top: 20px;
+    }
+    .ar-selected-count {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+    .ar-selected-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .ar-selected-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+    .ar-remove-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        padding: 0 5px;
+    }
+    .ar-generate-btn {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-weight: 600;
+        width: 100%;
+        margin-top: 15px;
+        transition: all 0.3s ease;
+    }
+    .ar-generate-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+    }
+    .ar-generate-btn:disabled {
+        background: #adb5bd;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    .ar-no-clients {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+    }
+</style>
+
+<div class="ar-hero">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-file-alt mr-2"></i>Aggregate Reports</h1>
+            <p>Select multiple clients to generate a combined report with all project details</p>
+        </div>
+        <div class="text-right">
+            <span class="badge badge-light p-2"><i class="fas fa-users mr-1"></i> {{ clients|length }} Clients Available</span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="ar-filter-card">
+            <h5 class="mb-3"><i class="fas fa-filter mr-2"></i>Filter Clients</h5>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label>Sales Engineer</label>
+                    <select id="filterEngineer" class="form-control" onchange="filterClients()">
+                        <option value="">All Engineers</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng.id }}">{{ eng.name or eng.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Client Type</label>
+                    <select id="filterType" class="form-control" onchange="filterClients()">
+                        <option value="">All Types</option>
+                        <option value="end_user">End User</option>
+                        <option value="contractor">Contractor</option>
+                        <option value="consultant">Consultant</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>Tier</label>
+                    <select id="filterTier" class="form-control" onchange="filterClients()">
+                        <option value="">All Tiers</option>
+                        <option value="VIP">VIP</option>
+                        <option value="Key Account">Key Account</option>
+                        <option value="Standard">Standard</option>
+                        <option value="New">New</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label>Search</label>
+                    <input type="text" id="searchClient" class="form-control" placeholder="Search by name..." oninput="filterClients()">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-outline-primary btn-block" onclick="selectAllVisible()">
+                        <i class="fas fa-check-double mr-1"></i>Select All Visible
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ar-client-grid" id="clientGrid">
+            {% for client in clients %}
+            <div class="ar-client-card" 
+                 data-id="{{ client.id }}" 
+                 data-type="{{ client.client_type }}"
+                 data-engineer="{{ client.assigned_sales_engineer_id or '' }}"
+                 data-tier="{{ client.client_tier or 'Standard' }}"
+                 data-name="{{ client.name }}"
+                 onclick="toggleClient(this)">
+                <span class="ar-client-type ar-type-{{ client.client_type }}">
+                    {{ client.client_type.replace('_', ' ').title() }}
+                </span>
+                <span class="ar-tier-badge ar-tier-{{ (client.client_tier or 'Standard').split()[0] }}">
+                    {{ client.client_tier or 'Standard' }}
+                </span>
+                <div class="ar-client-name">{{ client.name }}</div>
+                <div class="ar-client-info">
+                    <i class="fas fa-user mr-1"></i>{{ client.contact_person or 'No Contact' }}<br>
+                    <i class="fas fa-user-tie mr-1"></i>{{ client.engineer_name or 'Not Assigned' }}<br>
+                    <i class="fas fa-project-diagram mr-1"></i>{{ client.project_count }} Projects
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="ar-selected-panel">
+            <h5><i class="fas fa-list-check mr-2"></i>Selected Clients</h5>
+            <div class="text-center my-3">
+                <div class="ar-selected-count" id="selectedCount">0</div>
+                <div class="text-muted">Clients Selected</div>
+            </div>
+            
+            <div class="ar-selected-list" id="selectedList">
+                <div class="ar-no-clients">
+                    <i class="fas fa-hand-pointer fa-2x mb-2"></i>
+                    <p>Click on clients to select them</p>
+                </div>
+            </div>
+            
+            <button class="ar-generate-btn" id="generateBtn" onclick="generateReport()" disabled>
+                <i class="fas fa-file-excel mr-2"></i>Generate Excel Report
+            </button>
+            
+            <button class="btn btn-outline-secondary btn-block mt-2" onclick="clearSelection()">
+                <i class="fas fa-times mr-1"></i>Clear Selection
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedClients = [];
+
+function toggleClient(card) {
+    const id = card.dataset.id;
+    const type = card.dataset.type;
+    const name = card.dataset.name;
+    
+    const index = selectedClients.findIndex(c => c.id === id && c.type === type);
+    
+    if (index > -1) {
+        selectedClients.splice(index, 1);
+        card.classList.remove('selected');
+    } else {
+        selectedClients.push({ id: id, type: type, name: name });
+        card.classList.add('selected');
+    }
+    
+    updateSelectedPanel();
+}
+
+function updateSelectedPanel() {
+    const count = selectedClients.length;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('generateBtn').disabled = count === 0;
+    
+    const listEl = document.getElementById('selectedList');
+    
+    if (count === 0) {
+        listEl.innerHTML = `
+            <div class="ar-no-clients">
+                <i class="fas fa-hand-pointer fa-2x mb-2"></i>
+                <p>Click on clients to select them</p>
+            </div>
+        `;
+    } else {
+        listEl.innerHTML = selectedClients.map((c, i) => `
+            <div class="ar-selected-item">
+                <span>${c.name}</span>
+                <button class="ar-remove-btn" onclick="removeClient(${i})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+}
+
+function removeClient(index) {
+    const client = selectedClients[index];
+    const card = document.querySelector(`.ar-client-card[data-id="${client.id}"][data-type="${client.type}"]`);
+    if (card) card.classList.remove('selected');
+    selectedClients.splice(index, 1);
+    updateSelectedPanel();
+}
+
+function clearSelection() {
+    document.querySelectorAll('.ar-client-card.selected').forEach(card => {
+        card.classList.remove('selected');
+    });
+    selectedClients = [];
+    updateSelectedPanel();
+}
+
+function filterClients() {
+    const engineer = document.getElementById('filterEngineer').value;
+    const type = document.getElementById('filterType').value;
+    const tier = document.getElementById('filterTier').value;
+    const search = document.getElementById('searchClient').value.toLowerCase();
+    
+    document.querySelectorAll('.ar-client-card').forEach(card => {
+        let show = true;
+        
+        if (engineer && card.dataset.engineer !== engineer) show = false;
+        if (type && card.dataset.type !== type) show = false;
+        if (tier && card.dataset.tier !== tier) show = false;
+        if (search && !card.dataset.name.toLowerCase().includes(search)) show = false;
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+function selectAllVisible() {
+    document.querySelectorAll('.ar-client-card').forEach(card => {
+        if (card.style.display !== 'none' && !card.classList.contains('selected')) {
+            toggleClient(card);
+        }
+    });
+}
+
+function generateReport() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+    
+    fetch('/generate_aggregate_report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clients: selectedClients, format: 'excel' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.download_url;
+            btn.innerHTML = '<i class="fas fa-check mr-2"></i>Report Generated!';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-file-excel mr-2"></i>Generate Excel Report';
+            }, 2000);
+        } else {
+            alert('Error: ' + data.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-excel mr-2"></i>Generate Excel Report';
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error generating report');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-excel mr-2"></i>Generate Excel Report';
+    });
+}
+</script>
+{% endblock %}

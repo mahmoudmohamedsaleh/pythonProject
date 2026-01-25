@@ -26386,3 +26386,419 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'
     app.run(host=host, port=port, debug=debug)
+
+
+@app.route('/aggregate_reports')
+@login_required
+def aggregate_reports():
+    """Aggregate Reports page - select multiple clients for combined reporting"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get all sales engineers
+    cursor.execute("SELECT id, name, username FROM engineers ORDER BY name")
+    engineers = cursor.fetchall()
+    
+    # Get all clients from all tables
+    clients = []
+    
+    # End users
+    cursor.execute("""
+        SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.client_tier, 
+               eu.assigned_sales_engineer_id, e.name as engineer_name, 'end_user' as client_type,
+               (SELECT COUNT(*) FROM register_project WHERE end_user_id = eu.id) as project_count
+        FROM end_users eu
+        LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+        ORDER BY eu.name
+    """)
+    for row in cursor.fetchall():
+        clients.append(dict(row))
+    
+    # Contractors
+    cursor.execute("""
+        SELECT c.id, c.name, c.contact_person, c.phone, c.client_tier, 
+               c.assigned_sales_engineer_id, e.name as engineer_name, 'contractor' as client_type,
+               (SELECT COUNT(*) FROM register_project WHERE contractor_id = c.id) as project_count
+        FROM contractors c
+        LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+        ORDER BY c.name
+    """)
+    for row in cursor.fetchall():
+        clients.append(dict(row))
+    
+    # Consultants
+    cursor.execute("""
+        SELECT co.id, co.name, co.contact_person, co.phone, co.client_tier, 
+               co.assigned_sales_engineer_id, e.name as engineer_name, 'consultant' as client_type,
+               (SELECT COUNT(*) FROM register_project WHERE consultant_id = co.id) as project_count
+        FROM consultants co
+        LEFT JOIN engineers e ON co.assigned_sales_engineer_id = e.id
+        ORDER BY co.name
+    """)
+    for row in cursor.fetchall():
+        clients.append(dict(row))
+    
+    conn.close()
+    
+    return render_template('aggregate_reports.html', engineers=engineers, clients=clients)
+
+
+@app.route('/generate_aggregate_report', methods=['POST'])
+@login_required
+def generate_aggregate_report():
+    """Generate aggregate Excel report for selected clients"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    
+    FONT_NAME = 'Calibri'
+    
+    data = request.get_json()
+    selected_clients = data.get('clients', [])
+    report_format = data.get('format', 'excel')
+    
+    if not selected_clients:
+        return jsonify({'success': False, 'message': 'No clients selected'})
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Styles
+    title_font = Font(name=FONT_NAME, size=18, bold=True, color='1a5276')
+    header_font = Font(name=FONT_NAME, size=12, bold=True, color='FFFFFF')
+    label_font = Font(name=FONT_NAME, size=11, bold=True)
+    value_font = Font(name=FONT_NAME, size=11)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+    header_fill = PatternFill(start_color='1a5276', end_color='1a5276', fill_type='solid')
+    alt_fill = PatternFill(start_color='f8f9fa', end_color='f8f9fa', fill_type='solid')
+    green_fill = PatternFill(start_color='28a745', end_color='28a745', fill_type='solid')
+    yellow_fill = PatternFill(start_color='ffc107', end_color='ffc107', fill_type='solid')
+    red_fill = PatternFill(start_color='dc3545', end_color='dc3545', fill_type='solid')
+    orange_fill = PatternFill(start_color='fd7e14', end_color='fd7e14', fill_type='solid')
+    purple_fill = PatternFill(start_color='6f42c1', end_color='6f42c1', fill_type='solid')
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Report Summary"
+    
+    # Summary sheet
+    ws['A1'] = "Aggregate Client Report"
+    ws['A1'].font = title_font
+    ws.merge_cells('A1:D1')
+    
+    ws['A2'] = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws['A2'].font = value_font
+    
+    ws['A3'] = f"Clients Included: {len(selected_clients)}"
+    ws['A3'].font = value_font
+    
+    row = 5
+    ws[f'A{row}'] = "Selected Clients"
+    ws[f'A{row}'].font = header_font
+    ws[f'A{row}'].fill = header_fill
+    ws.merge_cells(f'A{row}:D{row}')
+    
+    row += 1
+    total_projects = 0
+    total_deal_value = 0
+    
+    # For each selected client, create a detailed sheet
+    for client_data in selected_clients:
+        client_type = client_data.get('type')
+        client_id = client_data.get('id')
+        
+        # Get client info
+        table_map = {'end_user': 'end_users', 'contractor': 'contractors', 'consultant': 'consultants'}
+        client_table = table_map.get(client_type)
+        
+        if not client_table:
+            continue
+        
+        cursor.execute(f"""
+            SELECT c.*, e.name as engineer_name
+            FROM {client_table} c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.id = ?
+        """, (client_id,))
+        client = cursor.fetchone()
+        
+        if not client:
+            continue
+        
+        # Add to summary
+        ws[f'A{row}'] = client['name']
+        ws[f'A{row}'].font = value_font
+        ws[f'B{row}'] = client_type.replace('_', ' ').title()
+        ws[f'B{row}'].font = value_font
+        ws[f'C{row}'] = client['engineer_name'] or 'Not Assigned'
+        ws[f'C{row}'].font = value_font
+        row += 1
+        
+        # Get projects
+        if client_type == 'end_user':
+            proj_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+        elif client_type == 'contractor':
+            proj_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+        else:
+            proj_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+        
+        cursor.execute(proj_query, (client_id,))
+        projects = cursor.fetchall()
+        
+        total_projects += len(projects)
+        for p in projects:
+            total_deal_value += p['deal_value'] or 0
+        
+        # Create sheet for this client
+        safe_name = client['name'].replace('/', '-').replace('\\', '-').replace('*', '-').replace('?', '-').replace('[', '-').replace(']', '-').replace(':', '-')[:28]
+        ws_client = wb.create_sheet(title=safe_name)
+        
+        # Client header
+        ws_client['A1'] = f"Client Report: {client['name']}"
+        ws_client['A1'].font = title_font
+        ws_client.merge_cells('A1:F1')
+        
+        c_row = 3
+        ws_client[f'A{c_row}'] = "Client Information"
+        ws_client[f'A{c_row}'].font = header_font
+        ws_client[f'A{c_row}'].fill = header_fill
+        ws_client.merge_cells(f'A{c_row}:F{c_row}')
+        
+        c_row += 1
+        info = [
+            ('Name', client['name']),
+            ('Type', client_type.replace('_', ' ').title()),
+            ('Contact', client['contact_person'] or 'N/A'),
+            ('Phone', client['phone'] or 'N/A'),
+            ('Tier', client['client_tier'] or 'Standard'),
+            ('Engineer', client['engineer_name'] or 'Not Assigned'),
+        ]
+        for label, value in info:
+            ws_client[f'A{c_row}'] = label
+            ws_client[f'A{c_row}'].font = label_font
+            ws_client[f'B{c_row}'] = str(value)
+            ws_client[f'B{c_row}'].font = value_font
+            c_row += 1
+        
+        # For each project, add details
+        for proj in projects:
+            project_name = proj['project_name']
+            
+            c_row += 1
+            ws_client[f'A{c_row}'] = f"Project: {project_name}"
+            ws_client[f'A{c_row}'].font = Font(name=FONT_NAME, size=14, bold=True, color='1a5276')
+            ws_client.merge_cells(f'A{c_row}:F{c_row}')
+            
+            c_row += 1
+            ws_client[f'A{c_row}'] = f"Deal Value: {proj['deal_value'] or 0:,.0f} SAR | Stage: {proj['stage'] or 'N/A'} | Probability: {proj['probability'] or 0}%"
+            ws_client[f'A{c_row}'].font = value_font
+            c_row += 1
+            
+            # Quotations
+            cursor.execute("SELECT * FROM projects WHERE project_name = ?", (project_name,))
+            quotations = cursor.fetchall()
+            
+            if quotations:
+                c_row += 1
+                ws_client[f'A{c_row}'] = f"Quotations ({len(quotations)})"
+                ws_client[f'A{c_row}'].font = header_font
+                ws_client[f'A{c_row}'].fill = green_fill
+                ws_client.merge_cells(f'A{c_row}:F{c_row}')
+                
+                c_row += 1
+                q_headers = ['Quote Ref', 'System', 'Presale Eng', 'Cost', 'Selling Price', 'Status']
+                for col, h in enumerate(q_headers, 1):
+                    cell = ws_client.cell(row=c_row, column=col, value=h)
+                    cell.font = header_font
+                    cell.fill = green_fill
+                    cell.border = thin_border
+                c_row += 1
+                
+                for q in quotations:
+                    ws_client.cell(row=c_row, column=1, value=q['quote_ref'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=2, value=q['system'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=3, value=q['presale_eng'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=4, value=q['quotation_cost'] or 0).font = value_font
+                    ws_client.cell(row=c_row, column=5, value=q['quotation_selling_price'] or 0).font = value_font
+                    ws_client.cell(row=c_row, column=6, value=q['status'] or '').font = value_font
+                    for col in range(1, 7):
+                        ws_client.cell(row=c_row, column=col).border = thin_border
+                    c_row += 1
+            
+            # RFQs
+            cursor.execute("SELECT * FROM rfq_requests WHERE project_name = ?", (project_name,))
+            rfqs = cursor.fetchall()
+            
+            if rfqs:
+                c_row += 1
+                ws_client[f'A{c_row}'] = f"RFQs ({len(rfqs)})"
+                ws_client[f'A{c_row}'].font = header_font
+                ws_client[f'A{c_row}'].fill = yellow_fill
+                ws_client.merge_cells(f'A{c_row}:F{c_row}')
+                
+                c_row += 1
+                rfq_headers = ['RFQ Ref', 'System', 'Engineer', 'Status', 'Requested', '']
+                for col, h in enumerate(rfq_headers, 1):
+                    cell = ws_client.cell(row=c_row, column=col, value=h)
+                    cell.font = header_font
+                    cell.fill = yellow_fill
+                    cell.border = thin_border
+                c_row += 1
+                
+                for r in rfqs:
+                    ws_client.cell(row=c_row, column=1, value=r['rfq_reference'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=2, value=r['system'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=3, value=r['sales_engineer_presale'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=4, value=r['rfq_status'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=5, value=r['requested_time'] or '').font = value_font
+                    for col in range(1, 6):
+                        ws_client.cell(row=c_row, column=col).border = thin_border
+                    c_row += 1
+            
+            # Purchase Orders
+            cursor.execute("SELECT * FROM purchase_orders WHERE project_name = ?", (project_name,))
+            pos = cursor.fetchall()
+            
+            if pos:
+                c_row += 1
+                ws_client[f'A{c_row}'] = f"Purchase Orders ({len(pos)})"
+                ws_client[f'A{c_row}'].font = header_font
+                ws_client[f'A{c_row}'].fill = red_fill
+                ws_client.merge_cells(f'A{c_row}:F{c_row}')
+                
+                c_row += 1
+                po_headers = ['PO Number', 'Vendor', 'System', 'Total', 'Approval', 'Delivery']
+                for col, h in enumerate(po_headers, 1):
+                    cell = ws_client.cell(row=c_row, column=col, value=h)
+                    cell.font = header_font
+                    cell.fill = red_fill
+                    cell.border = thin_border
+                c_row += 1
+                
+                for po in pos:
+                    ws_client.cell(row=c_row, column=1, value=po['po_number'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=2, value=po['vendor'] or po['distributor'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=3, value=po['system'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=4, value=po['total_amount'] or 0).font = value_font
+                    ws_client.cell(row=c_row, column=5, value=po['po_approval_status'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=6, value=po['po_delivery_status'] or '').font = value_font
+                    for col in range(1, 7):
+                        ws_client.cell(row=c_row, column=col).border = thin_border
+                    c_row += 1
+                    
+                    # PO Items
+                    if po['po_number']:
+                        cursor.execute("SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number", (po['po_number'],))
+                        items = cursor.fetchall()
+                        if items:
+                            c_row += 1
+                            item_headers = ['Item #', 'Part No', 'Description', 'Qty', 'Unit Price', 'Total']
+                            for col, h in enumerate(item_headers, 1):
+                                cell = ws_client.cell(row=c_row, column=col, value=h)
+                                cell.font = Font(name=FONT_NAME, size=10, bold=True, color='FFFFFF')
+                                cell.fill = orange_fill
+                                cell.border = thin_border
+                            c_row += 1
+                            
+                            for item in items:
+                                ws_client.cell(row=c_row, column=1, value=item['item_number'] or '').font = value_font
+                                ws_client.cell(row=c_row, column=2, value=item['part_number'] or '').font = value_font
+                                ws_client.cell(row=c_row, column=3, value=item['description'] or '').font = value_font
+                                ws_client.cell(row=c_row, column=4, value=item['quantity'] or 0).font = value_font
+                                ws_client.cell(row=c_row, column=5, value=item['unit_price'] or 0).font = value_font
+                                ws_client.cell(row=c_row, column=6, value=item['total_price'] or 0).font = value_font
+                                for col in range(1, 7):
+                                    ws_client.cell(row=c_row, column=col).border = thin_border
+                                c_row += 1
+            
+            # RFTS
+            cursor.execute("SELECT * FROM technical_support_requests WHERE project_name = ?", (project_name,))
+            rfts_list = cursor.fetchall()
+            
+            if rfts_list:
+                c_row += 1
+                ws_client[f'A{c_row}'] = f"RFTS ({len(rfts_list)})"
+                ws_client[f'A{c_row}'].font = header_font
+                ws_client[f'A{c_row}'].fill = purple_fill
+                ws_client.merge_cells(f'A{c_row}:F{c_row}')
+                
+                c_row += 1
+                rfts_headers = ['RFTS Ref', 'System', 'Type', 'Engineer', 'Priority', 'Status']
+                for col, h in enumerate(rfts_headers, 1):
+                    cell = ws_client.cell(row=c_row, column=col, value=h)
+                    cell.font = header_font
+                    cell.fill = purple_fill
+                    cell.border = thin_border
+                c_row += 1
+                
+                for rt in rfts_list:
+                    ws_client.cell(row=c_row, column=1, value=rt['rfts_reference'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=2, value=rt['system'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=3, value=rt['request_type'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=4, value=rt['presale_engineer'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=5, value=rt['priority'] or '').font = value_font
+                    ws_client.cell(row=c_row, column=6, value=rt['request_status'] or '').font = value_font
+                    for col in range(1, 7):
+                        ws_client.cell(row=c_row, column=col).border = thin_border
+                    c_row += 1
+        
+        # Set column widths
+        ws_client.column_dimensions['A'].width = 20
+        ws_client.column_dimensions['B'].width = 25
+        ws_client.column_dimensions['C'].width = 30
+        ws_client.column_dimensions['D'].width = 15
+        ws_client.column_dimensions['E'].width = 15
+        ws_client.column_dimensions['F'].width = 15
+    
+    # Add totals to summary
+    row += 2
+    ws[f'A{row}'] = "Summary Statistics"
+    ws[f'A{row}'].font = header_font
+    ws[f'A{row}'].fill = green_fill
+    ws.merge_cells(f'A{row}:D{row}')
+    
+    row += 1
+    ws[f'A{row}'] = "Total Projects"
+    ws[f'A{row}'].font = label_font
+    ws[f'B{row}'] = total_projects
+    ws[f'B{row}'].font = value_font
+    
+    row += 1
+    ws[f'A{row}'] = "Total Deal Value (SAR)"
+    ws[f'A{row}'].font = label_font
+    ws[f'B{row}'] = f"{total_deal_value:,.2f}"
+    ws[f'B{row}'].font = value_font
+    
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 15
+    
+    conn.close()
+    
+    # Save to file
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    # Save to temp file and return URL
+    import os
+    filename = f"Aggregate_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    filepath = os.path.join('static', 'temp', filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    
+    with open(filepath, 'wb') as f:
+        f.write(output.getvalue())
+    
+    return jsonify({
+        'success': True,
+        'download_url': url_for('static', filename=f'temp/{filename}'),
+        'filename': filename
+    })
+
