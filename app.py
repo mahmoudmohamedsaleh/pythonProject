@@ -26451,6 +26451,10 @@ def generate_aggregate_report():
     if not selected_clients:
         return jsonify({'success': False, 'message': 'No clients selected'})
     
+    # Handle PowerPoint format
+    if report_format == 'powerpoint':
+        return generate_aggregate_powerpoint(selected_clients)
+    
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -26792,6 +26796,245 @@ def generate_aggregate_report():
     })
 
 
+
+
+
+def generate_aggregate_powerpoint(selected_clients):
+    """Generate aggregate PowerPoint report for selected clients"""
+    import io
+    import os
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RgbColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    # Title slide
+    title_slide_layout = prs.slide_layouts[6]  # Blank
+    slide = prs.slides.add_slide(title_slide_layout)
+    
+    # Add title box
+    left = Inches(0.5)
+    top = Inches(2.5)
+    width = Inches(12.333)
+    height = Inches(1.5)
+    txBox = slide.shapes.add_textbox(left, top, width, height)
+    tf = txBox.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Aggregate Client Report"
+    p.font.size = Pt(44)
+    p.font.bold = True
+    p.font.color.rgb = RgbColor(0x1a, 0x52, 0x76)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Subtitle
+    top = Inches(4)
+    txBox = slide.shapes.add_textbox(left, top, width, Inches(1))
+    tf = txBox.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    p.font.size = Pt(20)
+    p.alignment = PP_ALIGN.CENTER
+    
+    p = tf.add_paragraph()
+    p.text = f"Clients Included: {len(selected_clients)}"
+    p.font.size = Pt(18)
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Summary slide
+    slide = prs.slides.add_slide(title_slide_layout)
+    
+    # Title
+    txBox = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+    tf = txBox.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Summary"
+    p.font.size = Pt(32)
+    p.font.bold = True
+    p.font.color.rgb = RgbColor(0x1a, 0x52, 0x76)
+    
+    # Client list
+    total_projects = 0
+    total_deal_value = 0
+    client_data_list = []
+    
+    for client_info in selected_clients:
+        client_type = client_info.get('type')
+        client_id = client_info.get('id')
+        
+        table_map = {'end_user': 'end_users', 'contractor': 'contractors', 'consultant': 'consultants'}
+        client_table = table_map.get(client_type)
+        
+        if not client_table:
+            continue
+        
+        cursor.execute(f"""
+            SELECT c.*, e.name as engineer_name
+            FROM {client_table} c
+            LEFT JOIN engineers e ON c.assigned_sales_engineer_id = e.id
+            WHERE c.id = ?
+        """, (client_id,))
+        client = cursor.fetchone()
+        
+        if not client:
+            continue
+        
+        # Get projects
+        if client_type == 'end_user':
+            proj_query = "SELECT * FROM register_project WHERE end_user_id = ? ORDER BY registered_date DESC"
+        elif client_type == 'contractor':
+            proj_query = "SELECT * FROM register_project WHERE contractor_id = ? ORDER BY registered_date DESC"
+        else:
+            proj_query = "SELECT * FROM register_project WHERE consultant_id = ? ORDER BY registered_date DESC"
+        
+        cursor.execute(proj_query, (client_id,))
+        projects = cursor.fetchall()
+        
+        client_projects = len(projects)
+        client_value = sum(p['deal_value'] or 0 for p in projects)
+        total_projects += client_projects
+        total_deal_value += client_value
+        
+        client_data_list.append({
+            'name': client['name'],
+            'type': client_type.replace('_', ' ').title(),
+            'engineer': client['engineer_name'] or 'Not Assigned',
+            'tier': client['client_tier'] or 'Standard',
+            'projects': projects,
+            'project_count': client_projects,
+            'deal_value': client_value
+        })
+    
+    # Add summary table
+    rows = len(client_data_list) + 2
+    cols = 5
+    left = Inches(0.5)
+    top = Inches(1.2)
+    width = Inches(12.333)
+    height = Inches(0.4 * rows)
+    
+    table = slide.shapes.add_table(rows, cols, left, top, width, height).table
+    
+    # Headers
+    headers = ['Client Name', 'Type', 'Tier', 'Engineer', 'Projects']
+    for i, header in enumerate(headers):
+        cell = table.cell(0, i)
+        cell.text = header
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = RgbColor(0x1a, 0x52, 0x76)
+        p = cell.text_frame.paragraphs[0]
+        p.font.bold = True
+        p.font.color.rgb = RgbColor(0xFF, 0xFF, 0xFF)
+        p.font.size = Pt(12)
+    
+    # Data
+    for i, client in enumerate(client_data_list, 1):
+        table.cell(i, 0).text = client['name'][:30]
+        table.cell(i, 1).text = client['type']
+        table.cell(i, 2).text = client['tier']
+        table.cell(i, 3).text = client['engineer'][:20] if client['engineer'] else 'N/A'
+        table.cell(i, 4).text = str(client['project_count'])
+        
+        for j in range(5):
+            p = table.cell(i, j).text_frame.paragraphs[0]
+            p.font.size = Pt(10)
+    
+    # Total row
+    last_row = len(client_data_list) + 1
+    table.cell(last_row, 0).text = "TOTAL"
+    table.cell(last_row, 4).text = str(total_projects)
+    for j in range(5):
+        cell = table.cell(last_row, j)
+        cell.fill.solid()
+        cell.fill.fore_color.rgb = RgbColor(0x28, 0xa7, 0x45)
+        p = cell.text_frame.paragraphs[0]
+        p.font.bold = True
+        p.font.color.rgb = RgbColor(0xFF, 0xFF, 0xFF)
+    
+    # Individual client slides
+    for client_data in client_data_list:
+        # Client overview slide
+        slide = prs.slides.add_slide(title_slide_layout)
+        
+        # Client name header
+        txBox = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.7))
+        tf = txBox.text_frame
+        p = tf.paragraphs[0]
+        p.text = client_data['name']
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RgbColor(0x1a, 0x52, 0x76)
+        
+        # Info box
+        info_text = f"Type: {client_data['type']} | Tier: {client_data['tier']} | Engineer: {client_data['engineer']}"
+        txBox = slide.shapes.add_textbox(Inches(0.5), Inches(1), Inches(12.333), Inches(0.4))
+        tf = txBox.text_frame
+        p = tf.paragraphs[0]
+        p.text = info_text
+        p.font.size = Pt(14)
+        
+        # Stats
+        txBox = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(6), Inches(0.6))
+        tf = txBox.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Projects: {client_data['project_count']} | Total Value: {client_data['deal_value']:,.0f} SAR"
+        p.font.size = Pt(16)
+        p.font.bold = True
+        
+        # Projects table
+        projects = client_data['projects']
+        if projects:
+            rows = min(len(projects), 10) + 1
+            cols = 4
+            table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(2.2), Inches(12.333), Inches(0.35 * rows)).table
+            
+            proj_headers = ['Project Name', 'Stage', 'Deal Value', 'Probability']
+            for i, h in enumerate(proj_headers):
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RgbColor(0x66, 0x7e, 0xea)
+                p = cell.text_frame.paragraphs[0]
+                p.font.bold = True
+                p.font.color.rgb = RgbColor(0xFF, 0xFF, 0xFF)
+                p.font.size = Pt(11)
+            
+            for i, proj in enumerate(projects[:10], 1):
+                table.cell(i, 0).text = (proj['project_name'] or '')[:40]
+                table.cell(i, 1).text = proj['stage'] or 'N/A'
+                table.cell(i, 2).text = f"{proj['deal_value'] or 0:,.0f}"
+                table.cell(i, 3).text = f"{proj['probability'] or 0}%"
+                
+                for j in range(4):
+                    p = table.cell(i, j).text_frame.paragraphs[0]
+                    p.font.size = Pt(10)
+    
+    conn.close()
+    
+    # Save to file
+    output = io.BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"Aggregate_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    filepath = os.path.join('static', 'temp', filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    
+    with open(filepath, 'wb') as f:
+        f.write(output.getvalue())
+    
+    return jsonify({
+        'success': True,
+        'download_url': url_for('static', filename=f'temp/{filename}'),
+        'filename': filename
+    })
 
 if __name__ == '__main__':
     init_db()

@@ -257,8 +257,12 @@
                 </div>
             </div>
             
-            <button class="ar-generate-btn" id="generateBtn" onclick="generateReport()" disabled>
+            <button class="ar-generate-btn" id="generateExcelBtn" onclick="generateReport('excel')" disabled>
                 <i class="fas fa-file-excel mr-2"></i>Generate Excel Report
+            </button>
+            
+            <button class="ar-generate-btn" id="generatePptBtn" onclick="generateReport('powerpoint')" disabled style="background: linear-gradient(135deg, #d35400 0%, #e74c3c 100%); margin-top: 10px;">
+                <i class="fas fa-file-powerpoint mr-2"></i>Generate PowerPoint
             </button>
             
             <button class="btn btn-outline-secondary btn-block mt-2" onclick="clearSelection()">
@@ -292,7 +296,8 @@ function toggleClient(card) {
 function updateSelectedPanel() {
     const count = selectedClients.length;
     document.getElementById('selectedCount').textContent = count;
-    document.getElementById('generateBtn').disabled = count === 0;
+    document.getElementById('generateExcelBtn').disabled = count === 0;
+    document.getElementById('generatePptBtn').disabled = count === 0;
     
     const listEl = document.getElementById('selectedList');
     
@@ -357,15 +362,17 @@ function selectAllVisible() {
     });
 }
 
-function generateReport() {
-    const btn = document.getElementById('generateBtn');
+function generateReport(format) {
+    const isExcel = format === 'excel';
+    const btn = document.getElementById(isExcel ? 'generateExcelBtn' : 'generatePptBtn');
+    const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
     
     fetch('/generate_aggregate_report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clients: selectedClients, format: 'excel' })
+        body: JSON.stringify({ clients: selectedClients, format: format })
     })
     .then(response => response.json())
     .then(data => {
@@ -374,19 +381,19 @@ function generateReport() {
             btn.innerHTML = '<i class="fas fa-check mr-2"></i>Report Generated!';
             setTimeout(() => {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-file-excel mr-2"></i>Generate Excel Report';
+                btn.innerHTML = originalHtml;
             }, 2000);
         } else {
             alert('Error: ' + data.message);
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-file-excel mr-2"></i>Generate Excel Report';
+            btn.innerHTML = originalHtml;
         }
     })
     .catch(err => {
         console.error(err);
         alert('Error generating report');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-file-excel mr-2"></i>Generate Excel Report';
+        btn.innerHTML = originalHtml;
     });
 }
 </script>
