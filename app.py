@@ -4724,7 +4724,7 @@ def download_project_data_pptx(project_id):
         r_title_para.font.bold = True
         r_title_para.font.color.rgb = RGBColor(0xFF, 0xC1, 0x07)
         
-        headers = ['RFQ Reference', 'Status', 'Priority', 'Presale Eng', 'Sales Eng', 'Deadline', 'RFQ Status']
+        headers = ['RFQ Reference', 'Status', 'Priority', 'Presale Eng', 'Sales Eng', 'Deadline', 'Age', 'RFQ Status']
         rows_to_show = min(len(rfqs), 12)
         r_table = slide3.shapes.add_table(rows_to_show + 1, len(headers), Inches(0.3), Inches(1), Inches(12.5), Inches(5.5)).table
         
@@ -4733,6 +4733,14 @@ def download_project_data_pptx(project_id):
             add_styled_text(r_table.cell(0, j), header, bold=True, size=10)
         
         for i, r in enumerate(rfqs[:rows_to_show]):
+            age_days = ''
+            if r['requested_time']:
+                try:
+                    from datetime import datetime
+                    req_date = datetime.strptime(str(r['requested_time'])[:10], '%Y-%m-%d')
+                    age_days = f"{(datetime.now() - req_date).days} days"
+                except:
+                    age_days = ''
             row_data = [
                 r['rfq_reference'] or '',
                 r['project_status'] or '',
@@ -4740,6 +4748,7 @@ def download_project_data_pptx(project_id):
                 r['sales_engineer_presale'] or '',
                 r['sales_engineer_sales'] or '',
                 r['deadline'] or '',
+                age_days,
                 r['rfq_status'] or ''
             ]
             for j, val in enumerate(row_data):
