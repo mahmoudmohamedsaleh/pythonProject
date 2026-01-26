@@ -4789,7 +4789,7 @@ def download_project_data_pptx(project_id):
                 q['presale_eng'] or '',
                 q['sales_eng'] or '',
                 f"SAR {q['quotation_cost'] or 0:,.2f}",
-                f"SAR {q['selling_price'] or 0:,.2f}",
+                f"SAR {q['quotation_selling_price'] or 0:,.2f}",
                 f"{q['margin'] or 0}%",
                 q['status'] or ''
             ]
@@ -15215,7 +15215,7 @@ def export_client_profile_excel(client_type, client_id):
                 ws_proj.cell(row=row, column=2, value=q['system'] or '').font = value_font
                 ws_proj.cell(row=row, column=3, value=q['presale_eng'] or '').font = value_font
                 ws_proj.cell(row=row, column=4, value=q['quotation_cost'] or 0).font = value_font
-                ws_proj.cell(row=row, column=5, value=q['selling_price'] or 0).font = value_font
+                ws_proj.cell(row=row, column=5, value=q['quotation_selling_price'] or 0).font = value_font
                 ws_proj.cell(row=row, column=6, value=q['status'] or '').font = value_font
                 for col in range(1, 7):
                     ws_proj.cell(row=row, column=col).border = thin_border
@@ -15729,7 +15729,7 @@ def export_client_profile_pptx(client_type, client_id):
                     (q['system'] or '')[:20],
                     (q['presale_eng'] or '')[:15],
                     f"{q['quotation_cost'] or 0:,.0f}",
-                    f"{q['selling_price'] or 0:,.0f}",
+                    f"{q['quotation_selling_price'] or 0:,.0f}",
                     q['status'] or '',
                 ]
                 for col, val in enumerate(data):
@@ -26624,7 +26624,7 @@ def generate_aggregate_report():
                     ws_client.cell(row=c_row, column=2, value=q['system'] or '').font = value_font
                     ws_client.cell(row=c_row, column=3, value=q['presale_eng'] or '').font = value_font
                     ws_client.cell(row=c_row, column=4, value=q['quotation_cost'] or 0).font = value_font
-                    ws_client.cell(row=c_row, column=5, value=q['selling_price'] or 0).font = value_font
+                    ws_client.cell(row=c_row, column=5, value=q['quotation_selling_price'] or 0).font = value_font
                     ws_client.cell(row=c_row, column=6, value=q['status'] or '').font = value_font
                     for col in range(1, 7):
                         ws_client.cell(row=c_row, column=col).border = thin_border
@@ -27244,7 +27244,7 @@ def generate_aggregate_powerpoint(selected_clients):
                         (q['system'] or '')[:20],
                         (q['presale_eng'] or '')[:15],
                         f"{q['quotation_cost'] or 0:,.0f}",
-                        f"{q['selling_price'] or 0:,.0f}",
+                        f"{q['quotation_selling_price'] or 0:,.0f}",
                         q['status'] or '',
                     ]
                     for col, val in enumerate(data):
