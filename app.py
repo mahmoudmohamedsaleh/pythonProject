@@ -3888,7 +3888,7 @@ def project_detail(project_id):
     rfts_requests = cursor.fetchall()
     
     # Calculate statistics
-    total_quotation_value = sum(q['selling_price'] or 0 for q in quotations)
+    total_quotation_value = sum(float(q['quotation_selling_price'] or 0) or 0 for q in quotations)
     total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
     
     conn.close()
@@ -4683,7 +4683,7 @@ def download_project_data_pptx(project_id):
     
     conn.close()
     
-    total_quotation_value = sum(q['selling_price'] or 0 for q in quotations)
+    total_quotation_value = sum(float(q['quotation_selling_price'] or 0) or 0 for q in quotations)
     total_po_value = sum(po['total_amount'] or 0 for po in purchase_orders)
     
     prs = Presentation()
