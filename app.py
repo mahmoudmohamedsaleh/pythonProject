@@ -15727,6 +15727,7 @@ def export_engineer_performance_pptx():
     # === PROJECTS ===
     projects = []
     project_stats = {'total': 0, 'won': 0, 'ongoing': 0, 'lost': 0, 'total_value': 0}
+    quotation_stats = {'total': 0, 'won': 0, 'ongoing': 0, 'lost': 0, 'won_value': 0, 'ongoing_value': 0, 'lost_value': 0}
     
     if report_type == 'sales':
         query = f"""
@@ -15896,7 +15897,8 @@ def export_engineer_performance_pptx():
             ORDER BY registered_date DESC
         """
     c.execute(quotations_query, params_base)
-    for idx, q in enumerate(c.fetchall(), 1):
+    quotations_data = c.fetchall()
+    for idx, q in enumerate(quotations_data, 1):
         quotations_list.append({
             'num': idx,
             'quote_ref': q[0] or '-',
@@ -15910,6 +15912,24 @@ def export_engineer_performance_pptx():
             'note': q[8] or '-',
             'feedback': q[9] or '-'
         })
+        
+        # Update quotation stats
+        quotation_stats['total'] += 1
+        selling = q[6] or 0
+        # Get status for this quotation
+        c.execute("SELECT status FROM projects WHERE quote_ref = ?", (q[0],))
+        status_row = c.fetchone()
+        if status_row:
+            q_status = status_row[0] or ''
+            if q_status in ['Won', 'Done', 'Closed Won']:
+                quotation_stats['won'] += 1
+                quotation_stats['won_value'] += selling
+            elif q_status in ['Lost', 'Cancelled', 'Closed Lost']:
+                quotation_stats['lost'] += 1
+                quotation_stats['lost_value'] += selling
+            else:
+                quotation_stats['ongoing'] += 1
+                quotation_stats['ongoing_value'] += selling
     
     conn.close()
     
