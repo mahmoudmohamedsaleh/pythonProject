@@ -7270,7 +7270,10 @@ def export_engineer_report_pptx():
         run.font.name = FONT_NAME
         run.font.color.rgb = clr
     
-    # SLIDE 3: All Engineers Performance Comparison
+    # SLIDE 3: Related Engineers Performance Comparison
+    # Define the title based on report type
+    related_type_title = "Presale Engineers Performance" if report_type == 'sales' else "Sales Engineers Performance"
+    
     slide = prs.slides.add_slide(slide_layout)
     
     # Background
@@ -7314,7 +7317,6 @@ def export_engineer_report_pptx():
             GROUP BY presale_eng
             ORDER BY total_quotes DESC
         """, (selected_engineer,))
-        related_type_title = "Presale Engineers Performance"
     else:
         # For Presales Engineer report, show SALES engineers who worked on their projects
         c2.execute("""
@@ -7330,8 +7332,6 @@ def export_engineer_report_pptx():
             GROUP BY sales_eng
             ORDER BY total_quotes DESC
         """, (selected_engineer,))
-        related_type_title = "Sales Engineers Performance"
-    
     all_engineers = c2.fetchall()
     conn2.close()
     
