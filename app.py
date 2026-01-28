@@ -15542,7 +15542,7 @@ def engineer_performance_center():
     # Calculate performance stats for related engineers including RFQ, RFTS, and Quotations
     related_engineer_stats = {}
     
-    if selected_engineer:
+    if selected_engineer and selected_engineer.strip():
         # Initialize stats from RFQs
         for rfq in rfqs:
             # For sales report, show presale engineers; for presale report, show sales engineers
