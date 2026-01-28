@@ -4707,6 +4707,8 @@ def download_project_data_pptx(project_id):
         ))
     
     slide_layout = prs.slide_layouts[6]
+    
+    FONT_NAME = "Calibri"
     slide = prs.slides.add_slide(slide_layout)
     
     title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.8))
@@ -6982,6 +6984,8 @@ def export_engineer_report_pptx():
     prs.slide_height = Inches(7.5)
     slide_layout = prs.slide_layouts[6]
     
+    FONT_NAME = "Calibri"
+    
     # Color palette
     PRIMARY_BLUE = RGBColor(102, 126, 234)
     PRIMARY_PURPLE = RGBColor(118, 75, 162)
@@ -6991,6 +6995,7 @@ def export_engineer_report_pptx():
     DARK_TEXT = RGBColor(33, 37, 41)
     LIGHT_BG = RGBColor(248, 249, 250)
     WHITE = RGBColor(255, 255, 255)
+    FONT_NAME = 'Calibri'
     
     # SLIDE 1: Attractive Title Slide with Gradient Effect
     slide = prs.slides.add_slide(slide_layout)
@@ -12330,6 +12335,8 @@ def export_rfq_engineer_report_pptx():
     
     # Title Slide
     slide_layout = prs.slide_layouts[6]
+    
+    FONT_NAME = "Calibri"
     slide = prs.slides.add_slide(slide_layout)
     
     title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1))
@@ -14018,7 +14025,9 @@ def export_rfts_engineer_report_pptx():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     
-    slide_layout = prs.slide_layouts[6]  # Blank layout
+    slide_layout = prs.slide_layouts[6]
+    
+    FONT_NAME = "Calibri"  # Blank layout
     
     # Title Slide
     slide = prs.slides.add_slide(slide_layout)
@@ -15448,7 +15457,9 @@ def export_client_profile_pptx(client_type, client_id):
     orange_color = RGBColor(253, 126, 20)
     purple_color = RGBColor(111, 66, 193)
     
-    slide_layout = prs.slide_layouts[6]  # Blank layout
+    slide_layout = prs.slide_layouts[6]
+    
+    FONT_NAME = "Calibri"  # Blank layout
     
     # Slide 1: Client Overview
     slide = prs.slides.add_slide(slide_layout)
@@ -18884,6 +18895,8 @@ def export_po_report_pptx():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     slide_layout = prs.slide_layouts[6]
+    
+    FONT_NAME = "Calibri"
     
     # Title slide
     slide = prs.slides.add_slide(slide_layout)
@@ -27161,7 +27174,9 @@ def generate_aggregate_powerpoint(selected_clients):
     purple_color = RGBColor(111, 66, 193)
     white_color = RGBColor(255, 255, 255)
     
-    slide_layout = prs.slide_layouts[6]  # Blank layout
+    slide_layout = prs.slide_layouts[6]
+    
+    FONT_NAME = "Calibri"  # Blank layout
     
     # Title Slide
     slide = prs.slides.add_slide(slide_layout)
