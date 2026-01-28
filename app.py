@@ -15374,7 +15374,8 @@ def engineer_performance_center():
         if report_type == 'sales':
             rfq_query = f"""
                 SELECT r.id, r.rfq_reference, r.project_name, r.rfq_status, r.deadline,
-                       COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name
+                       COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name,
+                       r.sales_engineer_presale, r.sales_engineer_sales
                 FROM rfq_requests r
                 LEFT JOIN register_project rp ON r.project_name = rp.project_name
                 LEFT JOIN end_users eu ON rp.end_user_id = eu.id
@@ -15387,7 +15388,8 @@ def engineer_performance_center():
         else:
             rfq_query = f"""
                 SELECT r.id, r.rfq_reference, r.project_name, r.rfq_status, r.deadline,
-                       COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name
+                       COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name,
+                       r.sales_engineer_presale, r.sales_engineer_sales
                 FROM rfq_requests r
                 LEFT JOIN register_project rp ON r.project_name = rp.project_name
                 LEFT JOIN end_users eu ON rp.end_user_id = eu.id
@@ -15407,8 +15409,11 @@ def engineer_performance_center():
                 'rfq_reference': row[1],
                 'project_name': row[2] or '',
                 'status': status,
+                'rfq_status': status,
                 'due_date': row[4] or '',
-                'client_name': row[5] or 'N/A'
+                'client_name': row[5] or 'N/A',
+                'presale_engineer': row[6] or '',
+                'sales_engineer': row[7] or ''
             })
             
             rfq_stats['total'] += 1
@@ -15429,7 +15434,7 @@ def engineer_performance_center():
         if report_type == 'sales':
             rfts_query = f"""
                 SELECT id, rfts_reference, project_name, request_type, request_status,
-                       deadline, system
+                       deadline, system, presale_engineer, sales_engineer
                 FROM technical_support_requests
                 WHERE sales_engineer = ?
                 {rfts_date_conditions}
@@ -15438,7 +15443,7 @@ def engineer_performance_center():
         else:
             rfts_query = f"""
                 SELECT id, rfts_reference, project_name, request_type, request_status,
-                       deadline, system
+                       deadline, system, presale_engineer, sales_engineer
                 FROM technical_support_requests
                 WHERE presale_engineer = ?
                 {rfts_date_conditions}
@@ -15455,8 +15460,11 @@ def engineer_performance_center():
                 'project_name': row[2] or '',
                 'request_type': row[3] or '',
                 'request_status': status,
+                'status': status,
                 'deadline': row[5] or '',
-                'system': row[6] or ''
+                'system': row[6] or '',
+                'presale_engineer': row[7] or '',
+                'sales_engineer': row[8] or ''
             })
             
             rfts_stats['total'] += 1
@@ -15518,12 +15526,13 @@ def engineer_performance_center():
     if selected_engineer:
         # Initialize stats from RFQs
         for rfq in rfqs:
+            # For sales report, show presale engineers; for presale report, show sales engineers
             if report_type == 'sales':
-                eng_name = rfq.get('presale_engineer') or rfq.get('sales_engineer_presale', 'Unassigned')
+                eng_name = rfq.get('presale_engineer', '')
             else:
-                eng_name = rfq.get('sales_engineer') or rfq.get('sales_engineer_sales', 'Unassigned')
+                eng_name = rfq.get('sales_engineer', '')
             
-            if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+            if eng_name and eng_name.strip():
                 if eng_name not in related_engineer_stats:
                     related_engineer_stats[eng_name] = {
                         'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
@@ -15533,25 +15542,26 @@ def engineer_performance_center():
                     }
                 related_engineer_stats[eng_name]['rfq_total'] += 1
                 rfq_status = rfq.get('rfq_status', '') or rfq.get('status', '')
-                if rfq_status == 'Queue':
+                if 'Queue' in rfq_status:
                     related_engineer_stats[eng_name]['rfq_queue'] += 1
-                elif rfq_status == 'Studying':
+                elif 'Studying' in rfq_status:
                     related_engineer_stats[eng_name]['rfq_studying'] += 1
-                elif rfq_status == 'Pricing':
+                elif 'Pricing' in rfq_status:
                     related_engineer_stats[eng_name]['rfq_pricing'] += 1
-                elif rfq_status == 'Quoted':
+                elif 'Quoted' in rfq_status:
                     related_engineer_stats[eng_name]['rfq_quoted'] += 1
-                elif rfq_status == 'Cancelled':
+                elif 'Cancelled' in rfq_status:
                     related_engineer_stats[eng_name]['rfq_cancelled'] += 1
         
         # Add RFTS stats
         for rfts in rfts_list:
+            # For sales report, show presale engineers; for presale report, show sales engineers
             if report_type == 'sales':
-                eng_name = rfts.get('presale_engineer', 'Unassigned')
+                eng_name = rfts.get('presale_engineer', '')
             else:
-                eng_name = rfts.get('sales_engineer', 'Unassigned')
+                eng_name = rfts.get('sales_engineer', '')
             
-            if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+            if eng_name and eng_name.strip():
                 if eng_name not in related_engineer_stats:
                     related_engineer_stats[eng_name] = {
                         'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
@@ -15561,15 +15571,15 @@ def engineer_performance_center():
                     }
                 related_engineer_stats[eng_name]['rfts_total'] += 1
                 rfts_status = rfts.get('status', '')
-                if rfts_status == 'Queue':
+                if 'Queue' in rfts_status:
                     related_engineer_stats[eng_name]['rfts_queue'] += 1
-                elif rfts_status == 'Studying':
+                elif 'Studying' in rfts_status:
                     related_engineer_stats[eng_name]['rfts_studying'] += 1
-                elif rfts_status == 'In Progress':
+                elif 'Progress' in rfts_status:
                     related_engineer_stats[eng_name]['rfts_in_progress'] += 1
-                elif rfts_status == 'Done':
+                elif 'Done' in rfts_status:
                     related_engineer_stats[eng_name]['rfts_done'] += 1
-                elif rfts_status == 'Pending':
+                elif 'Pending' in rfts_status:
                     related_engineer_stats[eng_name]['rfts_pending'] += 1
         
         # Add Quotation stats
@@ -15582,12 +15592,13 @@ def engineer_performance_center():
                     status = result[0] or ''
                     selling = result[1] or 0
                     
+                    # For sales report, show presale engineers; for presale report, show sales engineers
                     if report_type == 'sales':
-                        eng_name = q.get('presale_engineer', 'Unassigned')
+                        eng_name = q.get('presale_engineer', '')
                     else:
-                        eng_name = q.get('engineer', 'Unassigned')
+                        eng_name = q.get('engineer', '')
                     
-                    if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+                    if eng_name and eng_name.strip():
                         if eng_name not in related_engineer_stats:
                             related_engineer_stats[eng_name] = {
                                 'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
