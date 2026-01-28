@@ -19429,6 +19429,176 @@ def export_po_report_pptx():
                             para.font.name = FONT_NAME
                             para.alignment = PP_ALIGN.CENTER
                         cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            # Follow-ups slide for this PO
+            c.execute("""
+                SELECT * FROM po_follow_ups 
+                WHERE po_id = ? 
+                ORDER BY follow_up_date DESC, follow_up_time DESC
+            """, (po_id,))
+            po_follow_ups = c.fetchall()
+            
+            if po_follow_ups:
+                slide = prs.slides.add_slide(slide_layout)
+                
+                title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+                tf = title_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"PO: {po_number} - Follow-ups ({len(po_follow_ups)})"
+                p.font.size = Pt(26)
+                p.font.bold = True
+                p.font.name = FONT_NAME
+                p.font.color.rgb = RGBColor(40, 167, 69)
+                
+                fu_per_slide = 6
+                fus_to_show = list(po_follow_ups)[:fu_per_slide]
+                fu_rows = len(fus_to_show) + 1
+                fu_cols = 7
+                fu_table = slide.shapes.add_table(fu_rows, fu_cols, Inches(0.2), Inches(1.0), Inches(12.9), Inches(0.7) * fu_rows).table
+                
+                fu_table.columns[0].width = Inches(1.5)
+                fu_table.columns[1].width = Inches(1.5)
+                fu_table.columns[2].width = Inches(1.5)
+                fu_table.columns[3].width = Inches(1.0)
+                fu_table.columns[4].width = Inches(3.0)
+                fu_table.columns[5].width = Inches(1.2)
+                fu_table.columns[6].width = Inches(2.2)
+                
+                fu_headers = ['Date', 'Type', 'Contact', 'Priority', 'Subject', 'Status', 'Created By']
+                for col, hdr in enumerate(fu_headers):
+                    cell = fu_table.cell(0, col)
+                    cell.text = hdr
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                    cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    cell.text_frame.paragraphs[0].font.bold = True
+                    cell.text_frame.paragraphs[0].font.size = Pt(10)
+                    cell.text_frame.paragraphs[0].font.name = FONT_NAME
+                    cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                
+                for i, fu in enumerate(fus_to_show, 1):
+                    fu_date = str(fu['follow_up_date'] or '')[:10] if fu['follow_up_date'] else ''
+                    fu_time = str(fu['follow_up_time'] or '')[:5] if fu['follow_up_time'] else ''
+                    fu_table.cell(i, 0).text = f"{fu_date} {fu_time}".strip()
+                    fu_table.cell(i, 1).text = str(fu['follow_up_type'] or '')[:15]
+                    fu_table.cell(i, 2).text = str(fu['contact_type'] or '')[:15]
+                    
+                    priority_val = str(fu['priority'] or 'Normal')
+                    priority_cell = fu_table.cell(i, 3)
+                    priority_cell.text = priority_val
+                    priority_cell.fill.solid()
+                    if priority_val.lower() == 'high':
+                        priority_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                        priority_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    elif priority_val.lower() == 'normal':
+                        priority_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                    else:
+                        priority_cell.fill.fore_color.rgb = RGBColor(108, 117, 125)
+                    
+                    fu_table.cell(i, 4).text = str(fu['subject'] or '')[:40]
+                    
+                    status_val = str(fu['status'] or 'Pending')
+                    status_cell = fu_table.cell(i, 5)
+                    status_cell.text = status_val
+                    status_cell.fill.solid()
+                    if status_val.lower() == 'completed':
+                        status_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
+                        status_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    else:
+                        status_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
+                    
+                    fu_table.cell(i, 6).text = str(fu['created_by'] or '')[:20]
+                    
+                    for col in range(fu_cols):
+                        cell = fu_table.cell(i, col)
+                        if col not in [3, 5]:
+                            if i % 2 == 0:
+                                cell.fill.solid()
+                                cell.fill.fore_color.rgb = RGBColor(220, 255, 220)
+                            else:
+                                cell.fill.solid()
+                                cell.fill.fore_color.rgb = RGBColor(240, 255, 240)
+                        for para in cell.text_frame.paragraphs:
+                            para.font.size = Pt(9)
+                            para.font.name = FONT_NAME
+                            para.alignment = PP_ALIGN.CENTER
+                        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            # Activity Log slide for this PO
+            c.execute("""
+                SELECT * FROM po_activity_log 
+                WHERE po_id = ? 
+                ORDER BY created_at DESC
+            """, (po_id,))
+            po_activities = c.fetchall()
+            
+            if po_activities:
+                slide = prs.slides.add_slide(slide_layout)
+                
+                title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12.733), Inches(0.6))
+                tf = title_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"PO: {po_number} - Activity Log ({len(po_activities)})"
+                p.font.size = Pt(26)
+                p.font.bold = True
+                p.font.name = FONT_NAME
+                p.font.color.rgb = RGBColor(220, 53, 69)
+                
+                al_per_slide = 8
+                als_to_show = list(po_activities)[:al_per_slide]
+                al_rows = len(als_to_show) + 1
+                al_cols = 5
+                al_table = slide.shapes.add_table(al_rows, al_cols, Inches(0.2), Inches(1.0), Inches(12.9), Inches(0.65) * al_rows).table
+                
+                al_table.columns[0].width = Inches(2.0)
+                al_table.columns[1].width = Inches(1.8)
+                al_table.columns[2].width = Inches(1.5)
+                al_table.columns[3].width = Inches(5.3)
+                al_table.columns[4].width = Inches(2.3)
+                
+                al_headers = ['Date & Time', 'Activity Type', 'Contact Type', 'Description', 'Logged By']
+                for col, hdr in enumerate(al_headers):
+                    cell = al_table.cell(0, col)
+                    cell.text = hdr
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
+                    cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    cell.text_frame.paragraphs[0].font.bold = True
+                    cell.text_frame.paragraphs[0].font.size = Pt(10)
+                    cell.text_frame.paragraphs[0].font.name = FONT_NAME
+                    cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                
+                for i, al in enumerate(als_to_show, 1):
+                    al_datetime = str(al['created_at'] or '')[:16] if al['created_at'] else ''
+                    al_table.cell(i, 0).text = al_datetime
+                    
+                    activity_type = str(al['activity_type'] or '')
+                    type_cell = al_table.cell(i, 1)
+                    type_cell.text = activity_type[:20]
+                    type_cell.fill.solid()
+                    type_cell.fill.fore_color.rgb = RGBColor(111, 66, 193)
+                    type_cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    
+                    al_table.cell(i, 2).text = str(al['contact_type'] or '')[:15]
+                    al_table.cell(i, 3).text = str(al['activity_description'] or '')[:60]
+                    al_table.cell(i, 4).text = str(al['created_by'] or '')[:20]
+                    
+                    for col in range(al_cols):
+                        cell = al_table.cell(i, col)
+                        if col != 1:
+                            if i % 2 == 0:
+                                cell.fill.solid()
+                                cell.fill.fore_color.rgb = RGBColor(255, 220, 220)
+                            else:
+                                cell.fill.solid()
+                                cell.fill.fore_color.rgb = RGBColor(255, 240, 240)
+                        for para in cell.text_frame.paragraphs:
+                            para.font.size = Pt(9)
+                            para.font.name = FONT_NAME
+                            para.alignment = PP_ALIGN.CENTER
+                        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
     conn.close()
     
