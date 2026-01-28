@@ -16429,45 +16429,57 @@ def export_engineer_performance_pptx():
     sorted_related_engineers = sorted(related_engineer_stats.items(), 
         key=lambda x: x[1]['rfq_total'] + x[1]['rfts_total'] + x[1]['quote_total'], reverse=True) if related_engineer_stats else []
     
-    # Create Related Engineers Performance slide
+    # Create Related Engineers Performance slide - Enhanced Modern Design
     if sorted_related_engineers:
         slide = prs.slides.add_slide(slide_layout)
         
-        # Header
-        header_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+        # Full-width gradient header with cyan accent
+        header_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
         header_shape.fill.gradient()
         header_shape.fill.gradient_angle = 135
         header_shape.fill.gradient_stops[0].color.rgb = RGBColor(30, 60, 114)
         header_shape.fill.gradient_stops[1].color.rgb = RGBColor(42, 82, 152)
         header_shape.line.fill.background()
         
+        # Accent line at bottom of header
+        accent_line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0.85), Inches(13.333), Inches(0.05))
+        accent_line.fill.solid()
+        accent_line.fill.fore_color.rgb = RGBColor(0, 212, 255)  # Cyan accent
+        accent_line.line.fill.background()
+        
         engineer_type = "Presale" if report_type == 'sales' else "Sales"
-        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.15), Inches(10), Inches(0.5))
+        title_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.2), Inches(10), Inches(0.5))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
         p.text = f"{engineer_type} Engineers Performance"
-        p.font.size = Pt(22)
+        p.font.size = Pt(26)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.font.name = FONT_NAME
         
-        # Badge showing count
-        badge_box = slide.shapes.add_textbox(Inches(11.5), Inches(0.2), Inches(1.5), Inches(0.4))
+        # Badge with white background
+        badge_bg = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(11.3), Inches(0.25), Inches(1.7), Inches(0.4))
+        badge_bg.fill.solid()
+        badge_bg.fill.fore_color.rgb = WHITE
+        badge_bg.line.fill.background()
+        
+        badge_box = slide.shapes.add_textbox(Inches(11.3), Inches(0.3), Inches(1.7), Inches(0.35))
         tf = badge_box.text_frame
         p = tf.paragraphs[0]
         p.text = f"{len(sorted_related_engineers)} Engineers"
-        p.font.size = Pt(11)
-        p.font.color.rgb = WHITE
+        p.font.size = Pt(12)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(30, 60, 114)
         p.font.name = FONT_NAME
         p.alignment = PP_ALIGN.CENTER
         
-        # Create compact cards for each engineer (3 per row, max 6 per slide)
+        # Create modern cards for each engineer (3 per row, max 6 per slide)
         card_width = Inches(4.2)
-        card_height = Inches(2.3)
+        card_height = Inches(2.5)
         start_x = Inches(0.25)
-        start_y = Inches(0.95)
+        start_y = Inches(1.05)
         gap_x = Inches(0.2)
-        gap_y = Inches(0.15)
+        gap_y = Inches(0.2)
         
         for idx, (eng_name, stats) in enumerate(sorted_related_engineers[:6]):
             col = idx % 3
@@ -16475,117 +16487,236 @@ def export_engineer_performance_pptx():
             x = start_x + col * (card_width + gap_x)
             y = start_y + row * (card_height + gap_y)
             
-            # Card background
+            # Card shadow effect (dark rectangle slightly offset)
+            shadow = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.03), y + Inches(0.03), card_width, card_height)
+            shadow.fill.solid()
+            shadow.fill.fore_color.rgb = RGBColor(200, 200, 200)
+            shadow.line.fill.background()
+            
+            # Card background - white with rounded corners
             card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_width, card_height)
             card.fill.solid()
             card.fill.fore_color.rgb = WHITE
-            card.line.color.rgb = RGBColor(224, 224, 224)
+            card.line.color.rgb = RGBColor(230, 230, 230)
             card.line.width = Pt(1)
             
-            # Card header
-            header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, card_width, Inches(0.35))
+            # Card header with dark gradient
+            header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), y + Inches(0.05), card_width - Inches(0.1), Inches(0.45))
             header.fill.gradient()
             header.fill.gradient_angle = 135
-            header.fill.gradient_stops[0].color.rgb = RGBColor(61, 90, 128)
-            header.fill.gradient_stops[1].color.rgb = RGBColor(90, 122, 154)
+            header.fill.gradient_stops[0].color.rgb = RGBColor(44, 62, 80)
+            header.fill.gradient_stops[1].color.rgb = RGBColor(74, 98, 120)
             header.line.fill.background()
             
-            # Engineer name
-            name_box = slide.shapes.add_textbox(x + Inches(0.1), y + Inches(0.05), Inches(2.5), Inches(0.25))
+            # Engineer name with icon indicator
+            name_box = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(0.12), Inches(2.8), Inches(0.3))
             tf = name_box.text_frame
             p = tf.paragraphs[0]
             p.text = eng_name
-            p.font.size = Pt(10)
+            p.font.size = Pt(12)
             p.font.bold = True
             p.font.color.rgb = WHITE
             p.font.name = FONT_NAME
             
-            # Total badge
+            # Total badge - cyan gradient style
             total = stats['rfq_total'] + stats['rfts_total'] + stats['quote_total']
-            badge_box = slide.shapes.add_textbox(x + card_width - Inches(1.0), y + Inches(0.05), Inches(0.9), Inches(0.25))
+            total_bg = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + card_width - Inches(1.1), y + Inches(0.1), Inches(0.95), Inches(0.3))
+            total_bg.fill.gradient()
+            total_bg.fill.gradient_angle = 135
+            total_bg.fill.gradient_stops[0].color.rgb = RGBColor(0, 212, 255)
+            total_bg.fill.gradient_stops[1].color.rgb = RGBColor(0, 153, 204)
+            total_bg.line.fill.background()
+            
+            badge_box = slide.shapes.add_textbox(x + card_width - Inches(1.1), y + Inches(0.12), Inches(0.95), Inches(0.25))
             tf = badge_box.text_frame
             p = tf.paragraphs[0]
             p.text = f"{total} Total"
             p.font.size = Pt(9)
+            p.font.bold = True
             p.font.color.rgb = WHITE
             p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.RIGHT
+            p.alignment = PP_ALIGN.CENTER
             
-            # RFQ Row
-            rfq_y = y + Inches(0.45)
-            rfq_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), rfq_y, card_width - Inches(0.1), Inches(0.55))
+            # RFQ Section with purple left border
+            rfq_y = y + Inches(0.55)
+            rfq_border = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.08), rfq_y, Inches(0.04), Inches(0.58))
+            rfq_border.fill.solid()
+            rfq_border.fill.fore_color.rgb = RGBColor(102, 126, 234)  # Purple
+            rfq_border.line.fill.background()
+            
+            rfq_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.12), rfq_y, card_width - Inches(0.2), Inches(0.58))
             rfq_bg.fill.solid()
-            rfq_bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+            rfq_bg.fill.fore_color.rgb = RGBColor(245, 243, 255)  # Light purple
             rfq_bg.line.fill.background()
             
-            rfq_label = slide.shapes.add_textbox(x + Inches(0.1), rfq_y + Inches(0.02), Inches(1.5), Inches(0.2))
+            # RFQ Label and Badge
+            rfq_label = slide.shapes.add_textbox(x + Inches(0.18), rfq_y + Inches(0.05), Inches(1.2), Inches(0.2))
             tf = rfq_label.text_frame
             p = tf.paragraphs[0]
-            p.text = f"RFQs: {stats['rfq_total']}"
-            p.font.size = Pt(8)
+            p.text = "RFQs"
+            p.font.size = Pt(9)
             p.font.bold = True
+            p.font.color.rgb = RGBColor(102, 126, 234)
             p.font.name = FONT_NAME
             
-            rfq_stats_box = slide.shapes.add_textbox(x + Inches(0.1), rfq_y + Inches(0.22), card_width - Inches(0.2), Inches(0.25))
+            # RFQ total badge
+            rfq_badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + card_width - Inches(0.65), rfq_y + Inches(0.04), Inches(0.5), Inches(0.22))
+            rfq_badge.fill.gradient()
+            rfq_badge.fill.gradient_angle = 135
+            rfq_badge.fill.gradient_stops[0].color.rgb = RGBColor(102, 126, 234)
+            rfq_badge.fill.gradient_stops[1].color.rgb = RGBColor(118, 75, 162)
+            rfq_badge.line.fill.background()
+            
+            rfq_badge_text = slide.shapes.add_textbox(x + card_width - Inches(0.65), rfq_y + Inches(0.05), Inches(0.5), Inches(0.2))
+            tf = rfq_badge_text.text_frame
+            p = tf.paragraphs[0]
+            p.text = str(stats['rfq_total'])
+            p.font.size = Pt(9)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+            
+            # RFQ status stats
+            rfq_stats_box = slide.shapes.add_textbox(x + Inches(0.15), rfq_y + Inches(0.3), card_width - Inches(0.3), Inches(0.25))
             tf = rfq_stats_box.text_frame
             p = tf.paragraphs[0]
-            p.text = f"Q:{stats['rfq_queue']} S:{stats['rfq_studying']} P:{stats['rfq_pricing']} Qt:{stats['rfq_quoted']} C:{stats['rfq_cancelled']}"
-            p.font.size = Pt(7)
+            p.text = f"Q:{stats['rfq_queue']}  S:{stats['rfq_studying']}  P:{stats['rfq_pricing']}  Qt:{stats['rfq_quoted']}  C:{stats['rfq_cancelled']}"
+            p.font.size = Pt(8)
             p.font.name = FONT_NAME
-            p.font.color.rgb = RGBColor(100, 100, 100)
+            p.font.color.rgb = RGBColor(80, 80, 80)
             
-            # RFTS Row
-            rfts_y = rfq_y + Inches(0.58)
-            rfts_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), rfts_y, card_width - Inches(0.1), Inches(0.55))
+            # RFTS Section with orange left border
+            rfts_y = rfq_y + Inches(0.62)
+            rfts_border = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.08), rfts_y, Inches(0.04), Inches(0.58))
+            rfts_border.fill.solid()
+            rfts_border.fill.fore_color.rgb = RGBColor(249, 115, 22)
+            rfts_border.line.fill.background()
+            
+            rfts_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.12), rfts_y, card_width - Inches(0.2), Inches(0.58))
             rfts_bg.fill.solid()
-            rfts_bg.fill.fore_color.rgb = RGBColor(255, 243, 230)
+            rfts_bg.fill.fore_color.rgb = RGBColor(255, 247, 237)
             rfts_bg.line.fill.background()
             
-            rfts_label = slide.shapes.add_textbox(x + Inches(0.1), rfts_y + Inches(0.02), Inches(1.5), Inches(0.2))
+            rfts_label = slide.shapes.add_textbox(x + Inches(0.18), rfts_y + Inches(0.05), Inches(1.2), Inches(0.2))
             tf = rfts_label.text_frame
             p = tf.paragraphs[0]
-            p.text = f"RFTS: {stats['rfts_total']}"
-            p.font.size = Pt(8)
+            p.text = "RFTS"
+            p.font.size = Pt(9)
             p.font.bold = True
+            p.font.color.rgb = RGBColor(249, 115, 22)
             p.font.name = FONT_NAME
             
-            rfts_stats_box = slide.shapes.add_textbox(x + Inches(0.1), rfts_y + Inches(0.22), card_width - Inches(0.2), Inches(0.25))
+            # RFTS total badge
+            rfts_badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + card_width - Inches(0.65), rfts_y + Inches(0.04), Inches(0.5), Inches(0.22))
+            rfts_badge.fill.gradient()
+            rfts_badge.fill.gradient_angle = 135
+            rfts_badge.fill.gradient_stops[0].color.rgb = RGBColor(249, 115, 22)
+            rfts_badge.fill.gradient_stops[1].color.rgb = RGBColor(255, 147, 0)
+            rfts_badge.line.fill.background()
+            
+            rfts_badge_text = slide.shapes.add_textbox(x + card_width - Inches(0.65), rfts_y + Inches(0.05), Inches(0.5), Inches(0.2))
+            tf = rfts_badge_text.text_frame
+            p = tf.paragraphs[0]
+            p.text = str(stats['rfts_total'])
+            p.font.size = Pt(9)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+            
+            rfts_stats_box = slide.shapes.add_textbox(x + Inches(0.15), rfts_y + Inches(0.3), card_width - Inches(0.3), Inches(0.25))
             tf = rfts_stats_box.text_frame
             p = tf.paragraphs[0]
-            p.text = f"Q:{stats['rfts_queue']} S:{stats['rfts_studying']} IP:{stats['rfts_in_progress']} D:{stats['rfts_done']} P:{stats['rfts_pending']}"
-            p.font.size = Pt(7)
+            p.text = f"Q:{stats['rfts_queue']}  S:{stats['rfts_studying']}  IP:{stats['rfts_in_progress']}  D:{stats['rfts_done']}  P:{stats['rfts_pending']}"
+            p.font.size = Pt(8)
             p.font.name = FONT_NAME
-            p.font.color.rgb = RGBColor(100, 100, 100)
+            p.font.color.rgb = RGBColor(80, 80, 80)
             
-            # Quotes Row
-            quote_y = rfts_y + Inches(0.58)
-            quote_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), quote_y, card_width - Inches(0.1), Inches(0.55))
+            # Quotes Section with green left border
+            quote_y = rfts_y + Inches(0.62)
+            quote_border = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.08), quote_y, Inches(0.04), Inches(0.72))
+            quote_border.fill.solid()
+            quote_border.fill.fore_color.rgb = RGBColor(16, 185, 129)
+            quote_border.line.fill.background()
+            
+            quote_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.12), quote_y, card_width - Inches(0.2), Inches(0.72))
             quote_bg.fill.solid()
-            quote_bg.fill.fore_color.rgb = RGBColor(232, 245, 233)
+            quote_bg.fill.fore_color.rgb = RGBColor(236, 253, 245)
             quote_bg.line.fill.background()
             
-            quote_label = slide.shapes.add_textbox(x + Inches(0.1), quote_y + Inches(0.02), Inches(1.5), Inches(0.2))
+            quote_label = slide.shapes.add_textbox(x + Inches(0.18), quote_y + Inches(0.03), Inches(1.2), Inches(0.2))
             tf = quote_label.text_frame
             p = tf.paragraphs[0]
-            p.text = f"Quotes: {stats['quote_total']}"
-            p.font.size = Pt(8)
+            p.text = "Quotes"
+            p.font.size = Pt(9)
             p.font.bold = True
+            p.font.color.rgb = RGBColor(16, 185, 129)
             p.font.name = FONT_NAME
             
-            # Won/Lost/Ongoing in quotes section
-            col_width = (card_width - Inches(0.2)) / 3
-            for i, (label, count, value, color) in enumerate([
-                ('Won', stats['quote_won'], stats['quote_won_value'], RGBColor(40, 167, 69)),
-                ('Lost', stats['quote_lost'], stats['quote_lost_value'], RGBColor(220, 53, 69)),
-                ('Ong', stats['quote_ongoing'], stats['quote_ongoing_value'], RGBColor(253, 126, 20))
+            # Quotes total badge
+            quote_badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + card_width - Inches(0.65), quote_y + Inches(0.02), Inches(0.5), Inches(0.22))
+            quote_badge.fill.gradient()
+            quote_badge.fill.gradient_angle = 135
+            quote_badge.fill.gradient_stops[0].color.rgb = RGBColor(16, 185, 129)
+            quote_badge.fill.gradient_stops[1].color.rgb = RGBColor(6, 214, 160)
+            quote_badge.line.fill.background()
+            
+            quote_badge_text = slide.shapes.add_textbox(x + card_width - Inches(0.65), quote_y + Inches(0.03), Inches(0.5), Inches(0.2))
+            tf = quote_badge_text.text_frame
+            p = tf.paragraphs[0]
+            p.text = str(stats['quote_total'])
+            p.font.size = Pt(9)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+            
+            # Won/Lost/Ongoing boxes with values
+            col_width = (card_width - Inches(0.35)) / 3
+            for i, (label, count, value, bg_color, text_color) in enumerate([
+                ('Won', stats['quote_won'], stats['quote_won_value'], RGBColor(209, 250, 229), RGBColor(40, 167, 69)),
+                ('Lost', stats['quote_lost'], stats['quote_lost_value'], RGBColor(254, 226, 226), RGBColor(220, 53, 69)),
+                ('Ongoing', stats['quote_ongoing'], stats['quote_ongoing_value'], RGBColor(255, 237, 213), RGBColor(253, 126, 20))
             ]):
-                stat_box = slide.shapes.add_textbox(x + Inches(0.1) + i * col_width, quote_y + Inches(0.22), col_width, Inches(0.3))
-                tf = stat_box.text_frame
+                box_x = x + Inches(0.15) + i * col_width
+                box_y = quote_y + Inches(0.27)
+                
+                # Box background
+                stat_bg = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, box_x, box_y, col_width - Inches(0.05), Inches(0.42))
+                stat_bg.fill.solid()
+                stat_bg.fill.fore_color.rgb = bg_color
+                stat_bg.line.fill.background()
+                
+                # Count
+                count_box = slide.shapes.add_textbox(box_x, box_y + Inches(0.02), col_width - Inches(0.05), Inches(0.16))
+                tf = count_box.text_frame
                 p = tf.paragraphs[0]
-                p.text = f"{label}: {count}"
-                p.font.size = Pt(7)
+                p.text = str(count)
+                p.font.size = Pt(12)
                 p.font.bold = True
-                p.font.color.rgb = color
+                p.font.color.rgb = text_color
+                p.font.name = FONT_NAME
+                p.alignment = PP_ALIGN.CENTER
+                
+                # Label
+                label_box = slide.shapes.add_textbox(box_x, box_y + Inches(0.16), col_width - Inches(0.05), Inches(0.1))
+                tf = label_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = label
+                p.font.size = Pt(6)
+                p.font.color.rgb = RGBColor(100, 100, 100)
+                p.font.name = FONT_NAME
+                p.alignment = PP_ALIGN.CENTER
+                
+                # Value
+                value_box = slide.shapes.add_textbox(box_x, box_y + Inches(0.28), col_width - Inches(0.05), Inches(0.12))
+                tf = value_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"{value:,.0f}"
+                p.font.size = Pt(6)
+                p.font.bold = True
+                p.font.color.rgb = text_color
                 p.font.name = FONT_NAME
                 p.alignment = PP_ALIGN.CENTER
 
