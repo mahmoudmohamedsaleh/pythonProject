@@ -15791,13 +15791,13 @@ def export_engineer_performance_pptx():
     rfq_date_conditions = date_conditions.replace('registered_date', 'requested_time')
     if report_type == 'sales':
         rfq_query = f"""
-            SELECT rfq_reference, project_name, rfq_status, deadline
+            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale
             FROM rfq_requests WHERE sales_engineer_sales = ?
             {rfq_date_conditions}
         """
     else:
         rfq_query = f"""
-            SELECT rfq_reference, project_name, rfq_status, deadline
+            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale
             FROM rfq_requests WHERE sales_engineer_presale = ?
             {rfq_date_conditions}
         """
@@ -15808,7 +15808,9 @@ def export_engineer_performance_pptx():
             'reference': row[0],
             'project': row[1] or '',
             'status': status,
-            'due_date': row[3] or ''
+            'due_date': row[3] or '',
+            'sales_engineer': row[4] or '',
+            'presale_engineer': row[5] or ''
         })
         rfq_stats['total'] += 1
         status_lower = status.lower()
@@ -15830,13 +15832,13 @@ def export_engineer_performance_pptx():
     rfts_date_conditions = date_conditions.replace('registered_date', 'requested_time')
     if report_type == 'sales':
         rfts_query = f"""
-            SELECT rfts_reference, project_name, request_type, request_status, deadline, system
+            SELECT rfts_reference, project_name, request_type, request_status, deadline, system, sales_engineer, presale_engineer
             FROM technical_support_requests WHERE sales_engineer = ?
             {rfts_date_conditions}
         """
     else:
         rfts_query = f"""
-            SELECT rfts_reference, project_name, request_type, request_status, deadline, system
+            SELECT rfts_reference, project_name, request_type, request_status, deadline, system, sales_engineer, presale_engineer
             FROM technical_support_requests WHERE presale_engineer = ?
             {rfts_date_conditions}
         """
@@ -15848,6 +15850,8 @@ def export_engineer_performance_pptx():
             'project': row[1] or '',
             'type': row[2] or '',
             'status': status,
+            'sales_engineer': row[6] or '',
+            'presale_engineer': row[7] or '',
             'deadline': row[4] or '',
             'system': row[5] or ''
         })
