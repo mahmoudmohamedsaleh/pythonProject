@@ -15503,7 +15503,7 @@ def engineer_performance_center():
                 'date': q[3][:10] if q[3] else '-',
                 'cost': q[4] or 0,
                 'selling': q[5] or 0,
-                'margin': f"{q[6]:.1f}%" if q[6] else '-',
+                'margin': f"{q[6]:.1f}%" if q[6] is not None else '-',
                 'note': q[7] or '-',
                 'feedback': q[8] or '-'
             })
@@ -15729,6 +15729,41 @@ def export_engineer_performance_pptx():
             rfts_stats['done'] += 1
         elif 'pending' in status_lower:
             rfts_stats['pending'] += 1
+    
+    # === QUOTATIONS DETAIL DATA ===
+    quotations_list = []
+    if report_type == 'sales':
+        quotations_query = f"""
+            SELECT quote_ref, project_name, sales_eng, registered_date, 
+                   quotation_cost, quotation_selling_price, margin, quotation_note, feedback
+            FROM projects 
+            WHERE sales_eng = ? AND quote_ref IS NOT NULL AND quote_ref != ''
+            {date_conditions}
+            ORDER BY registered_date DESC
+        """
+    else:
+        quotations_query = f"""
+            SELECT quote_ref, project_name, presale_eng, registered_date, 
+                   quotation_cost, quotation_selling_price, margin, quotation_note, feedback
+            FROM projects 
+            WHERE presale_eng = ? AND quote_ref IS NOT NULL AND quote_ref != ''
+            {date_conditions}
+            ORDER BY registered_date DESC
+        """
+    c.execute(quotations_query, params_base)
+    for idx, q in enumerate(c.fetchall(), 1):
+        quotations_list.append({
+            'num': idx,
+            'quote_ref': q[0] or '-',
+            'project_name': q[1] or '-',
+            'engineer': q[2] or '-',
+            'date': q[3][:10] if q[3] else '-',
+            'cost': q[4] or 0,
+            'selling': q[5] or 0,
+            'margin': f"{q[6]:.1f}%" if q[6] is not None else '-',
+            'note': q[7] or '-',
+            'feedback': q[8] or '-'
+        })
     
     conn.close()
     
@@ -16156,6 +16191,97 @@ def export_engineer_performance_pptx():
                 para.font.color.rgb = DARK_TEXT
                 para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # === QUOTATIONS DETAIL SLIDES ===
+    if quotations_list:
+        PURPLE_COLOR = RGBColor(124, 58, 237)
+        LIGHT_PURPLE = RGBColor(243, 232, 255)
+        
+        items_per_page = 12
+        total_pages = (len(quotations_list) + items_per_page - 1) // items_per_page
+        
+        for page_num in range(total_pages):
+            slide = prs.slides.add_slide(slide_layout)
+            
+            # Purple gradient header
+            header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+            header.fill.solid()
+            header.fill.fore_color.rgb = PURPLE_COLOR
+            header.line.fill.background()
+            
+            title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = f"Quotations Detail  (Page {page_num + 1} of {total_pages})"
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
+            
+            # Get items for this page
+            start_idx = page_num * items_per_page
+            end_idx = min(start_idx + items_per_page, len(quotations_list))
+            page_items = quotations_list[start_idx:end_idx]
+            
+            # Table
+            rows = len(page_items) + 1
+            cols = 10
+            table = slide.shapes.add_table(rows, cols, Inches(0.1), Inches(1.0), Inches(13.133), Inches(0.45 * rows)).table
+            
+            # Column widths
+            table.columns[0].width = Inches(0.4)   # #
+            table.columns[1].width = Inches(1.8)   # Quote Ref
+            table.columns[2].width = Inches(2.2)   # Project
+            table.columns[3].width = Inches(1.0)   # Engineer
+            table.columns[4].width = Inches(1.0)   # Date
+            table.columns[5].width = Inches(1.1)   # Cost
+            table.columns[6].width = Inches(1.1)   # Selling
+            table.columns[7].width = Inches(0.8)   # Margin
+            table.columns[8].width = Inches(1.8)   # Note
+            table.columns[9].width = Inches(1.8)   # Feedback
+            
+            headers = ['#', 'Quote Ref', 'Project', 'Engineer', 'Date', 'Cost (SAR)', 'Selling (SAR)', 'Margin', 'Note', 'Feedback']
+            for i, h in enumerate(headers):
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = PURPLE_COLOR
+                para = cell.text_frame.paragraphs[0]
+                para.font.size = Pt(9)
+                para.font.bold = True
+                para.font.color.rgb = WHITE
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            # Data rows
+            for i, q in enumerate(page_items, 1):
+                row_color = LIGHT_PURPLE if i % 2 == 1 else WHITE
+                
+                row_data = [
+                    str(q['num']),
+                    q['quote_ref'],
+                    q['project_name'][:25] + '...' if len(q['project_name']) > 25 else q['project_name'],
+                    q['engineer'],
+                    q['date'],
+                    f"{q['cost']:,.0f}" if isinstance(q['cost'], (int, float)) else str(q['cost']),
+                    f"{q['selling']:,.0f}" if isinstance(q['selling'], (int, float)) else str(q['selling']),
+                    q['margin'],
+                    q['note'][:15] + '...' if len(str(q['note'])) > 15 else str(q['note']),
+                    q['feedback'][:15] + '...' if len(str(q['feedback'])) > 15 else str(q['feedback'])
+                ]
+                
+                for col_idx, val in enumerate(row_data):
+                    cell = table.cell(i, col_idx)
+                    cell.text = str(val) if val != '-' else '-'
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = row_color
+                    para = cell.text_frame.paragraphs[0]
+                    para.font.size = Pt(8)
+                    para.font.name = FONT_NAME
+                    para.font.color.rgb = RGBColor(37, 99, 235) if col_idx == 1 else DARK_TEXT  # Blue for quote ref
+                    para.alignment = PP_ALIGN.RIGHT if col_idx in [5, 6] else (PP_ALIGN.CENTER if col_idx in [0, 7] else PP_ALIGN.LEFT)
+                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
     # Save and return
     output = BytesIO()
