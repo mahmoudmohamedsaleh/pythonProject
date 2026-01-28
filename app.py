@@ -15791,13 +15791,13 @@ def export_engineer_performance_pptx():
     rfq_date_conditions = date_conditions.replace('registered_date', 'requested_time')
     if report_type == 'sales':
         rfq_query = f"""
-            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale
+            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale, requested_time, quoted_time
             FROM rfq_requests WHERE sales_engineer_sales = ?
             {rfq_date_conditions}
         """
     else:
         rfq_query = f"""
-            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale
+            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale, requested_time, quoted_time
             FROM rfq_requests WHERE sales_engineer_presale = ?
             {rfq_date_conditions}
         """
@@ -15810,7 +15810,9 @@ def export_engineer_performance_pptx():
             'status': status,
             'due_date': row[3] or '',
             'sales_engineer': row[4] or '',
-            'presale_engineer': row[5] or ''
+            'presale_engineer': row[5] or '',
+            'request_date': row[6][:10] if row[6] else '',
+            'submitted_date': row[7][:10] if row[7] else ''
         })
         rfq_stats['total'] += 1
         status_lower = status.lower()
@@ -16191,47 +16193,89 @@ def export_engineer_performance_pptx():
                 para.alignment = PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
-    # ========== SLIDE 4: RFQs List ==========
-    if rfqs:
+    # ========== RFQ STATUS SLIDES - Separated by Status ==========
+    # Define colors for each RFQ status
+    RFQ_COLORS = {
+        'queue': RGBColor(243, 156, 18),  # Orange
+        'studying': RGBColor(108, 117, 125),  # Gray
+        'pricing': RGBColor(108, 117, 125),  # Gray
+        'quoted': RGBColor(40, 167, 69),  # Green
+        'cancelled': RGBColor(220, 53, 69)  # Red
+    }
+    
+    # Group RFQs by status
+    rfq_by_status = {
+        'queue': [],
+        'studying': [],
+        'pricing': [],
+        'quoted': [],
+        'cancelled': []
+    }
+    
+    for rfq in rfqs:
+        status_lower = rfq['status'].lower()
+        if 'queue' in status_lower:
+            rfq_by_status['queue'].append(rfq)
+        elif 'study' in status_lower:
+            rfq_by_status['studying'].append(rfq)
+        elif 'pric' in status_lower:
+            rfq_by_status['pricing'].append(rfq)
+        elif 'quot' in status_lower:
+            rfq_by_status['quoted'].append(rfq)
+        elif 'cancel' in status_lower:
+            rfq_by_status['cancelled'].append(rfq)
+    
+    # Helper function to create RFQ status slide
+    def create_rfq_status_slide(prs, slide_layout, status_name, rfq_list, header_color, include_submitted=False, page=1, total_pages=1):
         slide = prs.slides.add_slide(slide_layout)
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
         
-        # Header
+        # Header bar
         header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
-        header.fill.gradient()
-        header.fill.gradient_angle = 90
-        header.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
-        header.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+        header.fill.solid()
+        header.fill.fore_color.rgb = header_color
         header.line.fill.background()
         
-        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+        # Header text
+        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.5))
         tf = header_text.text_frame
         p = tf.paragraphs[0]
-        p.text = f"RFQ Requests ({rfq_stats['total']} RFQs)"
-        p.font.size = Pt(24)
+        page_text = f" (Page {page})" if total_pages > 1 else ""
+        p.text = f"{status_name} RFQs - {len(rfq_list)} Total{page_text}"
+        p.font.size = Pt(28)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.font.name = FONT_NAME
         
+        if not rfq_list:
+            return slide
+        
+        # Determine columns based on whether to show Submitted
+        if include_submitted:
+            cols = 7
+            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Deadline', 'Request Date', 'Submitted']
+            col_widths = [Inches(0.4), Inches(1.8), Inches(4.5), Inches(1.5), Inches(1.3), Inches(1.3), Inches(1.3)]
+        else:
+            cols = 6
+            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Deadline', 'Request Date']
+            col_widths = [Inches(0.4), Inches(2), Inches(5), Inches(1.8), Inches(1.5), Inches(1.5)]
+        
         # Table
-        display_rfqs = rfqs[:12]
+        max_rows = 8
+        display_rfqs = rfq_list[:max_rows]
         rows = len(display_rfqs) + 1
-        cols = 5
         table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
         
-        table.columns[0].width = Inches(0.5)
-        table.columns[1].width = Inches(2)
-        table.columns[2].width = Inches(6)
-        table.columns[3].width = Inches(2)
-        table.columns[4].width = Inches(2)
+        for i, width in enumerate(col_widths):
+            table.columns[i].width = width
         
-        headers = ['#', 'Reference', 'Project Name', 'Status', 'Due Date']
+        # Header row
         for i, h in enumerate(headers):
             cell = table.cell(0, i)
             cell.text = h
             cell.fill.solid()
-            cell.fill.fore_color.rgb = PRIMARY_BLUE
+            cell.fill.fore_color.rgb = header_color
             para = cell.text_frame.paragraphs[0]
             para.font.size = Pt(11)
             para.font.bold = True
@@ -16240,15 +16284,19 @@ def export_engineer_performance_pptx():
             para.alignment = PP_ALIGN.CENTER
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         
+        # Data rows
         for i, rfq in enumerate(display_rfqs, 1):
             row_color = LIGHT_BG if i % 2 == 0 else WHITE
             
             table.cell(i, 0).text = str(i)
             table.cell(i, 1).text = rfq['reference'] or ''
             proj = rfq['project']
-            table.cell(i, 2).text = proj[:50] + '...' if len(proj) > 50 else proj
-            table.cell(i, 3).text = rfq['status']
+            table.cell(i, 2).text = proj[:40] + '...' if len(proj) > 40 else proj
+            table.cell(i, 3).text = rfq.get('sales_engineer', '') or ''
             table.cell(i, 4).text = rfq['due_date'] or '-'
+            table.cell(i, 5).text = rfq.get('request_date', '') or '-'
+            if include_submitted:
+                table.cell(i, 6).text = rfq.get('submitted_date', '') or '-'
             
             for col in range(cols):
                 table.cell(i, col).fill.solid()
@@ -16257,6 +16305,144 @@ def export_engineer_performance_pptx():
                 para.font.size = Pt(10)
                 para.font.name = FONT_NAME
                 para.font.color.rgb = DARK_TEXT
+                para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
+                table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        return slide
+    
+    # Create slides for each status category that has RFQs
+    # Queue RFQs - Orange
+    if rfq_by_status['queue']:
+        create_rfq_status_slide(prs, slide_layout, "Queue", rfq_by_status['queue'], RFQ_COLORS['queue'])
+    
+    # Studying RFQs - Gray
+    if rfq_by_status['studying']:
+        create_rfq_status_slide(prs, slide_layout, "Studying", rfq_by_status['studying'], RFQ_COLORS['studying'])
+    
+    # Pricing RFQs - Gray
+    if rfq_by_status['pricing']:
+        create_rfq_status_slide(prs, slide_layout, "Pricing", rfq_by_status['pricing'], RFQ_COLORS['pricing'])
+    
+    # Quoted RFQs - Green (with Submitted column and pagination)
+    quoted_list = rfq_by_status['quoted']
+    if quoted_list:
+        items_per_page = 8
+        total_pages = (len(quoted_list) + items_per_page - 1) // items_per_page
+        for page in range(total_pages):
+            start_idx = page * items_per_page
+            end_idx = start_idx + items_per_page
+            page_rfqs = quoted_list[start_idx:end_idx]
+            # Renumber for each page
+            for i, rfq in enumerate(page_rfqs):
+                rfq['_page_num'] = start_idx + i + 1
+            create_rfq_status_slide(prs, slide_layout, "Quoted", page_rfqs, RFQ_COLORS['quoted'], include_submitted=True, page=page+1, total_pages=total_pages)
+    
+    # Cancelled RFQs - Red
+    if rfq_by_status['cancelled']:
+        create_rfq_status_slide(prs, slide_layout, "Cancelled", rfq_by_status['cancelled'], RFQ_COLORS['cancelled'])
+    
+    # ========== FOLLOW-UP SLIDE: RFQs Not Submitted ==========
+    # Get RFQs that are in Queue, Studying, or Pricing status (not submitted yet)
+    from datetime import datetime
+    not_submitted_rfqs = []
+    for rfq in rfqs:
+        status_lower = rfq['status'].lower()
+        if 'queue' in status_lower or 'study' in status_lower or 'pric' in status_lower:
+            # Calculate overdue days
+            deadline = rfq.get('due_date', '')
+            overdue_text = ''
+            if deadline:
+                try:
+                    deadline_date = datetime.strptime(deadline[:10], '%Y-%m-%d')
+                    today = datetime.now()
+                    diff = (deadline_date - today).days
+                    if diff < 0:
+                        overdue_text = f'+{abs(diff)}d'
+                    else:
+                        overdue_text = f'-{diff}d'
+                except:
+                    overdue_text = ''
+            not_submitted_rfqs.append({
+                **rfq,
+                'overdue': overdue_text
+            })
+    
+    if not_submitted_rfqs:
+        slide = prs.slides.add_slide(slide_layout)
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
+        
+        # Gradient header (orange gradient)
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+        header.fill.gradient()
+        header.fill.gradient_angle = 90
+        header.fill.gradient_stops[0].color.rgb = RGBColor(253, 126, 20)  # Orange
+        header.fill.gradient_stops[1].color.rgb = RGBColor(255, 193, 7)   # Yellow
+        header.line.fill.background()
+        
+        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.5))
+        tf = header_text.text_frame
+        p = tf.paragraphs[0]
+        p.text = f'Follow Up "RFQs Not Submitted" - {len(not_submitted_rfqs)} RFQs'
+        p.font.size = Pt(28)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(139, 69, 19)  # Dark brown
+        p.font.name = FONT_NAME
+        
+        # Table with Status and Overdue columns
+        cols = 7
+        headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Status', 'Deadline', 'Overdue']
+        col_widths = [Inches(0.4), Inches(1.8), Inches(4), Inches(1.5), Inches(1.3), Inches(1.3), Inches(1)]
+        
+        display_rfqs = not_submitted_rfqs[:8]
+        rows = len(display_rfqs) + 1
+        table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
+        
+        for i, width in enumerate(col_widths):
+            table.columns[i].width = width
+        
+        # Header row - red color
+        for i, h in enumerate(headers):
+            cell = table.cell(0, i)
+            cell.text = h
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(220, 53, 69)  # Red
+            para = cell.text_frame.paragraphs[0]
+            para.font.size = Pt(11)
+            para.font.bold = True
+            para.font.color.rgb = WHITE
+            para.font.name = FONT_NAME
+            para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        # Data rows with overdue highlighting
+        for i, rfq in enumerate(display_rfqs, 1):
+            # Determine row color based on overdue status
+            overdue = rfq.get('overdue', '')
+            if overdue.startswith('+'):
+                row_color = RGBColor(255, 235, 235)  # Light red for overdue
+            else:
+                row_color = LIGHT_BG if i % 2 == 0 else WHITE
+            
+            table.cell(i, 0).text = str(i)
+            table.cell(i, 1).text = rfq['reference'] or ''
+            proj = rfq['project']
+            table.cell(i, 2).text = proj[:35] + '...' if len(proj) > 35 else proj
+            table.cell(i, 3).text = rfq.get('sales_engineer', '') or ''
+            table.cell(i, 4).text = rfq['status'] or ''
+            table.cell(i, 5).text = rfq['due_date'] or '-'
+            table.cell(i, 6).text = overdue
+            
+            for col in range(cols):
+                table.cell(i, col).fill.solid()
+                if col == 6 and overdue.startswith('+'):
+                    table.cell(i, col).fill.fore_color.rgb = RGBColor(255, 200, 200)  # Highlight overdue
+                else:
+                    table.cell(i, col).fill.fore_color.rgb = row_color
+                para = table.cell(i, col).text_frame.paragraphs[0]
+                para.font.size = Pt(10)
+                para.font.name = FONT_NAME
+                para.font.color.rgb = RGBColor(139, 0, 0) if col == 6 and overdue.startswith('+') else DARK_TEXT
                 para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
