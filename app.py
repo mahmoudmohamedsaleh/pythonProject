@@ -12485,26 +12485,30 @@ def export_rfq_engineer_report_pptx():
             date_conditions += " AND strftime('%m', requested_time) BETWEEN ? AND ?"
             params_base.extend([start_month, end_month])
     
-    # Get RFQs
+    # Get RFQs with submitted time from projects table
     if report_type == 'sales':
         query = f"""
-            SELECT id, rfq_reference, project_name, project_status, priority,
-                   sales_engineer_presale, sales_engineer_sales, rfq_status,
-                   quotation_status, deadline, note, requested_time, system
-            FROM rfq_requests
-            WHERE sales_engineer_sales = ?
-            {date_conditions}
-            ORDER BY requested_time DESC
+            SELECT r.id, r.rfq_reference, r.project_name, r.project_status, r.priority,
+                   r.sales_engineer_presale, r.sales_engineer_sales, r.rfq_status,
+                   r.quotation_status, r.deadline, r.note, r.requested_time, r.system,
+                   p.registered_date as submitted_time
+            FROM rfq_requests r
+            LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+            WHERE r.sales_engineer_sales = ?
+            {date_conditions.replace('requested_time', 'r.requested_time')}
+            ORDER BY r.requested_time DESC
         """
     else:
         query = f"""
-            SELECT id, rfq_reference, project_name, project_status, priority,
-                   sales_engineer_presale, sales_engineer_sales, rfq_status,
-                   quotation_status, deadline, note, requested_time, system
-            FROM rfq_requests
-            WHERE sales_engineer_presale = ?
-            {date_conditions}
-            ORDER BY requested_time DESC
+            SELECT r.id, r.rfq_reference, r.project_name, r.project_status, r.priority,
+                   r.sales_engineer_presale, r.sales_engineer_sales, r.rfq_status,
+                   r.quotation_status, r.deadline, r.note, r.requested_time, r.system,
+                   p.registered_date as submitted_time
+            FROM rfq_requests r
+            LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
+            WHERE r.sales_engineer_presale = ?
+            {date_conditions.replace('requested_time', 'r.requested_time')}
+            ORDER BY r.requested_time DESC
         """
     
     c.execute(query, params_base)
@@ -12556,7 +12560,8 @@ def export_rfq_engineer_report_pptx():
             'deadline': rfq[9],
             'requested_time': rfq[11][:10] if rfq[11] else '-',
             'status_category': status_category,
-            'note': rfq[10] or ''
+            'note': rfq[10] or '',
+            'submitted_time': rfq[13][:10] if rfq[13] else '-'
         })
     
     total_rfqs = len(rfqs)
@@ -12940,23 +12945,41 @@ def export_rfq_engineer_report_pptx():
             p.font.color.rgb = WHITE
             p.font.name = FONT_NAME
             
+            # For Quoted RFQs, add extra "Submitted Time" column
+            is_quoted = (status_key == 'quoted')
+            cols = 7 if is_quoted else 6
+            
             # Table
             rows = len(page_rfqs) + 1
-            cols = 6
             table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.2), Inches(12.733), Inches(0.6 * rows)).table
             
-            # Column widths
-            table.columns[0].width = Inches(0.5)    # #
-            table.columns[1].width = Inches(1.8)    # RFQ Reference
-            table.columns[2].width = Inches(3.5)    # Project Name
-            table.columns[3].width = Inches(2)      # Engineer
-            table.columns[4].width = Inches(1.3)    # Deadline
-            table.columns[5].width = Inches(1.3)    # Request Date
+            # Column widths - adjusted for quoted to include submitted time
+            if is_quoted:
+                table.columns[0].width = Inches(0.4)    # #
+                table.columns[1].width = Inches(1.6)    # RFQ Reference
+                table.columns[2].width = Inches(3.2)    # Project Name
+                table.columns[3].width = Inches(1.7)    # Engineer
+                table.columns[4].width = Inches(1.1)    # Deadline
+                table.columns[5].width = Inches(1.1)    # Request Date
+                table.columns[6].width = Inches(1.2)    # Submitted Time
+            else:
+                table.columns[0].width = Inches(0.5)    # #
+                table.columns[1].width = Inches(1.8)    # RFQ Reference
+                table.columns[2].width = Inches(3.5)    # Project Name
+                table.columns[3].width = Inches(2)      # Engineer
+                table.columns[4].width = Inches(1.3)    # Deadline
+                table.columns[5].width = Inches(1.3)    # Request Date
             
-            # Headers
-            headers = ['#', 'RFQ Reference', 'Project Name', 
-                      'Presale Eng' if report_type == 'sales' else 'Sales Eng', 
-                      'Deadline', 'Request Date']
+            # Headers - add Submitted Time for quoted
+            if is_quoted:
+                headers = ['#', 'RFQ Reference', 'Project Name', 
+                          'Presale Eng' if report_type == 'sales' else 'Sales Eng', 
+                          'Deadline', 'Request Date', 'Submitted']
+            else:
+                headers = ['#', 'RFQ Reference', 'Project Name', 
+                          'Presale Eng' if report_type == 'sales' else 'Sales Eng', 
+                          'Deadline', 'Request Date']
+            
             for col, header in enumerate(headers):
                 cell = table.cell(0, col)
                 cell.text = header
@@ -12992,7 +13015,8 @@ def export_rfq_engineer_report_pptx():
                 # Project Name
                 cell = table.cell(row_idx, 2)
                 proj = rfq['project_name'] or ''
-                cell.text = proj[:40] + '...' if len(proj) > 40 else proj
+                max_len = 35 if is_quoted else 40
+                cell.text = proj[:max_len] + '...' if len(proj) > max_len else proj
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
                 
@@ -13014,6 +13038,13 @@ def export_rfq_engineer_report_pptx():
                 cell.text = rfq['requested_time'] or '-'
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
+                
+                # Submitted Time (only for Quoted)
+                if is_quoted:
+                    cell = table.cell(row_idx, 6)
+                    cell.text = rfq.get('submitted_time', '-') or '-'
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = row_color
                 
                 # Style all cells
                 for col in range(cols):
