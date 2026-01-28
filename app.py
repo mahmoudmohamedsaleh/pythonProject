@@ -6848,11 +6848,12 @@ def export_engineer_report_excel():
 @app.route('/export_engineer_report_pptx')
 @login_required
 def export_engineer_report_pptx():
-    """Export Engineer Report to PowerPoint with professional presentation"""
+    """Export Engineer Report to PowerPoint with attractive professional presentation"""
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.enum.shapes import MSO_SHAPE
     from io import BytesIO
     
     conn = sqlite3.connect('ProjectStatus.db')
@@ -6869,7 +6870,6 @@ def export_engineer_report_pptx():
         flash('Please select an engineer first', 'warning')
         return redirect(url_for('engineer_reports', type=report_type))
     
-    # Build date filter conditions
     date_conditions = ""
     params_base = [selected_engineer]
     
@@ -6893,7 +6893,6 @@ def export_engineer_report_pptx():
             date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
             params_base.extend([start_month, end_month])
     
-    # Get projects and quotations
     if report_type == 'sales':
         query = f"""
             SELECT project_name, MAX(registered_date) as latest_date
@@ -6942,34 +6941,35 @@ def export_engineer_report_pptx():
         quotations = []
         for row in c.fetchall():
             status = (row[3] or '').lower()
-            selling_price = float(row[4] or 0)
+            sell_price = float(row[4] or 0)
             cost_price = float(row[6] or 0)
             margin_val = float(row[7] or 0)
-            note = row[8] or ''
-            feedback = row[9] or ''
-            if 'won' in status:
-                won_count += 1
-                total_won += selling_price
+            
+            if 'won' in status or 'awarded' in status:
                 category = 'Won'
-            elif 'lost' in status:
-                lost_count += 1
-                total_lost += selling_price
+                won_count += 1
+                total_won += sell_price
+            elif 'lost' in status or 'cancelled' in status:
                 category = 'Lost'
+                lost_count += 1
+                total_lost += sell_price
             else:
-                ongoing_count += 1
-                total_ongoing += selling_price
                 category = 'Ongoing'
+                ongoing_count += 1
+                total_ongoing += sell_price
+            
             quotations.append({
-                'quote_ref': row[1],
-                'associated_engineer': row[2],
-                'status': row[3],
-                'category': category,
-                'selling_price': selling_price,
+                'id': row[0],
+                'quote_ref': row[1] or '',
+                'presale_eng': row[2] or '',
+                'status': row[3] or '',
+                'selling_price': sell_price,
                 'registered_date': row[5],
-                'cost_price': cost_price,
+                'cost': cost_price,
                 'margin': margin_val,
-                'note': note,
-                'feedback': feedback
+                'note': row[8] or '',
+                'feedback': row[9] or '',
+                'category': category
             })
         
         if quotations:
@@ -6977,462 +6977,416 @@ def export_engineer_report_pptx():
     
     conn.close()
     
-    # Create PowerPoint presentation
     prs = Presentation()
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
+    slide_layout = prs.slide_layouts[6]
     
-    # Define consistent font - Calibri for cleaner modern look
-    FONT_NAME = 'Calibri'
+    # Color palette
+    PRIMARY_BLUE = RGBColor(102, 126, 234)
+    PRIMARY_PURPLE = RGBColor(118, 75, 162)
+    SUCCESS_GREEN = RGBColor(40, 167, 69)
+    DANGER_RED = RGBColor(220, 53, 69)
+    WARNING_ORANGE = RGBColor(255, 153, 0)
+    DARK_TEXT = RGBColor(33, 37, 41)
+    LIGHT_BG = RGBColor(248, 249, 250)
+    WHITE = RGBColor(255, 255, 255)
     
-    # Title Slide
-    slide_layout = prs.slide_layouts[6]  # Blank layout
+    # SLIDE 1: Attractive Title Slide with Gradient Effect
     slide = prs.slides.add_slide(slide_layout)
     
-    # Add title box
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1))
+    # Create gradient effect with multiple overlapping shapes
+    gradient_top = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(4))
+    gradient_top.fill.solid()
+    gradient_top.fill.fore_color.rgb = PRIMARY_BLUE
+    gradient_top.line.fill.background()
+    
+    gradient_mid = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(2), Inches(13.333), Inches(3))
+    gradient_mid.fill.solid()
+    gradient_mid.fill.fore_color.rgb = RGBColor(110, 100, 200)
+    gradient_mid.line.fill.background()
+    
+    gradient_bot = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(3.5), Inches(13.333), Inches(4))
+    gradient_bot.fill.solid()
+    gradient_bot.fill.fore_color.rgb = PRIMARY_PURPLE
+    gradient_bot.line.fill.background()
+    
+    # Decorative accent shapes
+    accent1 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(10), Inches(-1), Inches(5), Inches(5))
+    accent1.fill.solid()
+    accent1.fill.fore_color.rgb = RGBColor(255, 255, 255)
+    accent1.fill.fore_color.brightness = 0.9
+    accent1.line.fill.background()
+    
+    accent2 = slide.shapes.add_shape(MSO_SHAPE.OVAL, Inches(-2), Inches(5), Inches(6), Inches(6))
+    accent2.fill.solid()
+    accent2.fill.fore_color.rgb = RGBColor(255, 255, 255)
+    accent2.fill.fore_color.brightness = 0.85
+    accent2.line.fill.background()
+    
+    # Main title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(12.333), Inches(1.2))
     tf = title_box.text_frame
+    tf.word_wrap = True
     p = tf.paragraphs[0]
-    p.text = f"{selected_engineer}'s {'Sales' if report_type == 'sales' else 'Presale'} Report"
-    p.font.size = Pt(44)
-    p.font.bold = True
-    p.font.name = FONT_NAME
-    p.font.color.rgb = RGBColor(102, 126, 234)
     p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    report_title = "Sales Engineer Report" if report_type == 'sales' else "Presales Engineer Report"
+    run.text = report_title
+    run.font.size = Pt(48)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = WHITE
     
-    # Add subtitle with filters
-    filter_text = []
-    if selected_year:
-        filter_text.append(f"Year: {selected_year}")
+    # Engineer name with icon effect
+    name_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.2), Inches(12.333), Inches(0.8))
+    tf = name_box.text_frame
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = f"Engineer: {selected_engineer}"
+    run.font.size = Pt(32)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = WHITE
+    
+    # Period info
+    period_text = f"Year: {selected_year}" if selected_year else "All Time"
+    if selected_quarter:
+        period_text += f" | {selected_quarter}"
     if selected_month:
-        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-        filter_text.append(f"Month: {months[int(selected_month)-1]}")
-    if selected_week:
-        filter_text.append(f"Week: {selected_week}")
-    if selected_quarter and not selected_month:
-        filter_text.append(f"Quarter: {selected_quarter}")
+        period_text += f" | Month: {selected_month}"
     
-    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.7), Inches(12.333), Inches(0.5))
-    tf = subtitle_box.text_frame
+    period_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(12.333), Inches(0.5))
+    tf = period_box.text_frame
     p = tf.paragraphs[0]
-    p.text = ' | '.join(filter_text) if filter_text else 'All Time Report'
-    p.font.size = Pt(24)
-    p.font.name = FONT_NAME
-    p.font.color.rgb = RGBColor(100, 100, 100)
     p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = period_text
+    run.font.size = Pt(20)
+    run.font.name = FONT_NAME
+    run.font.color.rgb = RGBColor(220, 220, 255)
     
-    # Summary Slide - Enhanced Design
+    # Date generated
+    from datetime import datetime
+    date_box = slide.shapes.add_textbox(Inches(0.5), Inches(6.5), Inches(12.333), Inches(0.4))
+    tf = date_box.text_frame
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+    run.font.size = Pt(14)
+    run.font.name = FONT_NAME
+    run.font.color.rgb = RGBColor(200, 200, 230)
+    
+    # SLIDE 2: Dashboard Summary with Stats Cards
     slide = prs.slides.add_slide(slide_layout)
     
-    # Light gray background
-    bg = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    # Background
+    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
     bg.fill.solid()
-    bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+    bg.fill.fore_color.rgb = LIGHT_BG
     bg.line.fill.background()
     
-    # Summary title
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(12.333), Inches(1))
+    # Header bar
+    header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(1.2))
+    header.fill.solid()
+    header.fill.fore_color.rgb = PRIMARY_BLUE
+    header.line.fill.background()
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12), Inches(0.7))
     tf = title_box.text_frame
     p = tf.paragraphs[0]
-    p.text = "Summary Dashboard"
-    p.font.size = Pt(40)
-    p.font.bold = True
-    p.font.name = FONT_NAME
-    p.font.color.rgb = RGBColor(102, 126, 234)
+    run = p.add_run()
+    run.text = "Performance Dashboard"
+    run.font.size = Pt(32)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = WHITE
     
-    total_quotations = won_count + lost_count + ongoing_count
+    # Stats cards - 4 cards in a row
+    total_quotes = won_count + lost_count + ongoing_count
     total_value = total_won + total_lost + total_ongoing
     
-    # Summary boxes - larger and better positioned
-    box_data = [
-        ("Total Quotations", str(total_quotations), f"{len(projects)} Projects", RGBColor(102, 126, 234)),
-        ("Won", str(won_count), f"{total_won:,.2f} SAR", RGBColor(40, 167, 69)),
-        ("Lost", str(lost_count), f"{total_lost:,.2f} SAR", RGBColor(220, 53, 69)),
-        ("Ongoing", str(ongoing_count), f"{total_ongoing:,.2f} SAR", RGBColor(255, 193, 7))
+    card_data = [
+        ("Total Quotations", str(total_quotes), f"{len(projects)} Projects", PRIMARY_BLUE),
+        ("Won", str(won_count), f"SAR {total_won:,.0f}", SUCCESS_GREEN),
+        ("Lost", str(lost_count), f"SAR {total_lost:,.0f}", DANGER_RED),
+        ("Ongoing", str(ongoing_count), f"SAR {total_ongoing:,.0f}", WARNING_ORANGE)
     ]
     
-    box_width = Inches(3.0)
-    box_height = Inches(2.8)
-    start_left = Inches(0.4)
-    spacing = Inches(3.2)
-    top = Inches(2.0)
+    card_width = Inches(2.8)
+    card_height = Inches(2.0)
+    card_spacing = Inches(0.4)
+    start_x = Inches(0.7)
+    card_y = Inches(1.8)
     
-    for i, (label, count, value, color) in enumerate(box_data):
-        left = start_left + (i * spacing)
+    for i, (title, value, subtitle, color) in enumerate(card_data):
+        x = start_x + i * (card_width + card_spacing)
         
-        # White card with colored border
-        shape = slide.shapes.add_shape(1, left, top, box_width, box_height)
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
-        shape.line.color.rgb = color
-        shape.line.width = Pt(3)
+        # Card shadow
+        shadow = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.05), card_y + Inches(0.05), card_width, card_height)
+        shadow.fill.solid()
+        shadow.fill.fore_color.rgb = RGBColor(200, 200, 200)
+        shadow.line.fill.background()
         
-        # Label at top
-        tb = slide.shapes.add_textbox(left, top + Inches(0.2), box_width, Inches(0.5))
-        tf = tb.text_frame
+        # Card background
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, card_y, card_width, card_height)
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(230, 230, 230)
+        
+        # Color accent bar at top
+        accent = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, card_y, card_width, Inches(0.15))
+        accent.fill.solid()
+        accent.fill.fore_color.rgb = color
+        accent.line.fill.background()
+        
+        # Title
+        title_tb = slide.shapes.add_textbox(x, card_y + Inches(0.25), card_width, Inches(0.4))
+        tf = title_tb.text_frame
         p = tf.paragraphs[0]
-        p.text = label
-        p.font.size = Pt(16)
-        p.font.name = FONT_NAME
-        p.font.color.rgb = RGBColor(100, 100, 100)
         p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = title
+        run.font.size = Pt(12)
+        run.font.name = FONT_NAME
+        run.font.color.rgb = RGBColor(100, 100, 100)
         
-        # Large count number in center
-        tb = slide.shapes.add_textbox(left, top + Inches(0.8), box_width, Inches(1.2))
-        tf = tb.text_frame
+        # Value (big number)
+        val_tb = slide.shapes.add_textbox(x, card_y + Inches(0.6), card_width, Inches(0.8))
+        tf = val_tb.text_frame
         p = tf.paragraphs[0]
-        p.text = count
-        p.font.size = Pt(72)
-        p.font.bold = True
-        p.font.name = FONT_NAME
-        p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = value
+        run.font.size = Pt(44)
+        run.font.bold = True
+        run.font.name = FONT_NAME
+        run.font.color.rgb = color
         
-        # Value at bottom
-        tb = slide.shapes.add_textbox(left, top + Inches(2.0), box_width, Inches(0.5))
-        tf = tb.text_frame
+        # Subtitle
+        sub_tb = slide.shapes.add_textbox(x, card_y + Inches(1.45), card_width, Inches(0.4))
+        tf = sub_tb.text_frame
         p = tf.paragraphs[0]
-        p.text = value
-        p.font.size = Pt(14)
-        p.font.name = FONT_NAME
-        p.font.color.rgb = color
         p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = subtitle
+        run.font.size = Pt(11)
+        run.font.name = FONT_NAME
+        run.font.color.rgb = RGBColor(120, 120, 120)
     
-    # Sales Follow-Up slide(s) - Detailed Quotations Table
+    # Win rate card
+    win_rate = (won_count / total_quotes * 100) if total_quotes > 0 else 0
+    
+    rate_card_y = Inches(4.2)
+    rate_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), rate_card_y, Inches(5.8), Inches(2.8))
+    rate_card.fill.solid()
+    rate_card.fill.fore_color.rgb = WHITE
+    rate_card.line.color.rgb = RGBColor(230, 230, 230)
+    
+    # Win rate title
+    wr_title = slide.shapes.add_textbox(Inches(0.9), rate_card_y + Inches(0.2), Inches(5.4), Inches(0.4))
+    tf = wr_title.text_frame
+    p = tf.paragraphs[0]
+    run = p.add_run()
+    run.text = "Win Rate"
+    run.font.size = Pt(16)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = DARK_TEXT
+    
+    # Win rate percentage
+    wr_val = slide.shapes.add_textbox(Inches(0.9), rate_card_y + Inches(0.6), Inches(5.4), Inches(1.2))
+    tf = wr_val.text_frame
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = f"{win_rate:.1f}%"
+    run.font.size = Pt(56)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = SUCCESS_GREEN if win_rate >= 50 else WARNING_ORANGE if win_rate >= 25 else DANGER_RED
+    
+    # Progress bar background
+    bar_bg = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), rate_card_y + Inches(2.0), Inches(5.0), Inches(0.35))
+    bar_bg.fill.solid()
+    bar_bg.fill.fore_color.rgb = RGBColor(230, 230, 230)
+    bar_bg.line.fill.background()
+    
+    # Progress bar fill
+    bar_width = max(Inches(0.1), Inches(5.0 * win_rate / 100))
+    bar_fill = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), rate_card_y + Inches(2.0), bar_width, Inches(0.35))
+    bar_fill.fill.solid()
+    bar_fill.fill.fore_color.rgb = SUCCESS_GREEN if win_rate >= 50 else WARNING_ORANGE if win_rate >= 25 else DANGER_RED
+    bar_fill.line.fill.background()
+    
+    # Total value card
+    val_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(6.8), rate_card_y, Inches(5.8), Inches(2.8))
+    val_card.fill.solid()
+    val_card.fill.fore_color.rgb = WHITE
+    val_card.line.color.rgb = RGBColor(230, 230, 230)
+    
+    tv_title = slide.shapes.add_textbox(Inches(7.0), rate_card_y + Inches(0.2), Inches(5.4), Inches(0.4))
+    tf = tv_title.text_frame
+    p = tf.paragraphs[0]
+    run = p.add_run()
+    run.text = "Total Pipeline Value"
+    run.font.size = Pt(16)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = DARK_TEXT
+    
+    tv_val = slide.shapes.add_textbox(Inches(7.0), rate_card_y + Inches(0.8), Inches(5.4), Inches(1.0))
+    tf = tv_val.text_frame
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = f"SAR {total_value:,.0f}"
+    run.font.size = Pt(36)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = PRIMARY_BLUE
+    
+    # Breakdown
+    breakdown_y = rate_card_y + Inches(1.8)
+    breakdown_items = [
+        (f"Won: SAR {total_won:,.0f}", SUCCESS_GREEN),
+        (f"Ongoing: SAR {total_ongoing:,.0f}", WARNING_ORANGE),
+        (f"Lost: SAR {total_lost:,.0f}", DANGER_RED)
+    ]
+    for j, (txt, clr) in enumerate(breakdown_items):
+        tb = slide.shapes.add_textbox(Inches(7.2), breakdown_y + j * Inches(0.3), Inches(5.0), Inches(0.3))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        run = p.add_run()
+        run.text = txt
+        run.font.size = Pt(11)
+        run.font.name = FONT_NAME
+        run.font.color.rgb = clr
+    
+    # SLIDE 3+: Quotation Details Tables
     all_quotations = []
     for project in projects:
         for q in project['quotations']:
             q['project_name'] = project['name']
             all_quotations.append(q)
     
-    # Sort by date (oldest first for follow-up priority)
-    all_quotations.sort(key=lambda x: x.get('registered_date', '') or '', reverse=False)
+    all_quotations.sort(key=lambda x: x.get('registered_date', '') or '', reverse=True)
     
-    quotations_per_slide = 5
+    quotations_per_slide = 6
     for slide_num in range(0, len(all_quotations), quotations_per_slide):
         slide = prs.slides.add_slide(slide_layout)
         
-        # Light gray background
-        bg = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+        # Background
+        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
         bg.fill.solid()
-        bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+        bg.fill.fore_color.rgb = LIGHT_BG
         bg.line.fill.background()
         
-        # Title with subtitle - professional fonts
-        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.6))
+        # Header
+        header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+        header.fill.solid()
+        header.fill.fore_color.rgb = PRIMARY_BLUE
+        header.line.fill.background()
+        
+        page_num = slide_num // quotations_per_slide + 1
+        total_pages = (len(all_quotations) + quotations_per_slide - 1) // quotations_per_slide
+        
+        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.6))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
         run = p.add_run()
-        run.text = "Sales Follow-Up "
+        run.text = f"Quotations Detail  "
         run.font.size = Pt(26)
         run.font.bold = True
         run.font.name = FONT_NAME
-        run.font.color.rgb = RGBColor(102, 126, 234)
+        run.font.color.rgb = WHITE
         run2 = p.add_run()
-        run2.text = "(Pending Feedback & Action Items for Aged Quotations):-"
-        run2.font.size = Pt(12)
+        run2.text = f"(Page {page_num} of {total_pages})"
+        run2.font.size = Pt(14)
         run2.font.name = FONT_NAME
-        run2.font.color.rgb = RGBColor(220, 53, 69)
+        run2.font.color.rgb = RGBColor(200, 200, 255)
         
-        # Calculate rows and create table with proper dimensions - 12 columns now
+        # Table
         rows_count = min(quotations_per_slide, len(all_quotations) - slide_num) + 1
-        row_height = Inches(1.1)  # Taller rows for more content
-        table_height = row_height * rows_count
-        table = slide.shapes.add_table(rows_count, 12, Inches(0.1), Inches(0.9), Inches(13.1), table_height).table
+        table = slide.shapes.add_table(rows_count, 10, Inches(0.15), Inches(1.1), Inches(13.0), Inches(0.9) * rows_count).table
         
-        # Optimized column widths for 12 columns to fit slide width (total ~13.1 inches)
-        col_widths = [0.25, 1.55, 1.1, 0.7, 0.65, 0.42, 0.9, 1.0, 0.5, 0.55, 1.25, 1.2]
+        col_widths = [0.35, 1.4, 1.5, 0.9, 0.85, 1.15, 1.15, 0.65, 2.0, 2.0]
         for i, w in enumerate(col_widths):
             table.columns[i].width = Inches(w)
         
-        # Set consistent row heights
-        for row in table.rows:
-            row.height = Inches(0.95)
-        table.rows[0].height = Inches(0.45)  # Header row smaller
-        
-        # Headers with professional styling - 12 columns
-        headers = ['#', 'Quote Ref', 'Project', 'Presale', 'Date', 'Age', 'Cost', 'Selling', 'Margin', 'Status', 'Note', 'Client Feedback']
-        for col, header in enumerate(headers):
+        headers = ['#', 'Quote Ref', 'Project', 'Engineer', 'Date', 'Cost (SAR)', 'Selling (SAR)', 'Margin', 'Note', 'Feedback']
+        for col, hdr in enumerate(headers):
             cell = table.cell(0, col)
-            cell.text = header
+            cell.text = hdr
             cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(74, 144, 226)
-            # Set vertical alignment to middle
+            cell.fill.fore_color.rgb = PRIMARY_PURPLE
+            for para in cell.text_frame.paragraphs:
+                para.font.color.rgb = WHITE
+                para.font.bold = True
+                para.font.size = Pt(10)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-            p = cell.text_frame.paragraphs[0]
-            p.font.bold = True
-            p.font.color.rgb = RGBColor(255, 255, 255)
-            p.font.size = Pt(11)
-            p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
         
-        # Data rows with improved formatting
-        for row_idx, q in enumerate(all_quotations[slide_num:slide_num + quotations_per_slide], 1):
-            # Get registered date from quotation (this is the submitted date)
-            registered_date = q.get('registered_date') or ''
-            
-            # Calculate age from registered date to today
-            age_str = "-"
+        batch = all_quotations[slide_num:slide_num + quotations_per_slide]
+        for row_idx, q in enumerate(batch, 1):
+            # Calculate age
             try:
-                if registered_date:
-                    q_date = datetime.strptime(str(registered_date)[:10], '%Y-%m-%d')
-                    age_days = (datetime.now() - q_date).days
-                    age_str = f"{age_days}\ndays"
+                from datetime import datetime
+                reg_date = datetime.strptime(str(q.get('registered_date', ''))[:10], '%Y-%m-%d')
+                age_days = (datetime.now() - reg_date).days
             except:
-                age_str = "-"
-            
-            # Get cost and selling price from quotation (accurate data)
-            cost = float(q.get('cost_price', 0) or 0)
-            sell = float(q.get('selling_price', 0) or 0)
-            
-            # Get margin directly from database (accurate margin value)
-            margin = float(q.get('margin', 0) or 0)
-            
-            # Get presale engineer
-            presale_eng = q.get('associated_engineer') or ''
-            
-            # Get note and feedback
-            note = q.get('note', '') or ''
-            client_feedback = q.get('feedback', '') or ''
-            
-            # Truncate long text to fit cells
-            quote_ref = q.get('quote_ref', '') or '-'
-            project_name = (q.get('project_name', '') or '')[:12]
-            if len(q.get('project_name', '') or '') > 12:
-                project_name += '..'
-            
-            # Truncate note and feedback to fit
-            note_display = note[:30] + '..' if len(note) > 30 else (note or '-')
-            feedback_display = client_feedback[:30] + '..' if len(client_feedback) > 30 else (client_feedback or '-')
+                age_days = 0
             
             data = [
                 str(slide_num + row_idx),
-                quote_ref,
-                project_name,
-                presale_eng[:8] if presale_eng else '-',
-                str(registered_date)[:10] if registered_date else '-',
-                age_str,
-                f"SAR\n{cost:,.0f}" if cost > 0 else '-',
-                f"SAR\n{sell:,.0f}" if sell > 0 else '-',
-                f"{margin:.1f}%",
-                q.get('category', 'Ongoing'),
-                note_display,
-                feedback_display
+                str(q.get('quote_ref', ''))[:18],
+                str(q.get('project_name', ''))[:20],
+                str(q.get('presale_eng', ''))[:12],
+                str(q.get('registered_date', ''))[:10],
+                f"{q.get('cost', 0):,.0f}",
+                f"{q.get('selling_price', 0):,.0f}",
+                f"{q.get('margin', 0):.1f}%",
+                str(q.get('note', '') or '-')[:25],
+                str(q.get('feedback', '') or '-')[:25]
             ]
+            
+            category = q.get('category', 'Ongoing')
             
             for col, value in enumerate(data):
                 cell = table.cell(row_idx, col)
                 cell.text = value
-                # Set vertical alignment to middle
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-                # Alternating row colors
-                if row_idx % 2 == 0:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(232, 244, 253)
-                else:
-                    cell.fill.solid()
-                    cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
                 
-                # Style all paragraphs in the cell (for multi-line content)
+                # Row coloring based on status
+                if category == 'Won':
+                    row_color = RGBColor(220, 255, 220) if row_idx % 2 == 0 else RGBColor(235, 255, 235)
+                elif category == 'Lost':
+                    row_color = RGBColor(255, 220, 220) if row_idx % 2 == 0 else RGBColor(255, 235, 235)
+                else:
+                    row_color = RGBColor(255, 248, 220) if row_idx % 2 == 0 else RGBColor(255, 252, 235)
+                
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
                 for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(10)
+                    para.font.size = Pt(9)
                     para.font.name = FONT_NAME
                     para.alignment = PP_ALIGN.CENTER
-                    # Color code the status column
-                    if col == 9:  # Status column
-                        if value == 'Won':
-                            para.font.color.rgb = RGBColor(40, 167, 69)
-                            para.font.bold = True
-                        elif value == 'Lost':
-                            para.font.color.rgb = RGBColor(220, 53, 69)
-                            para.font.bold = True
-                        else:
-                            para.font.color.rgb = RGBColor(255, 153, 0)
-                            para.font.bold = True
-                    # Left align note and feedback columns for readability
-                    if col >= 10:
-                        para.alignment = PP_ALIGN.LEFT
+                    
+                    # Bold the quote ref
+                    if col == 1:
+                        para.font.bold = True
+                        para.font.color.rgb = PRIMARY_BLUE
     
-    # Calculate associated engineer stats for Presale/Sales Engineers Performance slide
-    engineer_stats = {}
-    for project in projects:
-        for q in project['quotations']:
-            eng_name = q['associated_engineer'] or 'Unassigned'
-            if eng_name not in engineer_stats:
-                engineer_stats[eng_name] = {'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0, 'won_value': 0, 'lost_value': 0, 'ongoing_value': 0}
-            engineer_stats[eng_name]['total'] += 1
-            if q['category'] == 'Won':
-                engineer_stats[eng_name]['won'] += 1
-                engineer_stats[eng_name]['won_value'] += q['selling_price']
-            elif q['category'] == 'Lost':
-                engineer_stats[eng_name]['lost'] += 1
-                engineer_stats[eng_name]['lost_value'] += q['selling_price']
-            else:
-                engineer_stats[eng_name]['ongoing'] += 1
-                engineer_stats[eng_name]['ongoing_value'] += q['selling_price']
-    
-    # Presale/Sales Engineers Performance Slide(s) - Card Layout
-    if engineer_stats:
-        sorted_engineers = sorted(engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True)
-        
-        # 6 cards per slide (2 rows x 3 columns)
-        cards_per_slide = 6
-        card_width = Inches(4.0)
-        card_height = Inches(2.2)
-        
-        for slide_idx in range(0, len(sorted_engineers), cards_per_slide):
-            slide = prs.slides.add_slide(slide_layout)
-            
-            # Green header bar
-            header_bar = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
-            header_bar.fill.solid()
-            header_bar.fill.fore_color.rgb = RGBColor(17, 153, 142)
-            header_bar.line.fill.background()
-            
-            # Title on green bar
-            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(8), Inches(0.5))
-            tf = title_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = f"{'Presale' if report_type == 'sales' else 'Sales'} Engineers Performance"
-            p.font.size = Pt(24)
-            p.font.bold = True
-            p.font.name = FONT_NAME
-            p.font.color.rgb = RGBColor(255, 255, 255)
-            
-            # Badge showing count
-            badge_box = slide.shapes.add_textbox(Inches(9), Inches(0.25), Inches(2), Inches(0.4))
-            tf = badge_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = f"{len(sorted_engineers)} Engineers"
-            p.font.size = Pt(14)
-            p.font.name = FONT_NAME
-            p.font.color.rgb = RGBColor(255, 255, 255)
-            
-            # Draw cards for this slide
-            engineers_on_slide = sorted_engineers[slide_idx:slide_idx + cards_per_slide]
-            
-            for i, (eng_name, stats) in enumerate(engineers_on_slide):
-                col = i % 3
-                row = i // 3
-                
-                left = Inches(0.4 + col * 4.3)
-                top = Inches(1.1 + row * 2.8)
-                
-                # Card background (white with shadow effect)
-                card_bg = slide.shapes.add_shape(1, left, top, card_width, card_height)
-                card_bg.fill.solid()
-                card_bg.fill.fore_color.rgb = RGBColor(255, 255, 255)
-                card_bg.line.color.rgb = RGBColor(200, 200, 200)
-                card_bg.line.width = Pt(1)
-                
-                # Card header (dark blue)
-                header = slide.shapes.add_shape(1, left, top, card_width, Inches(0.55))
-                header.fill.solid()
-                header.fill.fore_color.rgb = RGBColor(30, 60, 114)
-                header.line.fill.background()
-                
-                # Engineer name
-                name_box = slide.shapes.add_textbox(left + Inches(0.1), top + Inches(0.1), Inches(2.5), Inches(0.4))
-                tf = name_box.text_frame
-                p = tf.paragraphs[0]
-                p.text = eng_name
-                p.font.size = Pt(14)
-                p.font.bold = True
-                p.font.name = FONT_NAME
-                p.font.color.rgb = RGBColor(255, 255, 255)
-                
-                # Total quotes badge
-                badge = slide.shapes.add_textbox(left + Inches(2.8), top + Inches(0.12), Inches(1.1), Inches(0.35))
-                tf = badge.text_frame
-                p = tf.paragraphs[0]
-                p.text = f"{stats['total']} Quotes"
-                p.font.size = Pt(10)
-                p.font.name = FONT_NAME
-                p.font.color.rgb = RGBColor(255, 255, 255)
-                p.alignment = PP_ALIGN.CENTER
-                
-                # Stats row - Won, Lost, Ongoing
-                stat_top = top + Inches(0.7)
-                stat_width = Inches(1.25)
-                
-                # Won
-                won_box = slide.shapes.add_textbox(left + Inches(0.1), stat_top, stat_width, Inches(1.4))
-                tf = won_box.text_frame
-                tf.word_wrap = False
-                p = tf.paragraphs[0]
-                p.text = str(stats['won'])
-                p.font.size = Pt(32)
-                p.font.bold = True
-                p.font.name = FONT_NAME
-                p.font.color.rgb = RGBColor(40, 167, 69)
-                p.alignment = PP_ALIGN.CENTER
-                p2 = tf.add_paragraph()
-                p2.text = "Won"
-                p2.font.size = Pt(10)
-                p2.font.name = FONT_NAME
-                p2.font.color.rgb = RGBColor(108, 117, 125)
-                p2.alignment = PP_ALIGN.CENTER
-                p3 = tf.add_paragraph()
-                p3.text = f"{stats['won_value']:,.0f}"
-                p3.font.size = Pt(9)
-                p3.font.name = FONT_NAME
-                p3.font.color.rgb = RGBColor(40, 167, 69)
-                p3.alignment = PP_ALIGN.CENTER
-                
-                # Lost
-                lost_box = slide.shapes.add_textbox(left + Inches(1.4), stat_top, stat_width, Inches(1.4))
-                tf = lost_box.text_frame
-                tf.word_wrap = False
-                p = tf.paragraphs[0]
-                p.text = str(stats['lost'])
-                p.font.size = Pt(32)
-                p.font.bold = True
-                p.font.name = FONT_NAME
-                p.font.color.rgb = RGBColor(220, 53, 69)
-                p.alignment = PP_ALIGN.CENTER
-                p2 = tf.add_paragraph()
-                p2.text = "Lost"
-                p2.font.size = Pt(10)
-                p2.font.name = FONT_NAME
-                p2.font.color.rgb = RGBColor(108, 117, 125)
-                p2.alignment = PP_ALIGN.CENTER
-                p3 = tf.add_paragraph()
-                p3.text = f"{stats['lost_value']:,.0f}"
-                p3.font.size = Pt(9)
-                p3.font.name = FONT_NAME
-                p3.font.color.rgb = RGBColor(220, 53, 69)
-                p3.alignment = PP_ALIGN.CENTER
-                
-                # Ongoing
-                ongoing_box = slide.shapes.add_textbox(left + Inches(2.7), stat_top, stat_width, Inches(1.4))
-                tf = ongoing_box.text_frame
-                tf.word_wrap = False
-                p = tf.paragraphs[0]
-                p.text = str(stats['ongoing'])
-                p.font.size = Pt(32)
-                p.font.bold = True
-                p.font.name = FONT_NAME
-                p.font.color.rgb = RGBColor(253, 126, 20)
-                p.alignment = PP_ALIGN.CENTER
-                p2 = tf.add_paragraph()
-                p2.text = "Ongoing"
-                p2.font.size = Pt(10)
-                p2.font.name = FONT_NAME
-                p2.font.color.rgb = RGBColor(108, 117, 125)
-                p2.alignment = PP_ALIGN.CENTER
-                p3 = tf.add_paragraph()
-                p3.text = f"{stats['ongoing_value']:,.0f}"
-                p3.font.size = Pt(9)
-                p3.font.name = FONT_NAME
-                p3.font.color.rgb = RGBColor(253, 126, 20)
-                p3.alignment = PP_ALIGN.CENTER
-    
-    # Save to BytesIO
+    # Save
     output = BytesIO()
     prs.save(output)
     output.seek(0)
     
-    filename = f"{selected_engineer}_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    filename = f"Engineer_Report_{selected_engineer}_{report_type}_{datetime.now().strftime('%Y%m%d')}.pptx"
     
     return send_file(
         output,
