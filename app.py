@@ -18401,16 +18401,16 @@ def view_po_status():
     c.execute(stats_query, stats_params)
     stats = c.fetchone()
 
-    # Build the main query with vendor information - JOIN on names/usernames not IDs
+    # Build the main query with vendor information - use subqueries to avoid duplicates from multiple vendors/distributors with same name
     query = '''
     SELECT 
         po.id AS po_id,
         po.po_request_number, 
         po.project_name,
-        d.id AS distributor_id,
-        COALESCE(d.name, po.distributor) AS distributor_name,
-        v.id AS vendor_id,
-        COALESCE(v.name, po.vendor) AS vendor_name,
+        (SELECT MIN(d2.id) FROM distributors d2 WHERE d2.name = po.distributor) AS distributor_id,
+        COALESCE(po.distributor, '') AS distributor_name,
+        (SELECT MIN(v2.id) FROM vendors v2 WHERE v2.name = po.vendor) AS vendor_id,
+        COALESCE(po.vendor, '') AS vendor_name,
         po.po_approval_status, 
         po.po_delivery_status, 
         COALESCE(eng.username, po.presale_engineer) AS presale_engineer_name,
@@ -18425,9 +18425,6 @@ def view_po_status():
         po.project_manager AS project_manager_id,
         po.distributor AS distributor_raw_id
     FROM purchase_orders po
-    LEFT JOIN register_project rp ON CAST(po.project_name AS TEXT) = CAST(rp.project_name AS TEXT)
-    LEFT JOIN distributors d ON CAST(po.distributor AS TEXT) = d.name
-    LEFT JOIN vendors v ON CAST(po.vendor AS TEXT) = v.name
     LEFT JOIN engineers eng ON CAST(po.presale_engineer AS TEXT) = eng.username
     LEFT JOIN engineers pmeng ON CAST(po.project_manager AS TEXT) = pmeng.username
     WHERE 1=1
@@ -18443,11 +18440,11 @@ def view_po_status():
         params.append(project_manager_filter)
 
     if distributor_filter:
-        query += " AND d.name = ?"
+        query += " AND po.distributor = ?"
         params.append(distributor_filter)
     
     if vendor_filter:
-        query += " AND v.name = ?"
+        query += " AND po.vendor = ?"
         params.append(vendor_filter)
 
     if po_delivery_status_filter:
@@ -18459,7 +18456,7 @@ def view_po_status():
         params.append(po_approval_status_filter)
         
     if project_name_filter:
-        query += " AND rp.project_name = ?"
+        query += " AND po.project_name = ?"
         params.append(project_name_filter)
     
     query += " ORDER BY po.id DESC"
