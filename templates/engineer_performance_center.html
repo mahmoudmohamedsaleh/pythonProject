@@ -1,0 +1,608 @@
+{% extends 'base.html' %}
+{% block title %}Engineer Performance Center{% endblock %}
+{% block content %}
+
+<style>
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+.report-type-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+}
+.report-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.report-type-card.active {
+    border: 3px solid #fff;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+}
+.sales-card {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+.presale-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+.stat-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    transition: transform 0.3s, box-shadow 0.3s;
+    height: 100%;
+}
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.stat-card .stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.stat-card .stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-top: 0.5rem;
+}
+.stat-card.projects { border-left: 4px solid #11998e; }
+.stat-card.rfq { border-left: 4px solid #667eea; }
+.stat-card.rfts { border-left: 4px solid #f5576c; }
+.stat-card.total { border-left: 4px solid #ffc107; }
+
+.section-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.section-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+.section-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.section-badge.projects { background: rgba(17, 153, 142, 0.15); color: #11998e; }
+.section-badge.rfq { background: rgba(102, 126, 234, 0.15); color: #667eea; }
+.section-badge.rfts { background: rgba(245, 87, 108, 0.15); color: #f5576c; }
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.data-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.8rem;
+    text-align: left;
+    font-size: 0.85rem;
+}
+.data-table td {
+    padding: 0.8rem;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 0.9rem;
+}
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+.data-table tr:nth-child(even) {
+    background: #fafbfc;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.status-badge.won { background: #28a74520; color: #28a745; }
+.status-badge.ongoing { background: #ffc10720; color: #e0a800; }
+.status-badge.lost { background: #dc354520; color: #dc3545; }
+.status-badge.queue { background: #fd7e1420; color: #fd7e14; }
+.status-badge.studying { background: #00968720; color: #009688; }
+.status-badge.pricing { background: #667eea20; color: #667eea; }
+.status-badge.quoted { background: #28a74520; color: #28a745; }
+.status-badge.cancelled { background: #6c757d20; color: #6c757d; }
+.status-badge.done { background: #28a74520; color: #28a745; }
+.status-badge.pending { background: #dc354520; color: #dc3545; }
+.status-badge.progress { background: #17a2b820; color: #17a2b8; }
+
+.export-btn {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    border: none;
+    color: white;
+    padding: 0.6rem 1.5rem;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+}
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+    color: white;
+}
+
+.engineer-info-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+.engineer-avatar {
+    width: 80px;
+    height: 80px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    margin-right: 1.5rem;
+}
+.engineer-name {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+.engineer-role {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.no-data-placeholder {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+.no-data-placeholder i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    color: #dee2e6;
+}
+
+.project-group {
+    margin-bottom: 1.5rem;
+}
+.project-group-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 0.8rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.3s;
+}
+.project-group-header:hover {
+    background: #e9ecef;
+}
+.project-group-header h5 {
+    margin: 0;
+    font-size: 1rem;
+    color: #495057;
+}
+.project-group-count {
+    background: #667eea;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-trophy mr-2"></i>Engineer Performance Center</h1>
+            <p class="mb-0">Comprehensive performance report combining Projects, RFQs, and RFTS</p>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card report-type-card sales-card h-100 {% if report_type == 'sales' %}active{% endif %}" onclick="switchReportType('sales')">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-user-tie fa-3x mb-3"></i>
+                <h4>Sales Engineer Reports</h4>
+                <p class="mb-0">View combined performance by Sales Engineer</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card report-type-card presale-card h-100 {% if report_type == 'presale' %}active{% endif %}" onclick="switchReportType('presale')">
+            <div class="card-body text-center py-4">
+                <i class="fas fa-user-cog fa-3x mb-3"></i>
+                <h4>Presale Engineer Reports</h4>
+                <p class="mb-0">View combined performance by Presale Engineer</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-filter mr-2 text-primary"></i>
+        Filter Report
+    </div>
+    <div class="card-body">
+        <form method="GET" id="filterForm">
+            <input type="hidden" name="type" value="{{ report_type }}">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="small text-muted font-weight-bold">{% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer</label>
+                    <select name="engineer" class="form-control" id="engineerSelect">
+                        <option value="">-- Select Engineer --</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng }}" {% if eng == selected_engineer %}selected{% endif %}>{{ eng }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Year</label>
+                    <select name="year" class="form-control" id="yearSelect">
+                        <option value="">All Years</option>
+                        {% for year in years %}
+                        <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Month</label>
+                    <select name="month" class="form-control" id="monthSelect">
+                        <option value="">All Months</option>
+                        <option value="01" {% if selected_month == '01' %}selected{% endif %}>January</option>
+                        <option value="02" {% if selected_month == '02' %}selected{% endif %}>February</option>
+                        <option value="03" {% if selected_month == '03' %}selected{% endif %}>March</option>
+                        <option value="04" {% if selected_month == '04' %}selected{% endif %}>April</option>
+                        <option value="05" {% if selected_month == '05' %}selected{% endif %}>May</option>
+                        <option value="06" {% if selected_month == '06' %}selected{% endif %}>June</option>
+                        <option value="07" {% if selected_month == '07' %}selected{% endif %}>July</option>
+                        <option value="08" {% if selected_month == '08' %}selected{% endif %}>August</option>
+                        <option value="09" {% if selected_month == '09' %}selected{% endif %}>September</option>
+                        <option value="10" {% if selected_month == '10' %}selected{% endif %}>October</option>
+                        <option value="11" {% if selected_month == '11' %}selected{% endif %}>November</option>
+                        <option value="12" {% if selected_month == '12' %}selected{% endif %}>December</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Week</label>
+                    <select name="week" class="form-control" id="weekSelect">
+                        <option value="">All Weeks</option>
+                        <option value="1" {% if selected_week == '1' %}selected{% endif %}>Week 1</option>
+                        <option value="2" {% if selected_week == '2' %}selected{% endif %}>Week 2</option>
+                        <option value="3" {% if selected_week == '3' %}selected{% endif %}>Week 3</option>
+                        <option value="4" {% if selected_week == '4' %}selected{% endif %}>Week 4</option>
+                        <option value="5" {% if selected_week == '5' %}selected{% endif %}>Week 5</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="small text-muted font-weight-bold">Quarter</label>
+                    <select name="quarter" class="form-control" id="quarterSelect">
+                        <option value="">All Quarters</option>
+                        <option value="Q1" {% if selected_quarter == 'Q1' %}selected{% endif %}>Q1 (Jan-Mar)</option>
+                        <option value="Q2" {% if selected_quarter == 'Q2' %}selected{% endif %}>Q2 (Apr-Jun)</option>
+                        <option value="Q3" {% if selected_quarter == 'Q3' %}selected{% endif %}>Q3 (Jul-Sep)</option>
+                        <option value="Q4" {% if selected_quarter == 'Q4' %}selected{% endif %}>Q4 (Oct-Dec)</option>
+                    </select>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if selected_engineer %}
+<div class="engineer-info-card">
+    <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <div class="engineer-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div>
+                <div class="engineer-name">{{ selected_engineer }}</div>
+                <div class="engineer-role">
+                    {% if report_type == 'sales' %}Sales Engineer{% else %}Presale Engineer{% endif %}
+                    {% if period_text %} - {{ period_text }}{% endif %}
+                </div>
+            </div>
+        </div>
+        <div>
+            <button class="export-btn" onclick="exportPowerPoint()">
+                <i class="fas fa-file-powerpoint mr-2"></i>Export Full Report
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-card projects">
+            <div class="stat-value text-success">{{ project_stats.total }}</div>
+            <div class="stat-label"><i class="fas fa-project-diagram mr-1"></i>Total Projects</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card rfq">
+            <div class="stat-value" style="color: #667eea;">{{ rfq_stats.total }}</div>
+            <div class="stat-label"><i class="fas fa-file-alt mr-1"></i>Total RFQs</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card rfts">
+            <div class="stat-value" style="color: #f5576c;">{{ rfts_stats.total }}</div>
+            <div class="stat-label"><i class="fas fa-headset mr-1"></i>Total RFTS</div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card total">
+            <div class="stat-value" style="color: #ffc107;">{{ project_stats.total + rfq_stats.total + rfts_stats.total }}</div>
+            <div class="stat-label"><i class="fas fa-chart-bar mr-1"></i>Combined Total</div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-project-diagram mr-2"></i>Projects Breakdown
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge won">Won</span></span>
+                    <strong>{{ project_stats.won }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge ongoing">Ongoing</span></span>
+                    <strong>{{ project_stats.ongoing }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span><span class="status-badge lost">Lost</span></span>
+                    <strong>{{ project_stats.lost }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <i class="fas fa-file-alt mr-2"></i>RFQ Breakdown
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge queue">Queue</span></span>
+                    <strong>{{ rfq_stats.queue }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge studying">Studying</span></span>
+                    <strong>{{ rfq_stats.studying }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge pricing">Pricing</span></span>
+                    <strong>{{ rfq_stats.pricing }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge quoted">Quoted</span></span>
+                    <strong>{{ rfq_stats.quoted }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span><span class="status-badge cancelled">Cancelled</span></span>
+                    <strong>{{ rfq_stats.cancelled }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card h-100">
+            <div class="card-header" style="background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); color: white;">
+                <i class="fas fa-headset mr-2"></i>RFTS Breakdown
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge queue">Queue</span></span>
+                    <strong>{{ rfts_stats.queue }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge studying">Studying</span></span>
+                    <strong>{{ rfts_stats.studying }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge progress">In Progress</span></span>
+                    <strong>{{ rfts_stats.in_progress }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span><span class="status-badge done">Done</span></span>
+                    <strong>{{ rfts_stats.done }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span><span class="status-badge pending">Pending</span></span>
+                    <strong>{{ rfts_stats.pending }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if projects %}
+<div class="card mb-4">
+    <div class="section-header">
+        <h4><i class="fas fa-project-diagram mr-2 text-success"></i>Projects & Quotations</h4>
+        <span class="section-badge projects">{{ projects|length }} Projects</span>
+    </div>
+    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+        {% for project in projects %}
+        <div class="project-group">
+            <div class="project-group-header" data-toggle="collapse" data-target="#project-{{ loop.index }}">
+                <h5>
+                    <i class="fas fa-folder mr-2 text-warning"></i>{{ project.name }}
+                    <span class="status-badge {% if project.status == 'Won' %}won{% elif project.status == 'Lost' %}lost{% else %}ongoing{% endif %} ml-2">{{ project.status }}</span>
+                </h5>
+                <span class="project-group-count">{{ project.quotations|length }} Quotations</span>
+            </div>
+            <div id="project-{{ loop.index }}" class="collapse mt-2">
+                {% if project.quotations %}
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Selling Price</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for q in project.quotations %}
+                        <tr>
+                            <td>{{ q.reference }}</td>
+                            <td>{{ '{:,.2f}'.format(q.selling_price or 0) }} SAR</td>
+                            <td><span class="status-badge {% if q.status == 'Won' %}won{% elif q.status == 'Lost' %}lost{% else %}ongoing{% endif %}">{{ q.status }}</span></td>
+                            <td>{{ q.date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted text-center py-2">No quotations for this project</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if rfqs %}
+<div class="card mb-4">
+    <div class="section-header">
+        <h4><i class="fas fa-file-alt mr-2" style="color: #667eea;"></i>RFQ Requests</h4>
+        <span class="section-badge rfq">{{ rfqs|length }} RFQs</span>
+    </div>
+    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Project</th>
+                    <th>Client</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rfq in rfqs %}
+                <tr>
+                    <td>{{ rfq.rfq_reference }}</td>
+                    <td>{{ rfq.project_name[:40] }}{% if rfq.project_name|length > 40 %}...{% endif %}</td>
+                    <td>{{ rfq.client_name[:30] }}{% if rfq.client_name|length > 30 %}...{% endif %}</td>
+                    <td><span class="status-badge {% if rfq.status == 'Queue' %}queue{% elif rfq.status == 'Studying' %}studying{% elif rfq.status == 'Pricing' %}pricing{% elif rfq.status == 'Quoted' %}quoted{% else %}cancelled{% endif %}">{{ rfq.status }}</span></td>
+                    <td>{{ rfq.due_date or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if rfts_list %}
+<div class="card mb-4">
+    <div class="section-header">
+        <h4><i class="fas fa-headset mr-2" style="color: #f5576c;"></i>RFTS Requests</h4>
+        <span class="section-badge rfts">{{ rfts_list|length }} RFTS</span>
+    </div>
+    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Project</th>
+                    <th>Type</th>
+                    <th>System</th>
+                    <th>Status</th>
+                    <th>Deadline</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rfts in rfts_list %}
+                <tr>
+                    <td>{{ rfts.rfts_reference }}</td>
+                    <td>{{ rfts.project_name[:35] }}{% if rfts.project_name|length > 35 %}...{% endif %}</td>
+                    <td>{{ rfts.request_type }}</td>
+                    <td>{{ rfts.system or '-' }}</td>
+                    <td><span class="status-badge {% if rfts.request_status == 'Queue' %}queue{% elif rfts.request_status == 'Studying' %}studying{% elif rfts.request_status == 'In Progress' %}progress{% elif rfts.request_status == 'Done' %}done{% else %}pending{% endif %}">{{ rfts.request_status }}</span></td>
+                    <td>{{ rfts.deadline or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="no-data-placeholder">
+            <i class="fas fa-user-check"></i>
+            <h4>Select an engineer to view their report</h4>
+            <p class="text-muted">Choose a {% if report_type == 'sales' %}Sales{% else %}Presale{% endif %} Engineer from the filter above</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function switchReportType(type) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('type', type);
+    url.searchParams.delete('engineer');
+    window.location.href = url.toString();
+}
+
+function exportPowerPoint() {
+    const engineer = '{{ selected_engineer }}';
+    const type = '{{ report_type }}';
+    const year = '{{ selected_year or '' }}';
+    const month = '{{ selected_month or '' }}';
+    const week = '{{ selected_week or '' }}';
+    const quarter = '{{ selected_quarter or '' }}';
+    
+    let url = `/export_engineer_performance_pptx?engineer=${encodeURIComponent(engineer)}&type=${type}`;
+    if (year) url += `&year=${year}`;
+    if (month) url += `&month=${month}`;
+    if (week) url += `&week=${week}`;
+    if (quarter) url += `&quarter=${quarter}`;
+    
+    window.location.href = url;
+}
+</script>
+
+{% endblock %}

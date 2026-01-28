@@ -15230,6 +15230,909 @@ def export_rfts_engineer_report_pptx():
 
 
 
+
+
+@app.route('/engineer_performance_center')
+@login_required
+def engineer_performance_center():
+    """Engineer Performance Center - Combined report for Projects, RFQs, and RFTS"""
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    report_type = request.args.get('type', 'sales')
+    selected_engineer = request.args.get('engineer', '')
+    selected_year = request.args.get('year', '')
+    selected_quarter = request.args.get('quarter', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    
+    # Get available years
+    c.execute("SELECT DISTINCT strftime('%Y', registered_date) as year FROM projects WHERE registered_date IS NOT NULL ORDER BY year DESC")
+    years = [row[0] for row in c.fetchall() if row[0]]
+    
+    # Get list of engineers
+    if report_type == 'sales':
+        c.execute("SELECT DISTINCT sales_eng FROM projects WHERE sales_eng IS NOT NULL AND sales_eng != '' ORDER BY sales_eng")
+    else:
+        c.execute("SELECT DISTINCT presale_eng FROM projects WHERE presale_eng IS NOT NULL AND presale_eng != '' ORDER BY presale_eng")
+    engineers = [row[0] for row in c.fetchall()]
+    
+    projects = []
+    rfqs = []
+    rfts_list = []
+    project_stats = {'total': 0, 'won': 0, 'ongoing': 0, 'lost': 0}
+    rfq_stats = {'total': 0, 'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
+    rfts_stats = {'total': 0, 'queue': 0, 'studying': 0, 'in_progress': 0, 'done': 0, 'pending': 0}
+    period_text = ''
+    
+    if selected_engineer:
+        # Build date filter conditions
+        date_conditions = ""
+        params_base = [selected_engineer]
+        
+        if selected_year:
+            date_conditions += " AND strftime('%Y', registered_date) = ?"
+            params_base.append(selected_year)
+            period_text = selected_year
+        
+        if selected_month:
+            date_conditions += " AND strftime('%m', registered_date) = ?"
+            params_base.append(selected_month)
+            month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+            period_text = f"{month_names[int(selected_month)]} {selected_year}" if selected_year else month_names[int(selected_month)]
+            
+            if selected_week:
+                week_num = int(selected_week)
+                start_day = (week_num - 1) * 7 + 1
+                end_day = week_num * 7
+                date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+                params_base.extend([start_day, end_day])
+                period_text += f" Week {selected_week}"
+        elif selected_quarter:
+            quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+            if selected_quarter in quarter_map:
+                start_month, end_month = quarter_map[selected_quarter]
+                date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+                params_base.extend([start_month, end_month])
+                period_text = f"{selected_quarter} {selected_year}" if selected_year else selected_quarter
+        
+        # === PROJECTS DATA ===
+        if report_type == 'sales':
+            query = f"""
+                SELECT project_name, MAX(registered_date) as latest_date
+                FROM projects 
+                WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
+                {date_conditions}
+                GROUP BY project_name
+                ORDER BY latest_date DESC
+            """
+        else:
+            query = f"""
+                SELECT project_name, MAX(registered_date) as latest_date
+                FROM projects 
+                WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
+                {date_conditions}
+                GROUP BY project_name
+                ORDER BY latest_date DESC
+            """
+        c.execute(query, params_base)
+        project_names = [row[0] for row in c.fetchall()]
+        
+        for project_name in project_names:
+            if report_type == 'sales':
+                query = f"""
+                    SELECT p.id, p.quote_ref, p.status, p.quotation_selling_price, p.registered_date
+                    FROM projects p
+                    WHERE p.project_name = ? AND p.sales_eng = ?
+                    {date_conditions.replace('registered_date', 'p.registered_date') if date_conditions else ''}
+                    ORDER BY p.registered_date DESC
+                """
+            else:
+                query = f"""
+                    SELECT p.id, p.quote_ref, p.status, p.quotation_selling_price, p.registered_date
+                    FROM projects p
+                    WHERE p.project_name = ? AND p.presale_eng = ?
+                    {date_conditions.replace('registered_date', 'p.registered_date') if date_conditions else ''}
+                    ORDER BY p.registered_date DESC
+                """
+            c.execute(query, [project_name] + params_base)
+            quotations_data = c.fetchall()
+            
+            if quotations_data:
+                quotations = []
+                project_status = 'Ongoing'
+                for q in quotations_data:
+                    status = q[2] or 'Ongoing'
+                    if status == 'Won':
+                        project_status = 'Won'
+                    elif status == 'Lost' and project_status != 'Won':
+                        project_status = 'Lost'
+                    
+                    quotations.append({
+                        'reference': q[1] or '',
+                        'selling_price': q[3] or 0,
+                        'status': status,
+                        'date': q[4][:10] if q[4] else '-'
+                    })
+                
+                projects.append({
+                    'name': project_name,
+                    'status': project_status,
+                    'quotations': quotations
+                })
+                
+                project_stats['total'] += 1
+                if project_status == 'Won':
+                    project_stats['won'] += 1
+                elif project_status == 'Lost':
+                    project_stats['lost'] += 1
+                else:
+                    project_stats['ongoing'] += 1
+        
+        # === RFQ DATA ===
+        rfq_date_conditions = date_conditions.replace('registered_date', 'r.requested_time')
+        if report_type == 'sales':
+            rfq_query = f"""
+                SELECT r.id, r.rfq_reference, r.project_name, r.rfq_status, r.deadline,
+                       COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name
+                FROM rfq_requests r
+                LEFT JOIN register_project rp ON r.project_name = rp.project_name
+                LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+                LEFT JOIN contractors co ON rp.contractor_id = co.id
+                LEFT JOIN consultants cn ON rp.consultant_id = cn.id
+                WHERE r.sales_engineer_sales = ?
+                {rfq_date_conditions}
+                ORDER BY r.requested_time DESC
+            """
+        else:
+            rfq_query = f"""
+                SELECT r.id, r.rfq_reference, r.project_name, r.rfq_status, r.deadline,
+                       COALESCE(eu.name, co.name, cn.name, 'N/A') as client_name
+                FROM rfq_requests r
+                LEFT JOIN register_project rp ON r.project_name = rp.project_name
+                LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+                LEFT JOIN contractors co ON rp.contractor_id = co.id
+                LEFT JOIN consultants cn ON rp.consultant_id = cn.id
+                WHERE r.sales_engineer_presale = ?
+                {rfq_date_conditions}
+                ORDER BY r.requested_time DESC
+            """
+        c.execute(rfq_query, params_base)
+        rfq_rows = c.fetchall()
+        
+        for row in rfq_rows:
+            status = row[3] or 'Queue'
+            rfqs.append({
+                'id': row[0],
+                'rfq_reference': row[1],
+                'project_name': row[2] or '',
+                'status': status,
+                'due_date': row[4] or '',
+                'client_name': row[5] or 'N/A'
+            })
+            
+            rfq_stats['total'] += 1
+            status_lower = status.lower()
+            if 'queue' in status_lower:
+                rfq_stats['queue'] += 1
+            elif 'study' in status_lower:
+                rfq_stats['studying'] += 1
+            elif 'pric' in status_lower:
+                rfq_stats['pricing'] += 1
+            elif 'quot' in status_lower:
+                rfq_stats['quoted'] += 1
+            elif 'cancel' in status_lower:
+                rfq_stats['cancelled'] += 1
+        
+        # === RFTS DATA ===
+        rfts_date_conditions = date_conditions.replace('registered_date', 'requested_time')
+        if report_type == 'sales':
+            rfts_query = f"""
+                SELECT id, rfts_reference, project_name, request_type, request_status,
+                       deadline, system
+                FROM technical_support_requests
+                WHERE sales_engineer = ?
+                {rfts_date_conditions}
+                ORDER BY requested_time DESC
+            """
+        else:
+            rfts_query = f"""
+                SELECT id, rfts_reference, project_name, request_type, request_status,
+                       deadline, system
+                FROM technical_support_requests
+                WHERE presale_engineer = ?
+                {rfts_date_conditions}
+                ORDER BY requested_time DESC
+            """
+        c.execute(rfts_query, params_base)
+        rfts_rows = c.fetchall()
+        
+        for row in rfts_rows:
+            status = row[4] or 'Queue'
+            rfts_list.append({
+                'id': row[0],
+                'rfts_reference': row[1],
+                'project_name': row[2] or '',
+                'request_type': row[3] or '',
+                'request_status': status,
+                'deadline': row[5] or '',
+                'system': row[6] or ''
+            })
+            
+            rfts_stats['total'] += 1
+            status_lower = status.lower()
+            if 'queue' in status_lower:
+                rfts_stats['queue'] += 1
+            elif 'study' in status_lower:
+                rfts_stats['studying'] += 1
+            elif 'progress' in status_lower:
+                rfts_stats['in_progress'] += 1
+            elif 'done' in status_lower:
+                rfts_stats['done'] += 1
+            elif 'pending' in status_lower:
+                rfts_stats['pending'] += 1
+    
+    conn.close()
+    
+    return render_template('engineer_performance_center.html',
+                          report_type=report_type,
+                          engineers=engineers,
+                          selected_engineer=selected_engineer,
+                          years=years,
+                          selected_year=selected_year,
+                          selected_quarter=selected_quarter,
+                          selected_month=selected_month,
+                          selected_week=selected_week,
+                          period_text=period_text,
+                          projects=projects,
+                          rfqs=rfqs,
+                          rfts_list=rfts_list,
+                          project_stats=project_stats,
+                          rfq_stats=rfq_stats,
+                          rfts_stats=rfts_stats)
+
+
+
+
+@app.route('/export_engineer_performance_pptx')
+@login_required
+def export_engineer_performance_pptx():
+    """Export combined Engineer Performance Report as PowerPoint"""
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.oxml.ns import qn
+    from pptx.oxml import parse_xml
+    from io import BytesIO
+    
+    selected_engineer = request.args.get('engineer', '')
+    report_type = request.args.get('type', 'sales')
+    selected_year = request.args.get('year', '')
+    selected_month = request.args.get('month', '')
+    selected_week = request.args.get('week', '')
+    selected_quarter = request.args.get('quarter', '')
+    
+    if not selected_engineer:
+        return "No engineer selected", 400
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    # Build date conditions
+    date_conditions = ""
+    params_base = [selected_engineer]
+    period_text = "All Time"
+    
+    if selected_year:
+        date_conditions += " AND strftime('%Y', registered_date) = ?"
+        params_base.append(selected_year)
+        period_text = selected_year
+    
+    if selected_month:
+        date_conditions += " AND strftime('%m', registered_date) = ?"
+        params_base.append(selected_month)
+        month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        period_text = f"{month_names[int(selected_month)]} {selected_year}" if selected_year else month_names[int(selected_month)]
+        
+        if selected_week:
+            week_num = int(selected_week)
+            start_day = (week_num - 1) * 7 + 1
+            end_day = week_num * 7
+            date_conditions += " AND CAST(strftime('%d', registered_date) AS INTEGER) BETWEEN ? AND ?"
+            params_base.extend([start_day, end_day])
+            period_text += f" Week {selected_week}"
+    elif selected_quarter:
+        quarter_map = {'Q1': ('01', '03'), 'Q2': ('04', '06'), 'Q3': ('07', '09'), 'Q4': ('10', '12')}
+        if selected_quarter in quarter_map:
+            start_month, end_month = quarter_map[selected_quarter]
+            date_conditions += " AND strftime('%m', registered_date) BETWEEN ? AND ?"
+            params_base.extend([start_month, end_month])
+            period_text = f"{selected_quarter} {selected_year}" if selected_year else selected_quarter
+    
+    # Collect all data
+    # === PROJECTS ===
+    projects = []
+    project_stats = {'total': 0, 'won': 0, 'ongoing': 0, 'lost': 0, 'total_value': 0}
+    
+    if report_type == 'sales':
+        query = f"""
+            SELECT project_name FROM projects 
+            WHERE sales_eng = ? AND project_name IS NOT NULL AND project_name != ''
+            {date_conditions}
+            GROUP BY project_name
+        """
+    else:
+        query = f"""
+            SELECT project_name FROM projects 
+            WHERE presale_eng = ? AND project_name IS NOT NULL AND project_name != ''
+            {date_conditions}
+            GROUP BY project_name
+        """
+    c.execute(query, params_base)
+    project_names = [row[0] for row in c.fetchall()]
+    
+    for project_name in project_names:
+        if report_type == 'sales':
+            query = f"""
+                SELECT quote_ref, status, quotation_selling_price, registered_date
+                FROM projects WHERE project_name = ? AND sales_eng = ?
+                {date_conditions.replace('registered_date', 'registered_date') if date_conditions else ''}
+            """
+        else:
+            query = f"""
+                SELECT quote_ref, status, quotation_selling_price, registered_date
+                FROM projects WHERE project_name = ? AND presale_eng = ?
+                {date_conditions.replace('registered_date', 'registered_date') if date_conditions else ''}
+            """
+        c.execute(query, [project_name] + params_base)
+        quotations = c.fetchall()
+        
+        project_status = 'Ongoing'
+        for q in quotations:
+            status = q[1] or 'Ongoing'
+            if status == 'Won':
+                project_status = 'Won'
+                project_stats['total_value'] += q[2] or 0
+            elif status == 'Lost' and project_status != 'Won':
+                project_status = 'Lost'
+        
+        projects.append({
+            'name': project_name,
+            'status': project_status,
+            'quotations': len(quotations)
+        })
+        
+        project_stats['total'] += 1
+        if project_status == 'Won':
+            project_stats['won'] += 1
+        elif project_status == 'Lost':
+            project_stats['lost'] += 1
+        else:
+            project_stats['ongoing'] += 1
+    
+    # === RFQs ===
+    rfqs = []
+    rfq_stats = {'total': 0, 'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
+    
+    rfq_date_conditions = date_conditions.replace('registered_date', 'requested_time')
+    if report_type == 'sales':
+        rfq_query = f"""
+            SELECT rfq_reference, project_name, rfq_status, deadline
+            FROM rfq_requests WHERE sales_engineer_sales = ?
+            {rfq_date_conditions}
+        """
+    else:
+        rfq_query = f"""
+            SELECT rfq_reference, project_name, rfq_status, deadline
+            FROM rfq_requests WHERE sales_engineer_presale = ?
+            {rfq_date_conditions}
+        """
+    c.execute(rfq_query, params_base)
+    for row in c.fetchall():
+        status = row[2] or 'Queue'
+        rfqs.append({
+            'reference': row[0],
+            'project': row[1] or '',
+            'status': status,
+            'due_date': row[3] or ''
+        })
+        rfq_stats['total'] += 1
+        status_lower = status.lower()
+        if 'queue' in status_lower:
+            rfq_stats['queue'] += 1
+        elif 'study' in status_lower:
+            rfq_stats['studying'] += 1
+        elif 'pric' in status_lower:
+            rfq_stats['pricing'] += 1
+        elif 'quot' in status_lower:
+            rfq_stats['quoted'] += 1
+        elif 'cancel' in status_lower:
+            rfq_stats['cancelled'] += 1
+    
+    # === RFTS ===
+    rfts_list = []
+    rfts_stats = {'total': 0, 'queue': 0, 'studying': 0, 'in_progress': 0, 'done': 0, 'pending': 0}
+    
+    rfts_date_conditions = date_conditions.replace('registered_date', 'requested_time')
+    if report_type == 'sales':
+        rfts_query = f"""
+            SELECT rfts_reference, project_name, request_type, request_status, deadline, system
+            FROM technical_support_requests WHERE sales_engineer = ?
+            {rfts_date_conditions}
+        """
+    else:
+        rfts_query = f"""
+            SELECT rfts_reference, project_name, request_type, request_status, deadline, system
+            FROM technical_support_requests WHERE presale_engineer = ?
+            {rfts_date_conditions}
+        """
+    c.execute(rfts_query, params_base)
+    for row in c.fetchall():
+        status = row[3] or 'Queue'
+        rfts_list.append({
+            'reference': row[0],
+            'project': row[1] or '',
+            'type': row[2] or '',
+            'status': status,
+            'deadline': row[4] or '',
+            'system': row[5] or ''
+        })
+        rfts_stats['total'] += 1
+        status_lower = status.lower()
+        if 'queue' in status_lower:
+            rfts_stats['queue'] += 1
+        elif 'study' in status_lower:
+            rfts_stats['studying'] += 1
+        elif 'progress' in status_lower:
+            rfts_stats['in_progress'] += 1
+        elif 'done' in status_lower:
+            rfts_stats['done'] += 1
+        elif 'pending' in status_lower:
+            rfts_stats['pending'] += 1
+    
+    conn.close()
+    
+    # Create PowerPoint
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    
+    FONT_NAME = 'Calibri'
+    PRIMARY_BLUE = RGBColor(102, 126, 234)
+    SECONDARY_PURPLE = RGBColor(118, 75, 162)
+    GREEN = RGBColor(40, 167, 69)
+    YELLOW = RGBColor(255, 193, 7)
+    RED = RGBColor(220, 53, 69)
+    ORANGE = RGBColor(253, 126, 20)
+    TEAL = RGBColor(0, 150, 136)
+    GRAY = RGBColor(108, 117, 125)
+    WHITE = RGBColor(255, 255, 255)
+    DARK_TEXT = RGBColor(33, 37, 41)
+    LIGHT_BG = RGBColor(248, 249, 250)
+    
+    def add_gradient_background(slide, color1, color2):
+        background = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+        background.fill.gradient()
+        background.fill.gradient_angle = 135
+        background.fill.gradient_stops[0].color.rgb = color1
+        background.fill.gradient_stops[1].color.rgb = color2
+        background.line.fill.background()
+        spTree = slide.shapes._spTree
+        sp = background._element
+        spTree.remove(sp)
+        spTree.insert(2, sp)
+    
+    # ========== SLIDE 1: Title Slide ==========
+    slide_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(slide_layout)
+    add_gradient_background(slide, PRIMARY_BLUE, SECONDARY_PURPLE)
+    
+    # Title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2), Inches(12.333), Inches(1.5))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Engineer Performance Report"
+    p.font.size = Pt(48)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Engineer name
+    name_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.5), Inches(12.333), Inches(1))
+    tf = name_box.text_frame
+    p = tf.paragraphs[0]
+    role = "Sales Engineer" if report_type == 'sales' else "Presale Engineer"
+    p.text = f"{selected_engineer} - {role}"
+    p.font.size = Pt(32)
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Period
+    period_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12.333), Inches(0.8))
+    tf = period_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"Period: {period_text}"
+    p.font.size = Pt(20)
+    p.font.color.rgb = RGBColor(200, 200, 255)
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # ========== SLIDE 2: Overview Dashboard ==========
+    slide = prs.slides.add_slide(slide_layout)
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
+    
+    # Header bar
+    header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(1))
+    header.fill.gradient()
+    header.fill.gradient_angle = 90
+    header.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
+    header.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+    header.line.fill.background()
+    
+    header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.25), Inches(10), Inches(0.6))
+    tf = header_text.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"Performance Overview - {selected_engineer}"
+    p.font.size = Pt(28)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    
+    # Summary cards - row 1
+    combined_total = project_stats['total'] + rfq_stats['total'] + rfts_stats['total']
+    card_data = [
+        ('Total Projects', project_stats['total'], GREEN),
+        ('Total RFQs', rfq_stats['total'], PRIMARY_BLUE),
+        ('Total RFTS', rfts_stats['total'], RGBColor(245, 87, 108)),
+        ('Combined Total', combined_total, YELLOW)
+    ]
+    
+    for i, (label, value, color) in enumerate(card_data):
+        x = Inches(0.4 + i * 3.2)
+        y = Inches(1.3)
+        
+        card = slide.shapes.add_shape(5, x, y, Inches(3), Inches(1.3))
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(230, 230, 230)
+        
+        # Color bar
+        bar = slide.shapes.add_shape(1, x, y, Inches(0.15), Inches(1.3))
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = color
+        bar.line.fill.background()
+        
+        # Value
+        val_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.2), Inches(2.5), Inches(0.7))
+        tf = val_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = str(value)
+        p.font.size = Pt(36)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.font.name = FONT_NAME
+        
+        # Label
+        lbl_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.85), Inches(2.5), Inches(0.4))
+        tf = lbl_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(12)
+        p.font.color.rgb = GRAY
+        p.font.name = FONT_NAME
+    
+    # Breakdown sections
+    def add_breakdown_card(slide, x, y, title, items, title_color):
+        # Card background
+        card = slide.shapes.add_shape(5, x, y, Inches(4), Inches(3.8))
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(230, 230, 230)
+        
+        # Title bar
+        title_bar = slide.shapes.add_shape(1, x, y, Inches(4), Inches(0.6))
+        title_bar.fill.solid()
+        title_bar.fill.fore_color.rgb = title_color
+        title_bar.line.fill.background()
+        
+        title_box = slide.shapes.add_textbox(x + Inches(0.2), y + Inches(0.1), Inches(3.6), Inches(0.5))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = title
+        p.font.size = Pt(16)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        
+        # Items
+        item_y = y + Inches(0.8)
+        for label, value, color in items:
+            # Label
+            lbl = slide.shapes.add_textbox(x + Inches(0.2), item_y, Inches(2.5), Inches(0.4))
+            tf = lbl.text_frame
+            p = tf.paragraphs[0]
+            p.text = label
+            p.font.size = Pt(14)
+            p.font.color.rgb = DARK_TEXT
+            p.font.name = FONT_NAME
+            
+            # Value badge
+            val_box = slide.shapes.add_textbox(x + Inches(3.2), item_y, Inches(0.6), Inches(0.4))
+            tf = val_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = str(value)
+            p.font.size = Pt(14)
+            p.font.bold = True
+            p.font.color.rgb = color
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.RIGHT
+            
+            item_y += Inches(0.5)
+    
+    # Projects breakdown
+    add_breakdown_card(slide, Inches(0.4), Inches(2.9), "Projects Breakdown", [
+        ('Won', project_stats['won'], GREEN),
+        ('Ongoing', project_stats['ongoing'], YELLOW),
+        ('Lost', project_stats['lost'], RED)
+    ], GREEN)
+    
+    # RFQ breakdown
+    add_breakdown_card(slide, Inches(4.6), Inches(2.9), "RFQ Breakdown", [
+        ('Queue', rfq_stats['queue'], ORANGE),
+        ('Studying', rfq_stats['studying'], TEAL),
+        ('Pricing', rfq_stats['pricing'], PRIMARY_BLUE),
+        ('Quoted', rfq_stats['quoted'], GREEN),
+        ('Cancelled', rfq_stats['cancelled'], GRAY)
+    ], PRIMARY_BLUE)
+    
+    # RFTS breakdown
+    add_breakdown_card(slide, Inches(8.8), Inches(2.9), "RFTS Breakdown", [
+        ('Queue', rfts_stats['queue'], ORANGE),
+        ('Studying', rfts_stats['studying'], TEAL),
+        ('In Progress', rfts_stats['in_progress'], GRAY),
+        ('Done', rfts_stats['done'], GREEN),
+        ('Pending', rfts_stats['pending'], RED)
+    ], RGBColor(245, 87, 108))
+    
+    # ========== SLIDE 3: Projects List ==========
+    if projects:
+        slide = prs.slides.add_slide(slide_layout)
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
+        
+        # Header
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+        header.fill.gradient()
+        header.fill.gradient_angle = 90
+        header.fill.gradient_stops[0].color.rgb = GREEN
+        header.fill.gradient_stops[1].color.rgb = RGBColor(56, 239, 125)
+        header.line.fill.background()
+        
+        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+        tf = header_text.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"Projects & Quotations ({project_stats['total']} Projects)"
+        p.font.size = Pt(24)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        
+        # Table
+        display_projects = projects[:12]
+        rows = len(display_projects) + 1
+        cols = 4
+        table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
+        
+        table.columns[0].width = Inches(0.5)
+        table.columns[1].width = Inches(8)
+        table.columns[2].width = Inches(2)
+        table.columns[3].width = Inches(2)
+        
+        headers = ['#', 'Project Name', 'Status', 'Quotations']
+        for i, h in enumerate(headers):
+            cell = table.cell(0, i)
+            cell.text = h
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = GREEN
+            para = cell.text_frame.paragraphs[0]
+            para.font.size = Pt(11)
+            para.font.bold = True
+            para.font.color.rgb = WHITE
+            para.font.name = FONT_NAME
+            para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for i, proj in enumerate(display_projects, 1):
+            row_color = LIGHT_BG if i % 2 == 0 else WHITE
+            
+            cell = table.cell(i, 0)
+            cell.text = str(i)
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = row_color
+            
+            cell = table.cell(i, 1)
+            name = proj['name']
+            cell.text = name[:60] + '...' if len(name) > 60 else name
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = row_color
+            
+            cell = table.cell(i, 2)
+            cell.text = proj['status']
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = row_color
+            
+            cell = table.cell(i, 3)
+            cell.text = str(proj['quotations'])
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = row_color
+            
+            for col in range(cols):
+                para = table.cell(i, col).text_frame.paragraphs[0]
+                para.font.size = Pt(10)
+                para.font.name = FONT_NAME
+                para.font.color.rgb = DARK_TEXT
+                para.alignment = PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT
+                table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # ========== SLIDE 4: RFQs List ==========
+    if rfqs:
+        slide = prs.slides.add_slide(slide_layout)
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
+        
+        # Header
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+        header.fill.gradient()
+        header.fill.gradient_angle = 90
+        header.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
+        header.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+        header.line.fill.background()
+        
+        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+        tf = header_text.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"RFQ Requests ({rfq_stats['total']} RFQs)"
+        p.font.size = Pt(24)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        
+        # Table
+        display_rfqs = rfqs[:12]
+        rows = len(display_rfqs) + 1
+        cols = 5
+        table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
+        
+        table.columns[0].width = Inches(0.5)
+        table.columns[1].width = Inches(2)
+        table.columns[2].width = Inches(6)
+        table.columns[3].width = Inches(2)
+        table.columns[4].width = Inches(2)
+        
+        headers = ['#', 'Reference', 'Project Name', 'Status', 'Due Date']
+        for i, h in enumerate(headers):
+            cell = table.cell(0, i)
+            cell.text = h
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = PRIMARY_BLUE
+            para = cell.text_frame.paragraphs[0]
+            para.font.size = Pt(11)
+            para.font.bold = True
+            para.font.color.rgb = WHITE
+            para.font.name = FONT_NAME
+            para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for i, rfq in enumerate(display_rfqs, 1):
+            row_color = LIGHT_BG if i % 2 == 0 else WHITE
+            
+            table.cell(i, 0).text = str(i)
+            table.cell(i, 1).text = rfq['reference'] or ''
+            proj = rfq['project']
+            table.cell(i, 2).text = proj[:50] + '...' if len(proj) > 50 else proj
+            table.cell(i, 3).text = rfq['status']
+            table.cell(i, 4).text = rfq['due_date'] or '-'
+            
+            for col in range(cols):
+                table.cell(i, col).fill.solid()
+                table.cell(i, col).fill.fore_color.rgb = row_color
+                para = table.cell(i, col).text_frame.paragraphs[0]
+                para.font.size = Pt(10)
+                para.font.name = FONT_NAME
+                para.font.color.rgb = DARK_TEXT
+                para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
+                table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # ========== SLIDE 5: RFTS List ==========
+    if rfts_list:
+        slide = prs.slides.add_slide(slide_layout)
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
+        
+        # Header
+        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+        header.fill.gradient()
+        header.fill.gradient_angle = 90
+        header.fill.gradient_stops[0].color.rgb = RGBColor(245, 87, 108)
+        header.fill.gradient_stops[1].color.rgb = RGBColor(240, 147, 251)
+        header.line.fill.background()
+        
+        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+        tf = header_text.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"RFTS Requests ({rfts_stats['total']} RFTS)"
+        p.font.size = Pt(24)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        
+        # Table
+        display_rfts = rfts_list[:12]
+        rows = len(display_rfts) + 1
+        cols = 6
+        table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
+        
+        table.columns[0].width = Inches(0.5)
+        table.columns[1].width = Inches(1.8)
+        table.columns[2].width = Inches(4.5)
+        table.columns[3].width = Inches(2)
+        table.columns[4].width = Inches(1.5)
+        table.columns[5].width = Inches(2)
+        
+        headers = ['#', 'Reference', 'Project Name', 'Type', 'Status', 'Deadline']
+        for i, h in enumerate(headers):
+            cell = table.cell(0, i)
+            cell.text = h
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(245, 87, 108)
+            para = cell.text_frame.paragraphs[0]
+            para.font.size = Pt(11)
+            para.font.bold = True
+            para.font.color.rgb = WHITE
+            para.font.name = FONT_NAME
+            para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        for i, rfts in enumerate(display_rfts, 1):
+            row_color = LIGHT_BG if i % 2 == 0 else WHITE
+            
+            table.cell(i, 0).text = str(i)
+            table.cell(i, 1).text = rfts['reference'] or ''
+            proj = rfts['project']
+            table.cell(i, 2).text = proj[:40] + '...' if len(proj) > 40 else proj
+            table.cell(i, 3).text = rfts['type'] or ''
+            table.cell(i, 4).text = rfts['status']
+            table.cell(i, 5).text = rfts['deadline'] or '-'
+            
+            for col in range(cols):
+                table.cell(i, col).fill.solid()
+                table.cell(i, col).fill.fore_color.rgb = row_color
+                para = table.cell(i, col).text_frame.paragraphs[0]
+                para.font.size = Pt(10)
+                para.font.name = FONT_NAME
+                para.font.color.rgb = DARK_TEXT
+                para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
+                table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # Save and return
+    output = BytesIO()
+    prs.save(output)
+    output.seek(0)
+    
+    filename = f"{selected_engineer}_performance_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pptx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
 @app.route('/edit_request', methods=['GET', 'POST'])
 @login_required
 def edit_request():
