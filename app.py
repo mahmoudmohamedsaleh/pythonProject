@@ -15261,6 +15261,7 @@ def engineer_performance_center():
     rfqs = []
     rfts_list = []
     project_stats = {'total': 0, 'won': 0, 'ongoing': 0, 'lost': 0}
+    quotation_stats = {'total': 0, 'won': 0, 'ongoing': 0, 'lost': 0, 'won_value': 0, 'ongoing_value': 0, 'lost_value': 0}
     rfq_stats = {'total': 0, 'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
     rfts_stats = {'total': 0, 'queue': 0, 'studying': 0, 'in_progress': 0, 'done': 0, 'pending': 0}
     period_text = ''
@@ -15516,6 +15517,24 @@ def engineer_performance_center():
                 'note': q[8] or '-',
                 'feedback': q[9] or '-'
             })
+            
+            # Update quotation stats
+            quotation_stats['total'] += 1
+            selling = q[6] or 0
+            # Get status for this quotation
+            c.execute("SELECT status FROM projects WHERE quote_ref = ?", (q[0],))
+            status_row = c.fetchone()
+            if status_row:
+                q_status = status_row[0] or ''
+                if q_status in ['Won', 'Done', 'Closed Won']:
+                    quotation_stats['won'] += 1
+                    quotation_stats['won_value'] += selling
+                elif q_status in ['Lost', 'Cancelled', 'Closed Lost']:
+                    quotation_stats['lost'] += 1
+                    quotation_stats['lost_value'] += selling
+                else:
+                    quotation_stats['ongoing'] += 1
+                    quotation_stats['ongoing_value'] += selling
     else:
         quotations_list = []
     
@@ -15639,6 +15658,7 @@ def engineer_performance_center():
                           rfts_list=rfts_list,
                           quotations_list=quotations_list,
                           project_stats=project_stats,
+                          quotation_stats=quotation_stats,
                           rfq_stats=rfq_stats,
                           rfts_stats=rfts_stats,
                           related_engineers=sorted_related_engineers)
