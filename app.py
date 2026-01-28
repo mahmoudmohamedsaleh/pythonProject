@@ -7289,32 +7289,18 @@ def export_engineer_report_pptx():
     tf = title_box.text_frame
     p = tf.paragraphs[0]
     run = p.add_run()
-    eng_type_title = "Sales Engineers Performance" if report_type == 'sales' else "Presales Engineers Performance"
-    run.text = eng_type_title
+    run.text = related_type_title
     run.font.size = Pt(28)
     run.font.bold = True
     run.font.name = FONT_NAME
     run.font.color.rgb = WHITE
     
-    # Get all engineers data
+    # Get RELATED engineers data (presales for sales report, sales for presales report)
     conn2 = sqlite3.connect('ProjectStatus.db')
     c2 = conn2.cursor()
     
     if report_type == 'sales':
-        c2.execute("""
-            SELECT sales_eng, 
-                   COUNT(*) as total_quotes,
-                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN 1 ELSE 0 END) as won,
-                   SUM(CASE WHEN LOWER(status) LIKE '%lost%' OR LOWER(status) LIKE '%cancelled%' THEN 1 ELSE 0 END) as lost,
-                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN 1 ELSE 0 END) as ongoing,
-                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as won_value,
-                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
-            FROM projects 
-            WHERE sales_eng IS NOT NULL AND sales_eng != ''
-            GROUP BY sales_eng
-            ORDER BY total_quotes DESC
-        """)
-    else:
+        # For Sales Engineer report, show PRESALES engineers who worked on their projects
         c2.execute("""
             SELECT presale_eng, 
                    COUNT(*) as total_quotes,
@@ -7324,10 +7310,27 @@ def export_engineer_report_pptx():
                    SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as won_value,
                    SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
             FROM projects 
-            WHERE presale_eng IS NOT NULL AND presale_eng != ''
+            WHERE sales_eng = ? AND presale_eng IS NOT NULL AND presale_eng != ''
             GROUP BY presale_eng
             ORDER BY total_quotes DESC
-        """)
+        """, (selected_engineer,))
+        related_type_title = "Presale Engineers Performance"
+    else:
+        # For Presales Engineer report, show SALES engineers who worked on their projects
+        c2.execute("""
+            SELECT sales_eng, 
+                   COUNT(*) as total_quotes,
+                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN 1 ELSE 0 END) as won,
+                   SUM(CASE WHEN LOWER(status) LIKE '%lost%' OR LOWER(status) LIKE '%cancelled%' THEN 1 ELSE 0 END) as lost,
+                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN 1 ELSE 0 END) as ongoing,
+                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as won_value,
+                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
+            FROM projects 
+            WHERE presale_eng = ? AND sales_eng IS NOT NULL AND sales_eng != ''
+            GROUP BY sales_eng
+            ORDER BY total_quotes DESC
+        """, (selected_engineer,))
+        related_type_title = "Sales Engineers Performance"
     
     all_engineers = c2.fetchall()
     conn2.close()
