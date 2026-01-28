@@ -12424,13 +12424,28 @@ def export_rfq_engineer_report_excel():
 @app.route('/export_rfq_engineer_report_pptx')
 @login_required
 def export_rfq_engineer_report_pptx():
-    """Export RFQ Engineer Report to PowerPoint with professional presentation"""
+    """Export RFQ Engineer Report to PowerPoint with modern attractive styling"""
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+    from pptx.enum.shapes import MSO_SHAPE
     from io import BytesIO
     from datetime import datetime, date
+    
+    FONT_NAME = 'Calibri'
+    
+    # Modern color palette
+    PRIMARY_BLUE = RGBColor(102, 126, 234)
+    SECONDARY_PURPLE = RGBColor(118, 75, 162)
+    GREEN = RGBColor(40, 167, 69)
+    YELLOW = RGBColor(255, 193, 7)
+    RED = RGBColor(220, 53, 69)
+    ORANGE = RGBColor(253, 126, 20)
+    TEAL = RGBColor(0, 150, 136)
+    WHITE = RGBColor(255, 255, 255)
+    DARK_TEXT = RGBColor(51, 51, 51)
+    LIGHT_BG = RGBColor(248, 249, 250)
     
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
@@ -12495,9 +12510,10 @@ def export_rfq_engineer_report_pptx():
     c.execute(query, params_base)
     rfqs = c.fetchall()
     
-    # Count statuses and group by project
+    # Count statuses
     summary = {'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
     projects_dict = {}
+    rfq_details = []
     today = date.today()
     
     for rfq in rfqs:
@@ -12524,333 +12540,635 @@ def export_rfq_engineer_report_pptx():
         project_name = rfq[2] or 'Unassigned Project'
         if project_name not in projects_dict:
             projects_dict[project_name] = []
-        
         projects_dict[project_name].append({
             'rfq_reference': rfq[1],
-            'priority': rfq[4],
-            'rfq_status': rfq[7],
-            'deadline': rfq[9],
+            'status': rfq[7],
             'status_category': status_category
         })
-    
-    conn.close()
-    
-    # Create PowerPoint presentation
-    prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
-    
-    # Title Slide
-    slide_layout = prs.slide_layouts[6]
-    
-    FONT_NAME = "Calibri"
-    slide = prs.slides.add_slide(slide_layout)
-    
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = f"{selected_engineer}'s RFQ Report"
-    p.font.size = Pt(44)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(102, 126, 234)
-    p.alignment = PP_ALIGN.CENTER
-    
-    # Subtitle with filters
-    filter_text = []
-    if selected_year:
-        filter_text.append(f"Year: {selected_year}")
-    if selected_month:
-        months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-        filter_text.append(f"Month: {months[int(selected_month)-1]}")
-    if selected_week:
-        filter_text.append(f"Week: {selected_week}")
-    if selected_quarter and not selected_month:
-        filter_text.append(f"Quarter: {selected_quarter}")
-    
-    subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.7), Inches(12.333), Inches(0.5))
-    tf = subtitle_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = ' | '.join(filter_text) if filter_text else 'All Time Report'
-    p.font.size = Pt(24)
-    p.font.color.rgb = RGBColor(100, 100, 100)
-    p.alignment = PP_ALIGN.CENTER
-    
-    # Summary Slide
-    slide = prs.slides.add_slide(slide_layout)
-    
-    bg = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
-    bg.fill.solid()
-    bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
-    bg.line.fill.background()
-    
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(12.333), Inches(1))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = "RFQ Summary Dashboard"
-    p.font.size = Pt(40)
-    p.font.bold = True
-    p.font.color.rgb = RGBColor(102, 126, 234)
+        
+        rfq_details.append({
+            'id': rfq[0],
+            'rfq_reference': rfq[1],
+            'project_name': project_name,
+            'presale_engineer': rfq[5],
+            'sales_engineer': rfq[6],
+            'rfq_status': rfq[7],
+            'deadline': rfq[9],
+            'requested_time': rfq[11][:10] if rfq[11] else '-',
+            'status_category': status_category,
+            'note': rfq[10] or ''
+        })
     
     total_rfqs = len(rfqs)
     
-    # Summary boxes
-    box_data = [
-        ("Total RFQs", str(total_rfqs), f"{len(projects_dict)} Projects", RGBColor(102, 126, 234)),
-        ("Queue", str(summary['queue']), "Pending", RGBColor(255, 193, 7)),
-        ("Studying", str(summary['studying']), "In Progress", RGBColor(23, 162, 184)),
-        ("Pricing", str(summary['pricing']), "Costing", RGBColor(111, 66, 193)),
-        ("Quoted", str(summary['quoted']), "Completed", RGBColor(40, 167, 69)),
-        ("Cancelled", str(summary['cancelled']), "Dropped", RGBColor(220, 53, 69))
-    ]
+    # Create PowerPoint
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    slide_layout = prs.slide_layouts[6]  # Blank
     
-    box_width = Inches(2.0)
-    box_height = Inches(2.5)
-    start_left = Inches(0.4)
-    spacing = Inches(2.15)
-    top = Inches(2.0)
-    
-    for i, (label, count, sublabel, color) in enumerate(box_data):
-        left = start_left + (i * spacing)
-        
-        shape = slide.shapes.add_shape(1, left, top, box_width, box_height)
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
-        shape.line.color.rgb = color
-        shape.line.width = Pt(3)
-        
-        tb = slide.shapes.add_textbox(left, top + Inches(0.2), box_width, Inches(0.4))
-        tf = tb.text_frame
-        p = tf.paragraphs[0]
-        p.text = label
-        p.font.size = Pt(14)
-        p.font.color.rgb = RGBColor(100, 100, 100)
-        p.alignment = PP_ALIGN.CENTER
-        
-        tb = slide.shapes.add_textbox(left, top + Inches(0.7), box_width, Inches(1.0))
-        tf = tb.text_frame
-        p = tf.paragraphs[0]
-        p.text = count
-        p.font.size = Pt(56)
-        p.font.bold = True
-        p.font.color.rgb = color
-        p.alignment = PP_ALIGN.CENTER
-        
-        tb = slide.shapes.add_textbox(left, top + Inches(1.8), box_width, Inches(0.4))
-        tf = tb.text_frame
-        p = tf.paragraphs[0]
-        p.text = sublabel
-        p.font.size = Pt(12)
-        p.font.color.rgb = color
-        p.alignment = PP_ALIGN.CENTER
-    
-    # Projects Overview Slide
+    # ===== SLIDE 1: GRADIENT TITLE SLIDE =====
     slide = prs.slides.add_slide(slide_layout)
     
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.8))
+    # Full slide gradient background
+    bg_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    bg_shape.fill.gradient()
+    bg_shape.fill.gradient_angle = 135
+    bg_shape.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
+    bg_shape.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+    bg_shape.line.fill.background()
+    
+    # Title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.2), Inches(12.333), Inches(1))
     tf = title_box.text_frame
     p = tf.paragraphs[0]
-    p.text = "Projects Overview"
+    p.text = "RFQ Engineer Report"
+    p.font.size = Pt(54)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Engineer name
+    eng_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.4), Inches(12.333), Inches(0.8))
+    tf = eng_box.text_frame
+    p = tf.paragraphs[0]
+    report_type_title = "Sales Engineer" if report_type == 'sales' else "Presales Engineer"
+    p.text = f"{report_type_title}: {selected_engineer}"
+    p.font.size = Pt(32)
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Period info
+    period_parts = []
+    if selected_year:
+        period_parts.append(f"Year: {selected_year}")
+    if selected_quarter:
+        period_parts.append(f"Quarter: {selected_quarter}")
+    if selected_month:
+        month_names = {
+            '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+            '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+            '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+        }
+        period_parts.append(f"Month: {month_names.get(selected_month, selected_month)}")
+    if selected_week:
+        period_parts.append(f"Week: {selected_week}")
+    
+    period_text = " | ".join(period_parts) if period_parts else "All Time"
+    
+    period_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.3), Inches(12.333), Inches(0.6))
+    tf = period_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = period_text
+    p.font.size = Pt(20)
+    p.font.color.rgb = RGBColor(230, 230, 250)
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Date generated
+    date_box = slide.shapes.add_textbox(Inches(0.5), Inches(6.5), Inches(12.333), Inches(0.5))
+    tf = date_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+    p.font.size = Pt(14)
+    p.font.color.rgb = RGBColor(200, 200, 220)
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # ===== SLIDE 2: DASHBOARD WITH STAT CARDS =====
+    slide = prs.slides.add_slide(slide_layout)
+    
+    # Header gradient bar
+    header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
+    header_bar.fill.gradient()
+    header_bar.fill.gradient_angle = 90
+    header_bar.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
+    header_bar.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+    header_bar.line.fill.background()
+    
+    # Dashboard title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(8), Inches(0.7))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Performance Dashboard"
     p.font.size = Pt(32)
     p.font.bold = True
-    p.font.color.rgb = RGBColor(102, 126, 234)
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
     
-    # Add table with top projects
-    sorted_projects = sorted(projects_dict.items(), key=lambda x: len(x[1]), reverse=True)[:10]
+    # Summary stats cards - 6 cards in a row
+    stats = [
+        ('TOTAL RFQs', total_rfqs, PRIMARY_BLUE),
+        ('QUEUE', summary['queue'], ORANGE),
+        ('STUDYING', summary['studying'], TEAL),
+        ('PRICING', summary['pricing'], RGBColor(108, 117, 125)),
+        ('QUOTED', summary['quoted'], GREEN),
+        ('CANCELLED', summary['cancelled'], RED)
+    ]
     
-    if sorted_projects:
-        rows = len(sorted_projects) + 1
-        cols = 3
-        table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(1.2), Inches(12.333), Inches(0.5 * rows)).table
+    card_width = Inches(1.9)
+    card_height = Inches(1.4)
+    start_x = Inches(0.5)
+    start_y = Inches(1.8)
+    gap = Inches(0.16)
+    
+    for i, (label, value, color) in enumerate(stats):
+        x = start_x + i * (card_width + gap)
         
-        table.cell(0, 0).text = "Project Name"
-        table.cell(0, 1).text = "RFQs Count"
-        table.cell(0, 2).text = "Status Distribution"
+        # Card background with shadow effect
+        shadow = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.05), start_y + Inches(0.05), card_width, card_height)
+        shadow.fill.solid()
+        shadow.fill.fore_color.rgb = RGBColor(200, 200, 200)
+        shadow.line.fill.background()
         
-        for cell in table.rows[0].cells:
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(102, 126, 234)
-            for para in cell.text_frame.paragraphs:
-                para.font.color.rgb = RGBColor(255, 255, 255)
+        # Main card
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, start_y, card_width, card_height)
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(230, 230, 230)
+        
+        # Colored top accent
+        accent = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, start_y, card_width, Inches(0.12))
+        accent.fill.solid()
+        accent.fill.fore_color.rgb = color
+        accent.line.fill.background()
+        
+        # Label
+        label_box = slide.shapes.add_textbox(x, start_y + Inches(0.2), card_width, Inches(0.35))
+        tf = label_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(10)
+        p.font.bold = True
+        p.font.color.rgb = RGBColor(100, 100, 100)
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Value
+        value_box = slide.shapes.add_textbox(x, start_y + Inches(0.55), card_width, Inches(0.7))
+        tf = value_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = str(value)
+        p.font.size = Pt(36)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+    
+    # ===== RELATED ENGINEERS SECTION ON DASHBOARD =====
+    # Get related engineers (presales for sales report, sales for presales report)
+    conn2 = sqlite3.connect('ProjectStatus.db')
+    c2 = conn2.cursor()
+    
+    if report_type == 'sales':
+        # For Sales Engineer report, show PRESALES engineers who worked on their RFQs
+        related_query = f"""
+            SELECT sales_engineer_presale, COUNT(*) as total_rfqs,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%queue%' THEN 1 ELSE 0 END) as queue,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%study%' THEN 1 ELSE 0 END) as studying,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%pric%' THEN 1 ELSE 0 END) as pricing,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%quoted%' THEN 1 ELSE 0 END) as quoted,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%cancel%' THEN 1 ELSE 0 END) as cancelled
+            FROM rfq_requests
+            WHERE sales_engineer_sales = ? 
+            AND sales_engineer_presale IS NOT NULL 
+            AND sales_engineer_presale != ''
+            {date_conditions}
+            GROUP BY sales_engineer_presale
+            ORDER BY total_rfqs DESC
+        """
+        related_type_title = "Presale Engineers Performance"
+    else:
+        # For Presales Engineer report, show SALES engineers who worked on their RFQs
+        related_query = f"""
+            SELECT sales_engineer_sales, COUNT(*) as total_rfqs,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%queue%' THEN 1 ELSE 0 END) as queue,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%study%' THEN 1 ELSE 0 END) as studying,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%pric%' THEN 1 ELSE 0 END) as pricing,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%quoted%' THEN 1 ELSE 0 END) as quoted,
+                   SUM(CASE WHEN LOWER(rfq_status) LIKE '%cancel%' THEN 1 ELSE 0 END) as cancelled
+            FROM rfq_requests
+            WHERE sales_engineer_presale = ? 
+            AND sales_engineer_sales IS NOT NULL 
+            AND sales_engineer_sales != ''
+            {date_conditions}
+            GROUP BY sales_engineer_sales
+            ORDER BY total_rfqs DESC
+        """
+        related_type_title = "Sales Engineers Performance"
+    
+    c2.execute(related_query, params_base)
+    related_engineers = c2.fetchall()
+    conn2.close()
+    
+    # Add related engineers section header
+    section_bar = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.5), Inches(3.5), Inches(12.333), Inches(0.55))
+    section_bar.fill.gradient()
+    section_bar.fill.gradient_angle = 90
+    section_bar.fill.gradient_stops[0].color.rgb = GREEN
+    section_bar.fill.gradient_stops[1].color.rgb = RGBColor(60, 200, 100)
+    section_bar.line.fill.background()
+    
+    section_title = slide.shapes.add_textbox(Inches(0.7), Inches(3.55), Inches(6), Inches(0.5))
+    tf = section_title.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"{related_type_title}"
+    p.font.size = Pt(18)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    
+    # Engineer count badge
+    eng_count = len(related_engineers)
+    count_badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(11), Inches(3.55), Inches(1.7), Inches(0.45))
+    count_badge.fill.solid()
+    count_badge.fill.fore_color.rgb = WHITE
+    count_badge.line.color.rgb = WHITE
+    
+    count_text = slide.shapes.add_textbox(Inches(11), Inches(3.58), Inches(1.7), Inches(0.4))
+    tf = count_text.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"{eng_count} Engineers"
+    p.font.size = Pt(12)
+    p.font.bold = True
+    p.font.color.rgb = GREEN
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Display engineer cards (up to 6 on dashboard)
+    card_width = Inches(4)
+    card_height = Inches(1.3)
+    cards_per_row = 3
+    start_y = Inches(4.2)
+    
+    for idx, eng in enumerate(related_engineers[:6]):
+        row = idx // cards_per_row
+        col = idx % cards_per_row
+        x = Inches(0.5) + col * (card_width + Inches(0.167))
+        y = start_y + row * (card_height + Inches(0.15))
+        
+        eng_name = eng[0]
+        total = eng[1]
+        queue = eng[2]
+        studying = eng[3]
+        pricing = eng[4]
+        quoted = eng[5]
+        cancelled = eng[6]
+        
+        # Shadow
+        shadow = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.03), y + Inches(0.03), card_width, card_height)
+        shadow.fill.solid()
+        shadow.fill.fore_color.rgb = RGBColor(220, 220, 220)
+        shadow.line.fill.background()
+        
+        # Card
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_width, card_height)
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(230, 230, 230)
+        
+        # Header bar with engineer name
+        header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, card_width, Inches(0.35))
+        header.fill.gradient()
+        header.fill.gradient_angle = 90
+        header.fill.gradient_stops[0].color.rgb = RGBColor(59, 89, 152)
+        header.fill.gradient_stops[1].color.rgb = RGBColor(100, 130, 200)
+        header.line.fill.background()
+        
+        # Name
+        name_box = slide.shapes.add_textbox(x + Inches(0.1), y + Inches(0.05), Inches(2.5), Inches(0.3))
+        tf = name_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = eng_name
+        p.font.size = Pt(12)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        
+        # RFQ count badge
+        badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(3.1), y + Inches(0.05), Inches(0.8), Inches(0.25))
+        badge.fill.solid()
+        badge.fill.fore_color.rgb = GREEN
+        badge.line.fill.background()
+        
+        badge_text = slide.shapes.add_textbox(x + Inches(3.1), y + Inches(0.05), Inches(0.8), Inches(0.25))
+        tf = badge_text.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"{total} RFQs"
+        p.font.size = Pt(9)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Stats row
+        stat_items = [
+            (queue, 'Queue', ORANGE),
+            (studying, 'Study', TEAL),
+            (pricing, 'Price', RGBColor(108, 117, 125)),
+            (quoted, 'Quoted', GREEN),
+            (cancelled, 'Cancel', RED)
+        ]
+        
+        stat_width = card_width / 5
+        for si, (val, lbl, clr) in enumerate(stat_items):
+            sx = x + si * stat_width
+            
+            # Value
+            val_box = slide.shapes.add_textbox(sx, y + Inches(0.45), stat_width, Inches(0.45))
+            tf = val_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = str(val)
+            p.font.size = Pt(20)
+            p.font.bold = True
+            p.font.color.rgb = clr
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+            
+            # Label
+            lbl_box = slide.shapes.add_textbox(sx, y + Inches(0.9), stat_width, Inches(0.3))
+            tf = lbl_box.text_frame
+            p = tf.paragraphs[0]
+            p.text = lbl
+            p.font.size = Pt(9)
+            p.font.color.rgb = RGBColor(120, 120, 120)
+            p.font.name = FONT_NAME
+            p.alignment = PP_ALIGN.CENTER
+    
+    # ===== SLIDE 3+: RFQ DETAILS TABLES =====
+    # Group by status category for better organization
+    status_groups = {
+        'queue': {'title': 'Queue RFQs', 'color': ORANGE, 'rfqs': []},
+        'studying': {'title': 'Studying RFQs', 'color': TEAL, 'rfqs': []},
+        'pricing': {'title': 'Pricing RFQs', 'color': RGBColor(108, 117, 125), 'rfqs': []},
+        'quoted': {'title': 'Quoted RFQs', 'color': GREEN, 'rfqs': []},
+        'cancelled': {'title': 'Cancelled RFQs', 'color': RED, 'rfqs': []}
+    }
+    
+    for rfq in rfq_details:
+        cat = rfq['status_category']
+        if cat in status_groups:
+            status_groups[cat]['rfqs'].append(rfq)
+    
+    # Create slides for each status category that has RFQs
+    for status_key, group in status_groups.items():
+        if not group['rfqs']:
+            continue
+        
+        items_per_slide = 8
+        for page_num in range(0, len(group['rfqs']), items_per_slide):
+            page_rfqs = group['rfqs'][page_num:page_num + items_per_slide]
+            
+            slide = prs.slides.add_slide(slide_layout)
+            
+            # Header bar
+            header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(0.9))
+            header_bar.fill.solid()
+            header_bar.fill.fore_color.rgb = group['color']
+            header_bar.line.fill.background()
+            
+            # Title
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(10), Inches(0.6))
+            tf = title_box.text_frame
+            p = tf.paragraphs[0]
+            page_indicator = f" (Page {page_num//items_per_slide + 1})" if len(group['rfqs']) > items_per_slide else ""
+            p.text = f"{group['title']} - {len(group['rfqs'])} Total{page_indicator}"
+            p.font.size = Pt(28)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
+            
+            # Table
+            rows = len(page_rfqs) + 1
+            cols = 6
+            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.2), Inches(12.733), Inches(0.6 * rows)).table
+            
+            # Column widths
+            table.columns[0].width = Inches(0.5)    # #
+            table.columns[1].width = Inches(1.8)    # RFQ Reference
+            table.columns[2].width = Inches(3.5)    # Project Name
+            table.columns[3].width = Inches(2)      # Engineer
+            table.columns[4].width = Inches(1.3)    # Deadline
+            table.columns[5].width = Inches(1.3)    # Request Date
+            
+            # Headers
+            headers = ['#', 'RFQ Reference', 'Project Name', 
+                      'Presale Eng' if report_type == 'sales' else 'Sales Eng', 
+                      'Deadline', 'Request Date']
+            for col, header in enumerate(headers):
+                cell = table.cell(0, col)
+                cell.text = header
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = group['color']
+                para = cell.text_frame.paragraphs[0]
+                para.font.color.rgb = WHITE
                 para.font.bold = True
-                para.font.size = Pt(12)
-        
-        for i, (project_name, rfq_list) in enumerate(sorted_projects, 1):
-            table.cell(i, 0).text = project_name[:50] + '...' if len(project_name) > 50 else project_name
-            table.cell(i, 1).text = str(len(rfq_list))
+                para.font.size = Pt(11)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             
-            status_counts = {}
-            for rfq in rfq_list:
-                cat = rfq['status_category']
-                status_counts[cat] = status_counts.get(cat, 0) + 1
-            status_str = ', '.join([f"{k.title()}: {v}" for k, v in status_counts.items()])
-            table.cell(i, 2).text = status_str
-            
-            for cell in table.rows[i].cells:
-                for para in cell.text_frame.paragraphs:
-                    para.font.size = Pt(11)
+            # Data rows
+            for i, rfq in enumerate(page_rfqs, 1):
+                row_idx = i
+                
+                # Alternating row colors
+                row_color = LIGHT_BG if i % 2 == 0 else WHITE
+                
+                # Row number
+                cell = table.cell(row_idx, 0)
+                cell.text = str(page_num + i)
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # RFQ Reference
+                cell = table.cell(row_idx, 1)
+                cell.text = rfq['rfq_reference'] or ''
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # Project Name
+                cell = table.cell(row_idx, 2)
+                proj = rfq['project_name'] or ''
+                cell.text = proj[:40] + '...' if len(proj) > 40 else proj
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # Engineer
+                cell = table.cell(row_idx, 3)
+                eng = rfq['presale_engineer'] if report_type == 'sales' else rfq['sales_engineer']
+                cell.text = eng or ''
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # Deadline
+                cell = table.cell(row_idx, 4)
+                cell.text = rfq['deadline'] or '-'
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # Request Date
+                cell = table.cell(row_idx, 5)
+                cell.text = rfq['requested_time'] or '-'
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # Style all cells
+                for col in range(cols):
+                    para = table.cell(row_idx, col).text_frame.paragraphs[0]
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.font.color.rgb = DARK_TEXT
+                    para.alignment = PP_ALIGN.CENTER
+                    table.cell(row_idx, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
-    # Follow Up "RFQs Not Submitted" Slide - Only Queue, Studying, Pricing statuses
+    # ===== FOLLOW-UP SLIDE: RFQs Not Submitted (Queue, Studying, Pricing) =====
     not_submitted_rfqs = []
-    for rfq in rfqs:
-        status = (rfq[7] or '').lower()
-        if 'queue' in status or 'study' in status or 'pric' in status:
-            # Calculate days overdue
+    for rfq in rfq_details:
+        if rfq['status_category'] in ['queue', 'studying', 'pricing']:
             days_overdue = None
-            deadline_str = rfq[9]
-            if deadline_str:
+            if rfq['deadline'] and rfq['deadline'] != '-':
                 try:
-                    deadline_date = datetime.strptime(deadline_str, '%Y-%m-%d').date()
+                    deadline_date = datetime.strptime(rfq['deadline'], '%Y-%m-%d').date()
                     days_overdue = (today - deadline_date).days
                 except:
                     pass
-            
-            not_submitted_rfqs.append({
-                'rfq_reference': rfq[1],
-                'project_name': rfq[2],
-                'sales_engineer': rfq[6] if report_type == 'presale' else rfq[5],
-                'rfq_status': rfq[7],
-                'note': rfq[10] or '',
-                'requested_time': rfq[11][:10] if rfq[11] else '-',
-                'deadline': rfq[9] or '-',
-                'days_overdue': days_overdue
-            })
+            rfq['days_overdue'] = days_overdue
+            not_submitted_rfqs.append(rfq)
     
     # Sort by deadline (oldest first - most urgent)
     not_submitted_rfqs.sort(key=lambda x: x['deadline'] if x['deadline'] != '-' else '9999-99-99')
     
     if not_submitted_rfqs:
-        # Create follow-up slide(s) - max 6 rows per slide for better readability
-        items_per_slide = 6
-        for slide_num in range(0, len(not_submitted_rfqs), items_per_slide):
-            slide_rfqs = not_submitted_rfqs[slide_num:slide_num + items_per_slide]
+        items_per_slide = 8
+        for page_num in range(0, len(not_submitted_rfqs), items_per_slide):
+            page_rfqs = not_submitted_rfqs[page_num:page_num + items_per_slide]
             
             slide = prs.slides.add_slide(slide_layout)
             
+            # Header with warning color
+            header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(0.9))
+            header_bar.fill.gradient()
+            header_bar.fill.gradient_angle = 90
+            header_bar.fill.gradient_stops[0].color.rgb = RGBColor(255, 100, 100)
+            header_bar.fill.gradient_stops[1].color.rgb = RGBColor(255, 150, 80)
+            header_bar.line.fill.background()
+            
             # Title
-            title_box = slide.shapes.add_textbox(Inches(0.4), Inches(0.3), Inches(12.533), Inches(0.7))
+            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.2), Inches(12), Inches(0.6))
             tf = title_box.text_frame
             p = tf.paragraphs[0]
-            p.text = 'Follow Up "RFQs Not Submitted":-'
-            p.font.size = Pt(32)
+            page_indicator = f" (Page {page_num//items_per_slide + 1})" if len(not_submitted_rfqs) > items_per_slide else ""
+            p.text = f'Follow Up "RFQs Not Submitted" - {len(not_submitted_rfqs)} RFQs{page_indicator}'
+            p.font.size = Pt(26)
             p.font.bold = True
-            p.font.color.rgb = RGBColor(59, 89, 152)
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
             
-            # Create table with better sizing
-            rows = len(slide_rfqs) + 1
-            cols = 8
-            row_height = Inches(0.7)
-            table_height = row_height * rows
-            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.7), table_height).table
+            # Table
+            rows = len(page_rfqs) + 1
+            cols = 7
+            table = slide.shapes.add_table(rows, cols, Inches(0.2), Inches(1.2), Inches(12.933), Inches(0.6 * rows)).table
             
-            # Set column widths for better proportions
-            table.columns[0].width = Inches(0.5)   # #
-            table.columns[1].width = Inches(1.8)   # RFQ Reference
-            table.columns[2].width = Inches(2.8)   # Project Name
-            table.columns[3].width = Inches(1.4)   # Sales Engineer
-            table.columns[4].width = Inches(1.1)   # Last Status
-            table.columns[5].width = Inches(1.3)   # Request Date
-            table.columns[6].width = Inches(1.3)   # Deadline
-            table.columns[7].width = Inches(1.0)   # Overdue
+            # Column widths
+            table.columns[0].width = Inches(0.4)    # #
+            table.columns[1].width = Inches(1.6)    # RFQ Reference
+            table.columns[2].width = Inches(3.2)    # Project Name
+            table.columns[3].width = Inches(1.8)    # Engineer
+            table.columns[4].width = Inches(1.2)    # Status
+            table.columns[5].width = Inches(1.2)    # Deadline
+            table.columns[6].width = Inches(0.9)    # Overdue
             
-            # Headers with better styling
-            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Engineer', 'Last Status', 'Request Date', 'Deadline', 'Overdue']
+            # Headers
+            headers = ['#', 'RFQ Reference', 'Project Name', 
+                      'Presale Eng' if report_type == 'sales' else 'Sales Eng',
+                      'Status', 'Deadline', 'Overdue']
             for col, header in enumerate(headers):
                 cell = table.cell(0, col)
                 cell.text = header
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = RGBColor(59, 89, 152)
-                cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-                cell.text_frame.paragraphs[0].font.bold = True
-                cell.text_frame.paragraphs[0].font.size = Pt(11)
-                cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                cell.fill.fore_color.rgb = RGBColor(200, 50, 50)
+                para = cell.text_frame.paragraphs[0]
+                para.font.color.rgb = WHITE
+                para.font.bold = True
+                para.font.size = Pt(10)
+                para.font.name = FONT_NAME
+                para.alignment = PP_ALIGN.CENTER
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             
-            # Data rows with improved formatting
-            for i, rfq_item in enumerate(slide_rfqs, 1):
+            # Data rows
+            for i, rfq in enumerate(page_rfqs, 1):
                 row_idx = i
+                row_color = LIGHT_BG if i % 2 == 0 else WHITE
                 
                 # Row number
-                table.cell(row_idx, 0).text = str(slide_num + i)
+                cell = table.cell(row_idx, 0)
+                cell.text = str(page_num + i)
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
                 
                 # RFQ Reference
-                table.cell(row_idx, 1).text = rfq_item['rfq_reference'] or ''
+                cell = table.cell(row_idx, 1)
+                cell.text = rfq['rfq_reference'] or ''
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
                 
-                # Project Name (truncate if too long)
-                proj_name = rfq_item['project_name'] or ''
-                table.cell(row_idx, 2).text = proj_name[:35] + '...' if len(proj_name) > 35 else proj_name
+                # Project Name
+                cell = table.cell(row_idx, 2)
+                proj = rfq['project_name'] or ''
+                cell.text = proj[:35] + '...' if len(proj) > 35 else proj
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
                 
-                # Sales Engineer
-                table.cell(row_idx, 3).text = rfq_item['sales_engineer'] or ''
+                # Engineer
+                cell = table.cell(row_idx, 3)
+                eng = rfq['presale_engineer'] if report_type == 'sales' else rfq['sales_engineer']
+                cell.text = eng or ''
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
                 
-                # Last Status
-                table.cell(row_idx, 4).text = rfq_item['rfq_status'] or 'Queue'
-                
-                # Request Date
-                table.cell(row_idx, 5).text = rfq_item['requested_time']
+                # Status
+                cell = table.cell(row_idx, 4)
+                cell.text = rfq['rfq_status'] or ''
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
                 
                 # Deadline
-                table.cell(row_idx, 6).text = rfq_item['deadline']
+                cell = table.cell(row_idx, 5)
+                cell.text = rfq['deadline'] or '-'
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
                 
-                # Overdue cell with color coding
-                overdue_cell = table.cell(row_idx, 7)
-                days_overdue = rfq_item['days_overdue']
-                
-                if days_overdue is not None:
-                    if days_overdue > 7:
-                        # Red - very overdue (more than 7 days)
-                        overdue_cell.fill.solid()
-                        overdue_cell.fill.fore_color.rgb = RGBColor(220, 53, 69)
-                        overdue_cell.text = f"{days_overdue}d"
-                        for para in overdue_cell.text_frame.paragraphs:
-                            para.font.color.rgb = RGBColor(255, 255, 255)
-                            para.font.bold = True
-                    elif days_overdue > 3:
-                        # Orange - moderately overdue (4-7 days)
-                        overdue_cell.fill.solid()
-                        overdue_cell.fill.fore_color.rgb = RGBColor(253, 126, 20)
-                        overdue_cell.text = f"{days_overdue}d"
-                        for para in overdue_cell.text_frame.paragraphs:
-                            para.font.color.rgb = RGBColor(255, 255, 255)
-                            para.font.bold = True
-                    elif days_overdue > 0:
-                        # Yellow - slightly overdue (1-3 days)
-                        overdue_cell.fill.solid()
-                        overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
-                        overdue_cell.text = f"{days_overdue}d"
-                        for para in overdue_cell.text_frame.paragraphs:
-                            para.font.bold = True
-                    elif days_overdue == 0:
-                        # Yellow - due today
-                        overdue_cell.fill.solid()
-                        overdue_cell.fill.fore_color.rgb = RGBColor(255, 193, 7)
-                        overdue_cell.text = "Today"
-                        for para in overdue_cell.text_frame.paragraphs:
-                            para.font.bold = True
+                # Overdue
+                cell = table.cell(row_idx, 6)
+                if rfq.get('days_overdue') is not None:
+                    days = rfq['days_overdue']
+                    if days > 0:
+                        cell.text = f"+{days}d"
+                        # Highlight overdue cells
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = RGBColor(255, 220, 220)
                     else:
-                        # Green - not yet due
-                        overdue_cell.fill.solid()
-                        overdue_cell.fill.fore_color.rgb = RGBColor(40, 167, 69)
-                        overdue_cell.text = f"{abs(days_overdue)}d left"
-                        for para in overdue_cell.text_frame.paragraphs:
-                            para.font.color.rgb = RGBColor(255, 255, 255)
-                            para.font.bold = True
+                        cell.text = f"{days}d"
+                        cell.fill.solid()
+                        cell.fill.fore_color.rgb = row_color
                 else:
-                    overdue_cell.text = "-"
+                    cell.text = '-'
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = row_color
                 
-                # Format all cells in this row
+                # Style all cells
                 for col in range(cols):
-                    cell = table.cell(row_idx, col)
-                    # Light blue alternating rows
-                    if i % 2 == 0 and col != 7:
-                        cell.fill.solid()
-                        cell.fill.fore_color.rgb = RGBColor(220, 235, 252)
-                    elif i % 2 == 1 and col != 7:
-                        cell.fill.solid()
-                        cell.fill.fore_color.rgb = RGBColor(245, 248, 255)
-                    for para in cell.text_frame.paragraphs:
-                        para.font.size = Pt(10)
-                        para.alignment = PP_ALIGN.CENTER
-                    cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    para = table.cell(row_idx, col).text_frame.paragraphs[0]
+                    para.font.size = Pt(9)
+                    para.font.name = FONT_NAME
+                    para.font.color.rgb = DARK_TEXT
+                    para.alignment = PP_ALIGN.CENTER
+                    table.cell(row_idx, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    conn.close()
     
     # Save to BytesIO
     output = BytesIO()
@@ -12867,7 +13185,7 @@ def export_rfq_engineer_report_pptx():
     )
 
 
-###################################3
+
 @app.route('/delete_rfq/<int:rfq_id>', methods=['POST'])
 @role_required('Admin', 'Technical Team Leader')  # Allow Admin and Technical Team Leader
 def delete_rfq(rfq_id):
