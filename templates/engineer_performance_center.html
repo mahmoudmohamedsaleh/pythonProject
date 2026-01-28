@@ -567,6 +567,62 @@
 </div>
 {% endif %}
 
+<!-- Related Engineers Performance Section -->
+{% if related_engineers and related_engineers|length > 0 %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0" style="color: white;">
+                <i class="fas fa-users mr-2" style="color: white;"></i>
+                {% if report_type == 'sales' %}Presale{% else %}Sales{% endif %} Engineers Performance
+            </h4>
+            <span class="badge badge-pill" style="background: rgba(255,255,255,0.2); color: white; font-size: 0.9rem; padding: 8px 16px;">
+                {{ related_engineers|length }} Engineers
+            </span>
+        </div>
+    </div>
+    <div class="card-body" style="background: linear-gradient(180deg, #f0f7f0 0%, #ffffff 100%); padding: 20px;">
+        <div class="row">
+            {% for eng_name, stats in related_engineers %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100" style="border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <div class="card-header py-2" style="background: linear-gradient(135deg, #3d5a80 0%, #5a7a9a 100%); border-radius: 12px 12px 0 0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span style="color: white; font-weight: 600;">
+                                <i class="fas fa-user mr-1"></i> {{ eng_name }}
+                            </span>
+                            <span class="badge badge-pill" style="background: rgba(255,255,255,0.25); color: white;">
+                                {{ stats.total }} Quotes
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body py-3">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="font-weight-bold" style="color: #28a745; font-size: 1.3rem;">{{ stats.won }}</div>
+                                <div class="small text-muted">Won</div>
+                                <div class="small" style="color: #28a745;">{{ "{:,.0f}".format(stats.won_value) }}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="font-weight-bold" style="color: #dc3545; font-size: 1.3rem;">{{ stats.lost }}</div>
+                                <div class="small text-muted">Lost</div>
+                                <div class="small" style="color: #dc3545;">{{ "{:,.0f}".format(stats.lost_value) }}</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="font-weight-bold" style="color: #fd7e14; font-size: 1.3rem;">{{ stats.ongoing }}</div>
+                                <div class="small text-muted">Ongoing</div>
+                                <div class="small" style="color: #fd7e14;">{{ "{:,.0f}".format(stats.ongoing_value) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Quotations Detail Section -->
 {% if quotations_list %}
 <div class="card mb-4">
