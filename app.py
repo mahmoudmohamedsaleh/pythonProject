@@ -15838,13 +15838,13 @@ def export_engineer_performance_pptx():
     rfts_date_conditions = date_conditions.replace('registered_date', 'requested_time')
     if report_type == 'sales':
         rfts_query = f"""
-            SELECT rfts_reference, project_name, request_type, request_status, deadline, system, sales_engineer, presale_engineer
+            SELECT rfts_reference, project_name, request_type, request_status, deadline, system, sales_engineer, presale_engineer, requested_time
             FROM technical_support_requests WHERE sales_engineer = ?
             {rfts_date_conditions}
         """
     else:
         rfts_query = f"""
-            SELECT rfts_reference, project_name, request_type, request_status, deadline, system, sales_engineer, presale_engineer
+            SELECT rfts_reference, project_name, request_type, request_status, deadline, system, sales_engineer, presale_engineer, requested_time
             FROM technical_support_requests WHERE presale_engineer = ?
             {rfts_date_conditions}
         """
@@ -15859,7 +15859,8 @@ def export_engineer_performance_pptx():
             'sales_engineer': row[6] or '',
             'presale_engineer': row[7] or '',
             'deadline': row[4] or '',
-            'system': row[5] or ''
+            'system': row[5] or '',
+            'request_date': row[8][:10] if row[8] else ''
         })
         rfts_stats['total'] += 1
         status_lower = status.lower()
@@ -16450,48 +16451,83 @@ def export_engineer_performance_pptx():
                 para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
-    # ========== SLIDE 5: RFTS List ==========
-    if rfts_list:
+    # ========== RFTS STATUS SLIDES - Separated by Status ==========
+    # Define colors for each RFTS status
+    RFTS_COLORS = {
+        'queue': RGBColor(243, 156, 18),      # Orange
+        'studying': RGBColor(0, 150, 136),    # Teal
+        'in_progress': RGBColor(102, 126, 234),  # Blue
+        'done': RGBColor(40, 167, 69),        # Green
+        'pending': RGBColor(108, 117, 125)    # Gray
+    }
+    
+    # Group RFTS by status
+    rfts_by_status = {
+        'queue': [],
+        'studying': [],
+        'in_progress': [],
+        'done': [],
+        'pending': []
+    }
+    
+    for rfts in rfts_list:
+        status_lower = rfts['status'].lower()
+        if 'queue' in status_lower:
+            rfts_by_status['queue'].append(rfts)
+        elif 'study' in status_lower:
+            rfts_by_status['studying'].append(rfts)
+        elif 'progress' in status_lower:
+            rfts_by_status['in_progress'].append(rfts)
+        elif 'done' in status_lower or 'complete' in status_lower:
+            rfts_by_status['done'].append(rfts)
+        elif 'pending' in status_lower:
+            rfts_by_status['pending'].append(rfts)
+    
+    # Helper function to create RFTS status slide
+    def create_rfts_status_slide(prs, slide_layout, status_name, rfts_items, header_color, page=1, total_pages=1):
         slide = prs.slides.add_slide(slide_layout)
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
         
-        # Header
+        # Header bar
         header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
-        header.fill.gradient()
-        header.fill.gradient_angle = 90
-        header.fill.gradient_stops[0].color.rgb = RGBColor(245, 87, 108)
-        header.fill.gradient_stops[1].color.rgb = RGBColor(240, 147, 251)
+        header.fill.solid()
+        header.fill.fore_color.rgb = header_color
         header.line.fill.background()
         
-        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+        # Header text
+        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(12), Inches(0.5))
         tf = header_text.text_frame
         p = tf.paragraphs[0]
-        p.text = f"RFTS Requests ({rfts_stats['total']} RFTS)"
-        p.font.size = Pt(24)
+        page_text = f" (Page {page})" if total_pages > 1 else ""
+        p.text = f"{status_name} RFTS - {len(rfts_items)} Total{page_text}"
+        p.font.size = Pt(28)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.font.name = FONT_NAME
         
+        if not rfts_items:
+            return slide
+        
+        cols = 7
+        headers = ['#', 'RFTS Reference', 'Project Name', 'Type', 'System', 'Deadline', 'Request Date']
+        col_widths = [Inches(0.4), Inches(1.8), Inches(4), Inches(1.5), Inches(1.5), Inches(1.3), Inches(1.3)]
+        
         # Table
-        display_rfts = rfts_list[:12]
+        max_rows = 8
+        display_rfts = rfts_items[:max_rows]
         rows = len(display_rfts) + 1
-        cols = 6
         table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
         
-        table.columns[0].width = Inches(0.5)
-        table.columns[1].width = Inches(1.8)
-        table.columns[2].width = Inches(4.5)
-        table.columns[3].width = Inches(2)
-        table.columns[4].width = Inches(1.5)
-        table.columns[5].width = Inches(2)
+        for i, width in enumerate(col_widths):
+            table.columns[i].width = width
         
-        headers = ['#', 'Reference', 'Project Name', 'Type', 'Status', 'Deadline']
+        # Header row
         for i, h in enumerate(headers):
             cell = table.cell(0, i)
             cell.text = h
             cell.fill.solid()
-            cell.fill.fore_color.rgb = RGBColor(245, 87, 108)
+            cell.fill.fore_color.rgb = header_color
             para = cell.text_frame.paragraphs[0]
             para.font.size = Pt(11)
             para.font.bold = True
@@ -16500,16 +16536,18 @@ def export_engineer_performance_pptx():
             para.alignment = PP_ALIGN.CENTER
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         
+        # Data rows
         for i, rfts in enumerate(display_rfts, 1):
             row_color = LIGHT_BG if i % 2 == 0 else WHITE
             
             table.cell(i, 0).text = str(i)
             table.cell(i, 1).text = rfts['reference'] or ''
             proj = rfts['project']
-            table.cell(i, 2).text = proj[:40] + '...' if len(proj) > 40 else proj
-            table.cell(i, 3).text = rfts['type'] or ''
-            table.cell(i, 4).text = rfts['status']
-            table.cell(i, 5).text = rfts['deadline'] or '-'
+            table.cell(i, 2).text = proj[:35] + '...' if len(proj) > 35 else proj
+            table.cell(i, 3).text = rfts.get('type', '') or ''
+            table.cell(i, 4).text = rfts.get('system', '') or ''
+            table.cell(i, 5).text = rfts.get('deadline', '') or '-'
+            table.cell(i, 6).text = rfts.get('request_date', '') or '-'
             
             for col in range(cols):
                 table.cell(i, col).fill.solid()
@@ -16520,6 +16558,59 @@ def export_engineer_performance_pptx():
                 para.font.color.rgb = DARK_TEXT
                 para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+        
+        return slide
+    
+    # Create slides for each RFTS status category
+    # Queue RFTS - Orange
+    if rfts_by_status['queue']:
+        items_per_page = 8
+        total_pages = (len(rfts_by_status['queue']) + items_per_page - 1) // items_per_page
+        for page in range(total_pages):
+            start_idx = page * items_per_page
+            end_idx = start_idx + items_per_page
+            page_rfts = rfts_by_status['queue'][start_idx:end_idx]
+            create_rfts_status_slide(prs, slide_layout, "Queue", page_rfts, RFTS_COLORS['queue'], page+1, total_pages)
+    
+    # Studying RFTS - Teal
+    if rfts_by_status['studying']:
+        items_per_page = 8
+        total_pages = (len(rfts_by_status['studying']) + items_per_page - 1) // items_per_page
+        for page in range(total_pages):
+            start_idx = page * items_per_page
+            end_idx = start_idx + items_per_page
+            page_rfts = rfts_by_status['studying'][start_idx:end_idx]
+            create_rfts_status_slide(prs, slide_layout, "Studying", page_rfts, RFTS_COLORS['studying'], page+1, total_pages)
+    
+    # In Progress RFTS - Blue
+    if rfts_by_status['in_progress']:
+        items_per_page = 8
+        total_pages = (len(rfts_by_status['in_progress']) + items_per_page - 1) // items_per_page
+        for page in range(total_pages):
+            start_idx = page * items_per_page
+            end_idx = start_idx + items_per_page
+            page_rfts = rfts_by_status['in_progress'][start_idx:end_idx]
+            create_rfts_status_slide(prs, slide_layout, "In Progress", page_rfts, RFTS_COLORS['in_progress'], page+1, total_pages)
+    
+    # Done RFTS - Green
+    if rfts_by_status['done']:
+        items_per_page = 8
+        total_pages = (len(rfts_by_status['done']) + items_per_page - 1) // items_per_page
+        for page in range(total_pages):
+            start_idx = page * items_per_page
+            end_idx = start_idx + items_per_page
+            page_rfts = rfts_by_status['done'][start_idx:end_idx]
+            create_rfts_status_slide(prs, slide_layout, "Done", page_rfts, RFTS_COLORS['done'], page+1, total_pages)
+    
+    # Pending RFTS - Gray
+    if rfts_by_status['pending']:
+        items_per_page = 8
+        total_pages = (len(rfts_by_status['pending']) + items_per_page - 1) // items_per_page
+        for page in range(total_pages):
+            start_idx = page * items_per_page
+            end_idx = start_idx + items_per_page
+            page_rfts = rfts_by_status['pending'][start_idx:end_idx]
+            create_rfts_status_slide(prs, slide_layout, "Pending", page_rfts, RFTS_COLORS['pending'], page+1, total_pages)
     
     # === RELATED ENGINEERS PERFORMANCE SLIDE ===
     # Calculate enhanced performance stats for related engineers including RFQ, RFTS, and Quotations
