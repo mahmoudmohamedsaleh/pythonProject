@@ -16166,7 +16166,7 @@ def get_po_info(cursor, po_id):
         SELECT po_number, project_name 
         FROM purchase_orders 
         WHERE id = ?
-    """, (po_id,))
+    """, (po['po_id'],))
     result = cursor.fetchone()
     if result:
         po_number = result[0] if result[0] else f'PO-{po_id}'
@@ -19435,7 +19435,7 @@ def export_po_report_pptx():
                 SELECT * FROM po_follow_ups 
                 WHERE po_id = ? 
                 ORDER BY follow_up_date DESC, follow_up_time DESC
-            """, (po_id,))
+            """, (po['po_id'],))
             po_follow_ups = c.fetchall()
             
             if po_follow_ups:
@@ -19530,7 +19530,7 @@ def export_po_report_pptx():
                 SELECT * FROM po_activity_log 
                 WHERE po_id = ? 
                 ORDER BY created_at DESC
-            """, (po_id,))
+            """, (po['po_id'],))
             po_activities = c.fetchall()
             
             if po_activities:
@@ -19626,7 +19626,7 @@ def delete_po(po_id):
         cursor = conn.cursor()
         
         # Get PO details for logging
-        cursor.execute("SELECT po_request_number, po_number FROM purchase_orders WHERE id = ?", (po_id,))
+        cursor.execute("SELECT po_request_number, po_number FROM purchase_orders WHERE id = ?", (po['po_id'],))
         po_data = cursor.fetchone()
         
         if not po_data:
@@ -19652,10 +19652,10 @@ def delete_po(po_id):
             cursor.execute("DELETE FROM vat_invoices WHERE po_request_number = ?", (po_request_number,))
         
         # 4. Delete PO comments if any (always delete for this specific PO)
-        cursor.execute("DELETE FROM po_comments WHERE po_id = ?", (po_id,))
+        cursor.execute("DELETE FROM po_comments WHERE po_id = ?", (po['po_id'],))
         
         # 5. Finally delete the purchase order itself (only this specific record)
-        cursor.execute("DELETE FROM purchase_orders WHERE id = ?", (po_id,))
+        cursor.execute("DELETE FROM purchase_orders WHERE id = ?", (po['po_id'],))
         
         conn.commit()
         conn.close()
@@ -19812,7 +19812,7 @@ def get_po_comments(po_id):
         FROM po_comments
         WHERE po_id = ?
         ORDER BY created_at DESC
-    ''', (po_id,))
+    ''', (po['po_id'],))
     
     comments = c.fetchall()
     conn.close()
@@ -20182,7 +20182,7 @@ def edit_po(po_id):
         po_notes_client = request.form['po_notes_client']
 
         # Fetch the current purchase order details to retrieve existing documents
-        c.execute("SELECT quotation, po_document FROM purchase_orders WHERE id=?", (po_id,))
+        c.execute("SELECT quotation, po_document FROM purchase_orders WHERE id=?", (po['po_id'],))
         existing_documents = c.fetchone()
         existing_quotation = existing_documents['quotation']
         existing_po_document = existing_documents['po_document']
@@ -20248,7 +20248,7 @@ def edit_po(po_id):
             return redirect(url_for('edit_po', po_id=po_id))
 
     # Fetch the current purchase order details
-    c.execute("SELECT * FROM purchase_orders WHERE id=?", (po_id,))
+    c.execute("SELECT * FROM purchase_orders WHERE id=?", (po['po_id'],))
     purchase_order = c.fetchone()
 
     # Fetch projects, presale engineers, project managers, distributors, and vendors
@@ -21183,7 +21183,7 @@ def export_po_profile_excel(po_request_number):
             SELECT * FROM po_follow_ups 
             WHERE po_id = ? 
             ORDER BY follow_up_date DESC, follow_up_time DESC
-        """, (po_id,))
+        """, (po['po_id'],))
         follow_ups = cursor.fetchall()
         
         # Get activity log
@@ -21191,7 +21191,7 @@ def export_po_profile_excel(po_request_number):
             SELECT * FROM po_activity_log 
             WHERE po_id = ? 
             ORDER BY created_at DESC
-        """, (po_id,))
+        """, (po['po_id'],))
         activity_logs = cursor.fetchall()
         
         conn.close()
@@ -21451,7 +21451,7 @@ def export_po_profile_pptx(po_request_number):
             SELECT * FROM po_follow_ups 
             WHERE po_id = ? 
             ORDER BY follow_up_date DESC, follow_up_time DESC
-        """, (po_id,))
+        """, (po['po_id'],))
         follow_ups = cursor.fetchall()
         
         # Get activity log
@@ -21459,7 +21459,7 @@ def export_po_profile_pptx(po_request_number):
             SELECT * FROM po_activity_log 
             WHERE po_id = ? 
             ORDER BY created_at DESC
-        """, (po_id,))
+        """, (po['po_id'],))
         activity_logs = cursor.fetchall()
         
         conn.close()
@@ -23477,7 +23477,7 @@ def view_po_document(po_id, doc_type):
     c = conn.cursor()
 
     # Fetch the specific document's binary data
-    c.execute(f"SELECT {doc_type} FROM purchase_orders WHERE id = ?", (po_id,))
+    c.execute(f"SELECT {doc_type} FROM purchase_orders WHERE id = ?", (po['po_id'],))
     result = c.fetchone()
     conn.close()
 
