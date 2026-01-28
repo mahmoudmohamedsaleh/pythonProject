@@ -15788,17 +15788,21 @@ def export_engineer_performance_pptx():
     rfqs = []
     rfq_stats = {'total': 0, 'queue': 0, 'studying': 0, 'pricing': 0, 'quoted': 0, 'cancelled': 0}
     
-    rfq_date_conditions = date_conditions.replace('registered_date', 'requested_time')
+    rfq_date_conditions = date_conditions.replace('registered_date', 'r.requested_time')
     if report_type == 'sales':
         rfq_query = f"""
-            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale, requested_time, quoted_time
-            FROM rfq_requests WHERE sales_engineer_sales = ?
+            SELECT r.rfq_reference, r.project_name, r.rfq_status, r.deadline, 
+                   r.sales_engineer_sales, r.sales_engineer_presale, r.requested_time,
+                   (SELECT p.registered_date FROM projects p WHERE p.rfq_reference = r.rfq_reference LIMIT 1) as submitted_time
+            FROM rfq_requests r WHERE r.sales_engineer_sales = ?
             {rfq_date_conditions}
         """
     else:
         rfq_query = f"""
-            SELECT rfq_reference, project_name, rfq_status, deadline, sales_engineer_sales, sales_engineer_presale, requested_time, quoted_time
-            FROM rfq_requests WHERE sales_engineer_presale = ?
+            SELECT r.rfq_reference, r.project_name, r.rfq_status, r.deadline,
+                   r.sales_engineer_sales, r.sales_engineer_presale, r.requested_time,
+                   (SELECT p.registered_date FROM projects p WHERE p.rfq_reference = r.rfq_reference LIMIT 1) as submitted_time
+            FROM rfq_requests r WHERE r.sales_engineer_presale = ?
             {rfq_date_conditions}
         """
     c.execute(rfq_query, params_base)
