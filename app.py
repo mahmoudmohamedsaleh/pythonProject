@@ -7299,12 +7299,13 @@ def export_engineer_report_pptx():
     run.font.color.rgb = WHITE
     
     # Get RELATED engineers data (presales for sales report, sales for presales report)
+    # Apply the same date filters as the main query
     conn2 = sqlite3.connect('ProjectStatus.db')
     c2 = conn2.cursor()
     
     if report_type == 'sales':
         # For Sales Engineer report, show PRESALES engineers who worked on their projects
-        c2.execute("""
+        query_related = f"""
             SELECT presale_eng, 
                    COUNT(*) as total_quotes,
                    SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN 1 ELSE 0 END) as won,
@@ -7314,12 +7315,14 @@ def export_engineer_report_pptx():
                    SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
             FROM projects 
             WHERE sales_eng = ? AND presale_eng IS NOT NULL AND presale_eng != ''
+            {date_conditions}
             GROUP BY presale_eng
             ORDER BY total_quotes DESC
-        """, (selected_engineer,))
+        """
+        c2.execute(query_related, params_base)
     else:
         # For Presales Engineer report, show SALES engineers who worked on their projects
-        c2.execute("""
+        query_related = f"""
             SELECT sales_eng, 
                    COUNT(*) as total_quotes,
                    SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN 1 ELSE 0 END) as won,
@@ -7329,9 +7332,11 @@ def export_engineer_report_pptx():
                    SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
             FROM projects 
             WHERE presale_eng = ? AND sales_eng IS NOT NULL AND sales_eng != ''
+            {date_conditions}
             GROUP BY sales_eng
             ORDER BY total_quotes DESC
-        """, (selected_engineer,))
+        """
+        c2.execute(query_related, params_base)
     all_engineers = c2.fetchall()
     conn2.close()
     
