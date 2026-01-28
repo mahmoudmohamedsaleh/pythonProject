@@ -20174,15 +20174,13 @@ def po_profile(po_request_number):
     cursor.execute("""
         SELECT 
             po.*,
-            rp.project_name as project_name_actual,
-            d.name as distributor_name,
-            v.name as vendor_name,
+            COALESCE(rp.project_name, po.project_name) as project_name_actual,
+            COALESCE(po.distributor, 'N/A') as distributor_name,
+            COALESCE(po.vendor, 'N/A') as vendor_name,
             e.name as presale_engineer_name,
             pm.name as project_manager_name
         FROM purchase_orders po
-        LEFT JOIN register_project rp ON CAST(po.project_name AS INTEGER) = rp.id
-        LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
-        LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
+        LEFT JOIN register_project rp ON po.project_name = rp.project_name
         LEFT JOIN engineers e ON po.presale_engineer = e.username
         LEFT JOIN engineers pm ON po.project_manager = pm.username
         WHERE po.po_request_number = ?
@@ -20963,15 +20961,13 @@ def export_po_profile_excel(po_request_number):
         cursor.execute("""
             SELECT 
                 po.*,
-                rp.project_name as project_name_actual,
-                d.name as distributor_name,
-                v.name as vendor_name,
+                COALESCE(rp.project_name, po.project_name) as project_name_actual,
+                COALESCE(po.distributor, 'N/A') as distributor_name,
+                COALESCE(po.vendor, 'N/A') as vendor_name,
                 e.name as presale_engineer_name,
                 pm.name as project_manager_name
             FROM purchase_orders po
-            LEFT JOIN register_project rp ON CAST(po.project_name AS INTEGER) = rp.id
-            LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
-            LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
+            LEFT JOIN register_project rp ON po.project_name = rp.project_name
             LEFT JOIN engineers e ON po.presale_engineer = e.username
             LEFT JOIN engineers pm ON po.project_manager = pm.username
             WHERE po.po_request_number = ?
@@ -21233,15 +21229,13 @@ def export_po_profile_pptx(po_request_number):
         cursor.execute("""
             SELECT 
                 po.*,
-                rp.project_name as project_name_actual,
-                d.name as distributor_name,
-                v.name as vendor_name,
+                COALESCE(rp.project_name, po.project_name) as project_name_actual,
+                COALESCE(po.distributor, 'N/A') as distributor_name,
+                COALESCE(po.vendor, 'N/A') as vendor_name,
                 e.name as presale_engineer_name,
                 pm.name as project_manager_name
             FROM purchase_orders po
-            LEFT JOIN register_project rp ON CAST(po.project_name AS INTEGER) = rp.id
-            LEFT JOIN distributors d ON CAST(po.distributor AS INTEGER) = d.id
-            LEFT JOIN vendors v ON CAST(po.vendor AS INTEGER) = v.id
+            LEFT JOIN register_project rp ON po.project_name = rp.project_name
             LEFT JOIN engineers e ON po.presale_engineer = e.username
             LEFT JOIN engineers pm ON po.project_manager = pm.username
             WHERE po.po_request_number = ?
