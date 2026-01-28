@@ -15936,6 +15936,82 @@ def export_engineer_performance_pptx():
     
     conn.close()
     
+    # === RELATED ENGINEERS PERFORMANCE ===
+    related_engineer_stats = {}
+    
+    # Initialize stats from RFQs
+    for rfq in rfqs:
+        if report_type == 'sales':
+            eng_name = rfq.get('presale_engineer', '')
+        else:
+            eng_name = rfq.get('sales_engineer', '')
+        
+        if eng_name and eng_name.strip() and eng_name != '-':
+            if eng_name not in related_engineer_stats:
+                related_engineer_stats[eng_name] = {
+                    'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                    'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                    'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                    'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                }
+            related_engineer_stats[eng_name]['rfq_total'] += 1
+            rfq_status = rfq.get('status', '')
+            if 'queue' in rfq_status.lower():
+                related_engineer_stats[eng_name]['rfq_queue'] += 1
+            elif 'study' in rfq_status.lower():
+                related_engineer_stats[eng_name]['rfq_studying'] += 1
+            elif 'pric' in rfq_status.lower():
+                related_engineer_stats[eng_name]['rfq_pricing'] += 1
+            elif 'quot' in rfq_status.lower():
+                related_engineer_stats[eng_name]['rfq_quoted'] += 1
+            elif 'cancel' in rfq_status.lower():
+                related_engineer_stats[eng_name]['rfq_cancelled'] += 1
+
+    # Add RFTS stats
+    for rfts in rfts_list:
+        if report_type == 'sales':
+            eng_name = rfts.get('presale_engineer', '')
+        else:
+            eng_name = rfts.get('sales_engineer', '')
+        
+        if eng_name and eng_name.strip() and eng_name != '-':
+            if eng_name not in related_engineer_stats:
+                related_engineer_stats[eng_name] = {
+                    'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                    'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                    'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                    'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                }
+            related_engineer_stats[eng_name]['rfts_total'] += 1
+            rfts_status = rfts.get('status', '')
+            if rfts_status == 'Queue':
+                related_engineer_stats[eng_name]['rfts_queue'] += 1
+            elif rfts_status == 'Studying':
+                related_engineer_stats[eng_name]['rfts_studying'] += 1
+            elif rfts_status == 'In Progress':
+                related_engineer_stats[eng_name]['rfts_in_progress'] += 1
+            elif rfts_status == 'Done':
+                related_engineer_stats[eng_name]['rfts_done'] += 1
+            elif rfts_status == 'Pending':
+                related_engineer_stats[eng_name]['rfts_pending'] += 1
+
+    # Add Quotation stats
+    for q in quotations_list:
+        if report_type == 'sales':
+            eng_name = q.get('presale_engineer', '')
+        else:
+            eng_name = q.get('engineer', '')
+        
+        if eng_name and eng_name.strip() and eng_name != '-':
+            if eng_name not in related_engineer_stats:
+                related_engineer_stats[eng_name] = {
+                    'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                    'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                    'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                    'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                }
+            related_engineer_stats[eng_name]['quote_total'] += 1
+    
     # Create PowerPoint
     prs = Presentation()
     prs.slide_width = Inches(13.333)
