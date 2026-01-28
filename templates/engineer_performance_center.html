@@ -451,6 +451,97 @@
     </div>
 </div>
 
+<!-- Related Engineers Performance Section -->
+{% if related_engineers and related_engineers|length > 0 %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0" style="color: white;">
+                <i class="fas fa-users mr-2" style="color: white;"></i>
+                {% if report_type == 'sales' %}Presale{% else %}Sales{% endif %} Engineers Performance
+            </h4>
+            <span class="badge badge-pill" style="background: rgba(255,255,255,0.2); color: white; font-size: 0.9rem; padding: 8px 16px;">
+                {{ related_engineers|length }} Engineers
+            </span>
+        </div>
+    </div>
+    <div class="card-body" style="background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%); padding: 20px;">
+        <div class="row">
+            {% for eng_name, stats in related_engineers %}
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="card h-100" style="border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <div class="card-header py-2" style="background: linear-gradient(135deg, #3d5a80 0%, #5a7a9a 100%); border-radius: 12px 12px 0 0;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span style="color: white; font-weight: 600;">
+                                <i class="fas fa-user mr-1"></i> {{ eng_name }}
+                            </span>
+                            <span class="badge badge-pill" style="background: rgba(255,255,255,0.25); color: white; font-size: 0.75rem;">
+                                {{ stats.rfq_total + stats.rfts_total + stats.quote_total }} Total
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body py-2 px-2">
+                        <!-- RFQ Stats Row -->
+                        <div class="mb-2 p-2" style="background: #f8f9fa; border-radius: 6px;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small font-weight-bold" style="color: #495057;"><i class="fas fa-file-alt mr-1"></i>RFQs</span>
+                                <span class="badge badge-secondary">{{ stats.rfq_total }}</span>
+                            </div>
+                            <div class="d-flex flex-wrap" style="gap: 4px; font-size: 0.7rem;">
+                                <span class="badge" style="background: #fd7e14; color: white;">Q:{{ stats.rfq_queue }}</span>
+                                <span class="badge" style="background: #009688; color: white;">S:{{ stats.rfq_studying }}</span>
+                                <span class="badge" style="background: #6c757d; color: white;">P:{{ stats.rfq_pricing }}</span>
+                                <span class="badge" style="background: #28a745; color: white;">Qt:{{ stats.rfq_quoted }}</span>
+                                <span class="badge" style="background: #dc3545; color: white;">C:{{ stats.rfq_cancelled }}</span>
+                            </div>
+                        </div>
+                        <!-- RFTS Stats Row -->
+                        <div class="mb-2 p-2" style="background: #fff3e6; border-radius: 6px;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small font-weight-bold" style="color: #495057;"><i class="fas fa-headset mr-1"></i>RFTS</span>
+                                <span class="badge badge-warning text-dark">{{ stats.rfts_total }}</span>
+                            </div>
+                            <div class="d-flex flex-wrap" style="gap: 4px; font-size: 0.7rem;">
+                                <span class="badge" style="background: #fd7e14; color: white;">Q:{{ stats.rfts_queue }}</span>
+                                <span class="badge" style="background: #009688; color: white;">S:{{ stats.rfts_studying }}</span>
+                                <span class="badge" style="background: #6c757d; color: white;">IP:{{ stats.rfts_in_progress }}</span>
+                                <span class="badge" style="background: #28a745; color: white;">D:{{ stats.rfts_done }}</span>
+                                <span class="badge" style="background: #dc3545; color: white;">P:{{ stats.rfts_pending }}</span>
+                            </div>
+                        </div>
+                        <!-- Quotation Stats Row -->
+                        <div class="p-2" style="background: #e8f5e9; border-radius: 6px;">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="small font-weight-bold" style="color: #495057;"><i class="fas fa-file-invoice-dollar mr-1"></i>Quotes</span>
+                                <span class="badge badge-success">{{ stats.quote_total }}</span>
+                            </div>
+                            <div class="row text-center" style="font-size: 0.75rem;">
+                                <div class="col-4">
+                                    <div class="font-weight-bold" style="color: #28a745;">{{ stats.quote_won }}</div>
+                                    <div class="text-muted">Won</div>
+                                    <div style="color: #28a745; font-size: 0.65rem;">{{ "{:,.0f}".format(stats.quote_won_value) }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="font-weight-bold" style="color: #dc3545;">{{ stats.quote_lost }}</div>
+                                    <div class="text-muted">Lost</div>
+                                    <div style="color: #dc3545; font-size: 0.65rem;">{{ "{:,.0f}".format(stats.quote_lost_value) }}</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="font-weight-bold" style="color: #fd7e14;">{{ stats.quote_ongoing }}</div>
+                                    <div class="text-muted">Ongoing</div>
+                                    <div style="color: #fd7e14; font-size: 0.65rem;">{{ "{:,.0f}".format(stats.quote_ongoing_value) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if projects %}
 <div class="card mb-4">
     <div class="section-header">
@@ -563,62 +654,6 @@
                 {% endfor %}
             </tbody>
         </table>
-    </div>
-</div>
-{% endif %}
-
-<!-- Related Engineers Performance Section -->
-{% if related_engineers and related_engineers|length > 0 %}
-<div class="card shadow mb-4">
-    <div class="card-header py-3" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
-        <div class="d-flex justify-content-between align-items-center">
-            <h4 class="mb-0" style="color: white;">
-                <i class="fas fa-users mr-2" style="color: white;"></i>
-                {% if report_type == 'sales' %}Presale{% else %}Sales{% endif %} Engineers Performance
-            </h4>
-            <span class="badge badge-pill" style="background: rgba(255,255,255,0.2); color: white; font-size: 0.9rem; padding: 8px 16px;">
-                {{ related_engineers|length }} Engineers
-            </span>
-        </div>
-    </div>
-    <div class="card-body" style="background: linear-gradient(180deg, #f0f7f0 0%, #ffffff 100%); padding: 20px;">
-        <div class="row">
-            {% for eng_name, stats in related_engineers %}
-            <div class="col-md-4 mb-3">
-                <div class="card h-100" style="border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-                    <div class="card-header py-2" style="background: linear-gradient(135deg, #3d5a80 0%, #5a7a9a 100%); border-radius: 12px 12px 0 0;">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span style="color: white; font-weight: 600;">
-                                <i class="fas fa-user mr-1"></i> {{ eng_name }}
-                            </span>
-                            <span class="badge badge-pill" style="background: rgba(255,255,255,0.25); color: white;">
-                                {{ stats.total }} Quotes
-                            </span>
-                        </div>
-                    </div>
-                    <div class="card-body py-3">
-                        <div class="row text-center">
-                            <div class="col-4">
-                                <div class="font-weight-bold" style="color: #28a745; font-size: 1.3rem;">{{ stats.won }}</div>
-                                <div class="small text-muted">Won</div>
-                                <div class="small" style="color: #28a745;">{{ "{:,.0f}".format(stats.won_value) }}</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="font-weight-bold" style="color: #dc3545; font-size: 1.3rem;">{{ stats.lost }}</div>
-                                <div class="small text-muted">Lost</div>
-                                <div class="small" style="color: #dc3545;">{{ "{:,.0f}".format(stats.lost_value) }}</div>
-                            </div>
-                            <div class="col-4">
-                                <div class="font-weight-bold" style="color: #fd7e14; font-size: 1.3rem;">{{ stats.ongoing }}</div>
-                                <div class="small text-muted">Ongoing</div>
-                                <div class="small" style="color: #fd7e14;">{{ "{:,.0f}".format(stats.ongoing_value) }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
     </div>
 </div>
 {% endif %}

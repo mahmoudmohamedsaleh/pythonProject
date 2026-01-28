@@ -15512,10 +15512,67 @@ def engineer_performance_center():
         quotations_list = []
     
     # === RELATED ENGINEERS PERFORMANCE ===
-    # Calculate performance stats for related engineers (presale if sales report, sales if presale report)
+    # Calculate performance stats for related engineers including RFQ, RFTS, and Quotations
     related_engineer_stats = {}
-    if selected_engineer and quotations_list:
-        # Get project statuses for quotations and build engineer stats
+    
+    if selected_engineer:
+        # Initialize stats from RFQs
+        for rfq in rfqs:
+            if report_type == 'sales':
+                eng_name = rfq.get('presale_engineer') or rfq.get('sales_engineer_presale', 'Unassigned')
+            else:
+                eng_name = rfq.get('sales_engineer') or rfq.get('sales_engineer_sales', 'Unassigned')
+            
+            if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+                if eng_name not in related_engineer_stats:
+                    related_engineer_stats[eng_name] = {
+                        'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                        'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                        'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                        'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                    }
+                related_engineer_stats[eng_name]['rfq_total'] += 1
+                rfq_status = rfq.get('rfq_status', '') or rfq.get('status', '')
+                if rfq_status == 'Queue':
+                    related_engineer_stats[eng_name]['rfq_queue'] += 1
+                elif rfq_status == 'Studying':
+                    related_engineer_stats[eng_name]['rfq_studying'] += 1
+                elif rfq_status == 'Pricing':
+                    related_engineer_stats[eng_name]['rfq_pricing'] += 1
+                elif rfq_status == 'Quoted':
+                    related_engineer_stats[eng_name]['rfq_quoted'] += 1
+                elif rfq_status == 'Cancelled':
+                    related_engineer_stats[eng_name]['rfq_cancelled'] += 1
+        
+        # Add RFTS stats
+        for rfts in rfts_list:
+            if report_type == 'sales':
+                eng_name = rfts.get('presale_engineer', 'Unassigned')
+            else:
+                eng_name = rfts.get('sales_engineer', 'Unassigned')
+            
+            if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+                if eng_name not in related_engineer_stats:
+                    related_engineer_stats[eng_name] = {
+                        'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                        'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                        'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                        'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                    }
+                related_engineer_stats[eng_name]['rfts_total'] += 1
+                rfts_status = rfts.get('status', '')
+                if rfts_status == 'Queue':
+                    related_engineer_stats[eng_name]['rfts_queue'] += 1
+                elif rfts_status == 'Studying':
+                    related_engineer_stats[eng_name]['rfts_studying'] += 1
+                elif rfts_status == 'In Progress':
+                    related_engineer_stats[eng_name]['rfts_in_progress'] += 1
+                elif rfts_status == 'Done':
+                    related_engineer_stats[eng_name]['rfts_done'] += 1
+                elif rfts_status == 'Pending':
+                    related_engineer_stats[eng_name]['rfts_pending'] += 1
+        
+        # Add Quotation stats
         for q in quotations_list:
             quote_ref = q.get('quote_ref', '')
             if quote_ref and quote_ref != '-':
@@ -15525,32 +15582,34 @@ def engineer_performance_center():
                     status = result[0] or ''
                     selling = result[1] or 0
                     
-                    # For sales report, show presale engineers; for presale report, show sales engineers
                     if report_type == 'sales':
                         eng_name = q.get('presale_engineer', 'Unassigned')
                     else:
                         eng_name = q.get('engineer', 'Unassigned')
                     
-                    if eng_name and eng_name != '-':
+                    if eng_name and eng_name != '-' and eng_name != 'Unassigned':
                         if eng_name not in related_engineer_stats:
                             related_engineer_stats[eng_name] = {
-                                'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0,
-                                'won_value': 0, 'lost_value': 0, 'ongoing_value': 0
+                                'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                                'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                                'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                                'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
                             }
-                        related_engineer_stats[eng_name]['total'] += 1
+                        related_engineer_stats[eng_name]['quote_total'] += 1
                         
                         if status in ['Won', 'Done', 'Closed Won']:
-                            related_engineer_stats[eng_name]['won'] += 1
-                            related_engineer_stats[eng_name]['won_value'] += selling
+                            related_engineer_stats[eng_name]['quote_won'] += 1
+                            related_engineer_stats[eng_name]['quote_won_value'] += selling
                         elif status in ['Lost', 'Cancelled', 'Closed Lost']:
-                            related_engineer_stats[eng_name]['lost'] += 1
-                            related_engineer_stats[eng_name]['lost_value'] += selling
+                            related_engineer_stats[eng_name]['quote_lost'] += 1
+                            related_engineer_stats[eng_name]['quote_lost_value'] += selling
                         else:
-                            related_engineer_stats[eng_name]['ongoing'] += 1
-                            related_engineer_stats[eng_name]['ongoing_value'] += selling
+                            related_engineer_stats[eng_name]['quote_ongoing'] += 1
+                            related_engineer_stats[eng_name]['quote_ongoing_value'] += selling
     
-    # Sort by total quotes descending
-    sorted_related_engineers = sorted(related_engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True) if related_engineer_stats else []
+    # Sort by combined total descending
+    sorted_related_engineers = sorted(related_engineer_stats.items(), 
+        key=lambda x: x[1]['rfq_total'] + x[1]['rfts_total'] + x[1]['quote_total'], reverse=True) if related_engineer_stats else []
     
     conn.close()
     
@@ -16237,62 +16296,113 @@ def export_engineer_performance_pptx():
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
     # === RELATED ENGINEERS PERFORMANCE SLIDE ===
-    # Calculate performance stats for related engineers
+    # Calculate enhanced performance stats for related engineers including RFQ, RFTS, and Quotations
     related_engineer_stats = {}
-    if quotations_list:
-        # First pass: count totals per engineer
-        for q in quotations_list:
-            if report_type == 'sales':
-                eng_name = q.get('presale_engineer', 'Unassigned')
-            else:
-                eng_name = q.get('engineer', 'Unassigned')
-            
-            if eng_name and eng_name != '-':
-                if eng_name not in related_engineer_stats:
-                    related_engineer_stats[eng_name] = {
-                        'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0,
-                        'won_value': 0, 'lost_value': 0, 'ongoing_value': 0
-                    }
-                related_engineer_stats[eng_name]['total'] += 1
-        
-        # Second pass: get project statuses
-        conn2 = get_db_connection()
-        c2 = conn2.cursor()
-        for q in quotations_list:
-            quote_ref = q.get('quote_ref', '')
-            if quote_ref and quote_ref != '-':
-                c2.execute("SELECT status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
-                result = c2.fetchone()
-                if result:
-                    status = result[0] or ''
-                    selling = result[1] or 0
-                    
-                    if report_type == 'sales':
-                        eng_name = q.get('presale_engineer', 'Unassigned')
-                    else:
-                        eng_name = q.get('engineer', 'Unassigned')
-                    
-                    if eng_name and eng_name != '-' and eng_name in related_engineer_stats:
-                        if status in ['Won', 'Done', 'Closed Won']:
-                            related_engineer_stats[eng_name]['won'] += 1
-                            related_engineer_stats[eng_name]['won_value'] += selling
-                        elif status in ['Lost', 'Cancelled', 'Closed Lost']:
-                            related_engineer_stats[eng_name]['lost'] += 1
-                            related_engineer_stats[eng_name]['lost_value'] += selling
-                        else:
-                            related_engineer_stats[eng_name]['ongoing'] += 1
-                            related_engineer_stats[eng_name]['ongoing_value'] += selling
-        conn2.close()
     
-    # Sort by total quotes descending
-    sorted_related_engineers = sorted(related_engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True) if related_engineer_stats else []
+    # Initialize stats from RFQs
+    for rfq in rfqs:
+        if report_type == 'sales':
+            eng_name = rfq.get('presale_engineer') or rfq.get('sales_engineer_presale', 'Unassigned')
+        else:
+            eng_name = rfq.get('sales_engineer') or rfq.get('sales_engineer_sales', 'Unassigned')
+        
+        if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+            if eng_name not in related_engineer_stats:
+                related_engineer_stats[eng_name] = {
+                    'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                    'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                    'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                    'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                }
+            related_engineer_stats[eng_name]['rfq_total'] += 1
+            rfq_status = rfq.get('rfq_status', '') or rfq.get('status', '')
+            if rfq_status == 'Queue':
+                related_engineer_stats[eng_name]['rfq_queue'] += 1
+            elif rfq_status == 'Studying':
+                related_engineer_stats[eng_name]['rfq_studying'] += 1
+            elif rfq_status == 'Pricing':
+                related_engineer_stats[eng_name]['rfq_pricing'] += 1
+            elif rfq_status == 'Quoted':
+                related_engineer_stats[eng_name]['rfq_quoted'] += 1
+            elif rfq_status == 'Cancelled':
+                related_engineer_stats[eng_name]['rfq_cancelled'] += 1
+    
+    # Add RFTS stats
+    for rfts in rfts_list:
+        if report_type == 'sales':
+            eng_name = rfts.get('presale_engineer', 'Unassigned')
+        else:
+            eng_name = rfts.get('sales_engineer', 'Unassigned')
+        
+        if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+            if eng_name not in related_engineer_stats:
+                related_engineer_stats[eng_name] = {
+                    'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                    'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                    'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                    'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                }
+            related_engineer_stats[eng_name]['rfts_total'] += 1
+            rfts_status = rfts.get('status', '')
+            if rfts_status == 'Queue':
+                related_engineer_stats[eng_name]['rfts_queue'] += 1
+            elif rfts_status == 'Studying':
+                related_engineer_stats[eng_name]['rfts_studying'] += 1
+            elif rfts_status == 'In Progress':
+                related_engineer_stats[eng_name]['rfts_in_progress'] += 1
+            elif rfts_status == 'Done':
+                related_engineer_stats[eng_name]['rfts_done'] += 1
+            elif rfts_status == 'Pending':
+                related_engineer_stats[eng_name]['rfts_pending'] += 1
+    
+    # Add Quotation stats
+    conn2 = sqlite3.connect('ProjectStatus.db')
+    c2 = conn2.cursor()
+    for q in quotations_list:
+        quote_ref = q.get('quote_ref', '')
+        if quote_ref and quote_ref != '-':
+            c2.execute("SELECT status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
+            result = c2.fetchone()
+            if result:
+                status = result[0] or ''
+                selling = result[1] or 0
+                
+                if report_type == 'sales':
+                    eng_name = q.get('presale_engineer', 'Unassigned')
+                else:
+                    eng_name = q.get('engineer', 'Unassigned')
+                
+                if eng_name and eng_name != '-' and eng_name != 'Unassigned':
+                    if eng_name not in related_engineer_stats:
+                        related_engineer_stats[eng_name] = {
+                            'rfq_total': 0, 'rfq_queue': 0, 'rfq_studying': 0, 'rfq_pricing': 0, 'rfq_quoted': 0, 'rfq_cancelled': 0,
+                            'rfts_total': 0, 'rfts_queue': 0, 'rfts_studying': 0, 'rfts_in_progress': 0, 'rfts_done': 0, 'rfts_pending': 0,
+                            'quote_total': 0, 'quote_won': 0, 'quote_lost': 0, 'quote_ongoing': 0,
+                            'quote_won_value': 0, 'quote_lost_value': 0, 'quote_ongoing_value': 0
+                        }
+                    related_engineer_stats[eng_name]['quote_total'] += 1
+                    
+                    if status in ['Won', 'Done', 'Closed Won']:
+                        related_engineer_stats[eng_name]['quote_won'] += 1
+                        related_engineer_stats[eng_name]['quote_won_value'] += selling
+                    elif status in ['Lost', 'Cancelled', 'Closed Lost']:
+                        related_engineer_stats[eng_name]['quote_lost'] += 1
+                        related_engineer_stats[eng_name]['quote_lost_value'] += selling
+                    else:
+                        related_engineer_stats[eng_name]['quote_ongoing'] += 1
+                        related_engineer_stats[eng_name]['quote_ongoing_value'] += selling
+    conn2.close()
+    
+    # Sort by combined total descending
+    sorted_related_engineers = sorted(related_engineer_stats.items(), 
+        key=lambda x: x[1]['rfq_total'] + x[1]['rfts_total'] + x[1]['quote_total'], reverse=True) if related_engineer_stats else []
     
     # Create Related Engineers Performance slide
     if sorted_related_engineers:
         slide = prs.slides.add_slide(blank_layout)
         
         # Header
-        header_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+        header_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
         header_shape.fill.gradient()
         header_shape.fill.gradient_angle = 135
         header_shape.fill.gradient_stops[0].color.rgb = RGBColor(30, 60, 114)
@@ -16300,34 +16410,34 @@ def export_engineer_performance_pptx():
         header_shape.line.fill.background()
         
         engineer_type = "Presale" if report_type == 'sales' else "Sales"
-        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+        title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.15), Inches(10), Inches(0.5))
         tf = title_box.text_frame
         p = tf.paragraphs[0]
         p.text = f"{engineer_type} Engineers Performance"
-        p.font.size = Pt(24)
+        p.font.size = Pt(22)
         p.font.bold = True
         p.font.color.rgb = WHITE
         p.font.name = FONT_NAME
         
         # Badge showing count
-        badge_box = slide.shapes.add_textbox(Inches(11.5), Inches(0.25), Inches(1.5), Inches(0.4))
+        badge_box = slide.shapes.add_textbox(Inches(11.5), Inches(0.2), Inches(1.5), Inches(0.4))
         tf = badge_box.text_frame
         p = tf.paragraphs[0]
         p.text = f"{len(sorted_related_engineers)} Engineers"
-        p.font.size = Pt(12)
+        p.font.size = Pt(11)
         p.font.color.rgb = WHITE
         p.font.name = FONT_NAME
         p.alignment = PP_ALIGN.CENTER
         
-        # Create cards for each engineer (3 per row, max 6 per slide)
+        # Create compact cards for each engineer (3 per row, max 6 per slide)
         card_width = Inches(4.2)
-        card_height = Inches(1.8)
+        card_height = Inches(2.3)
         start_x = Inches(0.25)
-        start_y = Inches(1.1)
+        start_y = Inches(0.95)
         gap_x = Inches(0.2)
-        gap_y = Inches(0.2)
+        gap_y = Inches(0.15)
         
-        for idx, (eng_name, stats) in enumerate(sorted_related_engineers[:6]):  # Max 6 engineers per slide
+        for idx, (eng_name, stats) in enumerate(sorted_related_engineers[:6]):
             col = idx % 3
             row = idx // 3
             x = start_x + col * (card_width + gap_x)
@@ -16341,7 +16451,7 @@ def export_engineer_performance_pptx():
             card.line.width = Pt(1)
             
             # Card header
-            header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, card_width, Inches(0.4))
+            header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, card_width, Inches(0.35))
             header.fill.gradient()
             header.fill.gradient_angle = 135
             header.fill.gradient_stops[0].color.rgb = RGBColor(61, 90, 128)
@@ -16349,117 +16459,105 @@ def export_engineer_performance_pptx():
             header.line.fill.background()
             
             # Engineer name
-            name_box = slide.shapes.add_textbox(x + Inches(0.1), y + Inches(0.05), Inches(2.5), Inches(0.3))
+            name_box = slide.shapes.add_textbox(x + Inches(0.1), y + Inches(0.05), Inches(2.5), Inches(0.25))
             tf = name_box.text_frame
             p = tf.paragraphs[0]
             p.text = eng_name
-            p.font.size = Pt(11)
+            p.font.size = Pt(10)
             p.font.bold = True
             p.font.color.rgb = WHITE
             p.font.name = FONT_NAME
             
-            # Quotes badge
-            badge_box = slide.shapes.add_textbox(x + card_width - Inches(1.1), y + Inches(0.05), Inches(1.0), Inches(0.3))
+            # Total badge
+            total = stats['rfq_total'] + stats['rfts_total'] + stats['quote_total']
+            badge_box = slide.shapes.add_textbox(x + card_width - Inches(1.0), y + Inches(0.05), Inches(0.9), Inches(0.25))
             tf = badge_box.text_frame
             p = tf.paragraphs[0]
-            p.text = f"{stats['total']} Quotes"
-            p.font.size = Pt(10)
+            p.text = f"{total} Total"
+            p.font.size = Pt(9)
             p.font.color.rgb = WHITE
             p.font.name = FONT_NAME
             p.alignment = PP_ALIGN.RIGHT
             
-            # Stats area
-            stats_y = y + Inches(0.55)
-            col_width = card_width / 3
+            # RFQ Row
+            rfq_y = y + Inches(0.45)
+            rfq_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), rfq_y, card_width - Inches(0.1), Inches(0.55))
+            rfq_bg.fill.solid()
+            rfq_bg.fill.fore_color.rgb = RGBColor(248, 249, 250)
+            rfq_bg.line.fill.background()
             
-            # Won column
-            won_box = slide.shapes.add_textbox(x, stats_y, col_width, Inches(0.3))
-            tf = won_box.text_frame
+            rfq_label = slide.shapes.add_textbox(x + Inches(0.1), rfq_y + Inches(0.02), Inches(1.5), Inches(0.2))
+            tf = rfq_label.text_frame
             p = tf.paragraphs[0]
-            p.text = str(stats['won'])
-            p.font.size = Pt(20)
-            p.font.bold = True
-            p.font.color.rgb = RGBColor(40, 167, 69)
-            p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
-            
-            won_label = slide.shapes.add_textbox(x, stats_y + Inches(0.35), col_width, Inches(0.2))
-            tf = won_label.text_frame
-            p = tf.paragraphs[0]
-            p.text = "Won"
-            p.font.size = Pt(9)
-            p.font.color.rgb = DARK_TEXT
-            p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
-            
-            won_val = slide.shapes.add_textbox(x, stats_y + Inches(0.55), col_width, Inches(0.2))
-            tf = won_val.text_frame
-            p = tf.paragraphs[0]
-            p.text = f"{stats['won_value']:,.0f}"
+            p.text = f"RFQs: {stats['rfq_total']}"
             p.font.size = Pt(8)
-            p.font.color.rgb = RGBColor(40, 167, 69)
-            p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
-            
-            # Lost column
-            lost_box = slide.shapes.add_textbox(x + col_width, stats_y, col_width, Inches(0.3))
-            tf = lost_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = str(stats['lost'])
-            p.font.size = Pt(20)
             p.font.bold = True
-            p.font.color.rgb = RGBColor(220, 53, 69)
             p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
             
-            lost_label = slide.shapes.add_textbox(x + col_width, stats_y + Inches(0.35), col_width, Inches(0.2))
-            tf = lost_label.text_frame
+            rfq_stats_box = slide.shapes.add_textbox(x + Inches(0.1), rfq_y + Inches(0.22), card_width - Inches(0.2), Inches(0.25))
+            tf = rfq_stats_box.text_frame
             p = tf.paragraphs[0]
-            p.text = "Lost"
-            p.font.size = Pt(9)
-            p.font.color.rgb = DARK_TEXT
+            p.text = f"Q:{stats['rfq_queue']} S:{stats['rfq_studying']} P:{stats['rfq_pricing']} Qt:{stats['rfq_quoted']} C:{stats['rfq_cancelled']}"
+            p.font.size = Pt(7)
             p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
+            p.font.color.rgb = RGBColor(100, 100, 100)
             
-            lost_val = slide.shapes.add_textbox(x + col_width, stats_y + Inches(0.55), col_width, Inches(0.2))
-            tf = lost_val.text_frame
+            # RFTS Row
+            rfts_y = rfq_y + Inches(0.58)
+            rfts_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), rfts_y, card_width - Inches(0.1), Inches(0.55))
+            rfts_bg.fill.solid()
+            rfts_bg.fill.fore_color.rgb = RGBColor(255, 243, 230)
+            rfts_bg.line.fill.background()
+            
+            rfts_label = slide.shapes.add_textbox(x + Inches(0.1), rfts_y + Inches(0.02), Inches(1.5), Inches(0.2))
+            tf = rfts_label.text_frame
             p = tf.paragraphs[0]
-            p.text = f"{stats['lost_value']:,.0f}"
+            p.text = f"RFTS: {stats['rfts_total']}"
             p.font.size = Pt(8)
-            p.font.color.rgb = RGBColor(220, 53, 69)
-            p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
-            
-            # Ongoing column
-            ongoing_box = slide.shapes.add_textbox(x + 2*col_width, stats_y, col_width, Inches(0.3))
-            tf = ongoing_box.text_frame
-            p = tf.paragraphs[0]
-            p.text = str(stats['ongoing'])
-            p.font.size = Pt(20)
             p.font.bold = True
-            p.font.color.rgb = RGBColor(253, 126, 20)
             p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
             
-            ongoing_label = slide.shapes.add_textbox(x + 2*col_width, stats_y + Inches(0.35), col_width, Inches(0.2))
-            tf = ongoing_label.text_frame
+            rfts_stats_box = slide.shapes.add_textbox(x + Inches(0.1), rfts_y + Inches(0.22), card_width - Inches(0.2), Inches(0.25))
+            tf = rfts_stats_box.text_frame
             p = tf.paragraphs[0]
-            p.text = "Ongoing"
-            p.font.size = Pt(9)
-            p.font.color.rgb = DARK_TEXT
+            p.text = f"Q:{stats['rfts_queue']} S:{stats['rfts_studying']} IP:{stats['rfts_in_progress']} D:{stats['rfts_done']} P:{stats['rfts_pending']}"
+            p.font.size = Pt(7)
             p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
+            p.font.color.rgb = RGBColor(100, 100, 100)
             
-            ongoing_val = slide.shapes.add_textbox(x + 2*col_width, stats_y + Inches(0.55), col_width, Inches(0.2))
-            tf = ongoing_val.text_frame
+            # Quotes Row
+            quote_y = rfts_y + Inches(0.58)
+            quote_bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x + Inches(0.05), quote_y, card_width - Inches(0.1), Inches(0.55))
+            quote_bg.fill.solid()
+            quote_bg.fill.fore_color.rgb = RGBColor(232, 245, 233)
+            quote_bg.line.fill.background()
+            
+            quote_label = slide.shapes.add_textbox(x + Inches(0.1), quote_y + Inches(0.02), Inches(1.5), Inches(0.2))
+            tf = quote_label.text_frame
             p = tf.paragraphs[0]
-            p.text = f"{stats['ongoing_value']:,.0f}"
+            p.text = f"Quotes: {stats['quote_total']}"
             p.font.size = Pt(8)
-            p.font.color.rgb = RGBColor(253, 126, 20)
+            p.font.bold = True
             p.font.name = FONT_NAME
-            p.alignment = PP_ALIGN.CENTER
-    
-    # === QUOTATIONS DETAIL SLIDES ===
+            
+            # Won/Lost/Ongoing in quotes section
+            col_width = (card_width - Inches(0.2)) / 3
+            for i, (label, count, value, color) in enumerate([
+                ('Won', stats['quote_won'], stats['quote_won_value'], RGBColor(40, 167, 69)),
+                ('Lost', stats['quote_lost'], stats['quote_lost_value'], RGBColor(220, 53, 69)),
+                ('Ong', stats['quote_ongoing'], stats['quote_ongoing_value'], RGBColor(253, 126, 20))
+            ]):
+                stat_box = slide.shapes.add_textbox(x + Inches(0.1) + i * col_width, quote_y + Inches(0.22), col_width, Inches(0.3))
+                tf = stat_box.text_frame
+                p = tf.paragraphs[0]
+                p.text = f"{label}: {count}"
+                p.font.size = Pt(7)
+                p.font.bold = True
+                p.font.color.rgb = color
+                p.font.name = FONT_NAME
+                p.alignment = PP_ALIGN.CENTER
+
+        # === QUOTATIONS DETAIL SLIDES ===
     if quotations_list:
         PURPLE_COLOR = RGBColor(124, 58, 237)
         LIGHT_PURPLE = RGBColor(243, 232, 255)
