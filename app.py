@@ -15515,53 +15515,39 @@ def engineer_performance_center():
     # Calculate performance stats for related engineers (presale if sales report, sales if presale report)
     related_engineer_stats = {}
     if selected_engineer and quotations_list:
+        # Get project statuses for quotations and build engineer stats
         for q in quotations_list:
-            # For sales report, show presale engineers; for presale report, show sales engineers
-            if report_type == 'sales':
-                eng_name = q.get('presale_engineer', 'Unassigned')
-            else:
-                eng_name = q.get('engineer', 'Unassigned')
-            
-            if eng_name and eng_name != '-':
-                if eng_name not in related_engineer_stats:
-                    related_engineer_stats[eng_name] = {
-                        'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0,
-                        'won_value': 0, 'lost_value': 0, 'ongoing_value': 0
-                    }
-                related_engineer_stats[eng_name]['total'] += 1
-                selling = q.get('selling', 0) or 0
-                
-                # Determine category based on project status from projects table
-        
-        # Get project statuses for quotations
-        if quotations_list:
-            conn2 = get_db_connection()
-            c2 = conn2.cursor()
-            for q in quotations_list:
-                quote_ref = q.get('quote_ref', '')
-                if quote_ref and quote_ref != '-':
-                    c2.execute("SELECT project_status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
-                    result = c2.fetchone()
-                    if result:
-                        status = result[0] or ''
-                        selling = result[1] or 0
+            quote_ref = q.get('quote_ref', '')
+            if quote_ref and quote_ref != '-':
+                c.execute("SELECT project_status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
+                result = c.fetchone()
+                if result:
+                    status = result[0] or ''
+                    selling = result[1] or 0
+                    
+                    # For sales report, show presale engineers; for presale report, show sales engineers
+                    if report_type == 'sales':
+                        eng_name = q.get('presale_engineer', 'Unassigned')
+                    else:
+                        eng_name = q.get('engineer', 'Unassigned')
+                    
+                    if eng_name and eng_name != '-':
+                        if eng_name not in related_engineer_stats:
+                            related_engineer_stats[eng_name] = {
+                                'total': 0, 'won': 0, 'lost': 0, 'ongoing': 0,
+                                'won_value': 0, 'lost_value': 0, 'ongoing_value': 0
+                            }
+                        related_engineer_stats[eng_name]['total'] += 1
                         
-                        if report_type == 'sales':
-                            eng_name = q.get('presale_engineer', 'Unassigned')
+                        if status in ['Won', 'Done', 'Closed Won']:
+                            related_engineer_stats[eng_name]['won'] += 1
+                            related_engineer_stats[eng_name]['won_value'] += selling
+                        elif status in ['Lost', 'Cancelled', 'Closed Lost']:
+                            related_engineer_stats[eng_name]['lost'] += 1
+                            related_engineer_stats[eng_name]['lost_value'] += selling
                         else:
-                            eng_name = q.get('engineer', 'Unassigned')
-                        
-                        if eng_name and eng_name != '-' and eng_name in related_engineer_stats:
-                            if status in ['Won', 'Done', 'Closed Won']:
-                                related_engineer_stats[eng_name]['won'] += 1
-                                related_engineer_stats[eng_name]['won_value'] += selling
-                            elif status in ['Lost', 'Cancelled', 'Closed Lost']:
-                                related_engineer_stats[eng_name]['lost'] += 1
-                                related_engineer_stats[eng_name]['lost_value'] += selling
-                            else:
-                                related_engineer_stats[eng_name]['ongoing'] += 1
-                                related_engineer_stats[eng_name]['ongoing_value'] += selling
-            conn2.close()
+                            related_engineer_stats[eng_name]['ongoing'] += 1
+                            related_engineer_stats[eng_name]['ongoing_value'] += selling
     
     # Sort by total quotes descending
     sorted_related_engineers = sorted(related_engineer_stats.items(), key=lambda x: x[1]['total'], reverse=True) if related_engineer_stats else []
