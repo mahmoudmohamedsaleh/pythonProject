@@ -16430,7 +16430,7 @@ def export_engineer_performance_pptx():
     
     # Create Related Engineers Performance slide
     if sorted_related_engineers:
-        slide = prs.slides.add_slide(blank_layout)
+        slide = prs.slides.add_slide(slide_layout)
         
         # Header
         header_shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
