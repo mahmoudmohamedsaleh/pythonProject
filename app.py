@@ -16093,6 +16093,25 @@ def export_engineer_performance_pptx():
             
             item_y += Inches(0.5)
     
+    # Call the breakdown cards
+    # RFQ breakdown
+    add_breakdown_card(slide, Inches(4.6), Inches(2.9), "RFQ Breakdown", [
+        ('Queue', rfq_stats['queue'], ORANGE),
+        ('Studying', rfq_stats['studying'], TEAL),
+        ('Pricing', rfq_stats['pricing'], PRIMARY_BLUE),
+        ('Quoted', rfq_stats['quoted'], GREEN),
+        ('Cancelled', rfq_stats['cancelled'], GRAY)
+    ], PRIMARY_BLUE)
+    
+    # RFTS breakdown
+    add_breakdown_card(slide, Inches(8.8), Inches(2.9), "RFTS Breakdown", [
+        ('Queue', rfts_stats['queue'], ORANGE),
+        ('Studying', rfts_stats['studying'], TEAL),
+        ('In Progress', rfts_stats['in_progress'], GRAY),
+        ('Done', rfts_stats['done'], GREEN),
+        ('Pending', rfts_stats['pending'], RED)
+    ], RGBColor(245, 87, 108))
+    
     # Projects breakdown with Quotations (enhanced card)
     # Draw Projects Breakdown card with Quotations section
     proj_x, proj_y = Inches(0.4), Inches(2.9)
@@ -16227,24 +16246,6 @@ def export_engineer_performance_pptx():
         p.alignment = PP_ALIGN.CENTER
         
         box_x += box_width + Inches(0.1)
-    
-    # RFQ breakdown
-    add_breakdown_card(slide, Inches(4.6), Inches(2.9), "RFQ Breakdown", [
-        ('Queue', rfq_stats['queue'], ORANGE),
-        ('Studying', rfq_stats['studying'], TEAL),
-        ('Pricing', rfq_stats['pricing'], PRIMARY_BLUE),
-        ('Quoted', rfq_stats['quoted'], GREEN),
-        ('Cancelled', rfq_stats['cancelled'], GRAY)
-    ], PRIMARY_BLUE)
-    
-    # RFTS breakdown
-    add_breakdown_card(slide, Inches(8.8), Inches(2.9), "RFTS Breakdown", [
-        ('Queue', rfts_stats['queue'], ORANGE),
-        ('Studying', rfts_stats['studying'], TEAL),
-        ('In Progress', rfts_stats['in_progress'], GRAY),
-        ('Done', rfts_stats['done'], GREEN),
-        ('Pending', rfts_stats['pending'], RED)
-    ], RGBColor(245, 87, 108))
     
     # ========== SLIDE 3: Projects List ==========
     if projects:
