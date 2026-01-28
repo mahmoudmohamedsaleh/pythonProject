@@ -582,6 +582,7 @@
                     <th style="color: white; background: transparent;">Quote Ref</th>
                     <th style="color: white; background: transparent;">Project</th>
                     <th style="color: white; background: transparent;">Engineer</th>
+                    <th style="color: white; background: transparent;">Presale Eng</th>
                     <th style="color: white; background: transparent;">Date</th>
                     <th style="color: white; background: transparent;">Cost (SAR)</th>
                     <th style="color: white; background: transparent;">Selling (SAR)</th>
@@ -597,6 +598,7 @@
                     <td><a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{{ q.quote_ref }}</a></td>
                     <td>{{ q.project_name[:30] }}{% if q.project_name|length > 30 %}...{% endif %}</td>
                     <td>{{ q.engineer }}</td>
+                    <td>{{ q.presale_engineer }}</td>
                     <td>{{ q.date }}</td>
                     <td style="text-align: right;">{{ "{:,.0f}".format(q.cost) }}</td>
                     <td style="text-align: right;">{{ "{:,.0f}".format(q.selling) }}</td>
