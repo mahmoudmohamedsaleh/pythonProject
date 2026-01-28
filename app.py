@@ -15519,7 +15519,7 @@ def engineer_performance_center():
         for q in quotations_list:
             quote_ref = q.get('quote_ref', '')
             if quote_ref and quote_ref != '-':
-                c.execute("SELECT project_status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
+                c.execute("SELECT status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
                 result = c.fetchone()
                 if result:
                     status = result[0] or ''
@@ -16261,7 +16261,7 @@ def export_engineer_performance_pptx():
         for q in quotations_list:
             quote_ref = q.get('quote_ref', '')
             if quote_ref and quote_ref != '-':
-                c2.execute("SELECT project_status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
+                c2.execute("SELECT status, quotation_selling_price FROM projects WHERE quote_ref = ?", (quote_ref,))
                 result = c2.fetchone()
                 if result:
                     status = result[0] or ''
