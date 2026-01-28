@@ -16093,12 +16093,140 @@ def export_engineer_performance_pptx():
             
             item_y += Inches(0.5)
     
-    # Projects breakdown
-    add_breakdown_card(slide, Inches(0.4), Inches(2.9), "Projects Breakdown", [
+    # Projects breakdown with Quotations (enhanced card)
+    # Draw Projects Breakdown card with Quotations section
+    proj_x, proj_y = Inches(0.4), Inches(2.9)
+    proj_width, proj_height = Inches(4), Inches(3.8)  # Taller to fit quotations
+    
+    # Card background with shadow
+    shadow = slide.shapes.add_shape(1, proj_x + Inches(0.05), proj_y + Inches(0.05), proj_width, proj_height)
+    shadow.fill.solid()
+    shadow.fill.fore_color.rgb = RGBColor(200, 200, 200)
+    shadow.line.fill.background()
+    
+    card = slide.shapes.add_shape(1, proj_x, proj_y, proj_width, proj_height)
+    card.fill.solid()
+    card.fill.fore_color.rgb = WHITE
+    card.line.fill.background()
+    
+    # Header
+    header_shape = slide.shapes.add_shape(1, proj_x, proj_y, proj_width, Inches(0.5))
+    header_shape.fill.solid()
+    header_shape.fill.fore_color.rgb = GREEN
+    header_shape.line.fill.background()
+    
+    header_txt = slide.shapes.add_textbox(proj_x + Inches(0.2), proj_y + Inches(0.1), proj_width - Inches(0.4), Inches(0.4))
+    tf = header_txt.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Projects Breakdown"
+    p.font.size = Pt(14)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    
+    # Projects items (Won, Ongoing, Lost)
+    items_y = proj_y + Inches(0.7)
+    project_items = [
         ('Won', project_stats['won'], GREEN),
         ('Ongoing', project_stats['ongoing'], YELLOW),
         ('Lost', project_stats['lost'], RED)
-    ], GREEN)
+    ]
+    for label, value, color in project_items:
+        lbl = slide.shapes.add_textbox(proj_x + Inches(0.2), items_y, Inches(2.5), Inches(0.35))
+        tf = lbl.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(13)
+        p.font.color.rgb = DARK_TEXT
+        p.font.name = FONT_NAME
+        
+        val_box = slide.shapes.add_textbox(proj_x + Inches(3.2), items_y, Inches(0.6), Inches(0.35))
+        tf = val_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = str(value)
+        p.font.size = Pt(13)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.RIGHT
+        items_y += Inches(0.35)
+    
+    # Quotations section header
+    quot_header_y = items_y + Inches(0.15)
+    quot_header = slide.shapes.add_textbox(proj_x + Inches(0.2), quot_header_y, Inches(2.5), Inches(0.35))
+    tf = quot_header.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Quotations"
+    p.font.size = Pt(12)
+    p.font.bold = True
+    p.font.color.rgb = DARK_TEXT
+    p.font.name = FONT_NAME
+    
+    # Total quotations badge
+    quot_total = slide.shapes.add_shape(1, proj_x + Inches(3), quot_header_y, Inches(0.7), Inches(0.3))
+    quot_total.fill.solid()
+    quot_total.fill.fore_color.rgb = RGBColor(108, 117, 125)
+    quot_total.line.fill.background()
+    quot_txt = slide.shapes.add_textbox(proj_x + Inches(3), quot_header_y + Inches(0.02), Inches(0.7), Inches(0.28))
+    tf = quot_txt.text_frame
+    p = tf.paragraphs[0]
+    p.text = str(quotation_stats['total'])
+    p.font.size = Pt(11)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Quotation stats boxes (Won, Ongoing, Lost with values)
+    quot_items_y = quot_header_y + Inches(0.45)
+    quot_items = [
+        ('Won', quotation_stats['won'], quotation_stats['won_value'], GREEN),
+        ('Ongoing', quotation_stats['ongoing'], quotation_stats['ongoing_value'], YELLOW),
+        ('Lost', quotation_stats['lost'], quotation_stats['lost_value'], RED)
+    ]
+    
+    # Draw three boxes in a row
+    box_width = Inches(1.1)
+    box_x = proj_x + Inches(0.2)
+    for label, count, value, color in quot_items:
+        # Box background
+        box = slide.shapes.add_shape(1, box_x, quot_items_y, box_width, Inches(0.8))
+        box.fill.solid()
+        box.fill.fore_color.rgb = RGBColor(248, 249, 250)
+        box.line.color.rgb = RGBColor(220, 220, 220)
+        
+        # Count
+        count_txt = slide.shapes.add_textbox(box_x, quot_items_y + Inches(0.05), box_width, Inches(0.3))
+        tf = count_txt.text_frame
+        p = tf.paragraphs[0]
+        p.text = str(count)
+        p.font.size = Pt(16)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Label
+        lbl_txt = slide.shapes.add_textbox(box_x, quot_items_y + Inches(0.3), box_width, Inches(0.2))
+        tf = lbl_txt.text_frame
+        p = tf.paragraphs[0]
+        p.text = label
+        p.font.size = Pt(9)
+        p.font.color.rgb = DARK_TEXT
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Value (SAR)
+        val_txt = slide.shapes.add_textbox(box_x, quot_items_y + Inches(0.5), box_width, Inches(0.25))
+        tf = val_txt.text_frame
+        p = tf.paragraphs[0]
+        p.text = f"{value:,.0f}" if value else "0"
+        p.font.size = Pt(8)
+        p.font.color.rgb = color
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        box_x += box_width + Inches(0.1)
     
     # RFQ breakdown
     add_breakdown_card(slide, Inches(4.6), Inches(2.9), "RFQ Breakdown", [
