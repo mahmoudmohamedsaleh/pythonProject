@@ -14331,7 +14331,7 @@ def export_rfts_engineer_report_excel():
         query = f"""
             SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
-                   request_result, deadline, note, requested_time
+                   request_result, deadline, note, requested_time, system
             FROM technical_support_requests 
             WHERE sales_engineer = ?
             {date_conditions}
@@ -14341,7 +14341,7 @@ def export_rfts_engineer_report_excel():
         query = f"""
             SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
-                   request_result, deadline, note, requested_time
+                   request_result, deadline, note, requested_time, system
             FROM technical_support_requests 
             WHERE presale_engineer = ?
             {date_conditions}
@@ -14534,7 +14534,7 @@ def export_rfts_engineer_report_pptx():
         query = f"""
             SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
-                   request_result, deadline, note, requested_time
+                   request_result, deadline, note, requested_time, system
             FROM technical_support_requests 
             WHERE sales_engineer = ?
             {date_conditions}
@@ -14544,7 +14544,7 @@ def export_rfts_engineer_report_pptx():
         query = f"""
             SELECT id, rfts_reference, request_type, project_name, priority,
                    presale_engineer, sales_engineer, request_status,
-                   request_result, deadline, note, requested_time
+                   request_result, deadline, note, requested_time, system
             FROM technical_support_requests 
             WHERE presale_engineer = ?
             {date_conditions}
@@ -14593,7 +14593,8 @@ def export_rfts_engineer_report_pptx():
             'deadline': rfts[9],
             'requested_time': rfts[11][:10] if rfts[11] else '-',
             'status_category': status_category,
-            'note': rfts[10] or ''
+            'note': rfts[10] or '',
+            'system': rfts[12] or ''
         })
     
     total_rfts = len(rfts_data)
@@ -14975,20 +14976,21 @@ def export_rfts_engineer_report_pptx():
             
             # Table
             rows = len(page_rfts) + 1
-            cols = 7
+            cols = 8
             table = slide.shapes.add_table(rows, cols, Inches(0.2), Inches(1.2), Inches(12.933), Inches(0.6 * rows)).table
             
             # Column widths
-            table.columns[0].width = Inches(0.4)    # #
-            table.columns[1].width = Inches(1.6)    # RFTS Reference
-            table.columns[2].width = Inches(3.0)    # Project Name
-            table.columns[3].width = Inches(1.5)    # Request Type
-            table.columns[4].width = Inches(1.6)    # Engineer
-            table.columns[5].width = Inches(1.1)    # Deadline
-            table.columns[6].width = Inches(1.1)    # Request Date
+            table.columns[0].width = Inches(0.35)   # #
+            table.columns[1].width = Inches(1.4)    # RFTS Reference
+            table.columns[2].width = Inches(2.6)    # Project Name
+            table.columns[3].width = Inches(1.3)    # Request Type
+            table.columns[4].width = Inches(1.0)    # System
+            table.columns[5].width = Inches(1.4)    # Engineer
+            table.columns[6].width = Inches(1.0)    # Deadline
+            table.columns[7].width = Inches(1.0)    # Request Date
             
             # Headers
-            headers = ['#', 'RFTS Reference', 'Project Name', 'Request Type',
+            headers = ['#', 'RFTS Reference', 'Project Name', 'Request Type', 'System',
                       'Presale Eng' if report_type == 'sales' else 'Sales Eng', 
                       'Deadline', 'Request Date']
             for col, header in enumerate(headers):
@@ -15024,7 +15026,7 @@ def export_rfts_engineer_report_pptx():
                 # Project Name
                 cell = table.cell(row_idx, 2)
                 proj = rfts['project_name'] or ''
-                cell.text = proj[:35] + '...' if len(proj) > 35 else proj
+                cell.text = proj[:30] + '...' if len(proj) > 30 else proj
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
                 
@@ -15034,21 +15036,27 @@ def export_rfts_engineer_report_pptx():
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
                 
-                # Engineer
+                # System
                 cell = table.cell(row_idx, 4)
+                cell.text = rfts.get('system', '') or ''
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                # Engineer
+                cell = table.cell(row_idx, 5)
                 eng = rfts['presale_engineer'] if report_type == 'sales' else rfts['sales_engineer']
                 cell.text = eng or ''
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
                 
                 # Deadline
-                cell = table.cell(row_idx, 5)
+                cell = table.cell(row_idx, 6)
                 cell.text = rfts['deadline'] or '-'
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
                 
                 # Request Date
-                cell = table.cell(row_idx, 6)
+                cell = table.cell(row_idx, 7)
                 cell.text = rfts['requested_time'] or '-'
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = row_color
