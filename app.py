@@ -15471,6 +15471,44 @@ def engineer_performance_center():
                 rfts_stats['done'] += 1
             elif 'pending' in status_lower:
                 rfts_stats['pending'] += 1
+        
+        # === QUOTATIONS DETAIL DATA ===
+        if report_type == 'sales':
+            quotations_query = f"""
+                SELECT quote_ref, project_name, sales_eng, registered_date, 
+                       quotation_cost, quotation_selling_price, margin, quotation_note, feedback
+                FROM projects 
+                WHERE sales_eng = ? AND quote_ref IS NOT NULL AND quote_ref != ''
+                {date_conditions}
+                ORDER BY registered_date DESC
+            """
+        else:
+            quotations_query = f"""
+                SELECT quote_ref, project_name, presale_eng, registered_date, 
+                       quotation_cost, quotation_selling_price, margin, quotation_note, feedback
+                FROM projects 
+                WHERE presale_eng = ? AND quote_ref IS NOT NULL AND quote_ref != ''
+                {date_conditions}
+                ORDER BY registered_date DESC
+            """
+        c.execute(quotations_query, params_base)
+        quotations_data = c.fetchall()
+        quotations_list = []
+        for idx, q in enumerate(quotations_data, 1):
+            quotations_list.append({
+                'num': idx,
+                'quote_ref': q[0] or '-',
+                'project_name': q[1] or '-',
+                'engineer': q[2] or '-',
+                'date': q[3][:10] if q[3] else '-',
+                'cost': q[4] or 0,
+                'selling': q[5] or 0,
+                'margin': f"{q[6]:.1f}%" if q[6] else '-',
+                'note': q[7] or '-',
+                'feedback': q[8] or '-'
+            })
+    else:
+        quotations_list = []
     
     conn.close()
     
@@ -15487,6 +15525,7 @@ def engineer_performance_center():
                           projects=projects,
                           rfqs=rfqs,
                           rfts_list=rfts_list,
+                          quotations_list=quotations_list,
                           project_stats=project_stats,
                           rfq_stats=rfq_stats,
                           rfts_stats=rfts_stats)

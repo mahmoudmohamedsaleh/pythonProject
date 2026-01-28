@@ -567,6 +567,50 @@
 </div>
 {% endif %}
 
+<!-- Quotations Detail Section -->
+{% if quotations_list %}
+<div class="card mb-4">
+    <div class="section-header" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);">
+        <h4><i class="fas fa-file-invoice-dollar mr-2" style="color: white;"></i>Quotations Detail</h4>
+        <span class="section-badge" style="background: rgba(255,255,255,0.2); color: white;">{{ quotations_list|length }} Quotations</span>
+    </div>
+    <div class="card-body" style="max-height: 500px; overflow-y: auto; padding: 0;">
+        <table class="data-table" style="margin-bottom: 0;">
+            <thead style="position: sticky; top: 0; z-index: 10;">
+                <tr style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);">
+                    <th style="color: white; background: transparent;">#</th>
+                    <th style="color: white; background: transparent;">Quote Ref</th>
+                    <th style="color: white; background: transparent;">Project</th>
+                    <th style="color: white; background: transparent;">Engineer</th>
+                    <th style="color: white; background: transparent;">Date</th>
+                    <th style="color: white; background: transparent;">Cost (SAR)</th>
+                    <th style="color: white; background: transparent;">Selling (SAR)</th>
+                    <th style="color: white; background: transparent;">Margin</th>
+                    <th style="color: white; background: transparent;">Note</th>
+                    <th style="color: white; background: transparent;">Feedback</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in quotations_list %}
+                <tr style="{% if loop.index is odd %}background-color: #f3e8ff;{% else %}background-color: white;{% endif %}">
+                    <td>{{ q.num }}</td>
+                    <td><a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{{ q.quote_ref }}</a></td>
+                    <td>{{ q.project_name[:30] }}{% if q.project_name|length > 30 %}...{% endif %}</td>
+                    <td>{{ q.engineer }}</td>
+                    <td>{{ q.date }}</td>
+                    <td style="text-align: right;">{{ "{:,.0f}".format(q.cost) }}</td>
+                    <td style="text-align: right;">{{ "{:,.0f}".format(q.selling) }}</td>
+                    <td style="text-align: center;">{{ q.margin }}</td>
+                    <td>{{ (q.note[:20] + '...') if q.note|length > 20 else q.note }}</td>
+                    <td>{{ (q.feedback[:20] + '...') if q.feedback|length > 20 else q.feedback }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 {% else %}
 <div class="card">
     <div class="card-body">
