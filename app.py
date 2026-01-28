@@ -7270,7 +7270,206 @@ def export_engineer_report_pptx():
         run.font.name = FONT_NAME
         run.font.color.rgb = clr
     
-    # SLIDE 3+: Quotation Details Tables
+    # SLIDE 3: All Engineers Performance Comparison
+    slide = prs.slides.add_slide(slide_layout)
+    
+    # Background
+    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(7.5))
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = LIGHT_BG
+    bg.line.fill.background()
+    
+    # Header bar with gradient effect
+    header = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(1.0))
+    header.fill.solid()
+    header.fill.fore_color.rgb = SUCCESS_GREEN
+    header.line.fill.background()
+    
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.25), Inches(10), Inches(0.6))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    run = p.add_run()
+    eng_type_title = "Sales Engineers Performance" if report_type == 'sales' else "Presales Engineers Performance"
+    run.text = eng_type_title
+    run.font.size = Pt(28)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = WHITE
+    
+    # Get all engineers data
+    conn2 = sqlite3.connect('ProjectStatus.db')
+    c2 = conn2.cursor()
+    
+    if report_type == 'sales':
+        c2.execute("""
+            SELECT sales_eng, 
+                   COUNT(*) as total_quotes,
+                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN 1 ELSE 0 END) as won,
+                   SUM(CASE WHEN LOWER(status) LIKE '%lost%' OR LOWER(status) LIKE '%cancelled%' THEN 1 ELSE 0 END) as lost,
+                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN 1 ELSE 0 END) as ongoing,
+                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as won_value,
+                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
+            FROM projects 
+            WHERE sales_eng IS NOT NULL AND sales_eng != ''
+            GROUP BY sales_eng
+            ORDER BY total_quotes DESC
+        """)
+    else:
+        c2.execute("""
+            SELECT presale_eng, 
+                   COUNT(*) as total_quotes,
+                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN 1 ELSE 0 END) as won,
+                   SUM(CASE WHEN LOWER(status) LIKE '%lost%' OR LOWER(status) LIKE '%cancelled%' THEN 1 ELSE 0 END) as lost,
+                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN 1 ELSE 0 END) as ongoing,
+                   SUM(CASE WHEN LOWER(status) LIKE '%won%' OR LOWER(status) LIKE '%awarded%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as won_value,
+                   SUM(CASE WHEN LOWER(status) NOT LIKE '%won%' AND LOWER(status) NOT LIKE '%awarded%' AND LOWER(status) NOT LIKE '%lost%' AND LOWER(status) NOT LIKE '%cancelled%' THEN COALESCE(quotation_selling_price, 0) ELSE 0 END) as ongoing_value
+            FROM projects 
+            WHERE presale_eng IS NOT NULL AND presale_eng != ''
+            GROUP BY presale_eng
+            ORDER BY total_quotes DESC
+        """)
+    
+    all_engineers = c2.fetchall()
+    conn2.close()
+    
+    # Display engineers in card grid (up to 6 per slide)
+    eng_count = len(all_engineers)
+    count_badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(10.5), Inches(0.25), Inches(2.3), Inches(0.5))
+    count_badge.fill.solid()
+    count_badge.fill.fore_color.rgb = RGBColor(255, 255, 255)
+    count_badge.line.color.rgb = WHITE
+    
+    count_tb = slide.shapes.add_textbox(Inches(10.5), Inches(0.3), Inches(2.3), Inches(0.4))
+    tf = count_tb.text_frame
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    run = p.add_run()
+    run.text = f"{eng_count} Engineers"
+    run.font.size = Pt(14)
+    run.font.bold = True
+    run.font.name = FONT_NAME
+    run.font.color.rgb = SUCCESS_GREEN
+    
+    # Engineer cards - 3 per row, up to 6 per slide
+    card_width = Inches(4.0)
+    card_height = Inches(2.6)
+    card_spacing_x = Inches(0.3)
+    card_spacing_y = Inches(0.3)
+    start_x = Inches(0.4)
+    start_y = Inches(1.3)
+    
+    for idx, eng in enumerate(all_engineers[:6]):
+        eng_name = eng[0] or 'Unknown'
+        total_q = eng[1] or 0
+        won_c = eng[2] or 0
+        lost_c = eng[3] or 0
+        ongoing_c = eng[4] or 0
+        won_val = eng[5] or 0
+        ongoing_val = eng[6] or 0
+        
+        row = idx // 3
+        col = idx % 3
+        
+        x = start_x + col * (card_width + card_spacing_x)
+        y = start_y + row * (card_height + card_spacing_y)
+        
+        # Card shadow
+        shadow = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(0.03), y + Inches(0.03), card_width, card_height)
+        shadow.fill.solid()
+        shadow.fill.fore_color.rgb = RGBColor(200, 200, 200)
+        shadow.line.fill.background()
+        
+        # Card background
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_width, card_height)
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(230, 230, 230)
+        
+        # Top accent bar
+        accent = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, card_width, Inches(0.12))
+        accent.fill.solid()
+        accent.fill.fore_color.rgb = PRIMARY_BLUE if eng_name == selected_engineer else RGBColor(52, 73, 94)
+        accent.line.fill.background()
+        
+        # Engineer name
+        name_tb = slide.shapes.add_textbox(x + Inches(0.15), y + Inches(0.2), Inches(2.5), Inches(0.4))
+        tf = name_tb.text_frame
+        p = tf.paragraphs[0]
+        run = p.add_run()
+        run.text = eng_name[:15]
+        run.font.size = Pt(14)
+        run.font.bold = True
+        run.font.name = FONT_NAME
+        run.font.color.rgb = RGBColor(52, 73, 94)
+        
+        # Quote count badge
+        badge = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x + Inches(3.0), y + Inches(0.18), Inches(0.85), Inches(0.35))
+        badge.fill.solid()
+        badge.fill.fore_color.rgb = PRIMARY_BLUE
+        badge.line.fill.background()
+        
+        badge_tb = slide.shapes.add_textbox(x + Inches(3.0), y + Inches(0.2), Inches(0.85), Inches(0.35))
+        tf = badge_tb.text_frame
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        run = p.add_run()
+        run.text = f"{total_q} Quotes"
+        run.font.size = Pt(9)
+        run.font.bold = True
+        run.font.name = FONT_NAME
+        run.font.color.rgb = WHITE
+        
+        # Stats row - Won | Lost | Ongoing
+        stats_y = y + Inches(0.7)
+        stat_width = Inches(1.2)
+        
+        stats_data = [
+            (won_c, won_val, "Won", SUCCESS_GREEN),
+            (lost_c, 0, "Lost", DANGER_RED),
+            (ongoing_c, ongoing_val, "Ongoing", WARNING_ORANGE)
+        ]
+        
+        for s_idx, (count, value, label, color) in enumerate(stats_data):
+            sx = x + Inches(0.15) + s_idx * stat_width
+            
+            # Count
+            count_tb = slide.shapes.add_textbox(sx, stats_y, stat_width, Inches(0.5))
+            tf = count_tb.text_frame
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            run = p.add_run()
+            run.text = str(count)
+            run.font.size = Pt(24)
+            run.font.bold = True
+            run.font.name = FONT_NAME
+            run.font.color.rgb = color
+            
+            # Label
+            label_tb = slide.shapes.add_textbox(sx, stats_y + Inches(0.45), stat_width, Inches(0.25))
+            tf = label_tb.text_frame
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            run = p.add_run()
+            run.text = label
+            run.font.size = Pt(10)
+            run.font.name = FONT_NAME
+            run.font.color.rgb = RGBColor(100, 100, 100)
+            
+            # Value
+            val_tb = slide.shapes.add_textbox(sx, stats_y + Inches(0.68), stat_width, Inches(0.25))
+            tf = val_tb.text_frame
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            run = p.add_run()
+            if label == "Lost":
+                run.text = "0"
+            else:
+                run.text = f"{value:,.0f}"
+            run.font.size = Pt(9)
+            run.font.name = FONT_NAME
+            run.font.color.rgb = color
+    
+    # SLIDE 4+: Quotation Details Tables
     all_quotations = []
     for project in projects:
         for q in project['quotations']:
