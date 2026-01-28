@@ -15794,7 +15794,8 @@ def export_engineer_performance_pptx():
         rfq_query = f"""
             SELECT r.rfq_reference, r.project_name, r.rfq_status, r.deadline, 
                    r.sales_engineer_sales, r.sales_engineer_presale, r.requested_time,
-                   (SELECT p.registered_date FROM projects p WHERE p.rfq_reference = r.rfq_reference LIMIT 1) as submitted_time
+                   (SELECT p.registered_date FROM projects p WHERE p.rfq_reference = r.rfq_reference LIMIT 1) as submitted_time,
+                   r.system
             FROM rfq_requests r WHERE r.sales_engineer_sales = ?
             {rfq_date_conditions}
         """
@@ -15802,7 +15803,8 @@ def export_engineer_performance_pptx():
         rfq_query = f"""
             SELECT r.rfq_reference, r.project_name, r.rfq_status, r.deadline,
                    r.sales_engineer_sales, r.sales_engineer_presale, r.requested_time,
-                   (SELECT p.registered_date FROM projects p WHERE p.rfq_reference = r.rfq_reference LIMIT 1) as submitted_time
+                   (SELECT p.registered_date FROM projects p WHERE p.rfq_reference = r.rfq_reference LIMIT 1) as submitted_time,
+                   r.system
             FROM rfq_requests r WHERE r.sales_engineer_presale = ?
             {rfq_date_conditions}
         """
@@ -15817,7 +15819,8 @@ def export_engineer_performance_pptx():
             'sales_engineer': row[4] or '',
             'presale_engineer': row[5] or '',
             'request_date': row[6][:10] if row[6] else '',
-            'submitted_date': row[7][:10] if row[7] else ''
+            'submitted_date': row[7][:10] if row[7] else '',
+            'system': row[8] or ''
         })
         rfq_stats['total'] += 1
         status_lower = status.lower()
@@ -16407,13 +16410,13 @@ def export_engineer_performance_pptx():
         
         # Determine columns based on whether to show Submitted
         if include_submitted:
-            cols = 7
-            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Deadline', 'Request Date', 'Submitted']
-            col_widths = [Inches(0.4), Inches(1.8), Inches(4.5), Inches(1.5), Inches(1.3), Inches(1.3), Inches(1.3)]
+            cols = 9
+            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Presales', 'System', 'Deadline', 'Request Date', 'Submitted']
+            col_widths = [Inches(0.35), Inches(1.5), Inches(3.2), Inches(1.1), Inches(1.1), Inches(1.5), Inches(1.1), Inches(1.1), Inches(1.1)]
         else:
-            cols = 6
-            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Deadline', 'Request Date']
-            col_widths = [Inches(0.4), Inches(2), Inches(5), Inches(1.8), Inches(1.5), Inches(1.5)]
+            cols = 8
+            headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Presales', 'System', 'Deadline', 'Request Date']
+            col_widths = [Inches(0.35), Inches(1.6), Inches(3.5), Inches(1.2), Inches(1.2), Inches(1.6), Inches(1.2), Inches(1.2)]
         
         # Table
         max_rows = 8
@@ -16445,12 +16448,15 @@ def export_engineer_performance_pptx():
             table.cell(i, 0).text = str(i)
             table.cell(i, 1).text = rfq['reference'] or ''
             proj = rfq['project']
-            table.cell(i, 2).text = proj[:40] + '...' if len(proj) > 40 else proj
+            table.cell(i, 2).text = proj[:35] + '...' if len(proj) > 35 else proj
             table.cell(i, 3).text = rfq.get('sales_engineer', '') or ''
-            table.cell(i, 4).text = rfq['due_date'] or '-'
-            table.cell(i, 5).text = rfq.get('request_date', '') or '-'
+            table.cell(i, 4).text = rfq.get('presale_engineer', '') or ''
+            system_val = rfq.get('system', '') or ''
+            table.cell(i, 5).text = system_val[:15] + '...' if len(system_val) > 15 else system_val
+            table.cell(i, 6).text = rfq['due_date'] or '-'
+            table.cell(i, 7).text = rfq.get('request_date', '') or '-'
             if include_submitted:
-                table.cell(i, 6).text = rfq.get('submitted_date', '') or '-'
+                table.cell(i, 8).text = rfq.get('submitted_date', '') or '-'
             
             for col in range(cols):
                 table.cell(i, col).fill.solid()
@@ -16544,9 +16550,9 @@ def export_engineer_performance_pptx():
         p.font.name = FONT_NAME
         
         # Table with Status and Overdue columns
-        cols = 7
-        headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Status', 'Deadline', 'Overdue']
-        col_widths = [Inches(0.4), Inches(1.8), Inches(4), Inches(1.5), Inches(1.3), Inches(1.3), Inches(1)]
+        cols = 9
+        headers = ['#', 'RFQ Reference', 'Project Name', 'Sales Eng', 'Presales', 'System', 'Status', 'Deadline', 'Overdue']
+        col_widths = [Inches(0.35), Inches(1.5), Inches(2.8), Inches(1.1), Inches(1.1), Inches(1.4), Inches(1.1), Inches(1.1), Inches(0.8)]
         
         display_rfqs = not_submitted_rfqs[:8]
         rows = len(display_rfqs) + 1
@@ -16581,22 +16587,25 @@ def export_engineer_performance_pptx():
             table.cell(i, 0).text = str(i)
             table.cell(i, 1).text = rfq['reference'] or ''
             proj = rfq['project']
-            table.cell(i, 2).text = proj[:35] + '...' if len(proj) > 35 else proj
+            table.cell(i, 2).text = proj[:30] + '...' if len(proj) > 30 else proj
             table.cell(i, 3).text = rfq.get('sales_engineer', '') or ''
-            table.cell(i, 4).text = rfq['status'] or ''
-            table.cell(i, 5).text = rfq['due_date'] or '-'
-            table.cell(i, 6).text = overdue
+            table.cell(i, 4).text = rfq.get('presale_engineer', '') or ''
+            system_val = rfq.get('system', '') or ''
+            table.cell(i, 5).text = system_val[:12] + '...' if len(system_val) > 12 else system_val
+            table.cell(i, 6).text = rfq['status'] or ''
+            table.cell(i, 7).text = rfq['due_date'] or '-'
+            table.cell(i, 8).text = overdue
             
             for col in range(cols):
                 table.cell(i, col).fill.solid()
-                if col == 6 and overdue.startswith('+'):
+                if col == 8 and overdue.startswith('+'):
                     table.cell(i, col).fill.fore_color.rgb = RGBColor(255, 200, 200)  # Highlight overdue
                 else:
                     table.cell(i, col).fill.fore_color.rgb = row_color
                 para = table.cell(i, col).text_frame.paragraphs[0]
                 para.font.size = Pt(10)
                 para.font.name = FONT_NAME
-                para.font.color.rgb = RGBColor(139, 0, 0) if col == 6 and overdue.startswith('+') else DARK_TEXT
+                para.font.color.rgb = RGBColor(139, 0, 0) if col == 8 and overdue.startswith('+') else DARK_TEXT
                 para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
