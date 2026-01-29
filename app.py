@@ -15884,7 +15884,7 @@ def export_engineer_performance_pptx():
     if report_type == 'sales':
         quotations_query = f"""
             SELECT quote_ref, project_name, sales_eng, presale_eng, registered_date, 
-                   quotation_cost, quotation_selling_price, margin, quotation_note, feedback
+                   quotation_cost, quotation_selling_price, margin, quotation_note, feedback, status
             FROM projects 
             WHERE sales_eng = ? AND quote_ref IS NOT NULL AND quote_ref != ''
             {date_conditions}
@@ -15893,7 +15893,7 @@ def export_engineer_performance_pptx():
     else:
         quotations_query = f"""
             SELECT quote_ref, project_name, sales_eng, presale_eng, registered_date, 
-                   quotation_cost, quotation_selling_price, margin, quotation_note, feedback
+                   quotation_cost, quotation_selling_price, margin, quotation_note, feedback, status
             FROM projects 
             WHERE presale_eng = ? AND quote_ref IS NOT NULL AND quote_ref != ''
             {date_conditions}
@@ -15913,7 +15913,8 @@ def export_engineer_performance_pptx():
             'selling': q[6] or 0,
             'margin': f"{q[7]:.1f}%" if q[7] is not None else '-',
             'note': q[8] or '-',
-            'feedback': q[9] or '-'
+            'feedback': q[9] or '-',
+            'status': q[10] or '-'
         })
         
         # Update quotation stats
@@ -16674,23 +16675,24 @@ def export_engineer_performance_pptx():
             
             # Table
             rows = len(page_items) + 1
-            cols = 11
+            cols = 12
             table = slide.shapes.add_table(rows, cols, Inches(0.1), Inches(1.0), Inches(13.133), Inches(0.45 * rows)).table
             
             # Column widths
-            table.columns[0].width = Inches(0.35)   # #
-            table.columns[1].width = Inches(1.7)   # Quote Ref
-            table.columns[2].width = Inches(2.0)   # Project
-            table.columns[3].width = Inches(1.0)   # Engineer
-            table.columns[4].width = Inches(1.0)   # Presale Eng
-            table.columns[5].width = Inches(0.85)   # Date
-            table.columns[6].width = Inches(1.0)   # Cost
-            table.columns[7].width = Inches(1.0)   # Selling
-            table.columns[8].width = Inches(0.7)   # Margin
-            table.columns[9].width = Inches(1.6)   # Note
-            table.columns[10].width = Inches(1.6)   # Feedback
+            table.columns[0].width = Inches(0.3)   # #
+            table.columns[1].width = Inches(1.5)   # Quote Ref
+            table.columns[2].width = Inches(1.8)   # Project
+            table.columns[3].width = Inches(0.9)   # Engineer
+            table.columns[4].width = Inches(0.9)   # Presale Eng
+            table.columns[5].width = Inches(0.8)   # Date
+            table.columns[6].width = Inches(0.9)   # Cost
+            table.columns[7].width = Inches(0.9)   # Selling
+            table.columns[8].width = Inches(0.6)   # Margin
+            table.columns[9].width = Inches(0.8)   # Status
+            table.columns[10].width = Inches(1.4)   # Note
+            table.columns[11].width = Inches(1.4)   # Feedback
             
-            headers = ['#', 'Quote Ref', 'Project', 'Engineer', 'Presale Eng', 'Date', 'Cost (SAR)', 'Selling (SAR)', 'Margin', 'Note', 'Feedback']
+            headers = ['#', 'Quote Ref', 'Project', 'Engineer', 'Presale Eng', 'Date', 'Cost (SAR)', 'Selling (SAR)', 'Margin', 'Status', 'Note', 'Feedback']
             for i, h in enumerate(headers):
                 cell = table.cell(0, i)
                 cell.text = h
@@ -16711,15 +16713,16 @@ def export_engineer_performance_pptx():
                 row_data = [
                     str(q['num']),
                     q['quote_ref'],
-                    q['project_name'][:22] + '...' if len(q['project_name']) > 22 else q['project_name'],
+                    q['project_name'][:20] + '...' if len(q['project_name']) > 20 else q['project_name'],
                     q['engineer'],
                     q['presale_engineer'],
                     q['date'],
                     f"{q['cost']:,.0f}" if isinstance(q['cost'], (int, float)) else str(q['cost']),
                     f"{q['selling']:,.0f}" if isinstance(q['selling'], (int, float)) else str(q['selling']),
                     q['margin'],
-                    q['note'][:12] + '...' if len(str(q['note'])) > 12 else str(q['note']),
-                    q['feedback'][:12] + '...' if len(str(q['feedback'])) > 12 else str(q['feedback'])
+                    q['status'],
+                    q['note'][:10] + '...' if len(str(q['note'])) > 10 else str(q['note']),
+                    q['feedback'][:10] + '...' if len(str(q['feedback'])) > 10 else str(q['feedback'])
                 ]
                 
                 for col_idx, val in enumerate(row_data):
@@ -16731,7 +16734,7 @@ def export_engineer_performance_pptx():
                     para.font.size = Pt(8)
                     para.font.name = FONT_NAME
                     para.font.color.rgb = RGBColor(37, 99, 235) if col_idx == 1 else DARK_TEXT  # Blue for quote ref
-                    para.alignment = PP_ALIGN.RIGHT if col_idx in [6, 7] else (PP_ALIGN.CENTER if col_idx in [0, 8] else PP_ALIGN.LEFT)
+                    para.alignment = PP_ALIGN.RIGHT if col_idx in [6, 7] else (PP_ALIGN.CENTER if col_idx in [0, 8, 9] else PP_ALIGN.LEFT)
                     cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
 
