@@ -15763,8 +15763,10 @@ def export_engineer_performance_pptx():
         quotations = c.fetchall()
         
         project_status = 'Ongoing'
+        total_selling = 0
         for q in quotations:
             status = q[1] or 'Ongoing'
+            total_selling += q[2] or 0
             if status == 'Won':
                 project_status = 'Won'
                 project_stats['total_value'] += q[2] or 0
@@ -15774,6 +15776,7 @@ def export_engineer_performance_pptx():
         projects.append({
             'name': project_name,
             'status': project_status,
+            'selling_price': total_selling,
             'quotations': len(quotations)
         })
         
@@ -16764,15 +16767,16 @@ def export_engineer_performance_pptx():
         # Table
         display_projects = projects[:12]
         rows = len(display_projects) + 1
-        cols = 4
+        cols = 5
         table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
         
-        table.columns[0].width = Inches(0.5)
-        table.columns[1].width = Inches(8)
-        table.columns[2].width = Inches(2)
-        table.columns[3].width = Inches(2)
+        table.columns[0].width = Inches(0.4)
+        table.columns[1].width = Inches(6.5)
+        table.columns[2].width = Inches(2.0)
+        table.columns[3].width = Inches(2.0)
+        table.columns[4].width = Inches(1.5)
         
-        headers = ['#', 'Project Name', 'Status', 'Quotations']
+        headers = ['#', 'Project Name', 'Selling Price (SAR)', 'Project Status', 'Quotations']
         for i, h in enumerate(headers):
             cell = table.cell(0, i)
             cell.text = h
@@ -16796,16 +16800,21 @@ def export_engineer_performance_pptx():
             
             cell = table.cell(i, 1)
             name = proj['name']
-            cell.text = name[:60] + '...' if len(name) > 60 else name
+            cell.text = name[:55] + '...' if len(name) > 55 else name
             cell.fill.solid()
             cell.fill.fore_color.rgb = row_color
             
             cell = table.cell(i, 2)
-            cell.text = proj['status']
+            cell.text = f"{proj['selling_price']:,.0f}" if proj['selling_price'] else '-'
             cell.fill.solid()
             cell.fill.fore_color.rgb = row_color
             
             cell = table.cell(i, 3)
+            cell.text = proj['status']
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = row_color
+            
+            cell = table.cell(i, 4)
             cell.text = str(proj['quotations'])
             cell.fill.solid()
             cell.fill.fore_color.rgb = row_color
@@ -16815,7 +16824,7 @@ def export_engineer_performance_pptx():
                 para.font.size = Pt(10)
                 para.font.name = FONT_NAME
                 para.font.color.rgb = DARK_TEXT
-                para.alignment = PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT
+                para.alignment = PP_ALIGN.RIGHT if col == 2 else (PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT)
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
     # ========== RFQ STATUS SLIDES - Separated by Status ==========
