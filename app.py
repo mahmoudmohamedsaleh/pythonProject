@@ -22502,7 +22502,7 @@ def export_po_report_pptx():
                         cell.vertical_anchor = MSO_ANCHOR.MIDDLE
             
             # Follow-ups slide for this PO
-            po_id = po['id']  # Get PO ID for follow-ups and activity log
+            po_id = po['po_id']  # Get PO ID for follow-ups and activity log
             c.execute("""
                 SELECT * FROM po_follow_ups 
                 WHERE po_id = ? 
