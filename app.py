@@ -16045,7 +16045,126 @@ def export_engineer_performance_pptx():
         sp = background._element
         spTree.remove(sp)
         spTree.insert(2, sp)
+
+    def add_section_separator(prs, title, subtitle, icon_text, color1, color2):
+        """Add a section separator slide with gradient background"""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        add_gradient_background(slide, color1, color2)
+        
+        # Icon circle
+        icon_shape = slide.shapes.add_shape(9, Inches(5.666), Inches(2.0), Inches(2), Inches(2))  # Oval
+        icon_shape.fill.solid()
+        icon_shape.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        icon_shape.fill.fore_color.brightness = 0.1
+        icon_shape.line.fill.background()
+        
+        # Icon text
+        icon_box = slide.shapes.add_textbox(Inches(5.666), Inches(2.4), Inches(2), Inches(1.2))
+        tf = icon_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = icon_text
+        p.font.size = Pt(48)
+        p.font.bold = True
+        p.font.color.rgb = color1
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Title
+        title_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.3), Inches(12.333), Inches(1))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = title
+        p.font.size = Pt(44)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Subtitle
+        sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(5.3), Inches(12.333), Inches(0.8))
+        tf = sub_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = subtitle
+        p.font.size = Pt(20)
+        p.font.color.rgb = RGBColor(220, 220, 255)
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        return slide
+
+
+    # ========== INDEX SLIDE ==========
+    slide = prs.slides.add_slide(slide_layout)
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
     
+    # Header
+    header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
+    header.fill.gradient()
+    header.fill.gradient_angle = 90
+    header.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
+    header.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+    header.line.fill.background()
+    
+    title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Report Contents"
+    p.font.size = Pt(28)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    
+    # Index items with icons
+    index_items = [
+        ("1", "Performance Overview", "Key metrics and statistics dashboard", PURPLE_COLOR),
+        ("2", "Engineers Performance", "Related engineers comparison", RGBColor(59, 130, 246)),
+        ("3", "Projects & Quotations", "Project breakdown and quotation details", GREEN),
+        ("4", "RFQ Status", "Request for Quotation tracking by status", RGBColor(243, 156, 18)),
+        ("5", "Follow-Up Items", "Pending RFQs requiring attention", RGBColor(220, 53, 69)),
+        ("6", "RFTS Status", "Request for Technical Support tracking", RGBColor(13, 110, 253))
+    ]
+    
+    y_pos = 1.2
+    for num, title, desc, color in index_items:
+        # Number circle
+        circle = slide.shapes.add_shape(9, Inches(0.5), Inches(y_pos), Inches(0.6), Inches(0.6))
+        circle.fill.solid()
+        circle.fill.fore_color.rgb = color
+        circle.line.fill.background()
+        
+        # Number text
+        num_box = slide.shapes.add_textbox(Inches(0.5), Inches(y_pos + 0.1), Inches(0.6), Inches(0.4))
+        tf = num_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = num
+        p.font.size = Pt(18)
+        p.font.bold = True
+        p.font.color.rgb = WHITE
+        p.font.name = FONT_NAME
+        p.alignment = PP_ALIGN.CENTER
+        
+        # Title
+        title_box = slide.shapes.add_textbox(Inches(1.3), Inches(y_pos + 0.05), Inches(5), Inches(0.4))
+        tf = title_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = title
+        p.font.size = Pt(18)
+        p.font.bold = True
+        p.font.color.rgb = DARK_TEXT
+        p.font.name = FONT_NAME
+        
+        # Description
+        desc_box = slide.shapes.add_textbox(Inches(1.3), Inches(y_pos + 0.4), Inches(10), Inches(0.3))
+        tf = desc_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = desc
+        p.font.size = Pt(12)
+        p.font.color.rgb = RGBColor(100, 100, 100)
+        p.font.name = FONT_NAME
+        
+        y_pos += 0.85
+
     # ========== SLIDE 1: Title Slide ==========
     slide_layout = prs.slide_layouts[6]
     slide = prs.slides.add_slide(slide_layout)
@@ -16741,6 +16860,12 @@ def export_engineer_performance_pptx():
                     cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
 
+    # ========== SECTION SEPARATOR: Projects ==========
+    if projects:
+        add_section_separator(prs, "Projects & Quotations", 
+                            f"{project_stats['total']} Projects | {quotation_stats['total']} Quotations",
+                            "📊", GREEN, RGBColor(56, 239, 125))
+    
     # ========== SLIDE 3: Projects List (Paginated) ==========
     if projects:
         items_per_page = 12
@@ -16838,6 +16963,12 @@ def export_engineer_performance_pptx():
                     para.font.color.rgb = DARK_TEXT
                     para.alignment = PP_ALIGN.RIGHT if col == 2 else (PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT)
                     table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # ========== SECTION SEPARATOR: RFQ ==========
+    if rfqs:
+        add_section_separator(prs, "RFQ Status Overview",
+                            f"{rfq_stats['total']} Total RFQs | Tracking all request statuses",
+                            "📋", RGBColor(243, 156, 18), RGBColor(255, 193, 7))
     
     # ========== RFQ STATUS SLIDES - Separated by Status ==========
     # Define colors for each RFQ status
@@ -16990,6 +17121,13 @@ def export_engineer_performance_pptx():
     if rfq_by_status['cancelled']:
         create_rfq_status_slide(prs, slide_layout, "Cancelled", rfq_by_status['cancelled'], RFQ_COLORS['cancelled'])
     
+    # ========== SECTION SEPARATOR: Follow-Up ==========
+    followup_rfqs = [r for r in rfqs if r['status'].lower() not in ['quoted', 'cancelled']]
+    if followup_rfqs:
+        add_section_separator(prs, "Follow-Up Required",
+                            f"{len(followup_rfqs)} RFQs pending action",
+                            "⏰", RGBColor(220, 53, 69), RGBColor(255, 107, 107))
+    
     # ========== FOLLOW-UP SLIDE: RFQs Not Submitted ==========
     # Get RFQs that are in Queue, Studying, or Pricing status (not submitted yet)
     from datetime import datetime
@@ -17097,6 +17235,12 @@ def export_engineer_performance_pptx():
                 para.font.color.rgb = RGBColor(139, 0, 0) if col == 8 and overdue.startswith('+') else DARK_TEXT
                 para.alignment = PP_ALIGN.CENTER if col != 2 else PP_ALIGN.LEFT
                 table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+    
+    # ========== SECTION SEPARATOR: RFTS ==========
+    if rfts_list:
+        add_section_separator(prs, "RFTS Status Overview",
+                            f"{rfts_stats['total']} Total RFTS | Technical Support Requests",
+                            "🔧", RGBColor(13, 110, 253), RGBColor(99, 179, 237))
     
     # ========== RFTS STATUS SLIDES - Separated by Status ==========
     # Define colors for each RFTS status
