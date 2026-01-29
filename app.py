@@ -16094,6 +16094,7 @@ def export_engineer_performance_pptx():
 
 
     # ========== INDEX SLIDE ==========
+    slide_layout = prs.slide_layouts[6]
     slide = prs.slides.add_slide(slide_layout)
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
