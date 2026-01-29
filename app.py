@@ -16773,6 +16773,13 @@ def export_engineer_performance_pptx():
                 p.alignment = PP_ALIGN.CENTER
 
         # === QUOTATIONS DETAIL SLIDES ===
+    # ========== SECTION SEPARATOR: Quotations Detail ==========
+    if quotations_list:
+        PURPLE_COLOR = RGBColor(124, 58, 237)
+        add_section_separator(prs, "Quotations Detail",
+                            f"{len(quotations_list)} Quotations | Detailed breakdown",
+                            "📑", PURPLE_COLOR, RGBColor(167, 139, 250))
+    
     if quotations_list:
         PURPLE_COLOR = RGBColor(124, 58, 237)
         LIGHT_PURPLE = RGBColor(243, 232, 255)
