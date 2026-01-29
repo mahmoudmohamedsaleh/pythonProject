@@ -16741,91 +16741,103 @@ def export_engineer_performance_pptx():
                     cell.vertical_anchor = MSO_ANCHOR.MIDDLE
     
 
-    # ========== SLIDE 3: Projects List ==========
+    # ========== SLIDE 3: Projects List (Paginated) ==========
     if projects:
-        slide = prs.slides.add_slide(slide_layout)
-        slide.background.fill.solid()
-        slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
+        items_per_page = 12
+        total_pages = (len(projects) + items_per_page - 1) // items_per_page
         
-        # Header
-        header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
-        header.fill.gradient()
-        header.fill.gradient_angle = 90
-        header.fill.gradient_stops[0].color.rgb = GREEN
-        header.fill.gradient_stops[1].color.rgb = RGBColor(56, 239, 125)
-        header.line.fill.background()
-        
-        header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
-        tf = header_text.text_frame
-        p = tf.paragraphs[0]
-        p.text = f"Projects & Quotations ({project_stats['total']} Projects)"
-        p.font.size = Pt(24)
-        p.font.bold = True
-        p.font.color.rgb = WHITE
-        p.font.name = FONT_NAME
-        
-        # Table
-        display_projects = projects[:12]
-        rows = len(display_projects) + 1
-        cols = 5
-        table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
-        
-        table.columns[0].width = Inches(0.4)
-        table.columns[1].width = Inches(6.5)
-        table.columns[2].width = Inches(2.0)
-        table.columns[3].width = Inches(2.0)
-        table.columns[4].width = Inches(1.5)
-        
-        headers = ['#', 'Project Name', 'Selling Price (SAR)', 'Project Status', 'Quotations']
-        for i, h in enumerate(headers):
-            cell = table.cell(0, i)
-            cell.text = h
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = GREEN
-            para = cell.text_frame.paragraphs[0]
-            para.font.size = Pt(11)
-            para.font.bold = True
-            para.font.color.rgb = WHITE
-            para.font.name = FONT_NAME
-            para.alignment = PP_ALIGN.CENTER
-            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        for i, proj in enumerate(display_projects, 1):
-            row_color = LIGHT_BG if i % 2 == 0 else WHITE
+        for page_num in range(total_pages):
+            slide = prs.slides.add_slide(slide_layout)
+            slide.background.fill.solid()
+            slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
             
-            cell = table.cell(i, 0)
-            cell.text = str(i)
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = row_color
+            # Header
+            header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.8))
+            header.fill.gradient()
+            header.fill.gradient_angle = 90
+            header.fill.gradient_stops[0].color.rgb = GREEN
+            header.fill.gradient_stops[1].color.rgb = RGBColor(56, 239, 125)
+            header.line.fill.background()
             
-            cell = table.cell(i, 1)
-            name = proj['name']
-            cell.text = name[:55] + '...' if len(name) > 55 else name
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = row_color
+            header_text = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
+            tf = header_text.text_frame
+            p = tf.paragraphs[0]
+            if total_pages > 1:
+                p.text = f"Projects & Quotations ({project_stats['total']} Projects)  (Page {page_num + 1} of {total_pages})"
+            else:
+                p.text = f"Projects & Quotations ({project_stats['total']} Projects)"
+            p.font.size = Pt(24)
+            p.font.bold = True
+            p.font.color.rgb = WHITE
+            p.font.name = FONT_NAME
             
-            cell = table.cell(i, 2)
-            cell.text = f"{proj['selling_price']:,.0f}" if proj['selling_price'] else '-'
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = row_color
+            # Get items for this page
+            start_idx = page_num * items_per_page
+            end_idx = min(start_idx + items_per_page, len(projects))
+            page_projects = projects[start_idx:end_idx]
             
-            cell = table.cell(i, 3)
-            cell.text = proj['status']
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = row_color
+            # Table
+            rows = len(page_projects) + 1
+            cols = 5
+            table = slide.shapes.add_table(rows, cols, Inches(0.3), Inches(1.1), Inches(12.733), Inches(0.5 * rows)).table
             
-            cell = table.cell(i, 4)
-            cell.text = str(proj['quotations'])
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = row_color
+            table.columns[0].width = Inches(0.4)
+            table.columns[1].width = Inches(6.5)
+            table.columns[2].width = Inches(2.0)
+            table.columns[3].width = Inches(2.0)
+            table.columns[4].width = Inches(1.5)
             
-            for col in range(cols):
-                para = table.cell(i, col).text_frame.paragraphs[0]
-                para.font.size = Pt(10)
+            headers = ['#', 'Project Name', 'Selling Price (SAR)', 'Project Status', 'Quotations']
+            for i, h in enumerate(headers):
+                cell = table.cell(0, i)
+                cell.text = h
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = GREEN
+                para = cell.text_frame.paragraphs[0]
+                para.font.size = Pt(11)
+                para.font.bold = True
+                para.font.color.rgb = WHITE
                 para.font.name = FONT_NAME
-                para.font.color.rgb = DARK_TEXT
-                para.alignment = PP_ALIGN.RIGHT if col == 2 else (PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT)
-                table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
+                para.alignment = PP_ALIGN.CENTER
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            
+            for i, proj in enumerate(page_projects, 1):
+                row_color = LIGHT_BG if i % 2 == 0 else WHITE
+                actual_num = start_idx + i  # Continuous numbering across pages
+                
+                cell = table.cell(i, 0)
+                cell.text = str(actual_num)
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                cell = table.cell(i, 1)
+                name = proj['name']
+                cell.text = name[:55] + '...' if len(name) > 55 else name
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                cell = table.cell(i, 2)
+                cell.text = f"{proj['selling_price']:,.0f}" if proj['selling_price'] else '-'
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                cell = table.cell(i, 3)
+                cell.text = proj['status']
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                cell = table.cell(i, 4)
+                cell.text = str(proj['quotations'])
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = row_color
+                
+                for col in range(cols):
+                    para = table.cell(i, col).text_frame.paragraphs[0]
+                    para.font.size = Pt(10)
+                    para.font.name = FONT_NAME
+                    para.font.color.rgb = DARK_TEXT
+                    para.alignment = PP_ALIGN.RIGHT if col == 2 else (PP_ALIGN.CENTER if col != 1 else PP_ALIGN.LEFT)
+                    table.cell(i, col).vertical_anchor = MSO_ANCHOR.MIDDLE
     
     # ========== RFQ STATUS SLIDES - Separated by Status ==========
     # Define colors for each RFQ status
