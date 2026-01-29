@@ -16094,6 +16094,14 @@ def export_engineer_performance_pptx():
 
 
     # ========== INDEX SLIDE ==========
+    # Define colors for index slide
+    IDX_PURPLE = RGBColor(124, 58, 237)
+    IDX_BLUE = RGBColor(37, 99, 235)
+    IDX_SEC_PURPLE = RGBColor(139, 92, 246)
+    IDX_GREEN = RGBColor(34, 197, 94)
+    IDX_WHITE = RGBColor(255, 255, 255)
+    IDX_DARK = RGBColor(31, 41, 55)
+    
     slide_layout = prs.slide_layouts[6]
     slide = prs.slides.add_slide(slide_layout)
     slide.background.fill.solid()
@@ -16103,8 +16111,8 @@ def export_engineer_performance_pptx():
     header = slide.shapes.add_shape(1, Inches(0), Inches(0), Inches(13.333), Inches(0.9))
     header.fill.gradient()
     header.fill.gradient_angle = 90
-    header.fill.gradient_stops[0].color.rgb = PRIMARY_BLUE
-    header.fill.gradient_stops[1].color.rgb = SECONDARY_PURPLE
+    header.fill.gradient_stops[0].color.rgb = IDX_BLUE
+    header.fill.gradient_stops[1].color.rgb = IDX_SEC_PURPLE
     header.line.fill.background()
     
     title_box = slide.shapes.add_textbox(Inches(0.3), Inches(0.2), Inches(10), Inches(0.5))
@@ -16113,14 +16121,14 @@ def export_engineer_performance_pptx():
     p.text = "Report Contents"
     p.font.size = Pt(28)
     p.font.bold = True
-    p.font.color.rgb = WHITE
+    p.font.color.rgb = IDX_WHITE
     p.font.name = FONT_NAME
     
     # Index items with icons
     index_items = [
-        ("1", "Performance Overview", "Key metrics and statistics dashboard", PURPLE_COLOR),
+        ("1", "Performance Overview", "Key metrics and statistics dashboard", IDX_PURPLE),
         ("2", "Engineers Performance", "Related engineers comparison", RGBColor(59, 130, 246)),
-        ("3", "Projects & Quotations", "Project breakdown and quotation details", GREEN),
+        ("3", "Projects & Quotations", "Project breakdown and quotation details", IDX_GREEN),
         ("4", "RFQ Status", "Request for Quotation tracking by status", RGBColor(243, 156, 18)),
         ("5", "Follow-Up Items", "Pending RFQs requiring attention", RGBColor(220, 53, 69)),
         ("6", "RFTS Status", "Request for Technical Support tracking", RGBColor(13, 110, 253))
@@ -16141,7 +16149,7 @@ def export_engineer_performance_pptx():
         p.text = num
         p.font.size = Pt(18)
         p.font.bold = True
-        p.font.color.rgb = WHITE
+        p.font.color.rgb = IDX_WHITE
         p.font.name = FONT_NAME
         p.alignment = PP_ALIGN.CENTER
         
@@ -16152,7 +16160,7 @@ def export_engineer_performance_pptx():
         p.text = title
         p.font.size = Pt(18)
         p.font.bold = True
-        p.font.color.rgb = DARK_TEXT
+        p.font.color.rgb = IDX_DARK
         p.font.name = FONT_NAME
         
         # Description
