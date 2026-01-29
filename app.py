@@ -16093,7 +16093,44 @@ def export_engineer_performance_pptx():
         return slide
 
 
-    # ========== INDEX SLIDE ==========
+    # ========== SLIDE 1: Title Slide ==========
+    slide_layout = prs.slide_layouts[6]
+    slide = prs.slides.add_slide(slide_layout)
+    add_gradient_background(slide, PRIMARY_BLUE, SECONDARY_PURPLE)
+    
+    # Title
+    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2), Inches(12.333), Inches(1.5))
+    tf = title_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = "Engineer Performance Report"
+    p.font.size = Pt(48)
+    p.font.bold = True
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Engineer name
+    name_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.5), Inches(12.333), Inches(1))
+    tf = name_box.text_frame
+    p = tf.paragraphs[0]
+    role = "Sales Engineer" if report_type == 'sales' else "Presale Engineer"
+    p.text = f"{selected_engineer} - {role}"
+    p.font.size = Pt(32)
+    p.font.color.rgb = WHITE
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # Period
+    period_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12.333), Inches(0.8))
+    tf = period_box.text_frame
+    p = tf.paragraphs[0]
+    p.text = f"Period: {period_text}"
+    p.font.size = Pt(20)
+    p.font.color.rgb = RGBColor(200, 200, 255)
+    p.font.name = FONT_NAME
+    p.alignment = PP_ALIGN.CENTER
+    
+    # ========== SLIDE 2: INDEX SLIDE ==========
     # Define colors for index slide
     IDX_PURPLE = RGBColor(124, 58, 237)
     IDX_BLUE = RGBColor(37, 99, 235)
@@ -16102,7 +16139,6 @@ def export_engineer_performance_pptx():
     IDX_WHITE = RGBColor(255, 255, 255)
     IDX_DARK = RGBColor(31, 41, 55)
     
-    slide_layout = prs.slide_layouts[6]
     slide = prs.slides.add_slide(slide_layout)
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
@@ -16173,45 +16209,8 @@ def export_engineer_performance_pptx():
         p.font.name = FONT_NAME
         
         y_pos += 0.85
-
-    # ========== SLIDE 1: Title Slide ==========
-    slide_layout = prs.slide_layouts[6]
-    slide = prs.slides.add_slide(slide_layout)
-    add_gradient_background(slide, PRIMARY_BLUE, SECONDARY_PURPLE)
     
-    # Title
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2), Inches(12.333), Inches(1.5))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = "Engineer Performance Report"
-    p.font.size = Pt(48)
-    p.font.bold = True
-    p.font.color.rgb = WHITE
-    p.font.name = FONT_NAME
-    p.alignment = PP_ALIGN.CENTER
-    
-    # Engineer name
-    name_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.5), Inches(12.333), Inches(1))
-    tf = name_box.text_frame
-    p = tf.paragraphs[0]
-    role = "Sales Engineer" if report_type == 'sales' else "Presale Engineer"
-    p.text = f"{selected_engineer} - {role}"
-    p.font.size = Pt(32)
-    p.font.color.rgb = WHITE
-    p.font.name = FONT_NAME
-    p.alignment = PP_ALIGN.CENTER
-    
-    # Period
-    period_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.5), Inches(12.333), Inches(0.8))
-    tf = period_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = f"Period: {period_text}"
-    p.font.size = Pt(20)
-    p.font.color.rgb = RGBColor(200, 200, 255)
-    p.font.name = FONT_NAME
-    p.alignment = PP_ALIGN.CENTER
-    
-    # ========== SLIDE 2: Overview Dashboard ==========
+    # ========== SLIDE 3: Overview Dashboard ==========
     slide = prs.slides.add_slide(slide_layout)
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = RGBColor(245, 247, 250)
