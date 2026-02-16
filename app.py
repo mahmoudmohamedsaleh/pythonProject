@@ -31225,6 +31225,17 @@ def implementation_profile(id):
     """, (project['project_name'],))
     won_quotations = [dict(row) for row in c.fetchall()]
     
+    c.execute("""
+        SELECT id, po_request_number, po_number, system, distributor, vendor,
+               total_amount, vat_percentage, vat_amount, total_with_vat,
+               po_approval_status, po_delivery_status, presale_engineer, project_manager,
+               created_at
+        FROM purchase_orders 
+        WHERE project_name = ?
+        ORDER BY created_at DESC
+    """, (project['project_name'],))
+    related_pos = [dict(row) for row in c.fetchall()]
+    
     conn.close()
     
     return render_template('implementation_profile.html',
@@ -31232,7 +31243,8 @@ def implementation_profile(id):
                          milestones=milestones,
                          activity_logs=activity_logs,
                          engineers=engineers,
-                         won_quotations=won_quotations)
+                         won_quotations=won_quotations,
+                         related_pos=related_pos)
 
 
 @app.route('/implementation/<int:id>/update', methods=['POST'])
