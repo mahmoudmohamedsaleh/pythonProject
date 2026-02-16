@@ -31770,6 +31770,186 @@ def milestone_delete_task(project_id, milestone_id, task_id):
     return redirect(url_for('milestone_detail', project_id=project_id, milestone_id=milestone_id))
 
 
+
+@app.route('/implementation/<int:id>/export_materials')
+@login_required
+@permission_required('manage_implementation')
+def implementation_export_materials(id):
+    import io
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT ip.*, rp.project_name, COALESCE(eu.name, con.name, cons.name, 'N/A') as client_name
+        FROM implementation_projects ip
+        JOIN register_project rp ON ip.register_project_id = rp.id
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors con ON rp.contractor_id = con.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        WHERE ip.id = ?
+    """, (id,))
+    project = c.fetchone()
+    if not project:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("""
+        SELECT po.po_number, po.po_request_number, po.vendor, po.distributor, po.system as po_system
+        FROM purchase_orders po
+        WHERE po.project_name = ?
+    """, (project['project_name'],))
+    pos = c.fetchall()
+    po_numbers = [p['po_number'] for p in pos if p['po_number']]
+    po_info = {p['po_number']: dict(p) for p in pos if p['po_number']}
+    
+    material_items = []
+    if po_numbers:
+        placeholders = ','.join('?' * len(po_numbers))
+        c.execute(f"""
+            SELECT * FROM po_items WHERE po_number IN ({placeholders})
+            ORDER BY po_number, item_number
+        """, po_numbers)
+        material_items = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    
+    output = io.BytesIO()
+    workbook = xlsxwriter.Workbook(output, {'in_memory': True})
+    
+    title_format = workbook.add_format({
+        'bold': True, 'font_size': 16, 'font_color': '#FFFFFF',
+        'bg_color': '#00b894', 'border': 0, 'align': 'left', 'valign': 'vcenter'
+    })
+    subtitle_format = workbook.add_format({
+        'bold': True, 'font_size': 11, 'font_color': '#2c3e50',
+        'bottom': 1, 'bottom_color': '#00b894'
+    })
+    header_format = workbook.add_format({
+        'bold': True, 'font_size': 10, 'font_color': '#FFFFFF',
+        'bg_color': '#00b894', 'border': 1, 'border_color': '#CCCCCC',
+        'align': 'center', 'valign': 'vcenter', 'text_wrap': True
+    })
+    cell_format = workbook.add_format({
+        'font_size': 10, 'border': 1, 'border_color': '#E0E0E0',
+        'valign': 'vcenter', 'text_wrap': True
+    })
+    number_format = workbook.add_format({
+        'font_size': 10, 'border': 1, 'border_color': '#E0E0E0',
+        'valign': 'vcenter', 'num_format': '#,##0.00', 'align': 'right'
+    })
+    qty_format = workbook.add_format({
+        'font_size': 10, 'border': 1, 'border_color': '#E0E0E0',
+        'valign': 'vcenter', 'num_format': '#,##0', 'align': 'center'
+    })
+    delivered_format = workbook.add_format({
+        'bold': True, 'font_size': 10, 'font_color': '#FFFFFF',
+        'bg_color': '#28a745', 'border': 1, 'border_color': '#E0E0E0',
+        'align': 'center', 'valign': 'vcenter'
+    })
+    not_delivered_format = workbook.add_format({
+        'bold': True, 'font_size': 10, 'font_color': '#FFFFFF',
+        'bg_color': '#dc3545', 'border': 1, 'border_color': '#E0E0E0',
+        'align': 'center', 'valign': 'vcenter'
+    })
+    partial_format = workbook.add_format({
+        'bold': True, 'font_size': 10, 'font_color': '#FFFFFF',
+        'bg_color': '#17a2b8', 'border': 1, 'border_color': '#E0E0E0',
+        'align': 'center', 'valign': 'vcenter'
+    })
+    total_label_format = workbook.add_format({
+        'bold': True, 'font_size': 11, 'font_color': '#FFFFFF',
+        'bg_color': '#2c3e50', 'border': 1, 'align': 'right', 'valign': 'vcenter'
+    })
+    total_value_format = workbook.add_format({
+        'bold': True, 'font_size': 11, 'font_color': '#FFFFFF',
+        'bg_color': '#2c3e50', 'border': 1, 'num_format': '#,##0.00',
+        'align': 'right', 'valign': 'vcenter'
+    })
+    summary_label_format = workbook.add_format({
+        'bold': True, 'font_size': 10, 'border': 1, 'bg_color': '#f8f9fa',
+        'align': 'right', 'valign': 'vcenter'
+    })
+    summary_value_format = workbook.add_format({
+        'bold': True, 'font_size': 10, 'border': 1, 'bg_color': '#f8f9fa',
+        'align': 'center', 'valign': 'vcenter'
+    })
+    
+    sheet = workbook.add_worksheet('Material Status')
+    
+    sheet.set_landscape()
+    sheet.set_paper(9)
+    sheet.set_margins(0.4, 0.4, 0.6, 0.4)
+    sheet.set_header('&C&"Arial,Bold"&12Material Status Report')
+    sheet.set_footer('&L&D &T&R&P of &N')
+    
+    sheet.merge_range('A1:I1', f'  Material Status - {project["project_name"]}', title_format)
+    sheet.set_row(0, 35)
+    
+    sheet.write('A3', f'Client: {project["client_name"]}', subtitle_format)
+    sheet.merge_range('A3:D3', f'Client: {project["client_name"]}', subtitle_format)
+    sheet.merge_range('F3:I3', f'Generated: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M")}', subtitle_format)
+    
+    delivered_count = sum(1 for i in material_items if i.get('delivery_status') == 'Delivered')
+    partial_count = sum(1 for i in material_items if i.get('delivery_status') == 'Partially Delivered')
+    not_delivered_count = sum(1 for i in material_items if i.get('delivery_status') not in ('Delivered', 'Partially Delivered'))
+    total_value = sum(float(i.get('total_price') or 0) for i in material_items)
+    
+    sheet.write('A5', 'Total Items:', summary_label_format)
+    sheet.write('B5', len(material_items), summary_value_format)
+    sheet.write('C5', 'Delivered:', summary_label_format)
+    sheet.write('D5', delivered_count, summary_value_format)
+    sheet.write('E5', 'Partial:', summary_label_format)
+    sheet.write('F5', partial_count, summary_value_format)
+    sheet.write('G5', 'Not Delivered:', summary_label_format)
+    sheet.write('H5', not_delivered_count, summary_value_format)
+    
+    row = 7
+    headers = ['#', 'PO Number', 'Part Number', 'Description', 'Qty', 'Unit Price (SAR)', 'Total (SAR)', 'Qty Delivered', 'Delivery Status']
+    col_widths = [5, 16, 20, 40, 8, 15, 15, 13, 15]
+    for col, (header, width) in enumerate(zip(headers, col_widths)):
+        sheet.write(row, col, header, header_format)
+        sheet.set_column(col, col, width)
+    
+    row = 8
+    for idx, item in enumerate(material_items, 1):
+        sheet.write(row, 0, idx, qty_format)
+        sheet.write(row, 1, item.get('po_number', ''), cell_format)
+        sheet.write(row, 2, item.get('part_number', '') or '', cell_format)
+        sheet.write(row, 3, item.get('description', '') or '', cell_format)
+        sheet.write(row, 4, float(item.get('quantity') or 0), qty_format)
+        sheet.write(row, 5, float(item.get('unit_price') or 0), number_format)
+        sheet.write(row, 6, float(item.get('total_price') or 0), number_format)
+        sheet.write(row, 7, float(item.get('quantity_delivered') or 0), qty_format)
+        
+        status = item.get('delivery_status', 'Not Delivered') or 'Not Delivered'
+        if status == 'Delivered':
+            fmt = delivered_format
+        elif status == 'Partially Delivered':
+            fmt = partial_format
+        else:
+            fmt = not_delivered_format
+        sheet.write(row, 8, status, fmt)
+        row += 1
+    
+    sheet.merge_range(row, 0, row, 5, 'TOTAL', total_label_format)
+    sheet.write(row, 6, total_value, total_value_format)
+    sheet.write(row, 7, '', total_label_format)
+    sheet.write(row, 8, '', total_label_format)
+    
+    sheet.autofilter(7, 0, row - 1, 8)
+    
+    workbook.close()
+    output.seek(0)
+    
+    safe_name = project['project_name'].replace(' ', '_')[:30]
+    filename = f'Material_Status_{safe_name}.xlsx'
+    
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=filename)
+
+
 if __name__ == '__main__':
     init_db()
     seed_permissions()
