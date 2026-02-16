@@ -601,6 +601,110 @@
 {% endif %}
 
 <div class="profile-card">
+    <div class="card-header-custom" style="background: linear-gradient(135deg, #2980b9, #3498db);">
+        <i class="fas fa-folder-open mr-2"></i>Project Documents
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div style="border: 2px dashed #bdc3c7; border-radius: 12px; padding: 20px; text-align: center; background: {% if project.contract_filename %}#eafaf1{% else %}#fdfefe{% endif %}; min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-size: 2.5rem; color: {% if project.contract_filename %}#27ae60{% else %}#bdc3c7{% endif %}; margin-bottom: 10px;">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">Contract</h6>
+                    {% if project.contract_filename %}
+                        <p style="font-size: 0.8rem; color: #7f8c8d; margin-bottom: 10px;"><i class="fas fa-file mr-1"></i>{{ project.contract_filename }}</p>
+                        <div>
+                            <a href="/implementation/{{ project.id }}/download_document/contract" class="btn btn-sm btn-success" style="border-radius: 20px; font-size: 0.75rem; margin: 2px;">
+                                <i class="fas fa-download mr-1"></i>Download
+                            </a>
+                            <form action="/implementation/{{ project.id }}/delete_document/contract" method="POST" style="display: inline;" onsubmit="return confirm('Delete this contract file?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius: 20px; font-size: 0.75rem; margin: 2px;">
+                                    <i class="fas fa-trash mr-1"></i>Remove
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <p style="font-size: 0.8rem; color: #bdc3c7; margin-bottom: 10px;">No contract uploaded</p>
+                    {% endif %}
+                    <form action="/implementation/{{ project.id }}/upload_document" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
+                        <input type="hidden" name="doc_type" value="contract">
+                        <div class="input-group input-group-sm">
+                            <input type="file" name="document" class="form-control form-control-sm" style="font-size: 0.75rem;" accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg">
+                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; border-radius: 0 20px 20px 0; font-size: 0.75rem;">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div style="border: 2px dashed #bdc3c7; border-radius: 12px; padding: 20px; text-align: center; background: {% if project.client_po_filename %}#eaf2f8{% else %}#fdfefe{% endif %}; min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-size: 2.5rem; color: {% if project.client_po_filename %}#2980b9{% else %}#bdc3c7{% endif %}; margin-bottom: 10px;">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">Client PO</h6>
+                    {% if project.client_po_filename %}
+                        <p style="font-size: 0.8rem; color: #7f8c8d; margin-bottom: 10px;"><i class="fas fa-file mr-1"></i>{{ project.client_po_filename }}</p>
+                        <div>
+                            <a href="/implementation/{{ project.id }}/download_document/client_po" class="btn btn-sm btn-primary" style="border-radius: 20px; font-size: 0.75rem; margin: 2px;">
+                                <i class="fas fa-download mr-1"></i>Download
+                            </a>
+                            <form action="/implementation/{{ project.id }}/delete_document/client_po" method="POST" style="display: inline;" onsubmit="return confirm('Delete this Client PO file?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius: 20px; font-size: 0.75rem; margin: 2px;">
+                                    <i class="fas fa-trash mr-1"></i>Remove
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <p style="font-size: 0.8rem; color: #bdc3c7; margin-bottom: 10px;">No Client PO uploaded</p>
+                    {% endif %}
+                    <form action="/implementation/{{ project.id }}/upload_document" method="POST" enctype="multipart/form-data" style="margin-top: 10px;">
+                        <input type="hidden" name="doc_type" value="client_po">
+                        <div class="input-group input-group-sm">
+                            <input type="file" name="document" class="form-control form-control-sm" style="font-size: 0.75rem;" accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg">
+                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #2980b9, #3498db); color: white; border-radius: 0 20px 20px 0; font-size: 0.75rem;">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div style="border: 2px dashed #bdc3c7; border-radius: 12px; padding: 20px; text-align: center; background: {% if project.google_drive_link %}#fef9e7{% else %}#fdfefe{% endif %}; min-height: 200px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="font-size: 2.5rem; color: {% if project.google_drive_link %}#f39c12{% else %}#bdc3c7{% endif %}; margin-bottom: 10px;">
+                        <i class="fab fa-google-drive"></i>
+                    </div>
+                    <h6 style="font-weight: 700; color: #2c3e50; margin-bottom: 5px;">Google Drive</h6>
+                    <p style="font-size: 0.75rem; color: #95a5a6; margin-bottom: 10px;">Technical Submittals & Drawings</p>
+                    {% if project.google_drive_link %}
+                        <div style="margin-bottom: 10px;">
+                            <a href="{{ project.google_drive_link }}" target="_blank" class="btn btn-sm" style="background: linear-gradient(135deg, #f39c12, #f1c40f); color: white; border-radius: 20px; font-size: 0.75rem; margin: 2px;">
+                                <i class="fas fa-external-link-alt mr-1"></i>Open Drive
+                            </a>
+                            <form action="/implementation/{{ project.id }}/delete_document/google_drive" method="POST" style="display: inline;" onsubmit="return confirm('Remove Google Drive link?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius: 20px; font-size: 0.75rem; margin: 2px;">
+                                    <i class="fas fa-unlink mr-1"></i>Remove
+                                </button>
+                            </form>
+                        </div>
+                    {% endif %}
+                    <form action="/implementation/{{ project.id }}/upload_document" method="POST" style="margin-top: {% if project.google_drive_link %}0{% else %}10{% endif %}px;">
+                        <input type="hidden" name="doc_type" value="google_drive">
+                        <div class="input-group input-group-sm">
+                            <input type="url" name="google_drive_link" class="form-control form-control-sm" placeholder="Paste Google Drive link..." style="font-size: 0.75rem;" value="{{ project.google_drive_link or '' }}">
+                            <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #f39c12, #f1c40f); color: white; border-radius: 0 20px 20px 0; font-size: 0.75rem;">
+                                <i class="fas fa-save"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="profile-card">
     <div class="card-header-custom">
         <i class="fas fa-users mr-2"></i>Team Assignment
     </div>

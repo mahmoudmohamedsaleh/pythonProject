@@ -31462,3 +31462,156 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'
     app.run(host=host, port=port, debug=debug)
+
+@app.route('/implementation/<int:id>/upload_document', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def implementation_upload_document(id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT ip.*, rp.project_name FROM implementation_projects ip JOIN register_project rp ON ip.register_project_id = rp.id WHERE ip.id = ?", (id,))
+    project = c.fetchone()
+    if not project:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    doc_type = request.form.get('doc_type', '')
+    
+    if doc_type == 'google_drive':
+        drive_link = request.form.get('google_drive_link', '').strip()
+        c.execute("UPDATE implementation_projects SET google_drive_link = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
+                  (drive_link if drive_link else None, session.get('username', ''), id))
+        c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+                     VALUES (?, 'Document Updated', ?, ?)""",
+                  (id, 'Google Drive link updated', session.get('username', '')))
+        conn.commit()
+        conn.close()
+        flash('Google Drive link updated successfully.', 'success')
+        return redirect(url_for('implementation_profile', id=id))
+    
+    file = request.files.get('document')
+    if not file or file.filename == '':
+        flash('No file selected.', 'warning')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=id))
+    
+    file_data = file.read()
+    filename = file.filename
+    
+    if doc_type == 'contract':
+        c.execute("UPDATE implementation_projects SET contract_file = ?, contract_filename = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
+                  (file_data, filename, session.get('username', ''), id))
+        action_detail = f'Contract uploaded: {filename}'
+    elif doc_type == 'client_po':
+        c.execute("UPDATE implementation_projects SET client_po_file = ?, client_po_filename = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
+                  (file_data, filename, session.get('username', ''), id))
+        action_detail = f'Client PO uploaded: {filename}'
+    else:
+        flash('Invalid document type.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=id))
+    
+    c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+                 VALUES (?, 'Document Uploaded', ?, ?)""",
+              (id, action_detail, session.get('username', '')))
+    conn.commit()
+    conn.close()
+    flash(f'{doc_type.replace("_", " ").title()} uploaded successfully.', 'success')
+    return redirect(url_for('implementation_profile', id=id))
+
+
+@app.route('/implementation/<int:id>/download_document/<doc_type>')
+@login_required
+def implementation_download_document(id, doc_type):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM implementation_projects WHERE id = ?", (id,))
+    project = c.fetchone()
+    if not project:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    if doc_type == 'contract':
+        file_data = project['contract_file']
+        filename = project['contract_filename'] or 'contract.pdf'
+    elif doc_type == 'client_po':
+        file_data = project['client_po_file']
+        filename = project['client_po_filename'] or 'client_po.pdf'
+    else:
+        flash('Invalid document type.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=id))
+    
+    conn.close()
+    
+    if not file_data:
+        flash('No document found.', 'warning')
+        return redirect(url_for('implementation_profile', id=id))
+    
+    mimetype = 'application/pdf'
+    if filename.lower().endswith(('.xlsx', '.xls')):
+        mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    elif filename.lower().endswith('.docx'):
+        mimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    elif filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        mimetype = 'image/' + filename.rsplit('.', 1)[-1].lower()
+    
+    return send_file(io.BytesIO(file_data), mimetype=mimetype, as_attachment=True, download_name=filename)
+
+
+@app.route('/implementation/<int:id>/delete_document/<doc_type>', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def implementation_delete_document(id, doc_type):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT ip.*, rp.project_name FROM implementation_projects ip JOIN register_project rp ON ip.register_project_id = rp.id WHERE ip.id = ?", (id,))
+    project = c.fetchone()
+    if not project:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    if doc_type == 'contract':
+        c.execute("UPDATE implementation_projects SET contract_file = NULL, contract_filename = NULL, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
+                  (session.get('username', ''), id))
+        detail = 'Contract file deleted'
+    elif doc_type == 'client_po':
+        c.execute("UPDATE implementation_projects SET client_po_file = NULL, client_po_filename = NULL, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
+                  (session.get('username', ''), id))
+        detail = 'Client PO file deleted'
+    elif doc_type == 'google_drive':
+        c.execute("UPDATE implementation_projects SET google_drive_link = NULL, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
+                  (session.get('username', ''), id))
+        detail = 'Google Drive link removed'
+    else:
+        flash('Invalid document type.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=id))
+    
+    c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+                 VALUES (?, 'Document Deleted', ?, ?)""",
+              (id, detail, session.get('username', '')))
+    conn.commit()
+    conn.close()
+    flash(f'{detail} successfully.', 'success')
+    return redirect(url_for('implementation_profile', id=id))
+
+
+if __name__ == '__main__':
+    init_db()
+    seed_permissions()
+    seed_default_role_permissions()
+    seed_default_roles()
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_DEBUG', '0') == '1'
+    app.run(host=host, port=port, debug=debug)
