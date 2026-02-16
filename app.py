@@ -31617,7 +31617,7 @@ def milestone_detail(project_id, milestone_id):
     c.execute("SELECT * FROM milestone_tasks WHERE milestone_id = ? ORDER BY CASE WHEN status = 'In Progress' THEN 1 WHEN status = 'Pending' THEN 2 WHEN status = 'On Hold' THEN 3 WHEN status = 'Completed' THEN 4 WHEN status = 'Cancelled' THEN 5 END, CASE WHEN priority = 'Urgent' THEN 1 WHEN priority = 'High' THEN 2 WHEN priority = 'Medium' THEN 3 WHEN priority = 'Low' THEN 4 END, created_at DESC", (milestone_id,))
     tasks = c.fetchall()
     
-    c.execute("SELECT username FROM users WHERE is_approved = 1 ORDER BY username")
+    c.execute("SELECT username FROM users ORDER BY username")
     users = c.fetchall()
     
     conn.close()
