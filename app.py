@@ -31776,6 +31776,7 @@ def milestone_delete_task(project_id, milestone_id, task_id):
 @permission_required('manage_implementation')
 def implementation_export_materials(id):
     import io
+    import xlsxwriter
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
