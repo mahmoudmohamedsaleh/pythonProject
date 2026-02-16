@@ -622,8 +622,8 @@
                                 <div style="font-size: 0.7rem; color: #95a5a6;">{{ doc.uploaded_by }} - {{ doc.uploaded_at[:10] if doc.uploaded_at else '' }}</div>
                             </div>
                             <div style="white-space: nowrap; margin-left: 5px;">
-                                <a href="/implementation/{{ project.id }}/download_document/{{ doc.id }}" class="btn btn-sm btn-success" style="border-radius: 50%; width: 26px; height: 26px; padding: 0; line-height: 26px; font-size: 0.65rem;" title="Download">
-                                    <i class="fas fa-download"></i>
+                                <a href="/implementation/{{ project.id }}/download_document/{{ doc.id }}" target="_blank" class="btn btn-sm btn-success" style="border-radius: 50%; width: 26px; height: 26px; padding: 0; line-height: 26px; font-size: 0.65rem;" title="View">
+                                    <i class="fas fa-eye"></i>
                                 </a>
                                 <form action="/implementation/{{ project.id }}/delete_document/{{ doc.id }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete this contract?')">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius: 50%; width: 26px; height: 26px; padding: 0; line-height: 26px; font-size: 0.65rem;" title="Delete">
@@ -664,8 +664,8 @@
                                 <div style="font-size: 0.7rem; color: #95a5a6;">{{ doc.uploaded_by }} - {{ doc.uploaded_at[:10] if doc.uploaded_at else '' }}</div>
                             </div>
                             <div style="white-space: nowrap; margin-left: 5px;">
-                                <a href="/implementation/{{ project.id }}/download_document/{{ doc.id }}" class="btn btn-sm btn-primary" style="border-radius: 50%; width: 26px; height: 26px; padding: 0; line-height: 26px; font-size: 0.65rem;" title="Download">
-                                    <i class="fas fa-download"></i>
+                                <a href="/implementation/{{ project.id }}/download_document/{{ doc.id }}" target="_blank" class="btn btn-sm btn-primary" style="border-radius: 50%; width: 26px; height: 26px; padding: 0; line-height: 26px; font-size: 0.65rem;" title="View">
+                                    <i class="fas fa-eye"></i>
                                 </a>
                                 <form action="/implementation/{{ project.id }}/delete_document/{{ doc.id }}" method="POST" style="display: inline;" onsubmit="return confirm('Delete this Client PO?')">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" style="border-radius: 50%; width: 26px; height: 26px; padding: 0; line-height: 26px; font-size: 0.65rem;" title="Delete">

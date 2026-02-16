@@ -31557,7 +31557,7 @@ def implementation_download_document(id, doc_id):
     elif filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         mimetype = 'image/' + filename.rsplit('.', 1)[-1].lower()
     
-    return send_file(io.BytesIO(doc['file_data']), mimetype=mimetype, as_attachment=True, download_name=filename)
+    return send_file(io.BytesIO(doc['file_data']), mimetype=mimetype, as_attachment=False, download_name=filename)
 
 
 @app.route('/implementation/<int:id>/delete_document/<int:doc_id>', methods=['POST'])
