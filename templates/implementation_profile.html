@@ -457,6 +457,72 @@
     </div>
 </div>
 
+{% if won_quotations %}
+<div class="profile-card">
+    <div class="card-header-custom" style="background: linear-gradient(135deg, #28a745, #20c997);">
+        <i class="fas fa-trophy mr-2"></i>Won Quotations ({{ won_quotations|length }})
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size: 0.9rem;">
+                <thead style="background: #f8f9fa;">
+                    <tr>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057;">Quote Ref</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057;">System</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057;">Presale Eng.</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057;">Sales Eng.</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057; text-align: right;">Selling Price (SAR)</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057; text-align: right;">Cost (SAR)</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057; text-align: center;">Margin %</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057;">Date</th>
+                        <th style="padding: 12px 15px; font-weight: 600; color: #495057; text-align: center;">Downloads</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in won_quotations %}
+                    <tr>
+                        <td style="padding: 12px 15px; font-weight: 500; color: #2c3e50;">{{ q.quote_ref }}</td>
+                        <td style="padding: 12px 15px;">{{ q.system or 'N/A' }}</td>
+                        <td style="padding: 12px 15px;">{{ q.presale_eng or 'N/A' }}</td>
+                        <td style="padding: 12px 15px;">{{ q.sales_eng or 'N/A' }}</td>
+                        <td style="padding: 12px 15px; text-align: right; font-weight: 600; color: #28a745;">{{ '{:,.2f}'.format(q.quotation_selling_price or 0) }}</td>
+                        <td style="padding: 12px 15px; text-align: right; color: #6c757d;">{{ '{:,.2f}'.format(q.quotation_cost or 0) }}</td>
+                        <td style="padding: 12px 15px; text-align: center;">
+                            <span class="badge" style="background: {% if (q.margin or 0) >= 25 %}#28a745{% elif (q.margin or 0) >= 15 %}#ffc107; color: #212529{% else %}#dc3545{% endif %}; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem;">
+                                {{ '%.1f'|format(q.margin or 0) }}%
+                            </span>
+                        </td>
+                        <td style="padding: 12px 15px; font-size: 0.85rem; color: #6c757d;">{{ q.registered_date[:10] if q.registered_date else 'N/A' }}</td>
+                        <td style="padding: 12px 15px; text-align: center;">
+                            <div class="d-flex justify-content-center gap-1">
+                                {% if q.has_quotation %}
+                                <a href="/download_quotation/{{ q.quote_ref }}" class="btn btn-sm btn-outline-primary" style="margin-right: 5px; border-radius: 20px; font-size: 0.75rem; padding: 3px 10px;" title="Download Quotation">
+                                    <i class="fas fa-file-pdf mr-1"></i>QT
+                                </a>
+                                {% endif %}
+                                {% if q.has_cost_sheet %}
+                                <a href="/download_cost_sheet/{{ q.quote_ref }}" class="btn btn-sm btn-outline-success" style="border-radius: 20px; font-size: 0.75rem; padding: 3px 10px;" title="Download Cost Sheet">
+                                    <i class="fas fa-file-excel mr-1"></i>CS
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot style="background: #f1f8f1; border-top: 2px solid #28a745;">
+                    <tr>
+                        <td colspan="4" style="padding: 12px 15px; font-weight: 700; color: #28a745;"><i class="fas fa-calculator mr-2"></i>Total Deal Value</td>
+                        <td style="padding: 12px 15px; text-align: right; font-weight: 700; color: #28a745; font-size: 1rem;">{{ '{:,.2f}'.format(project.deal_value or 0) }} SAR</td>
+                        <td colspan="4"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="profile-card">
     <div class="card-header-custom">
         <i class="fas fa-users mr-2"></i>Team Assignment

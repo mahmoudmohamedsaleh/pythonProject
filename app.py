@@ -31214,13 +31214,25 @@ def implementation_profile(id):
     """, (project['project_name'],))
     project['deal_value'] = c.fetchone()[0]
     
+    c.execute("""
+        SELECT id, quote_ref, system, quotation_selling_price, quotation_cost, margin, 
+               registered_date, presale_eng, sales_eng,
+               CASE WHEN quotation IS NOT NULL AND LENGTH(quotation) > 0 THEN 1 ELSE 0 END as has_quotation,
+               CASE WHEN cost_sheet IS NOT NULL AND LENGTH(cost_sheet) > 0 THEN 1 ELSE 0 END as has_cost_sheet
+        FROM projects 
+        WHERE project_name = ? AND status = 'Closed Won'
+        ORDER BY registered_date DESC
+    """, (project['project_name'],))
+    won_quotations = [dict(row) for row in c.fetchall()]
+    
     conn.close()
     
     return render_template('implementation_profile.html',
                          project=project,
                          milestones=milestones,
                          activity_logs=activity_logs,
-                         engineers=engineers)
+                         engineers=engineers,
+                         won_quotations=won_quotations)
 
 
 @app.route('/implementation/<int:id>/update', methods=['POST'])
