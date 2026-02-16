@@ -30989,7 +30989,12 @@ def implementation_dashboard():
             ip.*,
             rp.project_name,
             rp.scope_of_work as system,
-            rp.deal_value,
+            COALESCE(
+                (SELECT SUM(p.quotation_selling_price) FROM projects p 
+                 WHERE p.project_name = rp.project_name AND p.status = 'Closed Won'
+                 AND p.quotation_selling_price IS NOT NULL AND p.quotation_selling_price > 0),
+                rp.deal_value, 0
+            ) as deal_value,
             rp.stage,
             COALESCE(eu.name, con.name, cons.name, 'N/A') as client_name,
             pm.name as pm_name,
