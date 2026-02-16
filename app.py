@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from collections import defaultdict
 import pandas as pd
 import sqlite3
 import os
