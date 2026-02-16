@@ -31206,8 +31206,13 @@ def implementation_profile(id):
     c.execute("SELECT id, name, role FROM engineers ORDER BY name")
     engineers = [dict(row) for row in c.fetchall()]
     
-    calculated_deal_value, included_quotes = calculate_deal_value_for_project(project['project_name'], conn)
-    project['deal_value'] = calculated_deal_value
+    c.execute("""
+        SELECT COALESCE(SUM(quotation_selling_price), 0) 
+        FROM projects 
+        WHERE project_name = ? AND status = 'Closed Won'
+        AND quotation_selling_price IS NOT NULL AND quotation_selling_price > 0
+    """, (project['project_name'],))
+    project['deal_value'] = c.fetchone()[0]
     
     conn.close()
     
