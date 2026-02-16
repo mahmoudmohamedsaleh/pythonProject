@@ -31204,6 +31204,9 @@ def implementation_profile(id):
     c.execute("SELECT id, name, role FROM engineers ORDER BY name")
     engineers = [dict(row) for row in c.fetchall()]
     
+    calculated_deal_value, included_quotes = calculate_deal_value_for_project(project['project_name'], conn)
+    project['deal_value'] = calculated_deal_value
+    
     conn.close()
     
     return render_template('implementation_profile.html',
