@@ -31273,9 +31273,9 @@ def implementation_assign(id):
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    pm_id = request.form.get('project_manager_id') or None
-    se_id = request.form.get('site_engineer_id') or None
-    pc_id = request.form.get('project_coordinator_id') or None
+    pm_id = request.form.get('pm_id') or None
+    se_id = request.form.get('se_id') or None
+    pc_id = request.form.get('pc_id') or None
     
     c.execute("SELECT ip.*, rp.project_name FROM implementation_projects ip JOIN register_project rp ON ip.register_project_id = rp.id WHERE ip.id = ?", (id,))
     old = c.fetchone()
