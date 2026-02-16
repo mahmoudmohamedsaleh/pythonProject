@@ -31236,6 +31236,18 @@ def implementation_profile(id):
     """, (project['project_name'],))
     related_pos = [dict(row) for row in c.fetchall()]
     
+    c.execute("""
+        SELECT id, doc_type, filename, drive_link, uploaded_by, uploaded_at,
+               CASE WHEN file_data IS NOT NULL AND LENGTH(file_data) > 0 THEN 1 ELSE 0 END as has_file
+        FROM implementation_documents 
+        WHERE implementation_project_id = ?
+        ORDER BY doc_type, uploaded_at DESC
+    """, (id,))
+    all_documents = [dict(row) for row in c.fetchall()]
+    contracts = [d for d in all_documents if d['doc_type'] == 'contract']
+    client_pos = [d for d in all_documents if d['doc_type'] == 'client_po']
+    drive_links = [d for d in all_documents if d['doc_type'] == 'google_drive']
+    
     conn.close()
     
     return render_template('implementation_profile.html',
@@ -31244,7 +31256,10 @@ def implementation_profile(id):
                          activity_logs=activity_logs,
                          engineers=engineers,
                          won_quotations=won_quotations,
-                         related_pos=related_pos)
+                         related_pos=related_pos,
+                         contracts=contracts,
+                         client_pos=client_pos,
+                         drive_links=drive_links)
 
 
 @app.route('/implementation/<int:id>/update', methods=['POST'])
@@ -31464,6 +31479,8 @@ if __name__ == '__main__':
     app.run(host=host, port=port, debug=debug)
 
 @app.route('/implementation/<int:id>/upload_document', methods=['POST'])
+
+@app.route('/implementation/<int:id>/upload_document', methods=['POST'])
 @login_required
 @permission_required('manage_implementation')
 def implementation_upload_document(id):
@@ -31482,14 +31499,25 @@ def implementation_upload_document(id):
     
     if doc_type == 'google_drive':
         drive_link = request.form.get('google_drive_link', '').strip()
-        c.execute("UPDATE implementation_projects SET google_drive_link = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
-                  (drive_link if drive_link else None, session.get('username', ''), id))
+        link_label = request.form.get('link_label', '').strip() or 'Google Drive'
+        if not drive_link:
+            flash('Please enter a Google Drive link.', 'warning')
+            conn.close()
+            return redirect(url_for('implementation_profile', id=id))
+        c.execute("""INSERT INTO implementation_documents (implementation_project_id, doc_type, filename, drive_link, uploaded_by)
+                     VALUES (?, 'google_drive', ?, ?, ?)""",
+                  (id, link_label, drive_link, session.get('username', '')))
         c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
-                     VALUES (?, 'Document Updated', ?, ?)""",
-                  (id, 'Google Drive link updated', session.get('username', '')))
+                     VALUES (?, 'Document Added', ?, ?)""",
+                  (id, f'Google Drive link added: {link_label}', session.get('username', '')))
         conn.commit()
         conn.close()
-        flash('Google Drive link updated successfully.', 'success')
+        flash('Google Drive link added successfully.', 'success')
+        return redirect(url_for('implementation_profile', id=id))
+    
+    if doc_type not in ('contract', 'client_po'):
+        flash('Invalid document type.', 'danger')
+        conn.close()
         return redirect(url_for('implementation_profile', id=id))
     
     file = request.files.get('document')
@@ -31501,59 +31529,37 @@ def implementation_upload_document(id):
     file_data = file.read()
     filename = file.filename
     
-    if doc_type == 'contract':
-        c.execute("UPDATE implementation_projects SET contract_file = ?, contract_filename = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
-                  (file_data, filename, session.get('username', ''), id))
-        action_detail = f'Contract uploaded: {filename}'
-    elif doc_type == 'client_po':
-        c.execute("UPDATE implementation_projects SET client_po_file = ?, client_po_filename = ?, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
-                  (file_data, filename, session.get('username', ''), id))
-        action_detail = f'Client PO uploaded: {filename}'
-    else:
-        flash('Invalid document type.', 'danger')
-        conn.close()
-        return redirect(url_for('implementation_profile', id=id))
+    c.execute("""INSERT INTO implementation_documents (implementation_project_id, doc_type, filename, file_data, uploaded_by)
+                 VALUES (?, ?, ?, ?, ?)""",
+              (id, doc_type, filename, file_data, session.get('username', '')))
     
+    label = 'Contract' if doc_type == 'contract' else 'Client PO'
     c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
                  VALUES (?, 'Document Uploaded', ?, ?)""",
-              (id, action_detail, session.get('username', '')))
+              (id, f'{label} uploaded: {filename}', session.get('username', '')))
     conn.commit()
     conn.close()
-    flash(f'{doc_type.replace("_", " ").title()} uploaded successfully.', 'success')
+    flash(f'{label} uploaded successfully.', 'success')
     return redirect(url_for('implementation_profile', id=id))
 
 
-@app.route('/implementation/<int:id>/download_document/<doc_type>')
+@app.route('/implementation/<int:id>/download_document/<int:doc_id>')
 @login_required
-def implementation_download_document(id, doc_type):
+def implementation_download_document(id, doc_id):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    c.execute("SELECT * FROM implementation_projects WHERE id = ?", (id,))
-    project = c.fetchone()
-    if not project:
-        flash('Project not found.', 'danger')
-        conn.close()
-        return redirect(url_for('implementation_dashboard'))
-    
-    if doc_type == 'contract':
-        file_data = project['contract_file']
-        filename = project['contract_filename'] or 'contract.pdf'
-    elif doc_type == 'client_po':
-        file_data = project['client_po_file']
-        filename = project['client_po_filename'] or 'client_po.pdf'
-    else:
-        flash('Invalid document type.', 'danger')
+    c.execute("SELECT * FROM implementation_documents WHERE id = ? AND implementation_project_id = ?", (doc_id, id))
+    doc = c.fetchone()
+    if not doc or not doc['file_data']:
+        flash('Document not found.', 'warning')
         conn.close()
         return redirect(url_for('implementation_profile', id=id))
     
     conn.close()
     
-    if not file_data:
-        flash('No document found.', 'warning')
-        return redirect(url_for('implementation_profile', id=id))
-    
+    filename = doc['filename']
     mimetype = 'application/pdf'
     if filename.lower().endswith(('.xlsx', '.xls')):
         mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -31562,47 +31568,34 @@ def implementation_download_document(id, doc_type):
     elif filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         mimetype = 'image/' + filename.rsplit('.', 1)[-1].lower()
     
-    return send_file(io.BytesIO(file_data), mimetype=mimetype, as_attachment=True, download_name=filename)
+    return send_file(io.BytesIO(doc['file_data']), mimetype=mimetype, as_attachment=True, download_name=filename)
 
 
-@app.route('/implementation/<int:id>/delete_document/<doc_type>', methods=['POST'])
+@app.route('/implementation/<int:id>/delete_document/<int:doc_id>', methods=['POST'])
 @login_required
 @permission_required('manage_implementation')
-def implementation_delete_document(id, doc_type):
+def implementation_delete_document(id, doc_id):
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
-    c.execute("SELECT ip.*, rp.project_name FROM implementation_projects ip JOIN register_project rp ON ip.register_project_id = rp.id WHERE ip.id = ?", (id,))
-    project = c.fetchone()
-    if not project:
-        flash('Project not found.', 'danger')
-        conn.close()
-        return redirect(url_for('implementation_dashboard'))
-    
-    if doc_type == 'contract':
-        c.execute("UPDATE implementation_projects SET contract_file = NULL, contract_filename = NULL, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
-                  (session.get('username', ''), id))
-        detail = 'Contract file deleted'
-    elif doc_type == 'client_po':
-        c.execute("UPDATE implementation_projects SET client_po_file = NULL, client_po_filename = NULL, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
-                  (session.get('username', ''), id))
-        detail = 'Client PO file deleted'
-    elif doc_type == 'google_drive':
-        c.execute("UPDATE implementation_projects SET google_drive_link = NULL, updated_at = datetime('now'), updated_by = ? WHERE id = ?",
-                  (session.get('username', ''), id))
-        detail = 'Google Drive link removed'
-    else:
-        flash('Invalid document type.', 'danger')
+    c.execute("SELECT * FROM implementation_documents WHERE id = ? AND implementation_project_id = ?", (doc_id, id))
+    doc = c.fetchone()
+    if not doc:
+        flash('Document not found.', 'danger')
         conn.close()
         return redirect(url_for('implementation_profile', id=id))
     
+    label = {'contract': 'Contract', 'client_po': 'Client PO', 'google_drive': 'Google Drive link'}.get(doc['doc_type'], 'Document')
+    detail = f'{label} deleted: {doc["filename"]}'
+    
+    c.execute("DELETE FROM implementation_documents WHERE id = ?", (doc_id,))
     c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
                  VALUES (?, 'Document Deleted', ?, ?)""",
               (id, detail, session.get('username', '')))
     conn.commit()
     conn.close()
-    flash(f'{detail} successfully.', 'success')
+    flash(f'{label} deleted successfully.', 'success')
     return redirect(url_for('implementation_profile', id=id))
 
 
