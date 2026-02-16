@@ -31241,6 +31241,19 @@ def implementation_profile(id):
     """, (project['project_name'],))
     related_pos = [dict(row) for row in c.fetchall()]
     
+    po_numbers = [po['po_number'] for po in related_pos if po.get('po_number')]
+    material_items = []
+    if po_numbers:
+        placeholders = ','.join('?' * len(po_numbers))
+        c.execute(f"""
+            SELECT pi.*, po.vendor, po.distributor, po.system as po_system, po.po_request_number
+            FROM po_items pi
+            JOIN purchase_orders po ON pi.po_number = po.po_number
+            WHERE pi.po_number IN ({placeholders})
+            ORDER BY pi.po_number, pi.item_number
+        """, po_numbers)
+        material_items = [dict(row) for row in c.fetchall()]
+
     c.execute("""
         SELECT id, doc_type, filename, drive_link, uploaded_by, uploaded_at,
                CASE WHEN file_data IS NOT NULL AND LENGTH(file_data) > 0 THEN 1 ELSE 0 END as has_file
@@ -31262,6 +31275,7 @@ def implementation_profile(id):
                          engineers=engineers,
                          won_quotations=won_quotations,
                          related_pos=related_pos,
+                         material_items=material_items,
                          contracts=contracts,
                          client_pos=client_pos,
                          drive_links=drive_links)

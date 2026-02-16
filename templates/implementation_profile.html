@@ -426,6 +426,11 @@
                         <i class="fas fa-save mr-1"></i> Update Implementation
                     </button>
                 </form>
+                {% if material_items %}
+                <button onclick="toggleMaterialStatus()" class="btn btn-block mt-2" style="background: linear-gradient(135deg, #00b894, #00cec9); color: white; border: none; border-radius: 8px; font-weight: 600;">
+                    <i class="fas fa-boxes mr-1"></i> Material Status ({{ material_items|length }})
+                </button>
+                {% endif %}
                 {% else %}
                 <div class="detail-row">
                     <span class="detail-label">Status</span>
@@ -594,6 +599,90 @@
                         <td colspan="4"></td>
                     </tr>
                 </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if material_items %}
+<div class="profile-card" id="materialStatusSection" style="display: none;">
+    <div class="card-header-custom" style="background: linear-gradient(135deg, #00b894, #00cec9);">
+        <i class="fas fa-boxes mr-2"></i>Material Status ({{ material_items|length }} Items)
+    </div>
+    <div class="card-body p-0">
+        <div style="padding: 15px 15px 5px 15px;">
+            <div class="row text-center">
+                {% set ns_mat = namespace(total_items=material_items|length, delivered=0, partial=0, not_delivered=0, total_value=0) %}
+                {% for item in material_items %}
+                    {% set ns_mat.total_value = ns_mat.total_value + (item.total_price or 0) %}
+                    {% if item.delivery_status == 'Delivered' %}
+                        {% set ns_mat.delivered = ns_mat.delivered + 1 %}
+                    {% elif item.delivery_status == 'Partially Delivered' %}
+                        {% set ns_mat.partial = ns_mat.partial + 1 %}
+                    {% else %}
+                        {% set ns_mat.not_delivered = ns_mat.not_delivered + 1 %}
+                    {% endif %}
+                {% endfor %}
+                <div class="col-3">
+                    <div style="background: #f0fff4; border-radius: 10px; padding: 10px;">
+                        <div style="font-size: 1.3rem; font-weight: 700; color: #28a745;">{{ ns_mat.delivered }}</div>
+                        <div style="font-size: 0.75rem; color: #6c757d;">Delivered</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div style="background: #e8f4fd; border-radius: 10px; padding: 10px;">
+                        <div style="font-size: 1.3rem; font-weight: 700; color: #17a2b8;">{{ ns_mat.partial }}</div>
+                        <div style="font-size: 0.75rem; color: #6c757d;">Partial</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div style="background: #fff5f5; border-radius: 10px; padding: 10px;">
+                        <div style="font-size: 1.3rem; font-weight: 700; color: #dc3545;">{{ ns_mat.not_delivered }}</div>
+                        <div style="font-size: 0.75rem; color: #6c757d;">Not Delivered</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div style="background: #f0f0ff; border-radius: 10px; padding: 10px;">
+                        <div style="font-size: 1.3rem; font-weight: 700; color: #6c5ce7;">{{ '{:,.0f}'.format(ns_mat.total_value) }}</div>
+                        <div style="font-size: 0.75rem; color: #6c757d;">Total (SAR)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+            <table class="table table-hover mb-0" style="font-size: 0.85rem;">
+                <thead style="background: #f8f9fa; position: sticky; top: 0; z-index: 1;">
+                    <tr>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057;">PO #</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057;">Part Number</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057;">Description</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057; text-align: center;">Qty</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057; text-align: right;">Unit Price</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057; text-align: right;">Total</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057; text-align: center;">Delivered</th>
+                        <th style="padding: 10px 12px; font-weight: 600; color: #495057; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in material_items %}
+                    <tr>
+                        <td style="padding: 10px 12px; font-weight: 500; color: #2c3e50; white-space: nowrap;">{{ item.po_number }}</td>
+                        <td style="padding: 10px 12px; font-size: 0.82rem;">{{ item.part_number or '-' }}</td>
+                        <td style="padding: 10px 12px; font-size: 0.82rem; max-width: 250px;">{{ item.description or '-' }}</td>
+                        <td style="padding: 10px 12px; text-align: center;">{{ item.quantity }}</td>
+                        <td style="padding: 10px 12px; text-align: right;">{{ '{:,.2f}'.format(item.unit_price or 0) }}</td>
+                        <td style="padding: 10px 12px; text-align: right; font-weight: 600;">{{ '{:,.2f}'.format(item.total_price or 0) }}</td>
+                        <td style="padding: 10px 12px; text-align: center;">{{ item.quantity_delivered or 0 }}</td>
+                        <td style="padding: 10px 12px; text-align: center;">
+                            <span class="badge" style="padding: 4px 10px; border-radius: 20px; font-size: 0.72rem;
+                                background: {% if item.delivery_status == 'Delivered' %}#28a745{% elif item.delivery_status == 'Partially Delivered' %}#17a2b8{% else %}#dc3545{% endif %}; color: white;">
+                                {{ item.delivery_status or 'Not Delivered' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
     </div>
@@ -1044,5 +1133,17 @@ $(document).ready(function() {
         }
     });
 });
+
+function toggleMaterialStatus() {
+    var section = document.getElementById('materialStatusSection');
+    if (section) {
+        if (section.style.display === 'none') {
+            section.style.display = 'block';
+            section.scrollIntoView({behavior: 'smooth', block: 'start'});
+        } else {
+            section.style.display = 'none';
+        }
+    }
+}
 </script>
 {% endblock %}
