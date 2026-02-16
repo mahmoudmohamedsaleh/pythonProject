@@ -632,6 +632,29 @@
             </li>
             {% endif %}
 
+            {% set has_implementation_items = user_has_permission('view_implementation') or user_has_permission('manage_implementation') %}
+            {% if has_implementation_items %}
+            <li class="menu-section">
+                <div class="menu-header" data-section="implementation">
+                    <div class="header-text">
+                        <i class="fas fa-hard-hat header-icon"></i>
+                        <span>Implementation</span>
+                    </div>
+                    <i class="fas fa-chevron-down toggle-icon"></i>
+                </div>
+                <ul class="menu-items">
+                    {% if user_has_permission('view_implementation') %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Implementation Dashboard">
+                        <a href="{{ url_for('implementation_dashboard') }}" class="{{ 'active' if 'implementation' in request.endpoint else '' }}">
+                            <i class="fas fa-project-diagram"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+
             {% if user_has_permission('view_tasks') %}
             <li class="menu-section">
                 <div class="menu-header" data-section="tasks">

@@ -1,0 +1,761 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.project_name }} - Implementation Profile{% endblock %}
+
+{% block content %}
+<style>
+    .impl-hero {
+        background: linear-gradient(135deg, #667eea 0%, #7c3aed 100%);
+        border-radius: 15px;
+        padding: 35px 40px;
+        color: white;
+        margin-bottom: 30px;
+        position: relative;
+        overflow: hidden;
+    }
+    .impl-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
+    .impl-hero h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    .impl-hero .hero-meta {
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+    .impl-hero .completion-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        border: 3px solid rgba(255,255,255,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+    .btn-back {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
+        padding: 8px 18px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    .btn-back:hover {
+        background: rgba(255,255,255,0.35);
+        color: white;
+        text-decoration: none;
+    }
+    .profile-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        margin-bottom: 25px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .profile-card:hover {
+        box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+    .profile-card .card-header-custom {
+        background: linear-gradient(135deg, #667eea 0%, #7c3aed 100%);
+        color: white;
+        padding: 16px 22px;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .profile-card .card-body {
+        padding: 22px;
+    }
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.9rem;
+    }
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    .detail-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    .detail-value {
+        color: #212529;
+        text-align: right;
+    }
+    .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #7c3aed 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-gradient:hover {
+        color: white;
+        box-shadow: 0 4px 15px rgba(124,58,237,0.4);
+        transform: translateY(-1px);
+    }
+    .form-control, .custom-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        font-size: 0.9rem;
+    }
+    .form-control:focus, .custom-select:focus {
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 0.15rem rgba(124,58,237,0.15);
+    }
+    .team-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: white;
+    }
+    .team-avatar.pm { background: linear-gradient(135deg, #667eea, #7c3aed); }
+    .team-avatar.se { background: linear-gradient(135deg, #2196F3, #1976D2); }
+    .team-avatar.pc { background: linear-gradient(135deg, #4caf50, #388e3c); }
+    .team-member-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 15px;
+        background: #f8f9ff;
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
+    .team-member-card .member-info {
+        flex: 1;
+    }
+    .team-member-card .member-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #212529;
+    }
+    .team-member-card .member-role {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .milestone-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .milestone-timeline::before {
+        content: '';
+        position: absolute;
+        left: 12px;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, #667eea, #7c3aed);
+        border-radius: 2px;
+    }
+    .milestone-item {
+        position: relative;
+        margin-bottom: 20px;
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        padding: 18px 20px;
+        transition: all 0.3s ease;
+    }
+    .milestone-item:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        border-color: #7c3aed;
+    }
+    .milestone-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 22px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 3px solid #7c3aed;
+        background: white;
+        z-index: 1;
+    }
+    .milestone-item.status-completed::before {
+        background: #4caf50;
+        border-color: #4caf50;
+    }
+    .milestone-item.status-in-progress::before {
+        background: #2196F3;
+        border-color: #2196F3;
+    }
+    .milestone-item.status-not-started::before {
+        background: white;
+        border-color: #dee2e6;
+    }
+    .milestone-phase {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #212529;
+        margin-bottom: 6px;
+    }
+    .milestone-dates {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+    }
+    .milestone-progress {
+        height: 6px;
+        border-radius: 3px;
+        background: #e9ecef;
+        margin: 8px 0;
+    }
+    .milestone-progress .bar {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+    }
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #7c3aed);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    .activity-content {
+        flex: 1;
+    }
+    .activity-action {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #212529;
+    }
+    .activity-details {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    .activity-meta {
+        font-size: 0.75rem;
+        color: #adb5bd;
+        margin-top: 2px;
+    }
+    .modal-custom .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #7c3aed 100%);
+        color: white;
+        border-radius: 0;
+    }
+    .modal-custom .modal-header .close {
+        color: white;
+        opacity: 0.8;
+    }
+    .modal-custom .modal-header .close:hover {
+        opacity: 1;
+    }
+    .modal-custom .modal-content {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .inline-edit-form .form-control, .inline-edit-form .custom-select {
+        font-size: 0.85rem;
+        padding: 4px 8px;
+        height: auto;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 12px;
+        opacity: 0.3;
+    }
+</style>
+
+<div class="impl-hero">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <a href="{{ url_for('implementation_dashboard') }}" class="btn btn-back mb-3">
+                <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+            </a>
+            <h1><i class="fas fa-hard-hat mr-2"></i>{{ project.project_name }}</h1>
+            <div class="hero-meta d-flex align-items-center flex-wrap" style="gap: 12px;">
+                {% if project.status == 'Planning' %}
+                    <span class="badge badge-info" style="padding: 6px 14px; border-radius: 15px; font-size: 0.85rem;">{{ project.status }}</span>
+                {% elif project.status == 'In Progress' %}
+                    <span class="badge badge-primary" style="padding: 6px 14px; border-radius: 15px; font-size: 0.85rem;">{{ project.status }}</span>
+                {% elif project.status == 'On Hold' %}
+                    <span class="badge badge-warning" style="padding: 6px 14px; border-radius: 15px; font-size: 0.85rem;">{{ project.status }}</span>
+                {% elif project.status == 'Completed' %}
+                    <span class="badge badge-success" style="padding: 6px 14px; border-radius: 15px; font-size: 0.85rem;">{{ project.status }}</span>
+                {% elif project.status == 'Cancelled' %}
+                    <span class="badge badge-danger" style="padding: 6px 14px; border-radius: 15px; font-size: 0.85rem;">{{ project.status }}</span>
+                {% else %}
+                    <span class="badge badge-secondary" style="padding: 6px 14px; border-radius: 15px; font-size: 0.85rem;">{{ project.status or 'N/A' }}</span>
+                {% endif %}
+                {% if project.priority == 'High' %}
+                    <span class="badge badge-danger" style="padding: 5px 12px; border-radius: 15px; font-size: 0.8rem;"><i class="fas fa-flag mr-1"></i>High Priority</span>
+                {% elif project.priority == 'Medium' %}
+                    <span class="badge badge-warning" style="padding: 5px 12px; border-radius: 15px; font-size: 0.8rem;"><i class="fas fa-flag mr-1"></i>Medium Priority</span>
+                {% elif project.priority == 'Low' %}
+                    <span class="badge badge-info" style="padding: 5px 12px; border-radius: 15px; font-size: 0.8rem;"><i class="fas fa-flag mr-1"></i>Low Priority</span>
+                {% endif %}
+                <span style="opacity: 0.8;"><i class="fas fa-building mr-1"></i>{{ project.client_name or 'N/A' }}</span>
+            </div>
+        </div>
+        <div class="completion-circle">
+            {{ project.completion_percentage|default(0)|int }}%
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="profile-card">
+            <div class="card-header-custom">
+                <i class="fas fa-info-circle mr-2"></i>Project Details
+            </div>
+            <div class="card-body">
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-project-diagram mr-2 text-muted"></i>Project Name</span>
+                    <span class="detail-value">{{ project.project_name or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-building mr-2 text-muted"></i>Client</span>
+                    <span class="detail-value">{{ project.client_name or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-cogs mr-2 text-muted"></i>System / Scope</span>
+                    <span class="detail-value">{{ project.system or project.scope_of_work or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-money-bill-wave mr-2 text-muted"></i>Deal Value</span>
+                    <span class="detail-value" style="font-weight: 700; color: #7c3aed;">{{ "{:,.2f}".format(project.deal_value|default(0)|float) }} SAR</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-calendar-plus mr-2 text-muted"></i>Registration Date</span>
+                    <span class="detail-value">{{ project.registered_date or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label"><i class="fas fa-calendar-check mr-2 text-muted"></i>Expected Close Date</span>
+                    <span class="detail-value">{{ project.expected_close_date or 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="profile-card">
+            <div class="card-header-custom">
+                <i class="fas fa-tasks mr-2"></i>Implementation Details
+            </div>
+            <div class="card-body">
+                {% if user_has_permission('manage_implementation') %}
+                <form method="POST" action="/implementation/{{ project.id }}/update">
+                    <div class="form-group">
+                        <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-signal mr-1"></i> Status</label>
+                        <select name="status" class="custom-select">
+                            <option value="Planning" {{ 'selected' if project.status == 'Planning' }}>Planning</option>
+                            <option value="In Progress" {{ 'selected' if project.status == 'In Progress' }}>In Progress</option>
+                            <option value="On Hold" {{ 'selected' if project.status == 'On Hold' }}>On Hold</option>
+                            <option value="Completed" {{ 'selected' if project.status == 'Completed' }}>Completed</option>
+                            <option value="Cancelled" {{ 'selected' if project.status == 'Cancelled' }}>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-flag mr-1"></i> Priority</label>
+                        <select name="priority" class="custom-select">
+                            <option value="Low" {{ 'selected' if project.priority == 'Low' }}>Low</option>
+                            <option value="Medium" {{ 'selected' if project.priority == 'Medium' }}>Medium</option>
+                            <option value="High" {{ 'selected' if project.priority == 'High' }}>High</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-calendar-alt mr-1"></i> Start Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ project.start_date or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-calendar-times mr-1"></i> Target End Date</label>
+                                <input type="date" name="target_end_date" class="form-control" value="{{ project.target_end_date or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-percentage mr-1"></i> Completion %</label>
+                        <input type="number" name="completion_percentage" class="form-control" min="0" max="100" value="{{ project.completion_percentage|default(0)|int }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-sticky-note mr-1"></i> Notes</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Add implementation notes...">{{ project.notes or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-gradient btn-block">
+                        <i class="fas fa-save mr-1"></i> Update Implementation
+                    </button>
+                </form>
+                {% else %}
+                <div class="detail-row">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value">{{ project.status or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Priority</span>
+                    <span class="detail-value">{{ project.priority or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Start Date</span>
+                    <span class="detail-value">{{ project.start_date or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Target End Date</span>
+                    <span class="detail-value">{{ project.target_end_date or 'N/A' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Completion</span>
+                    <span class="detail-value">{{ project.completion_percentage|default(0)|int }}%</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Notes</span>
+                    <span class="detail-value">{{ project.notes or 'N/A' }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="profile-card">
+    <div class="card-header-custom">
+        <i class="fas fa-users mr-2"></i>Team Assignment
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="team-member-card">
+                    <div class="team-avatar pm">
+                        {% if project.pm_name %}
+                            {{ project.pm_name.split(' ')[0][0] }}{{ project.pm_name.split(' ')[-1][0] if project.pm_name.split(' ')|length > 1 else '' }}
+                        {% else %}
+                            PM
+                        {% endif %}
+                    </div>
+                    <div class="member-info">
+                        <div class="member-name">{{ project.pm_name or 'Unassigned' }}</div>
+                        <div class="member-role"><i class="fas fa-user-tie mr-1"></i>Project Manager</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="team-member-card">
+                    <div class="team-avatar se">
+                        {% if project.se_name %}
+                            {{ project.se_name.split(' ')[0][0] }}{{ project.se_name.split(' ')[-1][0] if project.se_name.split(' ')|length > 1 else '' }}
+                        {% else %}
+                            SE
+                        {% endif %}
+                    </div>
+                    <div class="member-info">
+                        <div class="member-name">{{ project.se_name or 'Unassigned' }}</div>
+                        <div class="member-role"><i class="fas fa-hard-hat mr-1"></i>Site Engineer</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="team-member-card">
+                    <div class="team-avatar pc">
+                        {% if project.pc_name %}
+                            {{ project.pc_name.split(' ')[0][0] }}{{ project.pc_name.split(' ')[-1][0] if project.pc_name.split(' ')|length > 1 else '' }}
+                        {% else %}
+                            PC
+                        {% endif %}
+                    </div>
+                    <div class="member-info">
+                        <div class="member-name">{{ project.pc_name or 'Unassigned' }}</div>
+                        <div class="member-role"><i class="fas fa-clipboard-list mr-1"></i>Project Coordinator</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if user_has_permission('assign_implementation_team') %}
+        <hr>
+        <form method="POST" action="/implementation/{{ project.id }}/assign">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-user-tie mr-1"></i> Project Manager</label>
+                    <select name="pm_id" class="custom-select">
+                        <option value="">-- Select PM --</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng.id }}" {{ 'selected' if project.pm_id and project.pm_id|string == eng.id|string }}>{{ eng.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-hard-hat mr-1"></i> Site Engineer</label>
+                    <select name="se_id" class="custom-select">
+                        <option value="">-- Select SE --</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng.id }}" {{ 'selected' if project.se_id and project.se_id|string == eng.id|string }}>{{ eng.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold" style="font-size: 0.85rem;"><i class="fas fa-clipboard-list mr-1"></i> Project Coordinator</label>
+                    <select name="pc_id" class="custom-select">
+                        <option value="">-- Select PC --</option>
+                        {% for eng in engineers %}
+                        <option value="{{ eng.id }}" {{ 'selected' if project.pc_id and project.pc_id|string == eng.id|string }}>{{ eng.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-gradient">
+                <i class="fas fa-save mr-1"></i> Save Team
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="profile-card">
+    <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-flag-checkered mr-2"></i>Milestones & Phases</span>
+        {% if user_has_permission('manage_implementation') %}
+        <button class="btn btn-sm btn-light" style="border-radius: 8px; font-weight: 600; font-size: 0.8rem;" data-toggle="modal" data-target="#addMilestoneModal">
+            <i class="fas fa-plus mr-1"></i> Add Milestone
+        </button>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if milestones and milestones|length > 0 %}
+        <div class="milestone-timeline">
+            {% for ms in milestones %}
+            <div class="milestone-item {% if ms.status == 'Completed' %}status-completed{% elif ms.status == 'In Progress' %}status-in-progress{% else %}status-not-started{% endif %}">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <div style="flex: 1;">
+                        <div class="milestone-phase">{{ ms.phase_name }}</div>
+                        {% if ms.description %}
+                        <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 6px;">{{ ms.description }}</div>
+                        {% endif %}
+                        <div class="milestone-dates">
+                            <i class="fas fa-calendar mr-1"></i>
+                            Planned: {{ ms.planned_start or 'TBD' }} &mdash; {{ ms.planned_end or 'TBD' }}
+                            {% if ms.actual_start or ms.actual_end %}
+                            <br><i class="fas fa-calendar-check mr-1"></i>
+                            Actual: {{ ms.actual_start or 'TBD' }} &mdash; {{ ms.actual_end or 'TBD' }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="text-right" style="min-width: 120px;">
+                        {% if ms.status == 'Completed' %}
+                            <span class="badge badge-success" style="padding: 5px 12px; border-radius: 12px; font-size: 0.78rem;">Completed</span>
+                        {% elif ms.status == 'In Progress' %}
+                            <span class="badge badge-primary" style="padding: 5px 12px; border-radius: 12px; font-size: 0.78rem;">In Progress</span>
+                        {% else %}
+                            <span class="badge badge-secondary" style="padding: 5px 12px; border-radius: 12px; font-size: 0.78rem;">Not Started</span>
+                        {% endif %}
+                        <div style="font-size: 0.85rem; font-weight: 700; margin-top: 4px; color: #7c3aed;">{{ ms.progress_pct|default(0)|int }}%</div>
+                    </div>
+                </div>
+                <div class="milestone-progress">
+                    <div class="bar {% if ms.progress_pct|default(0)|int >= 100 %}bg-success{% elif ms.progress_pct|default(0)|int >= 50 %}bg-primary{% elif ms.progress_pct|default(0)|int >= 25 %}bg-warning{% else %}bg-danger{% endif %}"
+                         style="width: {{ ms.progress_pct|default(0)|int }}%;"></div>
+                </div>
+                {% if ms.remarks %}
+                <div style="font-size: 0.8rem; color: #6c757d; margin-top: 6px;">
+                    <i class="fas fa-comment-dots mr-1"></i> {{ ms.remarks }}
+                </div>
+                {% endif %}
+
+                {% if user_has_permission('manage_implementation') %}
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0;">
+                    <form method="POST" action="/implementation/{{ project.id }}/milestones/{{ ms.id }}/update" class="inline-edit-form">
+                        <div class="row align-items-end">
+                            <div class="col-md-3 mb-2">
+                                <label style="font-size: 0.75rem; font-weight: 600;">Status</label>
+                                <select name="status" class="custom-select">
+                                    <option value="Not Started" {{ 'selected' if ms.status == 'Not Started' }}>Not Started</option>
+                                    <option value="In Progress" {{ 'selected' if ms.status == 'In Progress' }}>In Progress</option>
+                                    <option value="Completed" {{ 'selected' if ms.status == 'Completed' }}>Completed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label style="font-size: 0.75rem; font-weight: 600;">Progress %</label>
+                                <input type="number" name="progress_pct" class="form-control" min="0" max="100" value="{{ ms.progress_pct|default(0)|int }}">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label style="font-size: 0.75rem; font-weight: 600;">Actual Start</label>
+                                <input type="date" name="actual_start" class="form-control" value="{{ ms.actual_start or '' }}">
+                            </div>
+                            <div class="col-md-2 mb-2">
+                                <label style="font-size: 0.75rem; font-weight: 600;">Actual End</label>
+                                <input type="date" name="actual_end" class="form-control" value="{{ ms.actual_end or '' }}">
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <label style="font-size: 0.75rem; font-weight: 600;">Remarks</label>
+                                <div class="input-group">
+                                    <input type="text" name="remarks" class="form-control" value="{{ ms.remarks or '' }}" placeholder="Remarks...">
+                                    <div class="input-group-append">
+                                        <button type="submit" class="btn btn-sm btn-gradient" style="padding: 4px 12px;"><i class="fas fa-check"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-flag-checkered d-block"></i>
+            <h5 style="font-weight: 600;">No Milestones Yet</h5>
+            <p>Add milestones to track project phases and progress.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="profile-card">
+    <div class="card-header-custom">
+        <i class="fas fa-history mr-2"></i>Activity Log
+    </div>
+    <div class="card-body">
+        {% if activity_logs and activity_logs|length > 0 %}
+            {% for log in activity_logs %}
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-action">{{ log.action }}</div>
+                    <div class="activity-details">{{ log.details }}</div>
+                    <div class="activity-meta">
+                        <i class="fas fa-user mr-1"></i>{{ log.performed_by or 'System' }}
+                        &middot;
+                        <i class="fas fa-clock mr-1"></i>{{ log.created_at }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-history d-block"></i>
+            <h5 style="font-weight: 600;">No Activities Logged</h5>
+            <p>Activity logs will appear here as changes are made.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if user_has_permission('manage_implementation') %}
+<div class="modal fade modal-custom" id="addMilestoneModal" tabindex="-1" role="dialog" aria-labelledby="addMilestoneModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMilestoneModalLabel"><i class="fas fa-plus-circle mr-2"></i>Add Milestone</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="POST" action="/implementation/{{ project.id }}/milestones/add">
+                <div class="modal-body" style="padding: 25px;">
+                    <div class="form-group">
+                        <label class="font-weight-bold"><i class="fas fa-tag mr-1"></i> Phase Name</label>
+                        <select name="phase_name" class="custom-select" id="milestonePhaseSelect">
+                            <option value="Design">Design</option>
+                            <option value="Procurement">Procurement</option>
+                            <option value="Installation">Installation</option>
+                            <option value="Testing & Commissioning">Testing & Commissioning</option>
+                            <option value="Handover">Handover</option>
+                            <option value="Custom">Custom Phase...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="customPhaseGroup" style="display: none;">
+                        <label class="font-weight-bold"><i class="fas fa-edit mr-1"></i> Custom Phase Name</label>
+                        <input type="text" name="custom_phase_name" class="form-control" placeholder="Enter custom phase name">
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold"><i class="fas fa-align-left mr-1"></i> Description</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Describe this milestone..."></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold"><i class="fas fa-calendar mr-1"></i> Planned Start</label>
+                                <input type="date" name="planned_start" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="font-weight-bold"><i class="fas fa-calendar mr-1"></i> Planned End</label>
+                                <input type="date" name="planned_end" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold"><i class="fas fa-comment mr-1"></i> Remarks</label>
+                        <input type="text" name="remarks" class="form-control" placeholder="Optional remarks...">
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef;">
+                    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="fas fa-plus mr-1"></i> Add Milestone
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    $('#milestonePhaseSelect').on('change', function() {
+        if ($(this).val() === 'Custom') {
+            $('#customPhaseGroup').slideDown();
+        } else {
+            $('#customPhaseGroup').slideUp();
+        }
+    });
+});
+</script>
+{% endblock %}

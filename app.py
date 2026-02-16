@@ -982,6 +982,63 @@ def init_db():
     c.execute('CREATE INDEX IF NOT EXISTS idx_project_certificates_project ON project_certificates(project_id)')
     c.execute('CREATE INDEX IF NOT EXISTS idx_project_approvals_project ON project_approvals(project_id)')
 
+    # Project Implementation tables
+    c.execute('''CREATE TABLE IF NOT EXISTS implementation_projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        register_project_id INTEGER UNIQUE NOT NULL,
+        status TEXT DEFAULT 'Planning',
+        start_date TEXT,
+        target_end_date TEXT,
+        actual_end_date TEXT,
+        project_manager_id INTEGER,
+        site_engineer_id INTEGER,
+        project_coordinator_id INTEGER,
+        completion_percentage REAL DEFAULT 0,
+        notes TEXT,
+        priority TEXT DEFAULT 'Medium',
+        created_at TEXT DEFAULT (datetime('now')),
+        created_by TEXT,
+        updated_at TEXT DEFAULT (datetime('now')),
+        updated_by TEXT,
+        FOREIGN KEY (register_project_id) REFERENCES register_project(id),
+        FOREIGN KEY (project_manager_id) REFERENCES engineers(id),
+        FOREIGN KEY (site_engineer_id) REFERENCES engineers(id),
+        FOREIGN KEY (project_coordinator_id) REFERENCES engineers(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS implementation_milestones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        implementation_project_id INTEGER NOT NULL,
+        phase_name TEXT NOT NULL,
+        description TEXT,
+        status TEXT DEFAULT 'Not Started',
+        planned_start TEXT,
+        planned_end TEXT,
+        actual_start TEXT,
+        actual_end TEXT,
+        progress_pct REAL DEFAULT 0,
+        remarks TEXT,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (implementation_project_id) REFERENCES implementation_projects(id)
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS implementation_activity_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        implementation_project_id INTEGER NOT NULL,
+        action TEXT NOT NULL,
+        details TEXT,
+        performed_by TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (implementation_project_id) REFERENCES implementation_projects(id)
+    )''')
+
+    c.execute('CREATE INDEX IF NOT EXISTS idx_impl_proj_register ON implementation_projects(register_project_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_impl_milestones_proj ON implementation_milestones(implementation_project_id)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_impl_activity_proj ON implementation_activity_log(implementation_project_id)')
+
+
     conn.commit()
     conn.close()
 
@@ -997,6 +1054,10 @@ def add_missing_permissions():
     
     # New permissions to add
     new_permissions = [
+        ('view_implementation', 'Implementation Dashboard', 'Project Implementation', 'View project implementation dashboard'),
+        ('manage_implementation', 'Manage Implementation', 'Project Implementation', 'Manage implementation projects and milestones'),
+        ('transfer_to_implementation', 'Transfer Projects', 'Project Implementation', 'Transfer Closed Won projects to implementation'),
+        ('assign_implementation_team', 'Assign Team', 'Project Implementation', 'Assign project manager, site engineer, and coordinator'),
         ('download_quotation', 'Download Quotation', 'Sales', 'Download quotation PDF files'),
         ('download_cost_sheet', 'Download Cost Sheet', 'Sales', 'Download cost sheet Excel files'),
         ('view_active_users', 'Active Users', 'Administration', 'View and manage currently active user sessions'),
@@ -30902,6 +30963,461 @@ def generate_aggregate_powerpoint(selected_clients):
         'download_url': url_for('static', filename=f'temp/{filename}'),
         'filename': filename
     })
+
+
+
+# ==========================================
+# PROJECT IMPLEMENTATION ROUTES
+# ==========================================
+
+@app.route('/implementation')
+@login_required
+@permission_required('view_implementation')
+def implementation_dashboard():
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    status_filter = request.args.get('status', '')
+    pm_filter = request.args.get('pm', '')
+    search_filter = request.args.get('search', '')
+    
+    query = """
+        SELECT 
+            ip.*,
+            rp.project_name,
+            rp.scope_of_work as system,
+            rp.deal_value,
+            rp.stage,
+            COALESCE(eu.name, con.name, cons.name, 'N/A') as client_name,
+            pm.name as pm_name,
+            se.name as se_name,
+            pc.name as pc_name
+        FROM implementation_projects ip
+        JOIN register_project rp ON ip.register_project_id = rp.id
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors con ON rp.contractor_id = con.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        LEFT JOIN engineers pm ON ip.project_manager_id = pm.id
+        LEFT JOIN engineers se ON ip.site_engineer_id = se.id
+        LEFT JOIN engineers pc ON ip.project_coordinator_id = pc.id
+        WHERE 1=1
+    """
+    params = []
+    
+    if status_filter:
+        query += " AND ip.status = ?"
+        params.append(status_filter)
+    if pm_filter:
+        query += " AND ip.project_manager_id = ?"
+        params.append(pm_filter)
+    if search_filter:
+        query += " AND (rp.project_name LIKE ? OR COALESCE(eu.name, con.name, cons.name, '') LIKE ?)"
+        params.extend([f'%{search_filter}%', f'%{search_filter}%'])
+    
+    query += " ORDER BY ip.created_at DESC"
+    c.execute(query, params)
+    projects = [dict(row) for row in c.fetchall()]
+    
+    c.execute("SELECT COUNT(*) FROM implementation_projects")
+    total = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM implementation_projects WHERE status = 'Planning'")
+    planning = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM implementation_projects WHERE status = 'In Progress'")
+    in_progress = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM implementation_projects WHERE status = 'On Hold'")
+    on_hold = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM implementation_projects WHERE status = 'Completed'")
+    completed = c.fetchone()[0]
+    
+    stats = {
+        'total': total,
+        'planning': planning,
+        'in_progress': in_progress,
+        'on_hold': on_hold,
+        'completed': completed
+    }
+    
+    c.execute("""
+        SELECT rp.id, rp.project_name, rp.deal_value,
+               COALESCE(eu.name, con.name, cons.name, 'N/A') as client_name
+        FROM register_project rp
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors con ON rp.contractor_id = con.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        WHERE rp.stage = 'Closed Won'
+        AND rp.id NOT IN (SELECT register_project_id FROM implementation_projects)
+        ORDER BY rp.project_name
+    """)
+    available_projects = [dict(row) for row in c.fetchall()]
+    
+    c.execute("SELECT id, name FROM engineers ORDER BY name")
+    engineers = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    
+    filters = {
+        'status': status_filter,
+        'pm': pm_filter,
+        'search': search_filter
+    }
+    
+    return render_template('implementation_dashboard.html',
+                         projects=projects,
+                         stats=stats,
+                         available_projects=available_projects,
+                         engineers=engineers,
+                         filters=filters)
+
+
+@app.route('/implementation/transfer', methods=['POST'])
+@login_required
+@permission_required('transfer_to_implementation')
+def implementation_transfer():
+    project_id = request.form.get('project_id')
+    if not project_id:
+        flash('Please select a project to transfer.', 'danger')
+        return redirect(url_for('implementation_dashboard'))
+    
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT id, project_name FROM register_project WHERE id = ? AND stage = 'Closed Won'", (project_id,))
+    project = c.fetchone()
+    if not project:
+        flash('Project not found or not in Closed Won stage.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("SELECT id FROM implementation_projects WHERE register_project_id = ?", (project_id,))
+    if c.fetchone():
+        flash('This project has already been transferred to implementation.', 'warning')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("""
+        INSERT INTO implementation_projects (register_project_id, status, created_by, updated_by)
+        VALUES (?, 'Planning', ?, ?)
+    """, (project_id, session.get('username', ''), session.get('username', '')))
+    
+    impl_id = c.lastrowid
+    
+    default_phases = [
+        ('Design & Planning', 1),
+        ('Procurement', 2),
+        ('Installation', 3),
+        ('Testing & Commissioning', 4),
+        ('Handover & Closeout', 5)
+    ]
+    for phase_name, sort_order in default_phases:
+        c.execute("""
+            INSERT INTO implementation_milestones (implementation_project_id, phase_name, sort_order)
+            VALUES (?, ?, ?)
+        """, (impl_id, phase_name, sort_order))
+    
+    c.execute("""
+        INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+        VALUES (?, 'Project Transferred', ?, ?)
+    """, (impl_id, f"Project '{project['project_name']}' transferred to implementation", session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f"Project '{project['project_name']}' has been transferred to implementation successfully!", 'success')
+    return redirect(url_for('implementation_profile', id=impl_id))
+
+
+@app.route('/implementation/<int:id>')
+@login_required
+def implementation_profile(id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT 
+            ip.*,
+            rp.project_name,
+            rp.scope_of_work,
+            rp.deal_value,
+            rp.stage,
+            rp.registered_date,
+            rp.expected_close_date,
+            rp.note as project_note,
+            COALESCE(eu.name, con.name, cons.name, 'N/A') as client_name,
+            rp.client_type,
+            pm.name as pm_name,
+            se.name as se_name,
+            pc.name as pc_name
+        FROM implementation_projects ip
+        JOIN register_project rp ON ip.register_project_id = rp.id
+        LEFT JOIN end_users eu ON rp.end_user_id = eu.id
+        LEFT JOIN contractors con ON rp.contractor_id = con.id
+        LEFT JOIN consultants cons ON rp.consultant_id = cons.id
+        LEFT JOIN engineers pm ON ip.project_manager_id = pm.id
+        LEFT JOIN engineers se ON ip.site_engineer_id = se.id
+        LEFT JOIN engineers pc ON ip.project_coordinator_id = pc.id
+        WHERE ip.id = ?
+    """, (id,))
+    project = c.fetchone()
+    
+    if not project:
+        flash('Implementation project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    project = dict(project)
+    
+    username = session.get('username', '')
+    has_perm = user_has_permission('view_implementation') or user_has_permission('manage_implementation')
+    
+    c.execute("SELECT id FROM engineers WHERE username = ?", (username,))
+    eng = c.fetchone()
+    is_assigned = False
+    if eng:
+        eng_id = eng['id']
+        is_assigned = (project.get('project_manager_id') == eng_id or 
+                      project.get('site_engineer_id') == eng_id or 
+                      project.get('project_coordinator_id') == eng_id)
+    
+    if not has_perm and not is_assigned:
+        flash('You do not have permission to view this project.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("""
+        SELECT * FROM implementation_milestones 
+        WHERE implementation_project_id = ? 
+        ORDER BY sort_order, id
+    """, (id,))
+    milestones = [dict(row) for row in c.fetchall()]
+    
+    c.execute("""
+        SELECT * FROM implementation_activity_log 
+        WHERE implementation_project_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 20
+    """, (id,))
+    activity_logs = [dict(row) for row in c.fetchall()]
+    
+    c.execute("SELECT id, name, role FROM engineers ORDER BY name")
+    engineers = [dict(row) for row in c.fetchall()]
+    
+    conn.close()
+    
+    return render_template('implementation_profile.html',
+                         project=project,
+                         milestones=milestones,
+                         activity_logs=activity_logs,
+                         engineers=engineers)
+
+
+@app.route('/implementation/<int:id>/update', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def implementation_update(id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    status = request.form.get('status', '')
+    priority = request.form.get('priority', '')
+    start_date = request.form.get('start_date', '')
+    target_end_date = request.form.get('target_end_date', '')
+    completion_percentage = request.form.get('completion_percentage', 0)
+    notes = request.form.get('notes', '')
+    
+    c.execute("SELECT ip.*, rp.project_name FROM implementation_projects ip JOIN register_project rp ON ip.register_project_id = rp.id WHERE ip.id = ?", (id,))
+    old = c.fetchone()
+    if not old:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("""
+        UPDATE implementation_projects 
+        SET status = ?, priority = ?, start_date = ?, target_end_date = ?,
+            completion_percentage = ?, notes = ?, updated_at = datetime('now'), updated_by = ?
+        WHERE id = ?
+    """, (status, priority, start_date or None, target_end_date or None,
+          float(completion_percentage or 0), notes, session.get('username', ''), id))
+    
+    if status == 'Completed' and old['status'] != 'Completed':
+        c.execute("UPDATE implementation_projects SET actual_end_date = date('now') WHERE id = ?", (id,))
+    
+    changes = []
+    if old['status'] != status:
+        changes.append(f"Status: {old['status']} -> {status}")
+    if old['priority'] != priority:
+        changes.append(f"Priority: {old['priority']} -> {priority}")
+    
+    if changes:
+        c.execute("""
+            INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+            VALUES (?, 'Project Updated', ?, ?)
+        """, (id, '; '.join(changes), session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Project updated successfully!', 'success')
+    return redirect(url_for('implementation_profile', id=id))
+
+
+@app.route('/implementation/<int:id>/assign', methods=['POST'])
+@login_required
+@permission_required('assign_implementation_team')
+def implementation_assign(id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    pm_id = request.form.get('project_manager_id') or None
+    se_id = request.form.get('site_engineer_id') or None
+    pc_id = request.form.get('project_coordinator_id') or None
+    
+    c.execute("SELECT ip.*, rp.project_name FROM implementation_projects ip JOIN register_project rp ON ip.register_project_id = rp.id WHERE ip.id = ?", (id,))
+    old = c.fetchone()
+    if not old:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("""
+        UPDATE implementation_projects 
+        SET project_manager_id = ?, site_engineer_id = ?, project_coordinator_id = ?,
+            updated_at = datetime('now'), updated_by = ?
+        WHERE id = ?
+    """, (pm_id, se_id, pc_id, session.get('username', ''), id))
+    
+    def get_name(eid):
+        if not eid:
+            return 'None'
+        c.execute("SELECT name FROM engineers WHERE id = ?", (eid,))
+        r = c.fetchone()
+        return r['name'] if r else 'Unknown'
+    
+    details_parts = []
+    if str(old['project_manager_id'] or '') != str(pm_id or ''):
+        details_parts.append(f"PM: {get_name(old['project_manager_id'])} -> {get_name(pm_id)}")
+    if str(old['site_engineer_id'] or '') != str(se_id or ''):
+        details_parts.append(f"SE: {get_name(old['site_engineer_id'])} -> {get_name(se_id)}")
+    if str(old['project_coordinator_id'] or '') != str(pc_id or ''):
+        details_parts.append(f"PC: {get_name(old['project_coordinator_id'])} -> {get_name(pc_id)}")
+    
+    if details_parts:
+        c.execute("""
+            INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+            VALUES (?, 'Team Assignment Updated', ?, ?)
+        """, (id, '; '.join(details_parts), session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash('Team assignment updated successfully!', 'success')
+    return redirect(url_for('implementation_profile', id=id))
+
+
+@app.route('/implementation/<int:id>/milestones/add', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def implementation_milestone_add(id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    phase_name = request.form.get('phase_name', '')
+    if phase_name == 'Custom':
+        phase_name = request.form.get('custom_phase_name', 'Custom Phase')
+    description = request.form.get('description', '')
+    planned_start = request.form.get('planned_start', '') or None
+    planned_end = request.form.get('planned_end', '') or None
+    
+    c.execute("SELECT MAX(sort_order) FROM implementation_milestones WHERE implementation_project_id = ?", (id,))
+    max_order = c.fetchone()[0] or 0
+    
+    c.execute("""
+        INSERT INTO implementation_milestones 
+        (implementation_project_id, phase_name, description, planned_start, planned_end, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (id, phase_name, description, planned_start, planned_end, max_order + 1))
+    
+    c.execute("""
+        INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+        VALUES (?, 'Milestone Added', ?, ?)
+    """, (id, f"Added milestone: {phase_name}", session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Milestone "{phase_name}" added successfully!', 'success')
+    return redirect(url_for('implementation_profile', id=id))
+
+
+@app.route('/implementation/<int:id>/milestones/<int:milestone_id>/update', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def implementation_milestone_update(id, milestone_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    status = request.form.get('status', '')
+    progress_pct = request.form.get('progress_pct', 0)
+    actual_start = request.form.get('actual_start', '') or None
+    actual_end = request.form.get('actual_end', '') or None
+    remarks = request.form.get('remarks', '')
+    
+    c.execute("""
+        UPDATE implementation_milestones 
+        SET status = ?, progress_pct = ?, actual_start = ?, actual_end = ?,
+            remarks = ?, updated_at = datetime('now')
+        WHERE id = ? AND implementation_project_id = ?
+    """, (status, float(progress_pct or 0), actual_start, actual_end, remarks, milestone_id, id))
+    
+    c.execute("SELECT phase_name FROM implementation_milestones WHERE id = ?", (milestone_id,))
+    ms = c.fetchone()
+    phase = ms[0] if ms else 'Unknown'
+    
+    c.execute("""
+        INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+        VALUES (?, 'Milestone Updated', ?, ?)
+    """, (id, f"{phase}: Status={status}, Progress={progress_pct}%", session.get('username', '')))
+    
+    c.execute("""
+        SELECT AVG(progress_pct) FROM implementation_milestones WHERE implementation_project_id = ?
+    """, (id,))
+    avg_progress = c.fetchone()[0] or 0
+    c.execute("UPDATE implementation_projects SET completion_percentage = ?, updated_at = datetime('now') WHERE id = ?", 
+              (round(avg_progress, 1), id))
+    
+    conn.commit()
+    conn.close()
+    
+    flash(f'Milestone "{phase}" updated successfully!', 'success')
+    return redirect(url_for('implementation_profile', id=id))
+
+
+@app.route('/implementation/<int:id>/milestones/<int:milestone_id>/delete', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def implementation_milestone_delete(id, milestone_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    
+    c.execute("SELECT phase_name FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, id))
+    ms = c.fetchone()
+    if ms:
+        c.execute("DELETE FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, id))
+        c.execute("""
+            INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+            VALUES (?, 'Milestone Deleted', ?, ?)
+        """, (id, f"Deleted milestone: {ms[0]}", session.get('username', '')))
+        conn.commit()
+        flash(f'Milestone "{ms[0]}" deleted.', 'success')
+    
+    conn.close()
+    return redirect(url_for('implementation_profile', id=id))
+
 
 if __name__ == '__main__':
     init_db()
