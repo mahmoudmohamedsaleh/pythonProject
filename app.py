@@ -31254,6 +31254,19 @@ def implementation_profile(id):
         """, po_numbers)
         material_items = [dict(row) for row in c.fetchall()]
 
+
+    total_po_cost = sum(float(po.get('total_with_vat') or 0) if float(po.get('total_with_vat') or 0) > 0 else float(po.get('total_amount') or 0) for po in related_pos)
+    selling_price = float(project.get('deal_value') or 0)
+    actual_margin = selling_price - total_po_cost
+    margin_percentage = (actual_margin / selling_price * 100) if selling_price > 0 else 0
+
+    financial_summary = {
+        'selling_price': selling_price,
+        'total_po_cost': total_po_cost,
+        'actual_margin': actual_margin,
+        'margin_percentage': margin_percentage,
+        'po_count': len(related_pos)
+    }
     c.execute("""
         SELECT id, doc_type, filename, drive_link, uploaded_by, uploaded_at,
                CASE WHEN file_data IS NOT NULL AND LENGTH(file_data) > 0 THEN 1 ELSE 0 END as has_file
@@ -31276,6 +31289,7 @@ def implementation_profile(id):
                          won_quotations=won_quotations,
                          related_pos=related_pos,
                          material_items=material_items,
+                         financial_summary=financial_summary,
                          contracts=contracts,
                          client_pos=client_pos,
                          drive_links=drive_links)
