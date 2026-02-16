@@ -31468,17 +31468,6 @@ def implementation_milestone_delete(id, milestone_id):
     return redirect(url_for('implementation_profile', id=id))
 
 
-if __name__ == '__main__':
-    init_db()
-    seed_permissions()
-    seed_default_role_permissions()
-    seed_default_roles()
-    host = os.getenv('HOST', '0.0.0.0')
-    port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', '0') == '1'
-    app.run(host=host, port=port, debug=debug)
-
-@app.route('/implementation/<int:id>/upload_document', methods=['POST'])
 
 @app.route('/implementation/<int:id>/upload_document', methods=['POST'])
 @login_required
@@ -31597,6 +31586,8 @@ def implementation_delete_document(id, doc_id):
     conn.close()
     flash(f'{label} deleted successfully.', 'success')
     return redirect(url_for('implementation_profile', id=id))
+
+
 
 
 if __name__ == '__main__':
