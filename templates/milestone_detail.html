@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}{{ milestone.phase_name }} - Tasks{% endblock %}
+
+{% block content %}
+<style>
+    .ms-hero {
+        background: linear-gradient(135deg, #667eea 0%, #7c3aed 100%);
+        border-radius: 15px;
+        padding: 30px 35px;
+        color: white;
+        margin-bottom: 25px;
+        position: relative;
+        overflow: hidden;
+    }
+    .ms-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
+    .ms-hero h1 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    .ms-hero .breadcrumb-link {
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    .ms-hero .breadcrumb-link:hover {
+        color: white;
+    }
+    .ms-stats {
+        display: flex;
+        gap: 20px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+    .ms-stat-item {
+        background: rgba(255,255,255,0.15);
+        border-radius: 10px;
+        padding: 10px 18px;
+        min-width: 100px;
+        text-align: center;
+    }
+    .ms-stat-item .stat-val {
+        font-size: 1.4rem;
+        font-weight: 700;
+    }
+    .ms-stat-item .stat-lbl {
+        font-size: 0.75rem;
+        opacity: 0.85;
+    }
+    .task-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        margin-bottom: 12px;
+        border-left: 4px solid #e0e0e0;
+        transition: all 0.2s ease;
+    }
+    .task-card:hover {
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+    }
+    .task-card.priority-high { border-left-color: #e74c3c; }
+    .task-card.priority-medium { border-left-color: #f39c12; }
+    .task-card.priority-low { border-left-color: #27ae60; }
+    .task-card.priority-urgent { border-left-color: #8e44ad; }
+    .task-card .task-body {
+        padding: 15px 20px;
+    }
+    .task-card .task-title {
+        font-weight: 600;
+        font-size: 1rem;
+        color: #2c3e50;
+        margin-bottom: 4px;
+    }
+    .task-card .task-desc {
+        color: #7f8c8d;
+        font-size: 0.85rem;
+        margin-bottom: 8px;
+    }
+    .task-meta {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+        font-size: 0.8rem;
+        color: #95a5a6;
+    }
+    .task-meta i {
+        margin-right: 4px;
+    }
+    .badge-status {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+    .badge-pending { background: #ffeaa7; color: #856404; }
+    .badge-in-progress { background: #74b9ff; color: #004085; }
+    .badge-completed { background: #55efc4; color: #155724; }
+    .badge-on-hold { background: #fab1a0; color: #721c24; }
+    .badge-cancelled { background: #dfe6e9; color: #636e72; }
+    .badge-priority {
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    .badge-p-urgent { background: #8e44ad; color: white; }
+    .badge-p-high { background: #e74c3c; color: white; }
+    .badge-p-medium { background: #f39c12; color: white; }
+    .badge-p-low { background: #27ae60; color: white; }
+    .followup-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px 15px;
+        margin-top: 8px;
+        font-size: 0.85rem;
+    }
+    .followup-section .followup-label {
+        font-weight: 600;
+        color: #6c5ce7;
+        margin-bottom: 4px;
+    }
+    .add-task-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #95a5a6;
+    }
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        opacity: 0.3;
+    }
+    .task-actions {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+    .task-actions .btn {
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        line-height: 28px;
+        font-size: 0.7rem;
+    }
+    .filter-bar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+    .filter-btn {
+        padding: 5px 14px;
+        border-radius: 20px;
+        border: 1px solid #ddd;
+        background: white;
+        color: #666;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+</style>
+
+<div class="ms-hero">
+    <div>
+        <a href="{{ url_for('implementation_profile', id=project.id) }}" class="breadcrumb-link">
+            <i class="fas fa-arrow-left"></i> {{ project.project_name }}
+        </a>
+    </div>
+    <h1 style="margin-top: 10px;"><i class="fas fa-tasks"></i> {{ milestone.phase_name }}</h1>
+    <div style="font-size: 0.9rem; opacity: 0.85;">
+        {% if milestone.description %}{{ milestone.description }}{% endif %}
+    </div>
+    <div class="ms-stats">
+        <div class="ms-stat-item">
+            <div class="stat-val">{{ tasks|length }}</div>
+            <div class="stat-lbl">Total Tasks</div>
+        </div>
+        <div class="ms-stat-item">
+            <div class="stat-val">{{ tasks|selectattr('status', 'equalto', 'Completed')|list|length }}</div>
+            <div class="stat-lbl">Completed</div>
+        </div>
+        <div class="ms-stat-item">
+            <div class="stat-val">{{ tasks|selectattr('status', 'equalto', 'In Progress')|list|length }}</div>
+            <div class="stat-lbl">In Progress</div>
+        </div>
+        <div class="ms-stat-item">
+            <div class="stat-val">{{ tasks|selectattr('status', 'equalto', 'Pending')|list|length }}</div>
+            <div class="stat-lbl">Pending</div>
+        </div>
+        <div class="ms-stat-item">
+            <div class="stat-val">
+                <span class="badge {% if milestone.status == 'Completed' %}badge-completed{% elif milestone.status == 'In Progress' %}badge-in-progress{% elif milestone.status == 'On Hold' %}badge-on-hold{% else %}badge-pending{% endif %}" style="font-size: 0.8rem;">
+                    {{ milestone.status }}
+                </span>
+            </div>
+            <div class="stat-lbl">Phase Status</div>
+        </div>
+        <div class="ms-stat-item">
+            <div class="stat-val">{{ milestone.progress_pct|int }}%</div>
+            <div class="stat-lbl">Progress</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 order-lg-2 mb-4">
+        <div class="add-task-card">
+            <div class="section-title"><i class="fas fa-plus-circle" style="color: #667eea;"></i> Add New Task</div>
+            <form method="POST" action="{{ url_for('milestone_add_task', project_id=project.id, milestone_id=milestone.id) }}">
+                <div class="mb-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Task Name *</label>
+                    <input type="text" name="task_name" class="form-control" required placeholder="Enter task name...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Description</label>
+                    <textarea name="description" class="form-control" rows="2" placeholder="Task details..."></textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Assigned To</label>
+                        <select name="assigned_to" class="form-select form-select-sm">
+                            <option value="">-- Select --</option>
+                            {% for user in users %}
+                            <option value="{{ user.username }}">{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Priority</label>
+                        <select name="priority" class="form-select form-select-sm">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Status</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="Pending">Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="On Hold">On Hold</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Due Date</label>
+                        <input type="date" name="due_date" class="form-control form-control-sm">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.85rem;">Follow-up Notes</label>
+                    <textarea name="follow_up_notes" class="form-control" rows="2" placeholder="Follow-up details, next actions..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100" style="background: linear-gradient(135deg, #667eea, #7c3aed); border: none; border-radius: 8px;">
+                    <i class="fas fa-plus"></i> Add Task
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-8 order-lg-1">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <div class="section-title" style="margin-bottom: 0;"><i class="fas fa-list-check" style="color: #667eea;"></i> Tasks ({{ tasks|length }})</div>
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterTasks('all')">All</button>
+            <button class="filter-btn" onclick="filterTasks('Pending')">Pending</button>
+            <button class="filter-btn" onclick="filterTasks('In Progress')">In Progress</button>
+            <button class="filter-btn" onclick="filterTasks('Completed')">Completed</button>
+            <button class="filter-btn" onclick="filterTasks('On Hold')">On Hold</button>
+        </div>
+
+        {% if tasks %}
+            {% for task in tasks %}
+            <div class="task-card priority-{{ task.priority|lower }}" data-status="{{ task.status }}">
+                <div class="task-body">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div class="task-title">
+                                {% if task.status == 'Completed' %}<i class="fas fa-check-circle" style="color: #27ae60; margin-right: 5px;"></i>{% endif %}
+                                {{ task.task_name }}
+                            </div>
+                            {% if task.description %}
+                            <div class="task-desc">{{ task.description }}</div>
+                            {% endif %}
+                            <div class="task-meta">
+                                <span class="badge-status {% if task.status == 'Pending' %}badge-pending{% elif task.status == 'In Progress' %}badge-in-progress{% elif task.status == 'Completed' %}badge-completed{% elif task.status == 'On Hold' %}badge-on-hold{% else %}badge-cancelled{% endif %}">
+                                    {{ task.status }}
+                                </span>
+                                <span class="badge-priority badge-p-{{ task.priority|lower }}">{{ task.priority }}</span>
+                                {% if task.assigned_to %}
+                                <span><i class="fas fa-user"></i> {{ task.assigned_to }}</span>
+                                {% endif %}
+                                {% if task.due_date %}
+                                <span><i class="fas fa-calendar"></i> {{ task.due_date }}</span>
+                                {% endif %}
+                                {% if task.completed_date %}
+                                <span><i class="fas fa-check"></i> Done: {{ task.completed_date[:10] }}</span>
+                                {% endif %}
+                                <span><i class="fas fa-clock"></i> {{ task.created_at[:10] if task.created_at else '' }}</span>
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <button class="btn btn-sm btn-outline-primary" onclick="openEditModal({{ task.id }}, '{{ task.task_name|e }}', '{{ task.description|e if task.description else '' }}', '{{ task.assigned_to or '' }}', '{{ task.priority }}', '{{ task.status }}', '{{ task.due_date or '' }}', `{{ task.follow_up_notes|e if task.follow_up_notes else '' }}`)" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <form action="{{ url_for('milestone_delete_task', project_id=project.id, milestone_id=milestone.id, task_id=task.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Delete this task?')">
+                                <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    {% if task.follow_up_notes %}
+                    <div class="followup-section">
+                        <div class="followup-label"><i class="fas fa-sticky-note"></i> Follow-up Notes</div>
+                        <div style="white-space: pre-wrap;">{{ task.follow_up_notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div><i class="fas fa-clipboard-list"></i></div>
+                <h5>No Tasks Yet</h5>
+                <p>Add your first task using the form on the right to start tracking this phase's work.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius: 12px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea, #7c3aed); color: white; border-radius: 12px 12px 0 0;">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Task</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editTaskForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="font-size: 0.85rem;">Task Name *</label>
+                        <input type="text" name="task_name" id="edit_task_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="font-size: 0.85rem;">Description</label>
+                        <textarea name="description" id="edit_description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold" style="font-size: 0.85rem;">Assigned To</label>
+                            <select name="assigned_to" id="edit_assigned_to" class="form-select form-select-sm">
+                                <option value="">-- Select --</option>
+                                {% for user in users %}
+                                <option value="{{ user.username }}">{{ user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold" style="font-size: 0.85rem;">Priority</label>
+                            <select name="priority" id="edit_priority" class="form-select form-select-sm">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Urgent">Urgent</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold" style="font-size: 0.85rem;">Status</label>
+                            <select name="status" id="edit_status" class="form-select form-select-sm">
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="On Hold">On Hold</option>
+                                <option value="Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold" style="font-size: 0.85rem;">Due Date</label>
+                            <input type="date" name="due_date" id="edit_due_date" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="font-size: 0.85rem;">Follow-up Notes</label>
+                        <textarea name="follow_up_notes" id="edit_follow_up_notes" class="form-control" rows="3" placeholder="Follow-up details, next actions..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #667eea, #7c3aed); border: none;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterTasks(status) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    document.querySelectorAll('.task-card').forEach(card => {
+        if (status === 'all' || card.dataset.status === status) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function openEditModal(taskId, name, desc, assignedTo, priority, status, dueDate, followUp) {
+    document.getElementById('edit_task_name').value = name;
+    document.getElementById('edit_description').value = desc;
+    document.getElementById('edit_assigned_to').value = assignedTo;
+    document.getElementById('edit_priority').value = priority;
+    document.getElementById('edit_status').value = status;
+    document.getElementById('edit_due_date').value = dueDate;
+    document.getElementById('edit_follow_up_notes').value = followUp;
+    document.getElementById('editTaskForm').action = '/implementation/{{ project.id }}/milestone/{{ milestone.id }}/task/' + taskId + '/update';
+    new bootstrap.Modal(document.getElementById('editTaskModal')).show();
+}
+</script>
+{% endblock %}

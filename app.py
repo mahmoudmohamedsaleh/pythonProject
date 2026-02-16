@@ -31590,6 +31590,167 @@ def implementation_delete_document(id, doc_id):
 
 
 
+# ==================== MILESTONE TASK MANAGEMENT ====================
+
+@app.route('/implementation/<int:project_id>/milestone/<int:milestone_id>/tasks')
+@login_required
+@permission_required('manage_implementation')
+def milestone_detail(project_id, milestone_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM implementation_projects WHERE id = ?", (project_id,))
+    project = c.fetchone()
+    if not project:
+        flash('Project not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_dashboard'))
+    
+    c.execute("SELECT * FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, project_id))
+    milestone = c.fetchone()
+    if not milestone:
+        flash('Milestone not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=project_id))
+    
+    c.execute("SELECT * FROM milestone_tasks WHERE milestone_id = ? ORDER BY CASE WHEN status = 'In Progress' THEN 1 WHEN status = 'Pending' THEN 2 WHEN status = 'On Hold' THEN 3 WHEN status = 'Completed' THEN 4 WHEN status = 'Cancelled' THEN 5 END, CASE WHEN priority = 'Urgent' THEN 1 WHEN priority = 'High' THEN 2 WHEN priority = 'Medium' THEN 3 WHEN priority = 'Low' THEN 4 END, created_at DESC", (milestone_id,))
+    tasks = c.fetchall()
+    
+    c.execute("SELECT username FROM users WHERE is_approved = 1 ORDER BY username")
+    users = c.fetchall()
+    
+    conn.close()
+    
+    return render_template('milestone_detail.html', project=project, milestone=milestone, tasks=tasks, users=users)
+
+
+@app.route('/implementation/<int:project_id>/milestone/<int:milestone_id>/add_task', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def milestone_add_task(project_id, milestone_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, project_id))
+    if not c.fetchone():
+        flash('Milestone not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=project_id))
+    
+    task_name = request.form.get('task_name', '').strip()
+    description = request.form.get('description', '').strip()
+    assigned_to = request.form.get('assigned_to', '').strip()
+    priority = request.form.get('priority', 'Medium')
+    status = request.form.get('status', 'Pending')
+    due_date = request.form.get('due_date', '').strip()
+    follow_up_notes = request.form.get('follow_up_notes', '').strip()
+    
+    if not task_name:
+        flash('Task name is required.', 'danger')
+        conn.close()
+        return redirect(url_for('milestone_detail', project_id=project_id, milestone_id=milestone_id))
+    
+    completed_date = None
+    if status == 'Completed':
+        from datetime import datetime
+        completed_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    c.execute("""INSERT INTO milestone_tasks (milestone_id, task_name, description, assigned_to, priority, status, due_date, completed_date, follow_up_notes, created_by)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+              (milestone_id, task_name, description or None, assigned_to or None, priority, status, due_date or None, completed_date, follow_up_notes or None, session.get('username', '')))
+    
+    c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+                 VALUES (?, 'Task Added', ?, ?)""",
+              (project_id, f'Task "{task_name}" added to milestone', session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    flash(f'Task "{task_name}" added successfully.', 'success')
+    return redirect(url_for('milestone_detail', project_id=project_id, milestone_id=milestone_id))
+
+
+@app.route('/implementation/<int:project_id>/milestone/<int:milestone_id>/task/<int:task_id>/update', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def milestone_update_task(project_id, milestone_id, task_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, project_id))
+    if not c.fetchone():
+        flash('Milestone not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=project_id))
+    
+    task_name = request.form.get('task_name', '').strip()
+    description = request.form.get('description', '').strip()
+    assigned_to = request.form.get('assigned_to', '').strip()
+    priority = request.form.get('priority', 'Medium')
+    status = request.form.get('status', 'Pending')
+    due_date = request.form.get('due_date', '').strip()
+    follow_up_notes = request.form.get('follow_up_notes', '').strip()
+    
+    c.execute("SELECT * FROM milestone_tasks WHERE id = ? AND milestone_id = ?", (task_id, milestone_id))
+    old_task = c.fetchone()
+    
+    completed_date = old_task['completed_date'] if old_task else None
+    if status == 'Completed' and (not old_task or old_task['status'] != 'Completed'):
+        from datetime import datetime
+        completed_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    elif status != 'Completed':
+        completed_date = None
+    
+    c.execute("""UPDATE milestone_tasks SET task_name=?, description=?, assigned_to=?, priority=?, status=?, due_date=?, completed_date=?, follow_up_notes=?, updated_at=datetime('now')
+                 WHERE id = ? AND milestone_id = ?""",
+              (task_name, description or None, assigned_to or None, priority, status, due_date or None, completed_date, follow_up_notes or None, task_id, milestone_id))
+    
+    c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+                 VALUES (?, 'Task Updated', ?, ?)""",
+              (project_id, f'Task "{task_name}" updated (Status: {status})', session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    flash(f'Task "{task_name}" updated successfully.', 'success')
+    return redirect(url_for('milestone_detail', project_id=project_id, milestone_id=milestone_id))
+
+
+@app.route('/implementation/<int:project_id>/milestone/<int:milestone_id>/task/<int:task_id>/delete', methods=['POST'])
+@login_required
+@permission_required('manage_implementation')
+def milestone_delete_task(project_id, milestone_id, task_id):
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    c.execute("SELECT * FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, project_id))
+    if not c.fetchone():
+        flash('Milestone not found.', 'danger')
+        conn.close()
+        return redirect(url_for('implementation_profile', id=project_id))
+    
+    c.execute("SELECT task_name FROM milestone_tasks WHERE id = ? AND milestone_id = ?", (task_id, milestone_id))
+    task = c.fetchone()
+    if not task:
+        flash('Task not found.', 'danger')
+        conn.close()
+        return redirect(url_for('milestone_detail', project_id=project_id, milestone_id=milestone_id))
+    task_name = task['task_name']
+    
+    c.execute("DELETE FROM milestone_tasks WHERE id = ? AND milestone_id = ?", (task_id, milestone_id))
+    
+    c.execute("""INSERT INTO implementation_activity_log (implementation_project_id, action, details, performed_by)
+                 VALUES (?, 'Task Deleted', ?, ?)""",
+              (project_id, f'Task "{task_name}" deleted from milestone', session.get('username', '')))
+    
+    conn.commit()
+    conn.close()
+    flash(f'Task "{task_name}" deleted.', 'success')
+    return redirect(url_for('milestone_detail', project_id=project_id, milestone_id=milestone_id))
+
+
 if __name__ == '__main__':
     init_db()
     seed_permissions()
