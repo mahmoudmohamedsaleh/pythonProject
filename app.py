@@ -5320,7 +5320,80 @@ def quotation_presentation(quote_ref):
     txt_box(slide, company_phone, 5.5, 5.2, 4.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
 
     # ═══════════════════════════════════════════════════════════════
-    # SLIDE 2 — EXECUTIVE SUMMARY (AI-Generated)
+    # SLIDE 2 — QUOTATION DETAILS
+    # ═══════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Header bar
+    rect(slide, 0, 0, SLIDE_W, 1.1, C_PURPLE)
+    r2 = slide.shapes.add_shape(1, 0, Inches(1.1), Inches(SLIDE_W), Inches(0.06))
+    r2.fill.solid(); r2.fill.fore_color.rgb = C_GOLD; r2.line.width = 0
+    try:
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.12), width=Inches(1.5))
+    except Exception:
+        pass
+    txt_box(slide, 'QUOTATION DETAILS', 2.1, 0.25, 8.0, 0.65, size=22, bold=True, color=C_WHITE)
+    txt_box(slide, quote_ref, 10.2, 0.25, 2.9, 0.65, size=10, bold=False, color=C_GOLD, align=PP_ALIGN.RIGHT)
+
+    # Info grid (2 columns of label+value pairs)
+    info_pairs = [
+        ('QUOTATION REFERENCE', quote_ref),
+        ('DATE',               reg_date),
+        ('PROJECT NAME',       proj_name),
+        ('SYSTEM',             system_val),
+        ('PRESALE ENGINEER',   presale_eng),
+        ('SALES ENGINEER',     sales_eng),
+        ('QUARTER',            quarter),
+        ('STATUS',             status_val),
+    ]
+    col1 = info_pairs[:4]
+    col2 = info_pairs[4:]
+
+    def draw_info_col(slide, pairs, x_start):
+        y = 1.35
+        for label, value in pairs:
+            # label
+            lb = slide.shapes.add_textbox(Inches(x_start), Inches(y), Inches(5.8), Inches(0.28))
+            lb.text_frame.text = label
+            p = lb.text_frame.paragraphs[0]
+            run = p.add_run() if not p.runs else p.runs[0]
+            if not p.runs:
+                run = p.add_run()
+                run.text = label
+            else:
+                run = p.runs[0]
+            run.font.size = Pt(8)
+            run.font.bold = True
+            run.font.color.rgb = C_GREY_TXT
+            run.font.name = 'Calibri'
+            # value
+            vb = slide.shapes.add_textbox(Inches(x_start), Inches(y + 0.27), Inches(5.8), Inches(0.38))
+            vb.text_frame.word_wrap = True
+            vb.text_frame.text = ''
+            p2 = vb.text_frame.paragraphs[0]
+            run2 = p2.add_run()
+            run2.text = str(value) if value else '—'
+            run2.font.size = Pt(13)
+            run2.font.bold = False
+            run2.font.color.rgb = C_DARK
+            run2.font.name = 'Calibri'
+            y += 0.75
+
+    draw_info_col(slide, col1, 0.5)
+    draw_info_col(slide, col2, 7.1)
+
+    # Divider
+    div = slide.shapes.add_shape(1, Inches(6.8), Inches(1.35), Inches(0.04), Inches(3.1))
+    div.fill.solid(); div.fill.fore_color.rgb = RGBColor(0xD1,0xC4,0xE9); div.line.width = 0
+
+    # Selling price card
+    if selling_price and selling_price > 0:
+        rect(slide, 0.5, 5.55, 12.33, 1.45, C_TEAL)
+        txt_box(slide, 'TOTAL SELLING PRICE', 0.7, 5.65, 7.0, 0.5, size=12, bold=True, color=C_WHITE)
+        txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 6.08, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+
+    # ═══════════════════════════════════════════════════════════════
+    # SLIDE 3 — EXECUTIVE SUMMARY (AI-Generated)
     # ═══════════════════════════════════════════════════════════════
     try:
         import os as _os
@@ -5473,80 +5546,7 @@ Rules:
             size=8, color=C_GREY_TXT, align=PP_ALIGN.CENTER, italic=True)
 
     # ═══════════════════════════════════════════════════════════════
-    # SLIDE 3 — QUOTATION DETAILS
-    # ═══════════════════════════════════════════════════════════════
-    slide = prs.slides.add_slide(blank_layout)
-
-    # Header bar
-    rect(slide, 0, 0, SLIDE_W, 1.1, C_PURPLE)
-    r2 = slide.shapes.add_shape(1, 0, Inches(1.1), Inches(SLIDE_W), Inches(0.06))
-    r2.fill.solid(); r2.fill.fore_color.rgb = C_GOLD; r2.line.width = 0
-    try:
-        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.12), width=Inches(1.5))
-    except Exception:
-        pass
-    txt_box(slide, 'QUOTATION DETAILS', 2.1, 0.25, 8.0, 0.65, size=22, bold=True, color=C_WHITE)
-    txt_box(slide, quote_ref, 10.2, 0.25, 2.9, 0.65, size=10, bold=False, color=C_GOLD, align=PP_ALIGN.RIGHT)
-
-    # Info grid (2 columns of label+value pairs)
-    info_pairs = [
-        ('QUOTATION REFERENCE', quote_ref),
-        ('DATE',               reg_date),
-        ('PROJECT NAME',       proj_name),
-        ('SYSTEM',             system_val),
-        ('PRESALE ENGINEER',   presale_eng),
-        ('SALES ENGINEER',     sales_eng),
-        ('QUARTER',            quarter),
-        ('STATUS',             status_val),
-    ]
-    col1 = info_pairs[:4]
-    col2 = info_pairs[4:]
-
-    def draw_info_col(slide, pairs, x_start):
-        y = 1.35
-        for label, value in pairs:
-            # label
-            lb = slide.shapes.add_textbox(Inches(x_start), Inches(y), Inches(5.8), Inches(0.28))
-            lb.text_frame.text = label
-            p = lb.text_frame.paragraphs[0]
-            run = p.add_run() if not p.runs else p.runs[0]
-            if not p.runs:
-                run = p.add_run()
-                run.text = label
-            else:
-                run = p.runs[0]
-            run.font.size = Pt(8)
-            run.font.bold = True
-            run.font.color.rgb = C_GREY_TXT
-            run.font.name = 'Calibri'
-            # value
-            vb = slide.shapes.add_textbox(Inches(x_start), Inches(y + 0.27), Inches(5.8), Inches(0.38))
-            vb.text_frame.word_wrap = True
-            vb.text_frame.text = ''
-            p2 = vb.text_frame.paragraphs[0]
-            run2 = p2.add_run()
-            run2.text = str(value) if value else '—'
-            run2.font.size = Pt(13)
-            run2.font.bold = False
-            run2.font.color.rgb = C_DARK
-            run2.font.name = 'Calibri'
-            y += 0.75
-
-    draw_info_col(slide, col1, 0.5)
-    draw_info_col(slide, col2, 7.1)
-
-    # Divider
-    div = slide.shapes.add_shape(1, Inches(6.8), Inches(1.35), Inches(0.04), Inches(3.1))
-    div.fill.solid(); div.fill.fore_color.rgb = RGBColor(0xD1,0xC4,0xE9); div.line.width = 0
-
-    # Selling price card
-    if selling_price and selling_price > 0:
-        rect(slide, 0.5, 5.55, 12.33, 1.45, C_TEAL)
-        txt_box(slide, 'TOTAL SELLING PRICE', 0.7, 5.65, 7.0, 0.5, size=12, bold=True, color=C_WHITE)
-        txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 6.08, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
-
-    # ═══════════════════════════════════════════════════════════════
-    # SLIDES 3+N — BOQ TABLE (paginated)
+    # SLIDES 4+N — BOQ TABLE (paginated)
     # ═══════════════════════════════════════════════════════════════
     ITEMS_PER_SLIDE = 14   # safe max so rows fit within 7.5" slide
 
