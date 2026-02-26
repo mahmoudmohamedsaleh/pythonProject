@@ -5719,9 +5719,11 @@ Rules:
             txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 4.05, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
 
     # ═══════════════════════════════════════════════════════════════
-    # TECHNICAL DETAILS SLIDES (AI-Generated specs + product images)
+    # TECHNICAL DETAILS SLIDES  —  3-column layout per item
+    #   Col 1: Product Specs | Col 2: Required Specs | Col 3: Image
     # ═══════════════════════════════════════════════════════════════
-    _tech_items = [it for it in boq_items if not it.get('is_section') and it.get('code') and it['code'].strip()]
+    _tech_items = [it for it in boq_items
+                   if not it.get('is_section') and it.get('code') and it['code'].strip()]
     _seen_codes = set()
     _unique_tech = []
     for _ti in _tech_items:
@@ -5732,7 +5734,8 @@ Rules:
     MAX_TECH_ITEMS = 20
     _unique_tech = _unique_tech[:MAX_TECH_ITEMS]
 
-    _tech_data = {}   # code -> {specs: [...], image_url: str}
+    # code -> {product_specs:[...6], required_specs:[...5], image_url:str}
+    _tech_data = {}
 
     if _unique_tech:
         try:
@@ -5743,35 +5746,25 @@ Rules:
                 for it in _unique_tech
             )
 
-            _tech_prompt = f"""You are a certified technical engineer specializing in ICT, security, and building systems.
-For each product below provide EXACTLY 6 precise technical specification bullet points and a direct product image URL.
-
-Return ONLY valid JSON (no markdown, no explanation):
-{{
-  "items": [
-    {{
-      "code": "<item code exactly as given>",
-      "specs": [
-        "Spec Name: value",
-        "Spec Name: value",
-        "Spec Name: value",
-        "Spec Name: value",
-        "Spec Name: value",
-        "Spec Name: value"
-      ],
-      "image_url": "https://..."
-    }}
-  ]
-}}
-
-Products:
-{_item_list_txt}
-
-Rules:
-- EXACTLY 6 specs per item; each max 20 words, format "SpecName: value"
-- Specs must cover: electrical ratings, physical dimensions, performance/speed, certifications/standards, connectivity, environmental ratings (IP/IK) or temperature range as relevant
-- For image_url: provide the direct URL to the product image on the manufacturer official website (PNG or JPG). If unknown use: https://via.placeholder.com/400x300?text=<ItemCode>
-- Return one entry per product, same order as input"""
+            _tech_prompt = (
+                "You are a certified ICT/security/building-systems technical engineer.\n"
+                "For each product below provide:\n"
+                "  1. product_specs  — 6 actual product specification bullets (what the product IS)\n"
+                "  2. required_specs — 5 bullets of typical project/client REQUIREMENTS for this product "
+                "(standards, certifications, minimum performance, compliance criteria a specifier would write)\n"
+                "  3. image_url      — direct URL to the product image on manufacturer official site "
+                "(PNG/JPG). If unknown use: https://via.placeholder.com/400x300?text=<Code>\n\n"
+                "Return ONLY valid JSON — no markdown, no explanation:\n"
+                '{"items":[{"code":"<code>","product_specs":["Name: value"]*6,'
+                '"required_specs":["Req: detail"]*5,"image_url":"https://..."}]}\n\n'
+                "Rules:\n"
+                "- product_specs format: \"SpecName: value\" (e.g. \"Voltage: 220-240V AC\")\n"
+                "- required_specs format: start with a standard/requirement keyword "
+                "(e.g. \"Standard: IEC 60603-7 compliant\", \"IP Rating: Minimum IP20\", "
+                "\"Certification: CE & RoHS certified\", \"Temperature: -10\xb0C to +60\xb0C operating\")\n"
+                "- Each bullet max 18 words\n\n"
+                f"Products:\n{_item_list_txt}"
+            )
 
             _tclient = _toai.OpenAI(
                 api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
@@ -5780,7 +5773,7 @@ Rules:
             _tresp = _tclient.chat.completions.create(
                 model='gpt-4o-mini',
                 messages=[{'role': 'user', 'content': _tech_prompt}],
-                max_tokens=3000,
+                max_tokens=4000,
                 temperature=0.25,
             )
             _raw_json = _tresp.choices[0].message.content.strip()
@@ -5791,25 +5784,33 @@ Rules:
             _parsed = _tjson.loads(_raw_json.strip())
             for _entry in _parsed.get('items', []):
                 _tech_data[_entry.get('code', '').strip()] = {
-                    'specs':     _entry.get('specs', []),
-                    'image_url': _entry.get('image_url', ''),
+                    'product_specs':  _entry.get('product_specs', [])[:6],
+                    'required_specs': _entry.get('required_specs', [])[:5],
+                    'image_url':      _entry.get('image_url', ''),
                 }
         except Exception as _te:
             for _uti in _unique_tech:
                 _c = _uti['code'].strip()
                 _tech_data[_c] = {
-                    'specs': [
-                        'Standards Compliance: Meets relevant IEC/ISO international standards',
-                        'Build Quality: Commercial grade, factory tested and certified',
-                        'Operating Temperature: -10°C to +50°C standard range',
+                    'product_specs': [
+                        'Standard: Meets relevant IEC/ISO international standards',
+                        'Build Quality: Commercial-grade, factory tested and certified',
+                        'Operating Temp: -10\xb0C to +50\xb0C standard range',
                         'Power Supply: Compliant with regional electrical standards',
-                        'Warranty: Full standard manufacturer warranty included',
-                        'Installation: Requires professional installation by certified technician',
+                        'Dimensions: As per manufacturer datasheet',
+                        'Warranty: Full manufacturer warranty included',
+                    ],
+                    'required_specs': [
+                        'Compliance: Must conform to applicable IEC/ISO standards',
+                        'Certification: CE, RoHS, or equivalent regional certification required',
+                        'Environment: Suitable for indoor/outdoor installation as applicable',
+                        'Quality: Commercial grade with documented QA/QC process',
+                        'Approval: Approved manufacturer brand on project approved vendor list',
                     ],
                     'image_url': f"https://via.placeholder.com/400x300?text={_c.replace(' ', '+')}",
                 }
 
-    # ── Helper: download image bytes ──────────────────────────────────
+    # ── Helper: download image ────────────────────────────────────────
     def _fetch_image(url):
         if not url:
             return None
@@ -5818,29 +5819,47 @@ Rules:
             req = _ur.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with _ur.urlopen(req, timeout=4) as resp:
                 _idata = resp.read()
-            # Check it looks like an image
-            if _idata[:4] in (b'\x89PNG', b'\xff\xd8\xff') or _idata[:4] == b'\x89PNG'[:4] or _idata[:3] == b'GIF' or _idata[:4] == b'RIFF':
-                return BytesIO(_idata)
-            if len(_idata) > 1000 and _idata[:2] in (b'\xff\xd8', b'\x89P'):
-                return BytesIO(_idata)
-            # Try anyway if it's large enough
-            if len(_idata) > 5000:
+            if len(_idata) > 3000:
                 return BytesIO(_idata)
         except Exception:
             pass
         return None
 
-    # ── Draw Technical Details slides (1 item per slide) ─────────────
+    # ── Column geometry (inches) ──────────────────────────────────────
+    # Slide = 13.33" x 7.5"
+    # Header bar: 0–0.88"  |  Gold accent: 0.88"  |  Item hdr: 0.97–1.52"
+    # Body starts at 1.60"  ends at 7.38"  →  5.78" usable height
+    _BODY_Y       = 1.60    # body top
+    _BODY_BOTTOM  = 7.38    # body bottom
+    _BODY_H       = _BODY_BOTTOM - _BODY_Y   # 5.78"
+
+    # Section header row height
+    _SEC_H        = 0.38
+    # Specs area
+    _SPEC_Y       = _BODY_Y + _SEC_H + 0.05  # 2.03"
+    _SPEC_AREA_H  = _BODY_BOTTOM - _SPEC_Y   # 5.35"
+
+    # Column X positions and widths
+    _C1_X, _C1_W = 0.12,  3.85   # Product Specs
+    _C2_X, _C2_W = 4.10,  4.35   # Required Specs
+    _C3_X, _C3_W = 8.57,  4.64   # Product Image
+
+    _C_PSEC_HDR   = RGBColor(0x4A, 0x14, 0x8C)   # deep purple  — Product Specs header
+    _C_RSEC_HDR   = RGBColor(0x00, 0x69, 0x6E)   # teal         — Required Specs header
+    _C_ISEC_HDR   = RGBColor(0x1A, 0x23, 0x7E)   # navy         — Image header
+
+    # ── Draw one slide per item ───────────────────────────────────────
     for _tci, _titem in enumerate(_unique_tech):
-        _code    = _titem['code'].strip()
-        _desc    = _titem['desc']
-        _tinfo   = _tech_data.get(_code, {'specs': [], 'image_url': ''})
-        _specs   = _tinfo.get('specs', [])[:6]
-        _img_url = _tinfo.get('image_url', '')
+        _code   = _titem['code'].strip()
+        _desc   = _titem['desc']
+        _tinfo  = _tech_data.get(_code, {})
+        _pspecs = _tinfo.get('product_specs',  [])
+        _rspecs = _tinfo.get('required_specs', [])
+        _imgurl = _tinfo.get('image_url', '')
 
         slide = prs.slides.add_slide(blank_layout)
 
-        # ── Header bar ─────────────────────────────────────────────
+        # ── Top header bar ─────────────────────────────────────────
         rect(slide, 0, 0, SLIDE_W, 0.88, C_PURPLE)
         _rac = slide.shapes.add_shape(1, 0, Inches(0.88), Inches(SLIDE_W), Inches(0.05))
         _rac.fill.solid(); _rac.fill.fore_color.rgb = C_GOLD; _rac.line.width = 0
@@ -5848,97 +5867,144 @@ Rules:
             slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.09), width=Inches(1.25))
         except Exception:
             pass
-        txt_box(slide, 'TECHNICAL SPECIFICATIONS', 1.85, 0.16, 9.0, 0.56, size=20, bold=True, color=C_WHITE)
-        _pg = f'{_tci+1} / {len(_unique_tech)}'
-        if len(_unique_tech) == MAX_TECH_ITEMS:
-            _pg = f'Item {_tci+1} of {MAX_TECH_ITEMS}'
-        txt_box(slide, _pg, 11.3, 0.16, 1.8, 0.56, size=9, color=C_GOLD, align=PP_ALIGN.RIGHT)
+        txt_box(slide, 'TECHNICAL SPECIFICATIONS', 1.85, 0.16, 9.0, 0.56,
+                size=20, bold=True, color=C_WHITE)
+        _pg = f'Item {_tci+1} of {len(_unique_tech)}'
+        txt_box(slide, _pg, 11.3, 0.16, 1.8, 0.56,
+                size=9, color=C_GOLD, align=PP_ALIGN.RIGHT)
 
-        # ── Item name bar ──────────────────────────────────────────
-        _item_hdr_color = C_TEAL if _tci % 2 == 0 else C_PURPLE2
-        rect(slide, 0.2, 1.02, SLIDE_W - 0.4, 0.52, _item_hdr_color)
-        txt_box(slide, _code, 0.35, 1.06, 2.5, 0.45, size=11, bold=True, color=C_GOLD)
-        _short_desc = _desc[:130] + ('...' if len(_desc) > 130 else '')
-        txt_box(slide, _short_desc, 2.95, 1.07, 9.8, 0.44, size=9.5, bold=False, color=C_WHITE)
+        # ── Item code/description bar ──────────────────────────────
+        _alt = _tci % 2
+        _item_bar_c = C_TEAL if _alt == 0 else C_PURPLE2
+        rect(slide, 0.12, 0.97, SLIDE_W - 0.24, 0.50, _item_bar_c)
+        txt_box(slide, _code, 0.25, 1.01, 2.5, 0.43, size=11, bold=True, color=C_GOLD)
+        _short = _desc[:145] + ('...' if len(_desc) > 145 else '')
+        txt_box(slide, _short, 2.85, 1.01, 10.35, 0.43, size=9.5, color=C_WHITE)
 
-        # ── Try to get product image ───────────────────────────────
-        _img_buf = _fetch_image(_img_url)
+        # ══ SECTION HEADERS (col titles) ═══════════════════════════
+        # Col 1 — Product Specs
+        rect(slide, _C1_X, _BODY_Y, _C1_W, _SEC_H, _C_PSEC_HDR)
+        txt_box(slide, 'PRODUCT SPECS', _C1_X + 0.08, _BODY_Y + 0.05,
+                _C1_W - 0.1, _SEC_H - 0.05, size=10, bold=True, color=C_WHITE)
 
-        # Layout: if image available → left 58% specs, right 39% image
-        #         if no image        → full width specs
-        _specs_w = 7.5 if _img_buf else 12.7
-        _spec_x  = 0.28
+        # Col 2 — Required Specs
+        rect(slide, _C2_X, _BODY_Y, _C2_W, _SEC_H, _C_RSEC_HDR)
+        txt_box(slide, 'REQUIRED SPECS', _C2_X + 0.08, _BODY_Y + 0.05,
+                _C2_W - 0.1, _SEC_H - 0.05, size=10, bold=True, color=C_WHITE)
+
+        # Col 3 — Product Image
+        rect(slide, _C3_X, _BODY_Y, _C3_W, _SEC_H, _C_ISEC_HDR)
+        txt_box(slide, 'PRODUCT IMAGE', _C3_X + 0.08, _BODY_Y + 0.05,
+                _C3_W - 0.1, _SEC_H - 0.05, size=10, bold=True, color=C_WHITE)
+
+        # ══ COL 1: PRODUCT SPECS ════════════════════════════════════
+        _n1     = len(_pspecs) if _pspecs else 1
+        _row1_h = _SPEC_AREA_H / _n1
+        for _si, _spec in enumerate(_pspecs):
+            _sy = _SPEC_Y + _si * _row1_h
+
+            # Accent bar (left edge)
+            _bar1 = slide.shapes.add_shape(1, Inches(_C1_X),
+                                            Inches(_sy + 0.04),
+                                            Inches(0.06), Inches(_row1_h * 0.80))
+            _bar1.fill.solid(); _bar1.fill.fore_color.rgb = _C_PSEC_HDR
+            _bar1.line.width = 0
+
+            # Alternating background
+            _bg1 = slide.shapes.add_shape(1, Inches(_C1_X + 0.07),
+                                           Inches(_sy + 0.02),
+                                           Inches(_C1_W - 0.09), Inches(_row1_h * 0.90))
+            _bg1.fill.solid()
+            _bg1.fill.fore_color.rgb = C_GREY_BG if _si % 2 == 0 else C_WHITE
+            _bg1.line.width = 0
+
+            # Text
+            _tb1 = slide.shapes.add_textbox(Inches(_C1_X + 0.18), Inches(_sy + 0.09),
+                                             Inches(_C1_W - 0.22), Inches(_row1_h * 0.82))
+            _tf1 = _tb1.text_frame; _tf1.word_wrap = True
+            _p1 = _tf1.paragraphs[0]; _p1.alignment = PP_ALIGN.LEFT
+            if ':' in _spec:
+                _sn, _sv = _spec.split(':', 1)
+                _sn = _sn.strip().lstrip('*-').strip()
+                _sv = _sv.strip()
+                _r1n = _p1.add_run(); _r1n.text = _sn + ':  '
+                _r1n.font.size = Pt(10.5); _r1n.font.bold = True
+                _r1n.font.color.rgb = _C_PSEC_HDR; _r1n.font.name = 'Calibri'
+                _r1v = _p1.add_run(); _r1v.text = _sv
+                _r1v.font.size = Pt(10.5); _r1v.font.bold = False
+                _r1v.font.color.rgb = C_DARK; _r1v.font.name = 'Calibri'
+            else:
+                _r1 = _p1.add_run(); _r1.text = _spec.lstrip('*-').strip()
+                _r1.font.size = Pt(10.5); _r1.font.color.rgb = C_DARK
+                _r1.font.name = 'Calibri'
+
+        # ══ COL 2: REQUIRED SPECS ═══════════════════════════════════
+        _n2     = len(_rspecs) if _rspecs else 1
+        _row2_h = _SPEC_AREA_H / _n2
+        for _ri, _rspec in enumerate(_rspecs):
+            _ry = _SPEC_Y + _ri * _row2_h
+
+            _bar2 = slide.shapes.add_shape(1, Inches(_C2_X),
+                                            Inches(_ry + 0.04),
+                                            Inches(0.06), Inches(_row2_h * 0.80))
+            _bar2.fill.solid(); _bar2.fill.fore_color.rgb = _C_RSEC_HDR
+            _bar2.line.width = 0
+
+            _bg2 = slide.shapes.add_shape(1, Inches(_C2_X + 0.07),
+                                           Inches(_ry + 0.02),
+                                           Inches(_C2_W - 0.09), Inches(_row2_h * 0.90))
+            _bg2.fill.solid()
+            _bg2.fill.fore_color.rgb = RGBColor(0xE0, 0xF2, 0xF1) if _ri % 2 == 0 else C_WHITE
+            _bg2.line.width = 0
+
+            _tb2 = slide.shapes.add_textbox(Inches(_C2_X + 0.18), Inches(_ry + 0.09),
+                                             Inches(_C2_W - 0.22), Inches(_row2_h * 0.82))
+            _tf2 = _tb2.text_frame; _tf2.word_wrap = True
+            _p2 = _tf2.paragraphs[0]; _p2.alignment = PP_ALIGN.LEFT
+            if ':' in _rspec:
+                _rn, _rv = _rspec.split(':', 1)
+                _rn = _rn.strip().lstrip('*-').strip()
+                _rv = _rv.strip()
+                _r2n = _p2.add_run(); _r2n.text = _rn + ':  '
+                _r2n.font.size = Pt(10.5); _r2n.font.bold = True
+                _r2n.font.color.rgb = _C_RSEC_HDR; _r2n.font.name = 'Calibri'
+                _r2v = _p2.add_run(); _r2v.text = _rv
+                _r2v.font.size = Pt(10.5); _r2v.font.bold = False
+                _r2v.font.color.rgb = C_DARK; _r2v.font.name = 'Calibri'
+            else:
+                _r2 = _p2.add_run(); _r2.text = _rspec.lstrip('*-').strip()
+                _r2.font.size = Pt(10.5); _r2.font.color.rgb = C_DARK
+                _r2.font.name = 'Calibri'
+
+        # ══ COL 3: PRODUCT IMAGE ════════════════════════════════════
+        _img_buf = _fetch_image(_imgurl)
+        _img_margin = 0.10
+        _img_x  = _C3_X + _img_margin
+        _img_y  = _SPEC_Y
+        _img_w  = _C3_W - 2 * _img_margin
+        _img_h  = _BODY_BOTTOM - _img_y - 0.08
 
         if _img_buf:
-            # Image placeholder area
-            _img_x, _img_y = 8.1, 1.65
-            _img_w, _img_h = 4.85, 5.5
             try:
                 _img_buf.seek(0)
                 slide.shapes.add_picture(_img_buf, Inches(_img_x), Inches(_img_y),
                                           width=Inches(_img_w), height=Inches(_img_h))
             except Exception:
-                # Draw a placeholder box if image fails to load
                 _img_buf = None
-                _specs_w = 12.7
 
         if not _img_buf:
-            # No image: show a styled "No Image Available" box
-            _ph = slide.shapes.add_shape(1, Inches(8.3), Inches(1.7), Inches(4.7), Inches(5.4))
-            _ph.fill.solid(); _ph.fill.fore_color.rgb = C_GREY_HDR; _ph.line.width = 0
-            txt_box(slide, 'Product Image  |  Not Available', 8.3, 3.6, 4.7, 1.0, size=11, color=C_GREY_TXT, align=PP_ALIGN.CENTER, italic=True)
-
-        # ── Spec bullets ──────────────────────────────────────────
-        _spec_start_y = 1.65
-        _spec_end_y   = 7.2
-        _n_specs      = len(_specs) if _specs else 1
-        _spacing      = (_spec_end_y - _spec_start_y) / _n_specs
-
-        for _si, _spec in enumerate(_specs):
-            _sy = _spec_start_y + _si * _spacing
-
-            # Colored accent bar left of bullet
-            _bar = slide.shapes.add_shape(1, Inches(_spec_x), Inches(_sy + 0.06),
-                                           Inches(0.07), Inches(_spacing * 0.72))
-            _bar.fill.solid(); _bar.fill.fore_color.rgb = _item_hdr_color; _bar.line.width = 0
-
-            # Light alternating background
-            _bg_color = C_GREY_BG if _si % 2 == 0 else C_WHITE
-            _bg = slide.shapes.add_shape(1, Inches(_spec_x + 0.1), Inches(_sy + 0.02),
-                                          Inches(_specs_w - 0.15), Inches(_spacing * 0.88))
-            _bg.fill.solid(); _bg.fill.fore_color.rgb = _bg_color; _bg.line.width = 0
-
-            # Text box with bold name + regular value
-            _tb_s = slide.shapes.add_textbox(Inches(_spec_x + 0.25), Inches(_sy + 0.09),
-                                              Inches(_specs_w - 0.4), Inches(_spacing * 0.82))
-            _tf_s = _tb_s.text_frame
-            _tf_s.word_wrap = True
-            _tf_s.text = ''
-            _p_s = _tf_s.paragraphs[0]
-            _p_s.alignment = PP_ALIGN.LEFT
-
-            if ':' in _spec:
-                _sp_name, _sp_val = _spec.split(':', 1)
-                _sp_name = _sp_name.strip().lstrip('•-').strip()
-                _sp_val  = _sp_val.strip()
-                _r_sn = _p_s.add_run()
-                _r_sn.text = _sp_name + ':  '
-                _r_sn.font.size = Pt(11)
-                _r_sn.font.bold = True
-                _r_sn.font.color.rgb = _item_hdr_color
-                _r_sn.font.name = 'Calibri'
-                _r_sv = _p_s.add_run()
-                _r_sv.text = _sp_val
-                _r_sv.font.size = Pt(11)
-                _r_sv.font.bold = False
-                _r_sv.font.color.rgb = C_DARK
-                _r_sv.font.name = 'Calibri'
-            else:
-                _r_sv = _p_s.add_run()
-                _r_sv.text = _spec.lstrip('•-').strip()
-                _r_sv.font.size = Pt(11)
-                _r_sv.font.color.rgb = C_DARK
-                _r_sv.font.name = 'Calibri'
+            # Styled placeholder
+            _ph = slide.shapes.add_shape(1,
+                    Inches(_img_x), Inches(_img_y),
+                    Inches(_img_w), Inches(_img_h))
+            _ph.fill.solid()
+            _ph.fill.fore_color.rgb = RGBColor(0xED, 0xEB, 0xF5)
+            _ph.line.width = 0
+            txt_box(slide, 'Product Image  |  Not Available',
+                    _img_x, _img_y + _img_h / 2 - 0.3,
+                    _img_w, 0.6,
+                    size=10, color=C_GREY_TXT,
+                    align=PP_ALIGN.CENTER, italic=True)
 
     
         # ═══════════════════════════════════════════════════════════════
