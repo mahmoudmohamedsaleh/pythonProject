@@ -5320,7 +5320,160 @@ def quotation_presentation(quote_ref):
     txt_box(slide, company_phone, 5.5, 5.2, 4.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
 
     # ═══════════════════════════════════════════════════════════════
-    # SLIDE 2 — QUOTATION DETAILS
+    # SLIDE 2 — EXECUTIVE SUMMARY (AI-Generated)
+    # ═══════════════════════════════════════════════════════════════
+    try:
+        import os as _os
+        import openai as _openai
+
+        # Build a rich context for the AI from quotation data
+        _boq_summary = ''
+        if boq_items:
+            item_lines = []
+            for it in boq_items[:40]:  # send first 40 items to keep prompt concise
+                if not it.get('is_section'):
+                    parts = [it['desc']]
+                    if it['qty']:   parts.append(f"Qty: {it['qty']}")
+                    if it['total']: parts.append(f"Total: SAR {it['total']:,.0f}")
+                    item_lines.append(' | '.join(parts))
+            _boq_summary = '\n'.join(item_lines[:30])
+
+        _sow_text = q['sow'] or ''
+        _note_text = q['quotation_note'] or ''
+        _total_text = f"SAR {selling_price:,.2f}" if selling_price else 'Not specified'
+
+        _prompt = f"""You are a professional presales engineer writing an Executive Summary for a commercial quotation that will be presented to a client.
+
+Write a concise, professional Executive Summary (4-6 short bullet points) for the following quotation. Each bullet point should be a single sentence starting with a bold keyword phrase followed by a colon. Focus on: scope overview, system/technology being offered, key value proposition, project significance, and financial highlight.
+
+Quotation Reference: {quote_ref}
+Project: {proj_name}
+System / Category: {system_val}
+Presale Engineer: {presale_eng}
+Total Selling Price: {_total_text}
+Scope of Work: {_sow_text if _sow_text else 'Not specified'}
+Notes: {_note_text if _note_text else 'None'}
+Key Items (first 30):
+{_boq_summary if _boq_summary else 'No itemized BOQ available'}
+
+Rules:
+- Output ONLY the bullet points, nothing else. No intro, no conclusion.
+- Each bullet: start with "• " then a bold keyword phrase (2-4 words) followed by ": " then the sentence.
+- Keep each bullet under 25 words.
+- Use professional B2B sales language.
+- Do not mention the quotation reference number in the bullets."""
+
+        _client = _openai.OpenAI(
+            api_key=_os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=_os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+        )
+        _ai_resp = _client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{'role': 'user', 'content': _prompt}],
+            max_tokens=350,
+            temperature=0.65,
+        )
+        _exec_summary_raw = _ai_resp.choices[0].message.content.strip()
+    except Exception as _ai_err:
+        _exec_summary_raw = (
+            f"• Scope Overview: This proposal covers the complete supply and installation of a {system_val} system for {proj_name}.\n"
+            f"• Total Investment: The total value of this commercial offer is {_total_text}.\n"
+            f"• Engineering Excellence: Designed and reviewed by our certified presales team to meet the client's specific technical requirements.\n"
+            f"• Turnkey Delivery: EJTech provides end-to-end project execution from design through commissioning and handover.\n"
+            f"• Quality Assurance: All supplied equipment carries full manufacturer warranty with local technical support."
+        )
+
+    # Parse bullet points from the AI response
+    _bullets = [b.strip() for b in _exec_summary_raw.split('\n') if b.strip().startswith('•')]
+    if not _bullets:
+        _bullets = [b.strip() for b in _exec_summary_raw.split('\n') if b.strip()]
+
+    # ── Draw the Executive Summary slide ────────────────────────────
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Header bar
+    rect(slide, 0, 0, SLIDE_W, 1.0, C_PURPLE)
+    r_es = slide.shapes.add_shape(1, 0, Inches(1.0), Inches(SLIDE_W), Inches(0.06))
+    r_es.fill.solid(); r_es.fill.fore_color.rgb = C_GOLD; r_es.line.width = 0
+    try:
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.1), width=Inches(1.3))
+    except Exception:
+        pass
+    txt_box(slide, 'EXECUTIVE SUMMARY', 1.9, 0.18, 9.5, 0.65, size=22, bold=True, color=C_WHITE)
+    txt_box(slide, proj_name, 11.3, 0.22, 1.8, 0.6, size=9, color=C_GOLD, align=PP_ALIGN.RIGHT)
+
+    # AI badge
+    badge = slide.shapes.add_shape(1, Inches(11.9), Inches(0.22), Inches(1.2), Inches(0.38))
+    badge.fill.solid(); badge.fill.fore_color.rgb = C_GOLD; badge.line.width = 0
+    tb_badge = slide.shapes.add_textbox(Inches(11.92), Inches(0.24), Inches(1.15), Inches(0.35))
+    tb_badge.text_frame.text = ''
+    p_b = tb_badge.text_frame.paragraphs[0]
+    p_b.alignment = PP_ALIGN.CENTER
+    run_b = p_b.add_run()
+    run_b.text = 'AI Generated'
+    run_b.font.size = Pt(8)
+    run_b.font.bold = True
+    run_b.font.color.rgb = C_PURPLE
+    run_b.font.name = 'Calibri'
+
+    # Bullet points
+    y_pos = 1.22
+    bullet_colors = [C_PURPLE, C_TEAL, C_PURPLE, C_TEAL, C_PURPLE, C_TEAL]
+    for bi, bullet in enumerate(_bullets[:6]):
+        bullet_clean = bullet.lstrip('•').strip()
+
+        # Color accent strip left of each bullet
+        strip = slide.shapes.add_shape(1, Inches(0.3), Inches(y_pos + 0.06), Inches(0.08), Inches(0.72))
+        strip.fill.solid()
+        strip.fill.fore_color.rgb = bullet_colors[bi % len(bullet_colors)]
+        strip.line.width = 0
+
+        # Light background card
+        card = slide.shapes.add_shape(1, Inches(0.45), Inches(y_pos), Inches(12.65), Inches(0.82))
+        card.fill.solid()
+        card.fill.fore_color.rgb = C_GREY_BG if bi % 2 == 0 else C_WHITE
+        card.line.fill.background()
+        card.line.width = 0
+
+        # Parse bold keyword vs rest of text
+        if ':' in bullet_clean:
+            parts = bullet_clean.split(':', 1)
+            keyword = parts[0].strip().lstrip('*').rstrip('*')
+            rest    = parts[1].strip()
+        else:
+            keyword = ''
+            rest    = bullet_clean
+
+        tb = slide.shapes.add_textbox(Inches(0.6), Inches(y_pos + 0.08), Inches(12.4), Inches(0.7))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        tf.text = ''
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+
+        if keyword:
+            run_kw = p.add_run()
+            run_kw.text = keyword + ':  '
+            run_kw.font.size = Pt(12)
+            run_kw.font.bold = True
+            run_kw.font.color.rgb = bullet_colors[bi % len(bullet_colors)]
+            run_kw.font.name = 'Calibri'
+
+        run_txt = p.add_run()
+        run_txt.text = rest
+        run_txt.font.size = Pt(11.5)
+        run_txt.font.bold = False
+        run_txt.font.color.rgb = C_DARK
+        run_txt.font.name = 'Calibri'
+
+        y_pos += 0.91
+
+    # Footer note
+    txt_box(slide, f'Prepared by {company_name}  |  {quote_ref}', 0.3, 7.2, 12.7, 0.28,
+            size=8, color=C_GREY_TXT, align=PP_ALIGN.CENTER, italic=True)
+
+    # ═══════════════════════════════════════════════════════════════
+    # SLIDE 3 — QUOTATION DETAILS
     # ═══════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
 
