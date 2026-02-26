@@ -5056,6 +5056,398 @@ def download_project_history(project_name):
 
     return send_file(output, download_name=filename, as_attachment=True)
 
+
+@app.route('/quotation_presentation/<quote_ref>', methods=['GET'])
+@login_required
+def quotation_presentation(quote_ref):
+    """Generate a professional client-facing PDF presentation for a quotation"""
+    import os
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm, cm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                     TableStyle, HRFlowable, Image as RLImage)
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.pdfgen import canvas
+    from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, PageBreak
+
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM projects WHERE quote_ref = ?", (quote_ref,))
+    q = c.fetchone()
+    if not q:
+        conn.close()
+        flash('Quotation not found!', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
+
+    c.execute("SELECT * FROM quotation_items WHERE quotation_id = ? ORDER BY id", (q['id'],))
+    items = c.fetchall()
+
+    # Company info
+    c.execute("SELECT section_key, content FROM company_profile_content WHERE section_key IN ('hero_company_name','hero_tagline','contact_phone','contact_email','contact_address','footer_cr','footer_vat')")
+    company_raw = {row['section_key']: row['content'] for row in c.fetchall()}
+    conn.close()
+
+    company_name = company_raw.get('hero_company_name', 'ESHRAQ AL JAZEERA TECHNOLOGIES')
+    company_tagline = company_raw.get('hero_tagline', 'Where Professionalism Meets Expertise')
+    company_email = company_raw.get('contact_email', 'info@ejt.sa')
+    company_phone = company_raw.get('contact_phone', '')
+    company_address = company_raw.get('contact_address', 'Jeddah, Saudi Arabia')
+    company_cr = company_raw.get('footer_cr', '')
+    company_vat = company_raw.get('footer_vat', '')
+
+    # Colors
+    PURPLE      = colors.HexColor('#4B2D8F')
+    PURPLE_LITE = colors.HexColor('#7B5EA7')
+    TEAL        = colors.HexColor('#00897B')
+    GOLD        = colors.HexColor('#F9A825')
+    LIGHT_BG    = colors.HexColor('#F7F4FC')
+    HEADER_BG   = colors.HexColor('#EDE7F6')
+    WHITE       = colors.white
+    DARK_TEXT   = colors.HexColor('#212121')
+    GREY_TEXT   = colors.HexColor('#616161')
+    RED_ALERT   = colors.HexColor('#C62828')
+    GREEN_OK    = colors.HexColor('#2E7D32')
+
+    buf = BytesIO()
+    page_w, page_h = A4
+
+    styles = getSampleStyleSheet()
+
+    # ── Custom styles ────────────────────────────────────────────────
+    def ps(name, **kw):
+        base = kw.pop('parent', 'Normal')
+        return ParagraphStyle(name, parent=styles[base], **kw)
+
+    s_co_name  = ps('CoName',  fontSize=18, textColor=WHITE,  alignment=TA_CENTER, fontName='Helvetica-Bold', leading=22)
+    s_co_tag   = ps('CoTag',   fontSize=9,  textColor=colors.HexColor('#D1C4E9'), alignment=TA_CENTER, leading=12)
+    s_title    = ps('Title',   fontSize=22, textColor=PURPLE,  alignment=TA_CENTER, fontName='Helvetica-Bold', leading=28, spaceAfter=4)
+    s_subtitle = ps('Sub',     fontSize=11, textColor=GREY_TEXT, alignment=TA_CENTER, leading=15, spaceAfter=2)
+    s_label    = ps('Lbl',     fontSize=8,  textColor=GREY_TEXT, fontName='Helvetica-Bold', leading=11)
+    s_value    = ps('Val',     fontSize=9,  textColor=DARK_TEXT, leading=12)
+    s_table_h  = ps('TH',      fontSize=8,  textColor=WHITE, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=11)
+    s_table_c  = ps('TC',      fontSize=8,  textColor=DARK_TEXT, leading=11)
+    s_table_r  = ps('TR',      fontSize=8,  textColor=DARK_TEXT, alignment=TA_RIGHT, leading=11)
+    s_total    = ps('Tot',     fontSize=9,  textColor=WHITE, fontName='Helvetica-Bold', alignment=TA_RIGHT, leading=12)
+    s_footer   = ps('Foot',    fontSize=7,  textColor=GREY_TEXT, alignment=TA_CENTER, leading=10)
+    s_note     = ps('Note',    fontSize=7.5,textColor=GREY_TEXT, leading=11)
+    s_section  = ps('Sec',     fontSize=10, textColor=WHITE, fontName='Helvetica-Bold', leading=13)
+
+    # ── Canvas callback for header/footer on every page ──────────────
+    def draw_page(canv, doc):
+        canv.saveState()
+        # Header strip
+        canv.setFillColor(PURPLE)
+        canv.rect(0, page_h - 55*mm, page_w, 55*mm, fill=1, stroke=0)
+
+        # Logo
+        logo_path = os.path.join('static', 'ejt.png')
+        try:
+            canv.drawImage(logo_path, 15*mm, page_h - 48*mm, width=38*mm, height=28*mm,
+                           preserveAspectRatio=True, mask='auto')
+        except Exception:
+            pass
+
+        # Company name + tagline in header
+        canv.setFont('Helvetica-Bold', 14)
+        canv.setFillColor(WHITE)
+        canv.drawString(60*mm, page_h - 22*mm, company_name)
+        canv.setFont('Helvetica', 8)
+        canv.setFillColor(colors.HexColor('#D1C4E9'))
+        canv.drawString(60*mm, page_h - 30*mm, company_tagline)
+
+        # Quote ref badge in header (top-right)
+        canv.setFont('Helvetica-Bold', 8)
+        canv.setFillColor(GOLD)
+        canv.drawRightString(page_w - 15*mm, page_h - 22*mm, quote_ref)
+        canv.setFont('Helvetica', 7)
+        canv.setFillColor(colors.HexColor('#D1C4E9'))
+        canv.drawRightString(page_w - 15*mm, page_h - 30*mm, 'QUOTATION REF')
+
+        # Gold accent line below header
+        canv.setStrokeColor(GOLD)
+        canv.setLineWidth(2.5)
+        canv.line(0, page_h - 56*mm, page_w, page_h - 56*mm)
+
+        # Footer strip
+        canv.setFillColor(PURPLE)
+        canv.rect(0, 0, page_w, 18*mm, fill=1, stroke=0)
+        canv.setFont('Helvetica', 7)
+        canv.setFillColor(colors.HexColor('#D1C4E9'))
+        footer_parts = [company_name]
+        if company_email: footer_parts.append(company_email)
+        if company_phone: footer_parts.append(company_phone)
+        if company_cr:    footer_parts.append(f'CR: {company_cr}')
+        if company_vat:   footer_parts.append(f'VAT: {company_vat}')
+        canv.drawCentredString(page_w / 2, 10*mm, '   |   '.join(footer_parts))
+        canv.setFont('Helvetica', 7)
+        canv.setFillColor(colors.HexColor('#D1C4E9'))
+        canv.drawRightString(page_w - 15*mm, 6*mm, f'Page {doc.page}')
+        canv.restoreState()
+
+    # ── Build flowables ──────────────────────────────────────────────
+    story = []
+
+    # Title block
+    story.append(Spacer(1, 6*mm))
+    story.append(Paragraph('COMMERCIAL QUOTATION', s_title))
+    proj_disp = q['project_name'] or ''
+    story.append(Paragraph(f'Project: {proj_disp}', s_subtitle))
+    story.append(Spacer(1, 4*mm))
+    story.append(HRFlowable(width='100%', thickness=1, color=PURPLE_LITE))
+    story.append(Spacer(1, 4*mm))
+
+    # ── Quotation info table (2-column grid) ──────────────────────────
+    def info_cell(label, value):
+        return [Paragraph(label, s_label), Paragraph(str(value) if value else '—', s_value)]
+
+    registered = q['registered_date'] or ''
+    system_val  = q['system'] or '—'
+    presale     = q['presale_eng'] or '—'
+    sales       = q['sales_eng'] or '—'
+    quarter     = q['quarter'] or '—'
+    status_val  = q['status'] or '—'
+    price_val   = q['quotation_selling_price'] or 0
+
+    info_data = [
+        [Paragraph('QUOTATION REFERENCE', s_label), Paragraph(quote_ref, s_value),
+         Paragraph('DATE', s_label),                Paragraph(registered, s_value)],
+        [Paragraph('PROJECT NAME', s_label),        Paragraph(proj_disp, s_value),
+         Paragraph('SYSTEM', s_label),              Paragraph(system_val, s_value)],
+        [Paragraph('PRESALE ENGINEER', s_label),    Paragraph(presale, s_value),
+         Paragraph('SALES ENGINEER', s_label),      Paragraph(sales, s_value)],
+        [Paragraph('QUARTER', s_label),             Paragraph(quarter, s_value),
+         Paragraph('STATUS', s_label),              Paragraph(status_val, s_value)],
+    ]
+
+    col_w = [32*mm, 55*mm, 32*mm, 55*mm]
+    info_tbl = Table(info_data, colWidths=col_w, repeatRows=0)
+    info_tbl.setStyle(TableStyle([
+        ('BACKGROUND',  (0,0), (-1,-1), LIGHT_BG),
+        ('BACKGROUND',  (0,0), (0,-1), HEADER_BG),
+        ('BACKGROUND',  (2,0), (2,-1), HEADER_BG),
+        ('BOX',         (0,0), (-1,-1), 0.5, PURPLE_LITE),
+        ('INNERGRID',   (0,0), (-1,-1), 0.3, colors.HexColor('#D1C4E9')),
+        ('TOPPADDING',  (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING',(0,0), (-1,-1), 8),
+        ('VALIGN',      (0,0), (-1,-1), 'MIDDLE'),
+        ('ROWBACKGROUNDS',(0,0),(-1,-1), [LIGHT_BG, WHITE]),
+    ]))
+    story.append(info_tbl)
+    story.append(Spacer(1, 6*mm))
+
+    # ── Scope of work note ────────────────────────────────────────────
+    sow = q['sow'] if q['sow'] else None
+    note = q['quotation_note'] if q['quotation_note'] else None
+    if sow or note:
+        story.append(HRFlowable(width='100%', thickness=0.5, color=PURPLE_LITE))
+        story.append(Spacer(1, 3*mm))
+        if sow:
+            story.append(Paragraph('SCOPE OF WORK', s_label))
+            story.append(Spacer(1, 1*mm))
+            story.append(Paragraph(sow, s_note))
+            story.append(Spacer(1, 2*mm))
+        if note:
+            story.append(Paragraph('NOTES', s_label))
+            story.append(Spacer(1, 1*mm))
+            story.append(Paragraph(note, s_note))
+            story.append(Spacer(1, 2*mm))
+
+    # ── Line items table ──────────────────────────────────────────────
+    story.append(HRFlowable(width='100%', thickness=1, color=GOLD))
+    story.append(Spacer(1, 2*mm))
+
+    # Section header row
+    sec_data = [[Paragraph('  BILL OF QUANTITIES', s_section)]]
+    sec_tbl = Table(sec_data, colWidths=[page_w - 30*mm])
+    sec_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), PURPLE),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+        ('LEFTPADDING',(0,0),(-1,-1), 8),
+        ('BOX', (0,0),(-1,-1), 0, WHITE),
+    ]))
+    story.append(sec_tbl)
+    story.append(Spacer(1, 2*mm))
+
+    if items:
+        hdrs = [
+            Paragraph('#', s_table_h),
+            Paragraph('Part Number', s_table_h),
+            Paragraph('Description', s_table_h),
+            Paragraph('UOM', s_table_h),
+            Paragraph('Qty', s_table_h),
+            Paragraph('Unit Price (SAR)', s_table_h),
+            Paragraph('Total (SAR)', s_table_h),
+        ]
+        col_widths = [10*mm, 30*mm, 68*mm, 14*mm, 13*mm, 22*mm, 22*mm]
+        tbl_data = [hdrs]
+        grand_total = 0.0
+        for idx, item in enumerate(items, 1):
+            qty    = item['quantity'] or 0
+            u_price= item['unit_price'] or 0.0
+            t_price= item['total_price'] or (qty * u_price)
+            grand_total += t_price
+            desc = item['description'] or '—'
+            # Wrap long descriptions
+            row = [
+                Paragraph(str(idx), ps(f'n{idx}', fontSize=8, alignment=TA_CENTER, leading=11)),
+                Paragraph(str(item['part_number'] or '—'), s_table_c),
+                Paragraph(desc, s_table_c),
+                Paragraph('PC', ps(f'u{idx}', fontSize=8, alignment=TA_CENTER, leading=11)),
+                Paragraph(str(int(qty)), ps(f'q{idx}', fontSize=8, alignment=TA_CENTER, leading=11)),
+                Paragraph(f'{u_price:,.2f}', s_table_r),
+                Paragraph(f'{t_price:,.2f}', s_table_r),
+            ]
+            tbl_data.append(row)
+
+        # Total row
+        tbl_data.append([
+            Paragraph('', s_total),
+            Paragraph('', s_total),
+            Paragraph('', s_total),
+            Paragraph('', s_total),
+            Paragraph('', s_total),
+            Paragraph('TOTAL (SAR)', s_total),
+            Paragraph(f'{grand_total:,.2f}', s_total),
+        ])
+
+        items_tbl = Table(tbl_data, colWidths=col_widths, repeatRows=1)
+        n = len(tbl_data)
+        items_tbl.setStyle(TableStyle([
+            # Header row
+            ('BACKGROUND',      (0, 0), (-1, 0),  PURPLE),
+            ('TEXTCOLOR',       (0, 0), (-1, 0),  WHITE),
+            ('FONTNAME',        (0, 0), (-1, 0),  'Helvetica-Bold'),
+            # Alternating rows
+            ('ROWBACKGROUNDS',  (0, 1), (-1, n-2), [WHITE, LIGHT_BG]),
+            # Total row
+            ('BACKGROUND',      (0, n-1), (-1, n-1), TEAL),
+            ('TEXTCOLOR',       (0, n-1), (-1, n-1), WHITE),
+            ('FONTNAME',        (0, n-1), (-1, n-1), 'Helvetica-Bold'),
+            # General
+            ('ALIGN',           (0, 0), (-1, -1),  'CENTER'),
+            ('VALIGN',          (0, 0), (-1, -1),  'MIDDLE'),
+            ('TOPPADDING',      (0, 0), (-1, -1),  4),
+            ('BOTTOMPADDING',   (0, 0), (-1, -1),  4),
+            ('LEFTPADDING',     (0, 0), (-1, -1),  5),
+            ('RIGHTPADDING',    (0, 0), (-1, -1),  5),
+            ('ALIGN',           (2, 1), (2, -1),   'LEFT'),
+            ('ALIGN',           (5, 1), (6, -1),   'RIGHT'),
+            ('BOX',             (0, 0), (-1, -1),  0.5, PURPLE_LITE),
+            ('INNERGRID',       (0, 0), (-1, -2),  0.3, colors.HexColor('#D1C4E9')),
+            ('LINEBELOW',       (0, 0), (-1, 0),   1,   GOLD),
+            ('LINEABOVE',       (0, n-1),(-1,n-1), 1,   GOLD),
+        ]))
+        story.append(items_tbl)
+
+    else:
+        # No line items — show price summary block
+        story.append(Spacer(1, 4*mm))
+        story.append(Paragraph('No detailed line items are available for this quotation.', s_note))
+        story.append(Spacer(1, 4*mm))
+        # Price summary card
+        price_data = [
+            [Paragraph('TOTAL SELLING PRICE', s_section), Paragraph(f'SAR {price_val:,.2f}', s_section)],
+        ]
+        price_tbl = Table(price_data, colWidths=[100*mm, 74*mm])
+        price_tbl.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0), (-1,-1), TEAL),
+            ('TOPPADDING',    (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 10),
+            ('LEFTPADDING',  (0,0), (-1,-1), 12),
+            ('RIGHTPADDING', (0,0), (-1,-1), 12),
+            ('ALIGN',        (1,0), (1,0), 'RIGHT'),
+        ]))
+        story.append(price_tbl)
+
+    # ── Terms & Conditions block ──────────────────────────────────────
+    story.append(Spacer(1, 6*mm))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=PURPLE_LITE))
+    story.append(Spacer(1, 3*mm))
+
+    terms_header_data = [[Paragraph('  TERMS & CONDITIONS', s_section)]]
+    terms_header_tbl = Table(terms_header_data, colWidths=[page_w - 30*mm])
+    terms_header_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(-1,-1), PURPLE_LITE),
+        ('TOPPADDING',    (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+        ('LEFTPADDING',  (0,0),(-1,-1), 8),
+    ]))
+    story.append(terms_header_tbl)
+    story.append(Spacer(1, 2*mm))
+
+    terms = [
+        ('1. VALIDITY',    'This quotation is valid for 30 days from the date of issue.'),
+        ('2. PAYMENT',     'Payment terms as per agreement: 50% advance, 50% upon delivery/completion.'),
+        ('3. DELIVERY',    'Delivery schedule to be confirmed upon receipt of purchase order.'),
+        ('4. WARRANTY',    'All products carry standard manufacturer warranty. Installation warranty: 1 year.'),
+        ('5. SCOPE',       'This quotation covers supply and installation as per the scope defined above. Any additional works will be quoted separately.'),
+        ('6. TAXES',       'All prices are exclusive of VAT (15%). VAT will be added to the final invoice as per Saudi regulations.'),
+        ('7. ACCEPTANCE',  'This quotation becomes binding only upon receipt of a signed Purchase Order.'),
+    ]
+    terms_data = [[Paragraph(f'<b>{t[0]}</b>', s_note), Paragraph(t[1], s_note)] for t in terms]
+    terms_tbl = Table(terms_data, colWidths=[38*mm, 136*mm])
+    terms_tbl.setStyle(TableStyle([
+        ('ROWBACKGROUNDS',(0,0),(-1,-1), [WHITE, LIGHT_BG]),
+        ('TOPPADDING',    (0,0),(-1,-1), 4),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+        ('LEFTPADDING',  (0,0),(-1,-1), 8),
+        ('RIGHTPADDING', (0,0),(-1,-1), 8),
+        ('VALIGN',       (0,0),(-1,-1), 'TOP'),
+        ('BOX',          (0,0),(-1,-1), 0.3, PURPLE_LITE),
+        ('INNERGRID',    (0,0),(-1,-1), 0.3, colors.HexColor('#EDE7F6')),
+    ]))
+    story.append(terms_tbl)
+    story.append(Spacer(1, 5*mm))
+
+    # ── Signature block ───────────────────────────────────────────────
+    sig_data = [
+        [Paragraph('<b>For: CLIENT</b>', s_note), Paragraph('', s_note), Paragraph(f'<b>For: {company_name}</b>', s_note)],
+        [Paragraph('Name: ______________________', s_note), Paragraph('', s_note), Paragraph('Name: ______________________', s_note)],
+        [Paragraph('Signature: _________________', s_note), Paragraph('', s_note), Paragraph('Signature: _________________', s_note)],
+        [Paragraph('Date: ______________________', s_note), Paragraph('', s_note), Paragraph('Date: ______________________', s_note)],
+        [Paragraph('Stamp:  ____________________', s_note), Paragraph('', s_note), Paragraph('Stamp:  ____________________', s_note)],
+    ]
+    sig_tbl = Table(sig_data, colWidths=[74*mm, 26*mm, 74*mm])
+    sig_tbl.setStyle(TableStyle([
+        ('BOX',         (0,0),(0,-1), 0.5, PURPLE_LITE),
+        ('BOX',         (2,0),(2,-1), 0.5, PURPLE_LITE),
+        ('TOPPADDING',  (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+        ('LEFTPADDING', (0,0),(-1,-1), 8),
+        ('BACKGROUND',  (0,0),(0,0), HEADER_BG),
+        ('BACKGROUND',  (2,0),(2,0), HEADER_BG),
+    ]))
+    story.append(sig_tbl)
+
+    # ── Build PDF ─────────────────────────────────────────────────────
+    margin_lr = 15*mm
+    margin_top = 60*mm   # leave room for header strip (55mm) + 5mm gap
+    margin_bot = 22*mm   # leave room for footer strip (18mm) + 4mm
+
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=margin_lr,
+        rightMargin=margin_lr,
+        topMargin=margin_top,
+        bottomMargin=margin_bot,
+        title=f'Quotation Presentation - {quote_ref}',
+        author=company_name,
+    )
+    doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page)
+
+    buf.seek(0)
+    filename = f'Presentation_{quote_ref}.pdf'
+    return send_file(buf, download_name=filename, as_attachment=True, mimetype='application/pdf')
+
 @app.route('/download_quotation/<quote_ref>', methods=['GET'])
 @login_required
 def download_quotation(quote_ref):
