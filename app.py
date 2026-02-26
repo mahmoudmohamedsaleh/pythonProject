@@ -5395,7 +5395,15 @@ def quotation_presentation(quote_ref):
     # ═══════════════════════════════════════════════════════════════
     # SLIDES 3+N — BOQ TABLE (paginated)
     # ═══════════════════════════════════════════════════════════════
-    ITEMS_PER_SLIDE = 16
+    ITEMS_PER_SLIDE = 14   # safe max so rows fit within 7.5" slide
+
+    # Layout constants
+    TBL_TOP    = 1.0        # inches from top of slide
+    TBL_LEFT   = 0.15
+    TBL_W      = 13.0
+    TBL_H      = SLIDE_H - TBL_TOP - 0.12  # fill to bottom with tiny margin
+    HDR_H_IN   = 0.48       # header row height inches
+    FOOT_H_IN  = 0.40       # total-row height inches
 
     def add_boq_slide(prs, items_chunk, slide_label, grand_total=None):
         slide = prs.slides.add_slide(blank_layout)
@@ -5412,16 +5420,23 @@ def quotation_presentation(quote_ref):
         txt_box(slide, slide_label, 10.3, 0.15, 2.8, 0.6, size=10, color=C_GOLD, align=PP_ALIGN.RIGHT)
 
         # Table
-        col_widths = [Inches(0.55), Inches(1.6), Inches(6.3), Inches(0.8), Inches(0.75), Inches(1.55), Inches(1.55)]
-        col_headers = ['#', 'Item Code', 'Description', 'UOM', 'Qty', 'Unit Price\n(SAR)', 'Total\n(SAR)']
+        col_widths = [Inches(0.52), Inches(1.55), Inches(6.55), Inches(0.72), Inches(0.68), Inches(1.5), Inches(1.48)]
+        col_headers = ['#', 'Item Code', 'Description', 'UOM', 'Qty', 'Unit Price (SAR)', 'Total (SAR)']
 
-        n_rows = len(items_chunk) + 1  # +1 for header
+        n_data = len(items_chunk)
+        n_rows = n_data + 1  # header + data
         if grand_total is not None:
             n_rows += 1  # total row
 
+        # Calculate row heights so the table fills the available space exactly
+        available_h = TBL_H
+        fixed_h = HDR_H_IN + (FOOT_H_IN if grand_total is not None else 0)
+        data_h = (available_h - fixed_h) / n_data if n_data > 0 else 0.35
+        data_h = max(0.28, min(data_h, 0.55))   # clamp: never too tiny or too tall
+
         tbl = slide.shapes.add_table(n_rows, 7,
-                                      Inches(0.15), Inches(1.02),
-                                      Inches(13.0), Inches(0.43 * n_rows)).table
+                                      Inches(TBL_LEFT), Inches(TBL_TOP),
+                                      Inches(TBL_W), Inches(TBL_H)).table
         tbl.columns[0].width = col_widths[0]
         tbl.columns[1].width = col_widths[1]
         tbl.columns[2].width = col_widths[2]
@@ -5429,6 +5444,15 @@ def quotation_presentation(quote_ref):
         tbl.columns[4].width = col_widths[4]
         tbl.columns[5].width = col_widths[5]
         tbl.columns[6].width = col_widths[6]
+
+        # Set individual row heights via XML
+        from pptx.util import Emu
+        EMU_PER_INCH = 914400
+        tbl.rows[0]._tr.set('h', str(int(HDR_H_IN * EMU_PER_INCH)))
+        for ri in range(1, n_data + 1):
+            tbl.rows[ri]._tr.set('h', str(int(data_h * EMU_PER_INCH)))
+        if grand_total is not None:
+            tbl.rows[n_rows - 1]._tr.set('h', str(int(FOOT_H_IN * EMU_PER_INCH)))
 
         # Header row
         for ci, hdr in enumerate(col_headers):
