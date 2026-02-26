@@ -5548,15 +5548,19 @@ Rules:
     # ═══════════════════════════════════════════════════════════════
     # SLIDES 4+N — BOQ TABLE (paginated)
     # ═══════════════════════════════════════════════════════════════
-    ITEMS_PER_SLIDE = 14   # safe max so rows fit within 7.5" slide
+    ITEMS_PER_SLIDE = 10   # 10 rows -> ~0.55" per row = 3-4 lines comfortably
 
     # Layout constants
-    TBL_TOP    = 1.0        # inches from top of slide
+    TBL_TOP    = 0.97       # inches from top of slide
     TBL_LEFT   = 0.15
-    TBL_W      = 13.0
-    TBL_H      = SLIDE_H - TBL_TOP - 0.12  # fill to bottom with tiny margin
-    HDR_H_IN   = 0.48       # header row height inches
-    FOOT_H_IN  = 0.40       # total-row height inches
+    TBL_W      = 13.00
+    TBL_H      = SLIDE_H - TBL_TOP - 0.08   # fill to near-bottom
+    HDR_H_IN   = 0.46       # header row height inches
+    FOOT_H_IN  = 0.38       # total-row height inches
+
+    # Max description chars that fit per data row
+    # 8pt Calibri, 6.55" wide -> ~90 chars/line x 3 lines
+    DESC_MAX_CHARS = 260
 
     def add_boq_slide(prs, items_chunk, slide_label, grand_total=None):
         slide = prs.slides.add_slide(blank_layout)
@@ -5585,7 +5589,7 @@ Rules:
         available_h = TBL_H
         fixed_h = HDR_H_IN + (FOOT_H_IN if grand_total is not None else 0)
         data_h = (available_h - fixed_h) / n_data if n_data > 0 else 0.35
-        data_h = max(0.28, min(data_h, 0.55))   # clamp: never too tiny or too tall
+        data_h = max(0.42, min(data_h, 0.65))   # clamp per row height
 
         tbl = slide.shapes.add_table(n_rows, 7,
                                       Inches(TBL_LEFT), Inches(TBL_TOP),
@@ -5648,7 +5652,7 @@ Rules:
                 # Section header spans description column visually
                 fill_cell(0, '', PP_ALIGN.CENTER, 8.5, False)
                 fill_cell(1, item['code'], PP_ALIGN.LEFT, 8.5, True, C_PURPLE)
-                fill_cell(2, item['desc'], PP_ALIGN.LEFT, 8.5, True, C_PURPLE)
+                fill_cell(2, item['desc'], PP_ALIGN.LEFT, 8, True, C_PURPLE)
                 fill_cell(3, '', PP_ALIGN.CENTER)
                 fill_cell(4, '', PP_ALIGN.CENTER)
                 fill_cell(5, '', PP_ALIGN.RIGHT)
@@ -5656,7 +5660,10 @@ Rules:
             else:
                 fill_cell(0, item['sn'],   PP_ALIGN.CENTER, 8.5)
                 fill_cell(1, item['code'], PP_ALIGN.LEFT,   8.5)
-                fill_cell(2, item['desc'], PP_ALIGN.LEFT,   8.5)
+                _boq_desc = item['desc']
+                if len(_boq_desc) > DESC_MAX_CHARS:
+                    _boq_desc = _boq_desc[:DESC_MAX_CHARS].rsplit(' ', 1)[0] + '...'
+                fill_cell(2, _boq_desc, PP_ALIGN.LEFT, 8)
                 fill_cell(3, item['uom'],  PP_ALIGN.CENTER, 8.5)
                 qty_str = f"{int(item['qty'])}" if item['qty'] is not None and item['qty'] == int(item['qty']) else (f"{item['qty']}" if item['qty'] is not None else '—')
                 fill_cell(4, qty_str,      PP_ALIGN.CENTER, 8.5)
