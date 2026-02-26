@@ -709,6 +709,12 @@
                             <span>Quotation Products</span>
                         </a>
                     </li>
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Price Checker">
+                        <a href="{{ url_for('quotation_price_checker') }}" class="{{ 'active' if request.endpoint == 'quotation_price_checker' or request.endpoint == 'quotation_price_checker_export' else '' }}">
+                            <i class="fas fa-search-dollar"></i>
+                            <span>Price Checker</span>
+                        </a>
+                    </li>
                     {% endif %}
                 </ul>
             </li>

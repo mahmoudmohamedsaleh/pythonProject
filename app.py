@@ -31965,6 +31965,319 @@ def implementation_export_materials(id):
                      as_attachment=True, download_name=filename)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# QUOTATION PRICE CHECKER
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/quotation_price_checker', methods=['GET', 'POST'])
+@login_required
+@permission_required('view_products')
+def quotation_price_checker():
+    import io, json
+    import pandas as pd
+
+    results = None
+    stats = None
+    results_json = None
+    column_info = None
+    header_row = 1
+    pn_column = ''
+    price_column = ''
+
+    PN_CANDIDATES = ['part number', 'part no', 'p/n', 'pn', 'item code', 'item no',
+                     'part#', 'part #', 'model', 'sku', 'material code', 'product code']
+    PRICE_CANDIDATES = ['unit price', 'price', 'unit cost', 'cost', 'rate',
+                        'net price', 'net', 'sale price', 'list price', 'amount']
+
+    if request.method == 'POST':
+        file = request.files.get('excel_file')
+        header_row = int(request.form.get('header_row', 1))
+        pn_column = request.form.get('pn_column', '').strip()
+        price_column = request.form.get('price_column', '').strip()
+
+        if not file or file.filename == '':
+            flash('Please select an Excel file.', 'danger')
+            return render_template('quotation_price_checker.html',
+                                   results=None, stats=None, results_json=None,
+                                   column_info=None, header_row=header_row,
+                                   pn_column=pn_column, price_column=price_column)
+
+        filename = file.filename.lower()
+        file_data = file.read()
+
+        try:
+            if filename.endswith('.csv'):
+                df = pd.read_csv(io.BytesIO(file_data), header=header_row - 1, dtype=str)
+            else:
+                df = pd.read_excel(io.BytesIO(file_data), header=header_row - 1, dtype=str)
+        except Exception as e:
+            flash(f'Error reading file: {str(e)}', 'danger')
+            return render_template('quotation_price_checker.html',
+                                   results=None, stats=None, results_json=None,
+                                   column_info=None, header_row=header_row,
+                                   pn_column=pn_column, price_column=price_column)
+
+        df.columns = [str(c).strip() for c in df.columns]
+        cols_lower = {c.lower(): c for c in df.columns}
+
+        # Detect Part Number column
+        detected_pn = None
+        if pn_column:
+            if pn_column.upper() in [c.upper() for c in df.columns]:
+                detected_pn = next(c for c in df.columns if c.upper() == pn_column.upper())
+            elif len(pn_column) == 1:
+                idx = ord(pn_column.upper()) - ord('A')
+                if 0 <= idx < len(df.columns):
+                    detected_pn = df.columns[idx]
+        if not detected_pn:
+            for cand in PN_CANDIDATES:
+                if cand in cols_lower:
+                    detected_pn = cols_lower[cand]
+                    break
+        if not detected_pn and len(df.columns) > 0:
+            detected_pn = df.columns[0]
+
+        # Detect Price column
+        detected_price = None
+        if price_column:
+            if price_column.upper() in [c.upper() for c in df.columns]:
+                detected_price = next(c for c in df.columns if c.upper() == price_column.upper())
+            elif len(price_column) == 1:
+                idx = ord(price_column.upper()) - ord('A')
+                if 0 <= idx < len(df.columns):
+                    detected_price = df.columns[idx]
+        if not detected_price:
+            for cand in PRICE_CANDIDATES:
+                if cand in cols_lower:
+                    detected_price = cols_lower[cand]
+                    break
+        if not detected_price:
+            for col in df.columns:
+                if col != detected_pn:
+                    sample = df[col].dropna().head(10)
+                    numeric_count = sum(1 for v in sample if str(v).replace('.', '', 1).replace(',', '').strip().lstrip('-').isdigit())
+                    if numeric_count >= 3:
+                        detected_price = col
+                        break
+
+        column_info = {
+            'pn_col': detected_pn or 'Not detected',
+            'price_col': detected_price or 'Not detected',
+            'header_row': header_row,
+            'filename': file.filename
+        }
+
+        # Extract rows
+        excel_items = {}
+        if detected_pn:
+            for _, row in df.iterrows():
+                pn_raw = str(row.get(detected_pn, '') or '').strip()
+                if not pn_raw or pn_raw.lower() in ('nan', 'none', ''):
+                    continue
+                price_val = None
+                if detected_price:
+                    price_raw = str(row.get(detected_price, '') or '').strip()
+                    price_clean = price_raw.replace(',', '').replace('SAR', '').replace('USD', '').replace('$', '').strip()
+                    try:
+                        price_val = float(price_clean)
+                    except Exception:
+                        price_val = None
+                if pn_raw not in excel_items:
+                    excel_items[pn_raw] = price_val
+
+        # Query DB
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        part_numbers = list(excel_items.keys())
+        db_data = {}
+        if part_numbers:
+            placeholders = ','.join(['?' for _ in part_numbers])
+            c.execute(f"""
+                SELECT part_number,
+                       description,
+                       supplier_name,
+                       system,
+                       AVG(unit_price) as avg_price,
+                       MIN(unit_price) as min_price,
+                       MAX(unit_price) as max_price,
+                       COUNT(*) as cnt
+                FROM quotation_products
+                WHERE TRIM(LOWER(part_number)) IN ({placeholders})
+                GROUP BY TRIM(LOWER(part_number))
+            """, [p.lower() for p in part_numbers])
+            for row in c.fetchall():
+                db_data[row['part_number'].strip().lower()] = dict(row)
+        conn.close()
+
+        # Build results
+        results = []
+        for pn, excel_price in excel_items.items():
+            db_row = db_data.get(pn.strip().lower())
+            if db_row:
+                db_price = round(db_row['avg_price'], 4) if db_row['avg_price'] else None
+                db_price_min = round(db_row['min_price'], 4) if db_row['min_price'] else None
+                db_price_max = round(db_row['max_price'], 4) if db_row['max_price'] else None
+                db_description = db_row['description'] or ''
+                db_supplier = db_row['supplier_name'] or ''
+                db_count = db_row['cnt']
+
+                diff = None
+                diff_pct = None
+                status = 'no_price'
+                if excel_price is not None and db_price is not None and db_price > 0:
+                    diff = round(excel_price - db_price, 4)
+                    diff_pct = round((diff / db_price) * 100, 2)
+                    if abs(diff_pct) < 0.5:
+                        status = 'same'
+                    elif diff < 0:
+                        status = 'cheaper'
+                    else:
+                        status = 'higher'
+                elif excel_price is not None:
+                    status = 'no_db_price'
+            else:
+                db_price = None
+                db_price_min = None
+                db_price_max = None
+                db_description = None
+                db_supplier = None
+                db_count = 0
+                diff = None
+                diff_pct = None
+                status = 'not_found'
+
+            results.append({
+                'part_number': pn,
+                'excel_price': excel_price,
+                'db_price': db_price,
+                'db_price_min': db_price_min,
+                'db_price_max': db_price_max,
+                'db_description': db_description,
+                'db_supplier': db_supplier,
+                'db_count': db_count,
+                'diff': diff,
+                'diff_pct': diff_pct,
+                'status': status
+            })
+
+        # Sort: not_found at bottom, rest by diff_pct descending
+        results.sort(key=lambda x: (x['status'] == 'not_found', -(x['diff_pct'] or 0)))
+
+        # Stats
+        matched = sum(1 for r in results if r['status'] != 'not_found')
+        not_found = sum(1 for r in results if r['status'] == 'not_found')
+        cheaper = sum(1 for r in results if r['status'] == 'cheaper')
+        same = sum(1 for r in results if r['status'] == 'same')
+        higher = sum(1 for r in results if r['status'] == 'higher')
+        diff_pcts = [r['diff_pct'] for r in results if r['diff_pct'] is not None]
+        avg_diff_pct = round(sum(diff_pcts) / len(diff_pcts), 2) if diff_pcts else 0
+
+        stats = {
+            'total_excel': len(results),
+            'matched': matched,
+            'not_found': not_found,
+            'cheaper': cheaper,
+            'same': same,
+            'higher': higher,
+            'avg_diff_pct': avg_diff_pct
+        }
+
+        results_json = json.dumps(results)
+
+    return render_template('quotation_price_checker.html',
+                           results=results,
+                           stats=stats,
+                           results_json=results_json,
+                           column_info=column_info,
+                           header_row=header_row,
+                           pn_column=pn_column,
+                           price_column=price_column)
+
+
+@app.route('/quotation_price_checker/export', methods=['POST'])
+@login_required
+@permission_required('view_products')
+def quotation_price_checker_export():
+    import io, json
+    import xlsxwriter
+
+    results_json = request.form.get('results_json', '[]')
+    try:
+        results = json.loads(results_json)
+    except Exception:
+        flash('Error exporting results.', 'danger')
+        return redirect(url_for('quotation_price_checker'))
+
+    output = io.BytesIO()
+    wb = xlsxwriter.Workbook(output, {'in_memory': True})
+    ws = wb.add_worksheet('Price Comparison')
+
+    # Formats
+    header_fmt = wb.add_format({'bold': True, 'bg_color': '#764ba2', 'font_color': 'white',
+                                 'border': 1, 'align': 'center', 'valign': 'vcenter', 'font_size': 11})
+    cheaper_fmt = wb.add_format({'bg_color': '#d4edda', 'border': 1, 'num_format': '#,##0.00'})
+    higher_fmt = wb.add_format({'bg_color': '#f8d7da', 'border': 1, 'num_format': '#,##0.00'})
+    same_fmt = wb.add_format({'bg_color': '#fff3cd', 'border': 1, 'num_format': '#,##0.00'})
+    notfound_fmt = wb.add_format({'bg_color': '#e2e3e5', 'border': 1})
+    text_fmt = wb.add_format({'border': 1})
+    pct_fmt = wb.add_format({'border': 1, 'num_format': '+0.00%;-0.00%;0.00%'})
+    pct_cheaper = wb.add_format({'bg_color': '#d4edda', 'border': 1, 'num_format': '+0.00%;-0.00%;0.00%'})
+    pct_higher = wb.add_format({'bg_color': '#f8d7da', 'border': 1, 'num_format': '+0.00%;-0.00%;0.00%'})
+    pct_same = wb.add_format({'bg_color': '#fff3cd', 'border': 1, 'num_format': '+0.00%;-0.00%;0.00%'})
+    title_fmt = wb.add_format({'bold': True, 'font_size': 14, 'font_color': '#764ba2'})
+
+    ws.write(0, 0, 'Quotation Price Comparison Report', title_fmt)
+    ws.write(1, 0, f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}', wb.add_format({'italic': True, 'font_color': '#888'}))
+
+    headers = ['#', 'Part Number', 'Description (DB)', 'Excel Price (SAR)',
+               'DB Price (SAR)', 'Supplier (DB)', 'Difference (SAR)', 'Diff %', 'Status']
+    col_widths = [5, 20, 45, 16, 16, 20, 16, 10, 12]
+    for i, (h, w) in enumerate(zip(headers, col_widths)):
+        ws.write(3, i, h, header_fmt)
+        ws.set_column(i, i, w)
+    ws.set_row(3, 22)
+
+    fmt_map = {
+        'cheaper': cheaper_fmt, 'higher': higher_fmt,
+        'same': same_fmt, 'not_found': notfound_fmt
+    }
+    pct_map = {
+        'cheaper': pct_cheaper, 'higher': pct_higher,
+        'same': pct_same, 'not_found': notfound_fmt
+    }
+    status_labels = {
+        'cheaper': 'Excel Cheaper', 'higher': 'Excel Higher',
+        'same': 'Same Price', 'not_found': 'Not Found',
+        'no_price': 'No Price', 'no_db_price': 'No DB Price'
+    }
+
+    for idx, r in enumerate(results):
+        row = idx + 4
+        status = r.get('status', 'not_found')
+        rfmt = fmt_map.get(status, text_fmt)
+        rpct = pct_map.get(status, text_fmt)
+        ws.write(row, 0, idx + 1, rfmt)
+        ws.write(row, 1, r.get('part_number', ''), rfmt)
+        ws.write(row, 2, r.get('db_description') or 'Not found', rfmt)
+        ep = r.get('excel_price')
+        ws.write(row, 3, ep if ep is not None else '', rfmt)
+        dp = r.get('db_price')
+        ws.write(row, 4, dp if dp is not None else '', rfmt)
+        ws.write(row, 5, r.get('db_supplier') or '', rfmt)
+        diff = r.get('diff')
+        ws.write(row, 6, diff if diff is not None else '', rfmt)
+        diff_pct = r.get('diff_pct')
+        ws.write(row, 7, (diff_pct / 100) if diff_pct is not None else '', rpct)
+        ws.write(row, 8, status_labels.get(status, status), rfmt)
+
+    wb.close()
+    output.seek(0)
+    filename = f"price_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=filename)
+
 if __name__ == '__main__':
     init_db()
     seed_permissions()
@@ -31974,3 +32287,4 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_DEBUG', '0') == '1'
     app.run(host=host, port=port, debug=debug)
+

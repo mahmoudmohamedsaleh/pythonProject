@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Quotation Price Checker{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 16px; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 28px 32px; color: white;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <h2 class="mb-1" style="font-weight: 800; font-size: 1.8rem;">
+                                <i class="fas fa-search-dollar mr-2"></i> Quotation Price Checker
+                            </h2>
+                            <p class="mb-0" style="opacity: 0.85; font-size: 0.95rem;">
+                                Upload a supplier Excel quotation and compare prices against the registered database prices
+                            </p>
+                        </div>
+                        <div class="mt-2 mt-md-0">
+                            <a href="{{ url_for('quotation_products_dashboard') }}" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 8px;">
+                                <i class="fas fa-box-open mr-1"></i> View Product Database
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 12px;">
+                <div class="card-body p-4">
+                    <h5 style="color: #764ba2; font-weight: 700; margin-bottom: 20px;">
+                        <i class="fas fa-file-upload mr-2"></i> Upload Supplier Quotation Excel
+                    </h5>
+                    <form method="POST" action="{{ url_for('quotation_price_checker') }}" enctype="multipart/form-data">
+                        <div class="row align-items-end">
+                            <div class="col-md-4 mb-3">
+                                <label class="font-weight-bold" style="font-size: 0.9rem;">Excel File <span class="text-danger">*</span></label>
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="excelFile" name="excel_file" accept=".xlsx,.xls,.csv" required>
+                                    <label class="custom-file-label" for="excelFile">Choose Excel file...</label>
+                                </div>
+                                <small class="text-muted">Supports .xlsx, .xls, .csv</small>
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="font-weight-bold" style="font-size: 0.9rem;">Header Row</label>
+                                <input type="number" name="header_row" class="form-control" value="{{ header_row or 1 }}" min="1" max="20" title="Which row contains the column headers?">
+                                <small class="text-muted">Row containing headers</small>
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="font-weight-bold" style="font-size: 0.9rem;">Part Number Column</label>
+                                <input type="text" name="pn_column" class="form-control" placeholder="Auto-detect" value="{{ pn_column or '' }}">
+                                <small class="text-muted">Column name or letter (e.g., A)</small>
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <label class="font-weight-bold" style="font-size: 0.9rem;">Price Column</label>
+                                <input type="text" name="price_column" class="form-control" placeholder="Auto-detect" value="{{ price_column or '' }}">
+                                <small class="text-muted">Column name or letter (e.g., C)</small>
+                            </div>
+                            <div class="col-md-2 mb-3">
+                                <button type="submit" class="btn btn-block" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-weight: 600; height: 38px;">
+                                    <i class="fas fa-search mr-1"></i> Check Prices
+                                </button>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mb-0" style="border-radius: 8px; font-size: 0.88rem; padding: 10px 15px;">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            <strong>Tip:</strong> Leave Part Number and Price columns blank for auto-detection. The system looks for headers like "Part Number", "P/N", "Item Code" for part numbers and "Price", "Unit Price", "Cost" for prices.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if results is not none %}
+
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(102,126,234,0.3);">
+                <div style="font-size: 2rem; font-weight: 800;">{{ stats.total_excel }}</div>
+                <div style="opacity: 0.85; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Items in Excel</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div style="background: linear-gradient(135deg, #00b894, #00cec9); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(0,184,148,0.3);">
+                <div style="font-size: 2rem; font-weight: 800;">{{ stats.matched }}</div>
+                <div style="opacity: 0.85; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Matched in DB</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div style="background: linear-gradient(135deg, #fdcb6e, #e17055); border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(225,112,85,0.3);">
+                <div style="font-size: 2rem; font-weight: 800;">{{ stats.not_found }}</div>
+                <div style="opacity: 0.85; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Not Found in DB</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div style="background: {% if stats.avg_diff_pct > 0 %}linear-gradient(135deg, #d63031, #e17055){% elif stats.avg_diff_pct < 0 %}linear-gradient(135deg, #00b894, #00cec9){% else %}linear-gradient(135deg, #636e72, #b2bec3){% endif %}; border-radius: 12px; padding: 20px; color: white; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+                <div style="font-size: 2rem; font-weight: 800;">{{ "{:+.1f}".format(stats.avg_diff_pct) }}%</div>
+                <div style="opacity: 0.85; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px;">Avg Price Diff</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Price Status Legend + Export -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div class="d-flex align-items-center flex-wrap">
+                    <span class="badge mr-2 mb-1" style="background: #d4edda; color: #155724; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px;">
+                        <i class="fas fa-arrow-down mr-1"></i> Excel Cheaper: {{ stats.cheaper }}
+                    </span>
+                    <span class="badge mr-2 mb-1" style="background: #fff3cd; color: #856404; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px;">
+                        <i class="fas fa-equals mr-1"></i> Same Price: {{ stats.same }}
+                    </span>
+                    <span class="badge mr-2 mb-1" style="background: #f8d7da; color: #721c24; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px;">
+                        <i class="fas fa-arrow-up mr-1"></i> Excel Higher: {{ stats.higher }}
+                    </span>
+                    <span class="badge mb-1" style="background: #e2e3e5; color: #383d41; font-size: 0.85rem; padding: 6px 12px; border-radius: 20px;">
+                        <i class="fas fa-question mr-1"></i> Not Found: {{ stats.not_found }}
+                    </span>
+                </div>
+                <div>
+                    <form method="POST" action="{{ url_for('quotation_price_checker_export') }}" style="display: inline;">
+                        <input type="hidden" name="results_json" value="{{ results_json }}">
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-file-excel mr-1"></i> Export Comparison Report
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm" style="border: none; border-radius: 12px; overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: white; font-weight: 700; font-size: 1rem;">
+                        <i class="fas fa-table mr-2"></i>Price Comparison Results
+                    </span>
+                    <input type="text" id="tableSearch" onkeyup="filterTable()" placeholder="Search results..." 
+                           class="form-control form-control-sm" style="width: 220px; border-radius: 20px; border: none;">
+                </div>
+                <div class="table-responsive">
+                    <table class="table mb-0" id="resultsTable" style="font-size: 0.88rem;">
+                        <thead>
+                            <tr style="background: #f8f9fa;">
+                                <th style="padding: 12px 15px; white-space: nowrap;">#</th>
+                                <th style="padding: 12px 15px; white-space: nowrap; cursor: pointer;" onclick="sortTable(1)">Part Number <i class="fas fa-sort text-muted ml-1"></i></th>
+                                <th style="padding: 12px 15px;">Description (from DB)</th>
+                                <th style="padding: 12px 15px; white-space: nowrap; cursor: pointer;" onclick="sortTable(3)">Excel Price <i class="fas fa-sort text-muted ml-1"></i></th>
+                                <th style="padding: 12px 15px; white-space: nowrap; cursor: pointer;" onclick="sortTable(4)">DB Price <i class="fas fa-sort text-muted ml-1"></i></th>
+                                <th style="padding: 12px 15px; white-space: nowrap;">Supplier (DB)</th>
+                                <th style="padding: 12px 15px; white-space: nowrap; cursor: pointer;" onclick="sortTable(6)">Difference <i class="fas fa-sort text-muted ml-1"></i></th>
+                                <th style="padding: 12px 15px; white-space: nowrap; cursor: pointer;" onclick="sortTable(7)">Diff % <i class="fas fa-sort text-muted ml-1"></i></th>
+                                <th style="padding: 12px 15px; white-space: nowrap;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in results %}
+                            <tr style="border-bottom: 1px solid #f0f0f0; background: 
+                                {% if r.status == 'cheaper' %}#f8fff8
+                                {% elif r.status == 'higher' %}#fff8f8
+                                {% elif r.status == 'same' %}#fffdf0
+                                {% else %}#fafafa{% endif %};">
+                                <td style="padding: 10px 15px; color: #888;">{{ loop.index }}</td>
+                                <td style="padding: 10px 15px;">
+                                    <strong style="color: #764ba2;">{{ r.part_number }}</strong>
+                                </td>
+                                <td style="padding: 10px 15px; max-width: 280px;">
+                                    {% if r.db_description %}
+                                        <span title="{{ r.db_description }}">{{ r.db_description[:80] }}{% if r.db_description|length > 80 %}...{% endif %}</span>
+                                        {% if r.db_count > 1 %}
+                                        <span class="badge badge-info ml-1" style="font-size: 0.7rem;" title="{{ r.db_count }} records in DB">×{{ r.db_count }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted fst-italic">Not found in database</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 15px; font-weight: 700; white-space: nowrap;">
+                                    {% if r.excel_price is not none %}
+                                        <span style="color: #333;">SAR {{ "{:,.2f}".format(r.excel_price) }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 15px; font-weight: 700; white-space: nowrap;">
+                                    {% if r.db_price is not none %}
+                                        <span style="color: #667eea;">SAR {{ "{:,.2f}".format(r.db_price) }}</span>
+                                        {% if r.db_price_min and r.db_price_max and r.db_price_min != r.db_price_max %}
+                                        <br><small class="text-muted" style="font-size: 0.75rem;">Range: {{ "{:,.2f}".format(r.db_price_min) }} – {{ "{:,.2f}".format(r.db_price_max) }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 15px; font-size: 0.82rem;">
+                                    {% if r.db_supplier %}
+                                        <span class="badge" style="background: #e8f0fe; color: #1a73e8; font-size: 0.75rem; padding: 4px 8px; border-radius: 10px;">{{ r.db_supplier }}</span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 15px; font-weight: 700; white-space: nowrap;">
+                                    {% if r.diff is not none %}
+                                        <span style="color: {% if r.diff < 0 %}#00b894{% elif r.diff > 0 %}#d63031{% else %}#636e72{% endif %};">
+                                            {{ "{:+,.2f}".format(r.diff) }} SAR
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 15px; font-weight: 700; white-space: nowrap;">
+                                    {% if r.diff_pct is not none %}
+                                        <span style="color: {% if r.diff_pct < 0 %}#00b894{% elif r.diff_pct > 0 %}#d63031{% else %}#636e72{% endif %};">
+                                            {{ "{:+.1f}".format(r.diff_pct) }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td style="padding: 10px 15px;">
+                                    {% if r.status == 'cheaper' %}
+                                        <span class="badge" style="background: #d4edda; color: #155724; padding: 5px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                            <i class="fas fa-arrow-down mr-1"></i>Cheaper
+                                        </span>
+                                    {% elif r.status == 'higher' %}
+                                        <span class="badge" style="background: #f8d7da; color: #721c24; padding: 5px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                            <i class="fas fa-arrow-up mr-1"></i>Higher
+                                        </span>
+                                    {% elif r.status == 'same' %}
+                                        <span class="badge" style="background: #fff3cd; color: #856404; padding: 5px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                            <i class="fas fa-equals mr-1"></i>Same
+                                        </span>
+                                    {% else %}
+                                        <span class="badge" style="background: #e2e3e5; color: #383d41; padding: 5px 10px; border-radius: 12px; font-size: 0.75rem;">
+                                            <i class="fas fa-question mr-1"></i>Not Found
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding: 12px 20px; background: #f8f9fa; font-size: 0.85rem; color: #666; display: flex; justify-content: space-between;">
+                    <span><strong>{{ results|length }}</strong> items total</span>
+                    <span>DB Price shown is the average when multiple records exist</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Info -->
+    {% if column_info %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="alert" style="background: #f0f0ff; border: 1px solid #d5d5f5; border-radius: 10px; color: #555;">
+                <i class="fas fa-info-circle mr-2" style="color: #667eea;"></i>
+                <strong>Detected columns:</strong>
+                Part Number column: <strong>{{ column_info.pn_col }}</strong> &nbsp;|&nbsp;
+                Price column: <strong>{{ column_info.price_col }}</strong> &nbsp;|&nbsp;
+                Header row: <strong>{{ column_info.header_row }}</strong> &nbsp;|&nbsp;
+                File: <strong>{{ column_info.filename }}</strong>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Custom file input label update
+document.getElementById('excelFile').addEventListener('change', function() {
+    var fileName = this.files[0] ? this.files[0].name : 'Choose Excel file...';
+    this.nextElementSibling.textContent = fileName;
+});
+
+function filterTable() {
+    var input = document.getElementById('tableSearch');
+    var filter = input.value.toLowerCase();
+    var rows = document.querySelectorAll('#resultsTable tbody tr');
+    rows.forEach(function(row) {
+        var text = row.textContent.toLowerCase();
+        row.style.display = text.indexOf(filter) > -1 ? '' : 'none';
+    });
+}
+
+var sortDirections = {};
+function sortTable(colIndex) {
+    var table = document.getElementById('resultsTable');
+    var tbody = table.querySelector('tbody');
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    var asc = !sortDirections[colIndex];
+    sortDirections[colIndex] = asc;
+
+    rows.sort(function(a, b) {
+        var aText = a.cells[colIndex] ? a.cells[colIndex].textContent.trim() : '';
+        var bText = b.cells[colIndex] ? b.cells[colIndex].textContent.trim() : '';
+        var aNum = parseFloat(aText.replace(/[^0-9.\-+]/g, ''));
+        var bNum = parseFloat(bText.replace(/[^0-9.\-+]/g, ''));
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            return asc ? aNum - bNum : bNum - aNum;
+        }
+        return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+    });
+    rows.forEach(function(row) { tbody.appendChild(row); });
+}
+</script>
+{% endblock %}
