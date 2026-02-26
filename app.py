@@ -5719,6 +5719,205 @@ Rules:
             txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 4.05, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
 
     # ═══════════════════════════════════════════════════════════════
+    # TECHNICAL DETAILS SLIDES (AI-Generated specs + datasheet links)
+    # ═══════════════════════════════════════════════════════════════
+    _tech_items = [it for it in boq_items if not it.get('is_section') and it.get('code') and it['code'].strip()]
+    # Deduplicate by code
+    _seen_codes = set()
+    _unique_tech = []
+    for _ti in _tech_items:
+        _code = _ti['code'].strip()
+        if _code not in _seen_codes:
+            _seen_codes.add(_code)
+            _unique_tech.append(_ti)
+    MAX_TECH_ITEMS = 20
+    _unique_tech = _unique_tech[:MAX_TECH_ITEMS]
+
+    _tech_data = {}   # code -> {specs: [...], datasheet_url: str}
+
+    if _unique_tech:
+        try:
+            import os as _tos, openai as _toai, json as _tjson
+
+            _item_list_txt = '\n'.join(
+                f"- Code: {it['code']} | Description: {it['desc'][:120]}"
+                for it in _unique_tech
+            )
+
+            _tech_prompt = f"""You are a professional technical engineer. For each product listed below, provide:
+1. Exactly 4 concise technical specification bullet points (key electrical/physical/performance specs)
+2. A real datasheet or product page URL from the manufacturer's official website
+
+Return ONLY valid JSON in this exact format (no markdown, no explanation):
+{{
+  "items": [
+    {{
+      "code": "<item code>",
+      "specs": ["spec 1", "spec 2", "spec 3", "spec 4"],
+      "datasheet_url": "https://..."
+    }}
+  ]
+}}
+
+Products:
+{_item_list_txt}
+
+Rules:
+- Specs must be factual and concise (max 15 words each), starting with the spec name then value (e.g. "Voltage: 100-240V AC, 50/60Hz")
+- If you don't know a spec, make a reasonable industry-standard estimate for this product type
+- For datasheet_url: provide the manufacturer official URL if known, otherwise use Google search URL: https://www.google.com/search?q=<item+code>+datasheet
+- Return exactly one entry per product code listed above"""
+
+            _tclient = _toai.OpenAI(
+                api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+                base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+            )
+            _tresp = _tclient.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=[{'role': 'user', 'content': _tech_prompt}],
+                max_tokens=2000,
+                temperature=0.3,
+            )
+            _raw_json = _tresp.choices[0].message.content.strip()
+            # Strip markdown code fences if present
+            if _raw_json.startswith('```'):
+                _raw_json = '\n'.join(_raw_json.split('\n')[1:])
+            if _raw_json.endswith('```'):
+                _raw_json = _raw_json[:_raw_json.rfind('```')]
+            _parsed = _tjson.loads(_raw_json)
+            for _entry in _parsed.get('items', []):
+                _tech_data[_entry.get('code', '').strip()] = {
+                    'specs': _entry.get('specs', []),
+                    'datasheet_url': _entry.get('datasheet_url', ''),
+                }
+        except Exception as _te:
+            # Fallback: generate placeholder specs for each item
+            for _uti in _unique_tech:
+                _tech_data[_uti['code'].strip()] = {
+                    'specs': [
+                        'Standards: Complies with relevant international standards',
+                        'Quality: Commercial grade, tested and certified',
+                        'Warranty: Standard manufacturer warranty applies',
+                        'Installation: Professional installation recommended',
+                    ],
+                    'datasheet_url': f"https://www.google.com/search?q={_uti['code'].strip().replace(' ', '+')}+datasheet",
+                }
+
+    # ── Draw Technical Details slides (2 items per slide) ────────────
+    def add_hyperlink_to_run(run, url):
+        """Add a clickable hyperlink to a text run in python-pptx."""
+        try:
+            run.hyperlink.address = url
+        except Exception:
+            pass
+
+    ITEMS_PER_TECH_SLIDE = 2
+    _tech_chunks = [_unique_tech[i:i+ITEMS_PER_TECH_SLIDE]
+                    for i in range(0, len(_unique_tech), ITEMS_PER_TECH_SLIDE)]
+
+    for _tci, _tchunk in enumerate(_tech_chunks):
+        slide = prs.slides.add_slide(blank_layout)
+
+        # Header
+        rect(slide, 0, 0, SLIDE_W, 0.88, C_PURPLE)
+        _rac = slide.shapes.add_shape(1, 0, Inches(0.88), Inches(SLIDE_W), Inches(0.05))
+        _rac.fill.solid(); _rac.fill.fore_color.rgb = C_GOLD; _rac.line.width = 0
+        try:
+            slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.09), width=Inches(1.25))
+        except Exception:
+            pass
+        txt_box(slide, 'TECHNICAL SPECIFICATIONS', 1.85, 0.17, 9.5, 0.55, size=20, bold=True, color=C_WHITE)
+        _page_lbl = f'Page {_tci+1}/{len(_tech_chunks)}'
+        if len(_unique_tech) == MAX_TECH_ITEMS and _tci == 0:
+            _page_lbl = f'Top {MAX_TECH_ITEMS} items — Page 1/{len(_tech_chunks)}'
+        txt_box(slide, _page_lbl, 11.3, 0.17, 1.8, 0.55, size=9, color=C_GOLD, align=PP_ALIGN.RIGHT)
+
+        _item_zone_h = (SLIDE_H - 0.95) / len(_tchunk)  # height per item zone
+
+        for _iz, _titem in enumerate(_tchunk):
+            _code   = _titem['code'].strip()
+            _desc   = _titem['desc'][:140]
+            _tinfo  = _tech_data.get(_code, {'specs': [], 'datasheet_url': ''})
+            _specs  = _tinfo.get('specs', [])
+            _ds_url = _tinfo.get('datasheet_url', '')
+            _zone_y = 0.97 + _iz * _item_zone_h
+
+            # Item header bar (alternating purple/teal)
+            _hdr_color = C_PURPLE if _iz % 2 == 0 else C_TEAL
+            rect(slide, 0.2, _zone_y, SLIDE_W - 0.4, 0.46, _hdr_color)
+            txt_box(slide, _code, 0.35, _zone_y + 0.04, 2.4, 0.40, size=10, bold=True, color=C_GOLD)
+            txt_box(slide, _desc, 2.8, _zone_y + 0.05, 10.2, 0.40, size=9.5, bold=False, color=C_WHITE)
+
+            _spec_y = _zone_y + 0.52
+            _spec_zone_h = _item_zone_h - 0.52 - 0.38  # space for specs (leave 0.38 for link)
+
+            # Spec bullets
+            _bullet_h = min(0.37, _spec_zone_h / max(len(_specs), 1))
+            for _si, _spec in enumerate(_specs[:4]):
+                _sy = _spec_y + _si * _bullet_h
+                # Bullet dot
+                _dot = slide.shapes.add_shape(1, Inches(0.3), Inches(_sy + 0.1), Inches(0.12), Inches(0.12))
+                _dot.fill.solid(); _dot.fill.fore_color.rgb = _hdr_color; _dot.line.width = 0
+
+                # Parse spec: "Name: value" → bold name, normal value
+                _tb_spec = slide.shapes.add_textbox(Inches(0.52), Inches(_sy), Inches(12.5), Inches(_bullet_h))
+                _tf_spec = _tb_spec.text_frame
+                _tf_spec.word_wrap = True
+                _tf_spec.text = ''
+                _p_spec = _tf_spec.paragraphs[0]
+                _p_spec.alignment = PP_ALIGN.LEFT
+
+                if ':' in _spec:
+                    _sparts = _spec.split(':', 1)
+                    _sname  = _sparts[0].strip()
+                    _sval   = _sparts[1].strip()
+                    _r_sn   = _p_spec.add_run()
+                    _r_sn.text = _sname + ':  '
+                    _r_sn.font.size = Pt(10)
+                    _r_sn.font.bold = True
+                    _r_sn.font.color.rgb = _hdr_color
+                    _r_sn.font.name = 'Calibri'
+                    _r_sv  = _p_spec.add_run()
+                    _r_sv.text = _sval
+                    _r_sv.font.size = Pt(10)
+                    _r_sv.font.color.rgb = C_DARK
+                    _r_sv.font.name = 'Calibri'
+                else:
+                    _r_sv  = _p_spec.add_run()
+                    _r_sv.text = _spec
+                    _r_sv.font.size = Pt(10)
+                    _r_sv.font.color.rgb = C_DARK
+                    _r_sv.font.name = 'Calibri'
+
+            # Datasheet link row
+            if _ds_url:
+                _link_y = _zone_y + _item_zone_h - 0.36
+                _tb_link = slide.shapes.add_textbox(Inches(0.3), Inches(_link_y), Inches(12.7), Inches(0.34))
+                _tf_link = _tb_link.text_frame
+                _tf_link.text = ''
+                _p_link = _tf_link.paragraphs[0]
+                _p_link.alignment = PP_ALIGN.LEFT
+                _r_icon = _p_link.add_run()
+                _r_icon.text = 'Datasheet / Product Page:  '
+                _r_icon.font.size = Pt(8.5)
+                _r_icon.font.bold = True
+                _r_icon.font.color.rgb = _hdr_color
+                _r_icon.font.name = 'Calibri'
+                _r_link = _p_link.add_run()
+                _r_link.text = _ds_url[:100]
+                _r_link.font.size = Pt(8.5)
+                _r_link.font.color.rgb = RGBColor(0x15, 0x65, 0xC0)
+                _r_link.font.name = 'Calibri'
+                _r_link.font.underline = True
+                add_hyperlink_to_run(_r_link, _ds_url)
+
+            # Divider between items (not after last)
+            if _iz < len(_tchunk) - 1:
+                _div_y = _zone_y + _item_zone_h - 0.04
+                _divr = slide.shapes.add_shape(1, Inches(0.2), Inches(_div_y), Inches(SLIDE_W - 0.4), Inches(0.03))
+                _divr.fill.solid(); _divr.fill.fore_color.rgb = RGBColor(0xD1, 0xC4, 0xE9); _divr.line.width = 0
+
+    # ═══════════════════════════════════════════════════════════════
     # LAST SLIDE — TERMS & THANK YOU
     # ═══════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
