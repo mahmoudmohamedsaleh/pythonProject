@@ -86,42 +86,66 @@
 
     {% if results is not none %}
 
-    <!-- Summary Stats -->
-    <div class="row mb-3">
+    <!-- Summary Stats (clickable filters) -->
+    <div class="row mb-3" id="statCards">
         <div class="col-6 col-md-2 mb-2">
-            <div style="background: linear-gradient(135deg, #4B2D8F, #7B5EA7); border-radius: 10px; padding: 14px; color: white; text-align: center;">
+            <div class="stat-card" data-filter="all"
+                 onclick="filterByStatus('all', this)"
+                 style="background: linear-gradient(135deg, #4B2D8F, #7B5EA7); border-radius: 10px; padding: 14px; color: white; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;"
+                 title="Show all items">
                 <div style="font-size: 1.8rem; font-weight: 800;">{{ stats.total_excel }}</div>
                 <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px;">Total Items</div>
+                <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 3px;"><i class="fas fa-hand-pointer"></i> Click to show all</div>
             </div>
         </div>
         <div class="col-6 col-md-2 mb-2">
-            <div style="background: linear-gradient(135deg, #2e7d32, #43a047); border-radius: 10px; padding: 14px; color: white; text-align: center;">
+            <div class="stat-card" data-filter="matched"
+                 onclick="filterByStatus('matched', this)"
+                 style="background: linear-gradient(135deg, #2e7d32, #43a047); border-radius: 10px; padding: 14px; color: white; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;"
+                 title="Show matched items only">
                 <div style="font-size: 1.8rem; font-weight: 800;">{{ stats.matched }}</div>
                 <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px;">Matched in DB</div>
+                <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 3px;"><i class="fas fa-hand-pointer"></i> Click to filter</div>
             </div>
         </div>
         <div class="col-6 col-md-2 mb-2">
-            <div style="background: linear-gradient(135deg, #bf360c, #e64a19); border-radius: 10px; padding: 14px; color: white; text-align: center;">
+            <div class="stat-card" data-filter="not_found"
+                 onclick="filterByStatus('not_found', this)"
+                 style="background: linear-gradient(135deg, #bf360c, #e64a19); border-radius: 10px; padding: 14px; color: white; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;"
+                 title="Show not found items only">
                 <div style="font-size: 1.8rem; font-weight: 800;">{{ stats.not_found }}</div>
                 <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px;">Not Found</div>
+                <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 3px;"><i class="fas fa-hand-pointer"></i> Click to filter</div>
             </div>
         </div>
         <div class="col-6 col-md-2 mb-2">
-            <div style="background: linear-gradient(135deg, #388e3c, #66bb6a); border-radius: 10px; padding: 14px; color: white; text-align: center;">
+            <div class="stat-card" data-filter="cheaper"
+                 onclick="filterByStatus('cheaper', this)"
+                 style="background: linear-gradient(135deg, #388e3c, #66bb6a); border-radius: 10px; padding: 14px; color: white; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;"
+                 title="Show cheaper items only">
                 <div style="font-size: 1.8rem; font-weight: 800;">{{ stats.cheaper }}</div>
                 <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px;">Cheaper ↓</div>
+                <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 3px;"><i class="fas fa-hand-pointer"></i> Click to filter</div>
             </div>
         </div>
         <div class="col-6 col-md-2 mb-2">
-            <div style="background: linear-gradient(135deg, #c62828, #ef5350); border-radius: 10px; padding: 14px; color: white; text-align: center;">
+            <div class="stat-card" data-filter="higher"
+                 onclick="filterByStatus('higher', this)"
+                 style="background: linear-gradient(135deg, #c62828, #ef5350); border-radius: 10px; padding: 14px; color: white; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;"
+                 title="Show higher priced items only">
                 <div style="font-size: 1.8rem; font-weight: 800;">{{ stats.higher }}</div>
                 <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px;">Higher ↑</div>
+                <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 3px;"><i class="fas fa-hand-pointer"></i> Click to filter</div>
             </div>
         </div>
         <div class="col-6 col-md-2 mb-2">
-            <div style="background: linear-gradient(135deg, {% if stats.avg_diff_pct > 0 %}#c62828, #ef5350{% elif stats.avg_diff_pct < 0 %}#2e7d32, #43a047{% else %}#455a64, #607d8b{% endif %}); border-radius: 10px; padding: 14px; color: white; text-align: center;">
+            <div class="stat-card" data-filter="same"
+                 onclick="filterByStatus('same', this)"
+                 style="background: linear-gradient(135deg, {% if stats.avg_diff_pct > 0 %}#c62828, #ef5350{% elif stats.avg_diff_pct < 0 %}#2e7d32, #43a047{% else %}#455a64, #607d8b{% endif %}); border-radius: 10px; padding: 14px; color: white; text-align: center; cursor: pointer; transition: all 0.2s; user-select: none;"
+                 title="Show same price items only">
                 <div style="font-size: 1.8rem; font-weight: 800;">{{ "{:+.1f}".format(stats.avg_diff_pct) }}%</div>
                 <div style="font-size: 0.75rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px;">Avg Difference</div>
+                <div style="font-size: 0.7rem; opacity: 0.7; margin-top: 3px;"><i class="fas fa-hand-pointer"></i> Click for same price</div>
             </div>
         </div>
     </div>
@@ -204,7 +228,7 @@
                     {% else %}
                         {% set row_bg = '#FAFAFA' %}
                     {% endif %}
-                    <tr style="background: {{ row_bg }}; border-bottom: 1px solid #eee;">
+                    <tr data-status="{{ status }}" style="background: {{ row_bg }}; border-bottom: 1px solid #eee;">
                         <td style="padding: 8px; color: #888; text-align: center;">{{ r.sn or loop.index }}</td>
                         <td style="padding: 8px; font-weight: 700; color: #4B2D8F; white-space: nowrap;">{{ r.part_number }}</td>
                         <td style="padding: 8px; line-height: 1.4;">{{ r.description or '—' }}</td>
@@ -292,17 +316,60 @@ document.getElementById('excelFile').addEventListener('change', function() {
     this.nextElementSibling.textContent = name;
 });
 
+var activeStatusFilter = 'all';
+
+function filterByStatus(status, cardEl) {
+    activeStatusFilter = status;
+
+    // Update active card styling
+    document.querySelectorAll('.stat-card').forEach(function(card) {
+        var isActive = card.getAttribute('data-filter') === status;
+        card.style.transform = isActive ? 'scale(1.06)' : 'scale(1)';
+        card.style.boxShadow = isActive ? '0 0 0 4px rgba(255,255,255,0.6), 0 6px 20px rgba(0,0,0,0.3)' : '';
+        card.style.outline = isActive ? '3px solid rgba(255,255,255,0.9)' : 'none';
+    });
+
+    applyFilters();
+
+    // Scroll to table
+    var tbl = document.getElementById('resultsTable');
+    if (tbl) tbl.closest('.card').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
 function filterTable() {
-    var val = document.getElementById('tableSearch').value.toLowerCase();
+    applyFilters();
+}
+
+function applyFilters() {
+    var searchVal = (document.getElementById('tableSearch') || {value: ''}).value.toLowerCase();
     var rows = document.querySelectorAll('#resultsTable tbody tr');
     var visible = 0;
+
     rows.forEach(function(row) {
-        var match = row.textContent.toLowerCase().indexOf(val) > -1;
-        row.style.display = match ? '' : 'none';
-        if (match) visible++;
+        var rowStatus = row.getAttribute('data-status') || '';
+        var statusMatch = true;
+        if (activeStatusFilter === 'matched') {
+            statusMatch = rowStatus !== 'not_found';
+        } else if (activeStatusFilter !== 'all') {
+            statusMatch = rowStatus === activeStatusFilter;
+        }
+
+        var searchMatch = !searchVal || row.textContent.toLowerCase().indexOf(searchVal) > -1;
+        var show = statusMatch && searchMatch;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
     });
+
     var cnt = document.getElementById('visibleCount');
-    if (cnt) cnt.innerHTML = '<strong>' + visible + '</strong> items' + (val ? ' (filtered)' : '');
+    if (cnt) {
+        var label = activeStatusFilter === 'all' ? '' :
+                    activeStatusFilter === 'matched' ? ' — Matched in DB' :
+                    activeStatusFilter === 'not_found' ? ' — Not Found' :
+                    activeStatusFilter === 'cheaper' ? ' — Cheaper' :
+                    activeStatusFilter === 'higher' ? ' — Higher' :
+                    activeStatusFilter === 'same' ? ' — Same Price' : '';
+        cnt.innerHTML = '<strong>' + visible + '</strong> items' + label + (searchVal ? ' (searched)' : '');
+    }
 }
 
 var sortDirs = {};
