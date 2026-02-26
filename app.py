@@ -5060,23 +5060,32 @@ def download_project_history(project_name):
 @app.route('/quotation_presentation/<quote_ref>', methods=['GET'])
 @login_required
 def quotation_presentation(quote_ref):
-    """Generate a professional client-facing PDF presentation for a quotation"""
-    import os
+    """Generate a professional PowerPoint presentation from the quotation Excel file"""
+    import os, openpyxl
     from io import BytesIO
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors
-    from reportlab.lib.units import mm, cm
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                     TableStyle, HRFlowable, Image as RLImage)
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    from reportlab.pdfgen import canvas
-    from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, PageBreak
+    from pptx import Presentation
+    from pptx.util import Inches, Pt, Emu
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Inches, Pt
+    from pptx.oxml.ns import qn
+    from lxml import etree
 
+    # ── Brand colors ─────────────────────────────────────────────────
+    C_PURPLE     = RGBColor(0x4B, 0x2D, 0x8F)
+    C_PURPLE2    = RGBColor(0x7B, 0x5E, 0xA7)
+    C_GOLD       = RGBColor(0xF9, 0xA8, 0x25)
+    C_TEAL       = RGBColor(0x00, 0x89, 0x7B)
+    C_WHITE      = RGBColor(0xFF, 0xFF, 0xFF)
+    C_DARK       = RGBColor(0x21, 0x21, 0x21)
+    C_GREY_BG    = RGBColor(0xF7, 0xF4, 0xFC)
+    C_GREY_HDR   = RGBColor(0xED, 0xE7, 0xF6)
+    C_GREY_TXT   = RGBColor(0x61, 0x61, 0x61)
+
+    # ── Load DB data ──────────────────────────────────────────────────
     conn = sqlite3.connect('ProjectStatus.db')
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-
     c.execute("SELECT * FROM projects WHERE quote_ref = ?", (quote_ref,))
     q = c.fetchone()
     if not q:
@@ -5084,369 +5093,498 @@ def quotation_presentation(quote_ref):
         flash('Quotation not found!', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
-    c.execute("SELECT * FROM quotation_items WHERE quotation_id = ? ORDER BY id", (q['id'],))
-    items = c.fetchall()
-
-    # Company info
     c.execute("SELECT section_key, content FROM company_profile_content WHERE section_key IN ('hero_company_name','hero_tagline','contact_phone','contact_email','contact_address','footer_cr','footer_vat')")
     company_raw = {row['section_key']: row['content'] for row in c.fetchall()}
     conn.close()
 
-    company_name = company_raw.get('hero_company_name', 'ESHRAQ AL JAZEERA TECHNOLOGIES')
+    company_name    = company_raw.get('hero_company_name', 'ESHRAQ AL JAZEERA TECHNOLOGIES')
     company_tagline = company_raw.get('hero_tagline', 'Where Professionalism Meets Expertise')
-    company_email = company_raw.get('contact_email', 'info@ejt.sa')
-    company_phone = company_raw.get('contact_phone', '')
-    company_address = company_raw.get('contact_address', 'Jeddah, Saudi Arabia')
-    company_cr = company_raw.get('footer_cr', '')
-    company_vat = company_raw.get('footer_vat', '')
+    company_email   = company_raw.get('contact_email', '')
+    company_phone   = company_raw.get('contact_phone', '')
+    company_cr      = company_raw.get('footer_cr', '')
+    company_vat     = company_raw.get('footer_vat', '')
 
-    # Colors
-    PURPLE      = colors.HexColor('#4B2D8F')
-    PURPLE_LITE = colors.HexColor('#7B5EA7')
-    TEAL        = colors.HexColor('#00897B')
-    GOLD        = colors.HexColor('#F9A825')
-    LIGHT_BG    = colors.HexColor('#F7F4FC')
-    HEADER_BG   = colors.HexColor('#EDE7F6')
-    WHITE       = colors.white
-    DARK_TEXT   = colors.HexColor('#212121')
-    GREY_TEXT   = colors.HexColor('#616161')
-    RED_ALERT   = colors.HexColor('#C62828')
-    GREEN_OK    = colors.HexColor('#2E7D32')
+    proj_name   = q['project_name'] or ''
+    system_val  = q['system'] or '—'
+    presale_eng = q['presale_eng'] or '—'
+    sales_eng   = q['sales_eng'] or '—'
+    quarter     = q['quarter'] or '—'
+    reg_date    = q['registered_date'] or '—'
+    status_val  = q['status'] or '—'
+    selling_price = q['quotation_selling_price'] or 0
 
-    buf = BytesIO()
-    page_w, page_h = A4
+    # ── Parse Excel BOQ items if available ────────────────────────────
+    boq_items   = []   # list of dicts: sn, code, desc, uom, qty, unit_price, total
+    xl_data     = q['quotation']
+    has_excel   = False
+    excel_error = None
 
-    styles = getSampleStyleSheet()
-
-    # ── Custom styles ────────────────────────────────────────────────
-    def ps(name, **kw):
-        base = kw.pop('parent', 'Normal')
-        return ParagraphStyle(name, parent=styles[base], **kw)
-
-    s_co_name  = ps('CoName',  fontSize=18, textColor=WHITE,  alignment=TA_CENTER, fontName='Helvetica-Bold', leading=22)
-    s_co_tag   = ps('CoTag',   fontSize=9,  textColor=colors.HexColor('#D1C4E9'), alignment=TA_CENTER, leading=12)
-    s_title    = ps('Title',   fontSize=22, textColor=PURPLE,  alignment=TA_CENTER, fontName='Helvetica-Bold', leading=28, spaceAfter=4)
-    s_subtitle = ps('Sub',     fontSize=11, textColor=GREY_TEXT, alignment=TA_CENTER, leading=15, spaceAfter=2)
-    s_label    = ps('Lbl',     fontSize=8,  textColor=GREY_TEXT, fontName='Helvetica-Bold', leading=11)
-    s_value    = ps('Val',     fontSize=9,  textColor=DARK_TEXT, leading=12)
-    s_table_h  = ps('TH',      fontSize=8,  textColor=WHITE, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=11)
-    s_table_c  = ps('TC',      fontSize=8,  textColor=DARK_TEXT, leading=11)
-    s_table_r  = ps('TR',      fontSize=8,  textColor=DARK_TEXT, alignment=TA_RIGHT, leading=11)
-    s_total    = ps('Tot',     fontSize=9,  textColor=WHITE, fontName='Helvetica-Bold', alignment=TA_RIGHT, leading=12)
-    s_footer   = ps('Foot',    fontSize=7,  textColor=GREY_TEXT, alignment=TA_CENTER, leading=10)
-    s_note     = ps('Note',    fontSize=7.5,textColor=GREY_TEXT, leading=11)
-    s_section  = ps('Sec',     fontSize=10, textColor=WHITE, fontName='Helvetica-Bold', leading=13)
-
-    # ── Canvas callback for header/footer on every page ──────────────
-    def draw_page(canv, doc):
-        canv.saveState()
-        # Header strip
-        canv.setFillColor(PURPLE)
-        canv.rect(0, page_h - 55*mm, page_w, 55*mm, fill=1, stroke=0)
-
-        # Logo
-        logo_path = os.path.join('static', 'ejt.png')
+    if xl_data and isinstance(xl_data, bytes) and xl_data[:2] == b'PK':
         try:
-            canv.drawImage(logo_path, 15*mm, page_h - 48*mm, width=38*mm, height=28*mm,
-                           preserveAspectRatio=True, mask='auto')
+            wb = openpyxl.load_workbook(BytesIO(xl_data), data_only=True)
+            # Find BOQ sheet: look for one containing S.# / ITEM CODE header
+            boq_sheet = None
+            for sname in wb.sheetnames:
+                ws = wb[sname]
+                for row in ws.iter_rows(min_row=1, max_row=10):
+                    vals = [str(cell.value).upper().strip() if cell.value else '' for cell in row]
+                    row_text = ' '.join(vals)
+                    if ('S.#' in row_text or 'S.NO' in row_text or 'ITEM CODE' in row_text or
+                            'PART NUMBER' in row_text or 'DESCRIPTION' in row_text and 'QTY' in row_text):
+                        boq_sheet = ws
+                        # find header row index
+                        header_row_idx = row[0].row
+                        # Identify column indices
+                        col_sn    = col_code   = col_desc   = col_uom = None
+                        col_qty   = col_uprice = col_total  = None
+                        for cell in row:
+                            hv = str(cell.value).upper().strip() if cell.value else ''
+                            ci = cell.column
+                            if hv in ('S.#', 'S.NO', 'NO', 'S/N', '#', 'NO.'):
+                                col_sn = ci
+                            elif 'CODE' in hv or 'PART' in hv or 'P/N' in hv or 'PN' == hv:
+                                col_code = ci
+                            elif 'DESC' in hv or 'ITEM DESC' in hv or 'DESCRIPTION' in hv:
+                                col_desc = ci
+                            elif hv in ('UOM', 'UNIT', 'U/M', 'U.O.M'):
+                                col_uom = ci
+                            elif hv in ('QTY', 'QUANTITY', 'Q\'TY'):
+                                col_qty = ci
+                            elif 'UNIT PRICE' in hv or 'UNIT COST' in hv or 'U.P' == hv or 'U/P' == hv:
+                                col_uprice = ci
+                            elif 'TOTAL' in hv and col_total is None:
+                                col_total = ci
+                        break
+                if boq_sheet:
+                    break
+
+            if boq_sheet and col_desc:
+                has_excel = True
+                row_num = 0
+                for row in boq_sheet.iter_rows(min_row=header_row_idx + 1):
+                    desc_val = row[col_desc - 1].value if col_desc else None
+                    if desc_val is None or str(desc_val).strip() == '':
+                        continue
+                    desc_str = str(desc_val).strip()
+                    # Skip rows that are section headers (no qty / price)
+                    qty_val = None
+                    if col_qty:
+                        raw_q = row[col_qty - 1].value
+                        try:
+                            qty_val = float(raw_q) if raw_q is not None else None
+                        except (TypeError, ValueError):
+                            qty_val = None
+
+                    uprice_val = None
+                    if col_uprice:
+                        raw_u = row[col_uprice - 1].value
+                        try:
+                            uprice_val = float(raw_u) if raw_u is not None else None
+                        except (TypeError, ValueError):
+                            uprice_val = None
+
+                    total_val = None
+                    if col_total:
+                        raw_t = row[col_total - 1].value
+                        try:
+                            total_val = float(raw_t) if raw_t is not None else None
+                        except (TypeError, ValueError):
+                            total_val = None
+
+                    if total_val is None and qty_val and uprice_val:
+                        total_val = qty_val * uprice_val
+
+                    sn_val = ''
+                    if col_sn:
+                        raw_sn = row[col_sn - 1].value
+                        sn_val = str(raw_sn).strip() if raw_sn is not None else ''
+
+                    code_val = ''
+                    if col_code:
+                        raw_c = row[col_code - 1].value
+                        code_val = str(raw_c).strip() if raw_c is not None else ''
+
+                    uom_val = ''
+                    if col_uom:
+                        raw_uom = row[col_uom - 1].value
+                        uom_val = str(raw_uom).strip() if raw_uom is not None else ''
+
+                    # Detect section header rows (no numeric qty/price)
+                    is_section = (qty_val is None and uprice_val is None)
+
+                    row_num += 1
+                    boq_items.append({
+                        'sn':          sn_val if sn_val and sn_val != 'None' else (str(row_num) if not is_section else ''),
+                        'code':        code_val if code_val != 'None' else '',
+                        'desc':        desc_str,
+                        'uom':         uom_val if uom_val != 'None' else '',
+                        'qty':         qty_val,
+                        'unit_price':  uprice_val,
+                        'total':       total_val,
+                        'is_section':  is_section,
+                    })
+        except Exception as ex:
+            excel_error = str(ex)
+
+    # ── Helpers ───────────────────────────────────────────────────────
+    def set_cell_bg(tc, rgb):
+        """Set table cell background color via XML."""
+        tcPr = tc.get_or_add_tcPr()
+        solidFill = etree.SubElement(tcPr, qn('a:solidFill'))
+        srgbClr   = etree.SubElement(solidFill, qn('a:srgbClr'))
+        srgbClr.set('val', '{:02X}{:02X}{:02X}'.format(rgb[0], rgb[1], rgb[2]))
+
+    def add_text(tf, text, size=14, bold=False, color=C_DARK, align=PP_ALIGN.LEFT, italic=False):
+        tf.text = ''
+        p = tf.paragraphs[0]
+        p.alignment = align
+        run = p.add_run()
+        run.text = str(text) if text else ''
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.italic = italic
+        run.font.color.rgb = color
+        run.font.name = 'Calibri'
+
+    def add_para(tf, text, size=14, bold=False, color=C_DARK, align=PP_ALIGN.LEFT):
+        """Add a new paragraph to a text frame."""
+        p = tf.add_paragraph()
+        p.alignment = align
+        run = p.add_run()
+        run.text = str(text) if text else ''
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.color.rgb = color
+        run.font.name = 'Calibri'
+        return p
+
+    def rect(slide, x, y, w, h, fill_rgb, outline=False):
+        shape = slide.shapes.add_shape(1, Inches(x), Inches(y), Inches(w), Inches(h))
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = fill_rgb
+        shape.line.fill.background() if not outline else None
+        shape.line.width = 0
+        return shape
+
+    def txt_box(slide, text, x, y, w, h, size=14, bold=False, color=C_DARK, align=PP_ALIGN.LEFT, italic=False):
+        tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        add_text(tf, text, size=size, bold=bold, color=color, align=align, italic=italic)
+        return tb
+
+    # ── Create Presentation ───────────────────────────────────────────
+    prs = Presentation()
+    prs.slide_width  = Inches(13.33)
+    prs.slide_height = Inches(7.5)
+
+    SLIDE_W = 13.33
+    SLIDE_H = 7.5
+    LOGO_PATH = os.path.join('static', 'ejt.png')
+
+    blank_layout = prs.slide_layouts[6]   # completely blank
+
+    # ═══════════════════════════════════════════════════════════════
+    # SLIDE 1 — COVER
+    # ═══════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Full purple background top 60%
+    rect(slide, 0, 0, SLIDE_W, 4.5, C_PURPLE)
+    # Gold accent bar
+    r = slide.shapes.add_shape(1, 0, Inches(4.5), Inches(SLIDE_W), Inches(0.08))
+    r.fill.solid(); r.fill.fore_color.rgb = C_GOLD; r.line.width = 0
+
+    # White bottom band
+    rect(slide, 0, 4.58, SLIDE_W, SLIDE_H - 4.58, C_WHITE)
+
+    # Logo
+    try:
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.5), Inches(0.3), width=Inches(2.2))
+    except Exception:
+        pass
+
+    # Company name (top right in header)
+    txt_box(slide, company_name, 3.0, 0.35, 9.8, 0.6, size=22, bold=True, color=C_WHITE, align=PP_ALIGN.LEFT)
+    txt_box(slide, company_tagline, 3.0, 0.92, 9.8, 0.4, size=11, bold=False, color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.LEFT)
+
+    # Main title (center of purple area)
+    txt_box(slide, 'COMMERCIAL QUOTATION', 0, 1.6, SLIDE_W, 1.0, size=40, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    txt_box(slide, proj_name, 0, 2.62, SLIDE_W, 0.6, size=20, bold=False, color=C_GOLD, align=PP_ALIGN.CENTER)
+    txt_box(slide, system_val, 0, 3.18, SLIDE_W, 0.45, size=14, bold=False, color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER)
+
+    # Bottom white area: quote ref | date | prepared by
+    txt_box(slide, quote_ref, 0.5, 4.75, 5.0, 0.4, size=13, bold=True, color=C_PURPLE)
+    txt_box(slide, f'Date: {reg_date}', 5.5, 4.75, 4.0, 0.4, size=12, bold=False, color=C_GREY_TXT)
+    txt_box(slide, company_email, 0.5, 5.2, 5.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
+    txt_box(slide, company_phone, 5.5, 5.2, 4.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
+
+    # ═══════════════════════════════════════════════════════════════
+    # SLIDE 2 — QUOTATION DETAILS
+    # ═══════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(blank_layout)
+
+    # Header bar
+    rect(slide, 0, 0, SLIDE_W, 1.1, C_PURPLE)
+    r2 = slide.shapes.add_shape(1, 0, Inches(1.1), Inches(SLIDE_W), Inches(0.06))
+    r2.fill.solid(); r2.fill.fore_color.rgb = C_GOLD; r2.line.width = 0
+    try:
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.12), width=Inches(1.5))
+    except Exception:
+        pass
+    txt_box(slide, 'QUOTATION DETAILS', 2.1, 0.25, 8.0, 0.65, size=22, bold=True, color=C_WHITE)
+    txt_box(slide, quote_ref, 10.2, 0.25, 2.9, 0.65, size=10, bold=False, color=C_GOLD, align=PP_ALIGN.RIGHT)
+
+    # Info grid (2 columns of label+value pairs)
+    info_pairs = [
+        ('QUOTATION REFERENCE', quote_ref),
+        ('DATE',               reg_date),
+        ('PROJECT NAME',       proj_name),
+        ('SYSTEM',             system_val),
+        ('PRESALE ENGINEER',   presale_eng),
+        ('SALES ENGINEER',     sales_eng),
+        ('QUARTER',            quarter),
+        ('STATUS',             status_val),
+    ]
+    col1 = info_pairs[:4]
+    col2 = info_pairs[4:]
+
+    def draw_info_col(slide, pairs, x_start):
+        y = 1.35
+        for label, value in pairs:
+            # label
+            lb = slide.shapes.add_textbox(Inches(x_start), Inches(y), Inches(5.8), Inches(0.28))
+            lb.text_frame.text = label
+            p = lb.text_frame.paragraphs[0]
+            run = p.add_run() if not p.runs else p.runs[0]
+            if not p.runs:
+                run = p.add_run()
+                run.text = label
+            else:
+                run = p.runs[0]
+            run.font.size = Pt(8)
+            run.font.bold = True
+            run.font.color.rgb = C_GREY_TXT
+            run.font.name = 'Calibri'
+            # value
+            vb = slide.shapes.add_textbox(Inches(x_start), Inches(y + 0.27), Inches(5.8), Inches(0.38))
+            vb.text_frame.word_wrap = True
+            vb.text_frame.text = ''
+            p2 = vb.text_frame.paragraphs[0]
+            run2 = p2.add_run()
+            run2.text = str(value) if value else '—'
+            run2.font.size = Pt(13)
+            run2.font.bold = False
+            run2.font.color.rgb = C_DARK
+            run2.font.name = 'Calibri'
+            y += 0.75
+
+    draw_info_col(slide, col1, 0.5)
+    draw_info_col(slide, col2, 7.1)
+
+    # Divider
+    div = slide.shapes.add_shape(1, Inches(6.8), Inches(1.35), Inches(0.04), Inches(3.1))
+    div.fill.solid(); div.fill.fore_color.rgb = RGBColor(0xD1,0xC4,0xE9); div.line.width = 0
+
+    # Selling price card
+    if selling_price and selling_price > 0:
+        rect(slide, 0.5, 5.55, 12.33, 1.45, C_TEAL)
+        txt_box(slide, 'TOTAL SELLING PRICE', 0.7, 5.65, 7.0, 0.5, size=12, bold=True, color=C_WHITE)
+        txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 6.08, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+
+    # ═══════════════════════════════════════════════════════════════
+    # SLIDES 3+N — BOQ TABLE (paginated)
+    # ═══════════════════════════════════════════════════════════════
+    ITEMS_PER_SLIDE = 16
+
+    def add_boq_slide(prs, items_chunk, slide_label, grand_total=None):
+        slide = prs.slides.add_slide(blank_layout)
+
+        # Header
+        rect(slide, 0, 0, SLIDE_W, 0.9, C_PURPLE)
+        r3 = slide.shapes.add_shape(1, 0, Inches(0.9), Inches(SLIDE_W), Inches(0.05))
+        r3.fill.solid(); r3.fill.fore_color.rgb = C_GOLD; r3.line.width = 0
+        try:
+            slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.08), width=Inches(1.3))
         except Exception:
             pass
+        txt_box(slide, 'BILL OF QUANTITIES', 1.9, 0.15, 9.0, 0.6, size=20, bold=True, color=C_WHITE)
+        txt_box(slide, slide_label, 10.3, 0.15, 2.8, 0.6, size=10, color=C_GOLD, align=PP_ALIGN.RIGHT)
 
-        # Company name + tagline in header
-        canv.setFont('Helvetica-Bold', 14)
-        canv.setFillColor(WHITE)
-        canv.drawString(60*mm, page_h - 22*mm, company_name)
-        canv.setFont('Helvetica', 8)
-        canv.setFillColor(colors.HexColor('#D1C4E9'))
-        canv.drawString(60*mm, page_h - 30*mm, company_tagline)
+        # Table
+        col_widths = [Inches(0.55), Inches(1.6), Inches(6.3), Inches(0.8), Inches(0.75), Inches(1.55), Inches(1.55)]
+        col_headers = ['#', 'Item Code', 'Description', 'UOM', 'Qty', 'Unit Price\n(SAR)', 'Total\n(SAR)']
 
-        # Quote ref badge in header (top-right)
-        canv.setFont('Helvetica-Bold', 8)
-        canv.setFillColor(GOLD)
-        canv.drawRightString(page_w - 15*mm, page_h - 22*mm, quote_ref)
-        canv.setFont('Helvetica', 7)
-        canv.setFillColor(colors.HexColor('#D1C4E9'))
-        canv.drawRightString(page_w - 15*mm, page_h - 30*mm, 'QUOTATION REF')
+        n_rows = len(items_chunk) + 1  # +1 for header
+        if grand_total is not None:
+            n_rows += 1  # total row
 
-        # Gold accent line below header
-        canv.setStrokeColor(GOLD)
-        canv.setLineWidth(2.5)
-        canv.line(0, page_h - 56*mm, page_w, page_h - 56*mm)
+        tbl = slide.shapes.add_table(n_rows, 7,
+                                      Inches(0.15), Inches(1.02),
+                                      Inches(13.0), Inches(0.43 * n_rows)).table
+        tbl.columns[0].width = col_widths[0]
+        tbl.columns[1].width = col_widths[1]
+        tbl.columns[2].width = col_widths[2]
+        tbl.columns[3].width = col_widths[3]
+        tbl.columns[4].width = col_widths[4]
+        tbl.columns[5].width = col_widths[5]
+        tbl.columns[6].width = col_widths[6]
 
-        # Footer strip
-        canv.setFillColor(PURPLE)
-        canv.rect(0, 0, page_w, 18*mm, fill=1, stroke=0)
-        canv.setFont('Helvetica', 7)
-        canv.setFillColor(colors.HexColor('#D1C4E9'))
-        footer_parts = [company_name]
-        if company_email: footer_parts.append(company_email)
-        if company_phone: footer_parts.append(company_phone)
-        if company_cr:    footer_parts.append(f'CR: {company_cr}')
-        if company_vat:   footer_parts.append(f'VAT: {company_vat}')
-        canv.drawCentredString(page_w / 2, 10*mm, '   |   '.join(footer_parts))
-        canv.setFont('Helvetica', 7)
-        canv.setFillColor(colors.HexColor('#D1C4E9'))
-        canv.drawRightString(page_w - 15*mm, 6*mm, f'Page {doc.page}')
-        canv.restoreState()
+        # Header row
+        for ci, hdr in enumerate(col_headers):
+            cell = tbl.cell(0, ci)
+            cell.text = hdr
+            p = cell.text_frame.paragraphs[0]
+            p.alignment = PP_ALIGN.CENTER
+            run = p.runs[0] if p.runs else p.add_run()
+            run.text = hdr
+            run.font.size = Pt(9)
+            run.font.bold = True
+            run.font.color.rgb = C_WHITE
+            run.font.name = 'Calibri'
+            set_cell_bg(cell._tc, (0x4B, 0x2D, 0x8F))
 
-    # ── Build flowables ──────────────────────────────────────────────
-    story = []
+        # Data rows
+        for ri, item in enumerate(items_chunk):
+            row_idx = ri + 1
+            is_sec = item.get('is_section', False)
 
-    # Title block
-    story.append(Spacer(1, 6*mm))
-    story.append(Paragraph('COMMERCIAL QUOTATION', s_title))
-    proj_disp = q['project_name'] or ''
-    story.append(Paragraph(f'Project: {proj_disp}', s_subtitle))
-    story.append(Spacer(1, 4*mm))
-    story.append(HRFlowable(width='100%', thickness=1, color=PURPLE_LITE))
-    story.append(Spacer(1, 4*mm))
+            def fill_cell(ci, text, align=PP_ALIGN.CENTER, size=8.5, bold=False, color=C_DARK):
+                cell = tbl.cell(row_idx, ci)
+                cell.text = ''
+                p = cell.text_frame.paragraphs[0]
+                p.alignment = align
+                run = p.add_run()
+                run.text = str(text) if text else ''
+                run.font.size = Pt(size)
+                run.font.bold = bold
+                run.font.color.rgb = color
+                run.font.name = 'Calibri'
+                if is_sec:
+                    set_cell_bg(cell._tc, (0xED, 0xE7, 0xF6))
+                elif row_idx % 2 == 0:
+                    set_cell_bg(cell._tc, (0xF7, 0xF4, 0xFC))
+                else:
+                    set_cell_bg(cell._tc, (0xFF, 0xFF, 0xFF))
 
-    # ── Quotation info table (2-column grid) ──────────────────────────
-    def info_cell(label, value):
-        return [Paragraph(label, s_label), Paragraph(str(value) if value else '—', s_value)]
+            if is_sec:
+                # Section header spans description column visually
+                fill_cell(0, '', PP_ALIGN.CENTER, 8.5, False)
+                fill_cell(1, item['code'], PP_ALIGN.LEFT, 8.5, True, C_PURPLE)
+                fill_cell(2, item['desc'], PP_ALIGN.LEFT, 8.5, True, C_PURPLE)
+                fill_cell(3, '', PP_ALIGN.CENTER)
+                fill_cell(4, '', PP_ALIGN.CENTER)
+                fill_cell(5, '', PP_ALIGN.RIGHT)
+                fill_cell(6, '', PP_ALIGN.RIGHT)
+            else:
+                fill_cell(0, item['sn'],   PP_ALIGN.CENTER, 8.5)
+                fill_cell(1, item['code'], PP_ALIGN.LEFT,   8.5)
+                fill_cell(2, item['desc'], PP_ALIGN.LEFT,   8.5)
+                fill_cell(3, item['uom'],  PP_ALIGN.CENTER, 8.5)
+                qty_str = f"{int(item['qty'])}" if item['qty'] is not None and item['qty'] == int(item['qty']) else (f"{item['qty']}" if item['qty'] is not None else '—')
+                fill_cell(4, qty_str,      PP_ALIGN.CENTER, 8.5)
+                up_str  = f"{item['unit_price']:,.2f}" if item['unit_price'] is not None else '—'
+                tot_str = f"{item['total']:,.2f}"       if item['total'] is not None else '—'
+                fill_cell(5, up_str,  PP_ALIGN.RIGHT, 8.5)
+                fill_cell(6, tot_str, PP_ALIGN.RIGHT, 8.5)
 
-    registered = q['registered_date'] or ''
-    system_val  = q['system'] or '—'
-    presale     = q['presale_eng'] or '—'
-    sales       = q['sales_eng'] or '—'
-    quarter     = q['quarter'] or '—'
-    status_val  = q['status'] or '—'
-    price_val   = q['quotation_selling_price'] or 0
+        # Grand total row
+        if grand_total is not None:
+            ti = n_rows - 1
+            for ci in range(7):
+                cell = tbl.cell(ti, ci)
+                cell.text = ''
+                p = cell.text_frame.paragraphs[0]
+                if ci == 5:
+                    p.alignment = PP_ALIGN.RIGHT
+                    run = p.add_run()
+                    run.text = 'TOTAL (SAR)'
+                    run.font.size = Pt(10)
+                    run.font.bold = True
+                    run.font.color.rgb = C_WHITE
+                    run.font.name = 'Calibri'
+                elif ci == 6:
+                    p.alignment = PP_ALIGN.RIGHT
+                    run = p.add_run()
+                    run.text = f'{grand_total:,.2f}'
+                    run.font.size = Pt(10)
+                    run.font.bold = True
+                    run.font.color.rgb = C_WHITE
+                    run.font.name = 'Calibri'
+                set_cell_bg(cell._tc, (0x00, 0x89, 0x7B))
 
-    info_data = [
-        [Paragraph('QUOTATION REFERENCE', s_label), Paragraph(quote_ref, s_value),
-         Paragraph('DATE', s_label),                Paragraph(registered, s_value)],
-        [Paragraph('PROJECT NAME', s_label),        Paragraph(proj_disp, s_value),
-         Paragraph('SYSTEM', s_label),              Paragraph(system_val, s_value)],
-        [Paragraph('PRESALE ENGINEER', s_label),    Paragraph(presale, s_value),
-         Paragraph('SALES ENGINEER', s_label),      Paragraph(sales, s_value)],
-        [Paragraph('QUARTER', s_label),             Paragraph(quarter, s_value),
-         Paragraph('STATUS', s_label),              Paragraph(status_val, s_value)],
-    ]
+        return slide
 
-    col_w = [32*mm, 55*mm, 32*mm, 55*mm]
-    info_tbl = Table(info_data, colWidths=col_w, repeatRows=0)
-    info_tbl.setStyle(TableStyle([
-        ('BACKGROUND',  (0,0), (-1,-1), LIGHT_BG),
-        ('BACKGROUND',  (0,0), (0,-1), HEADER_BG),
-        ('BACKGROUND',  (2,0), (2,-1), HEADER_BG),
-        ('BOX',         (0,0), (-1,-1), 0.5, PURPLE_LITE),
-        ('INNERGRID',   (0,0), (-1,-1), 0.3, colors.HexColor('#D1C4E9')),
-        ('TOPPADDING',  (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING',(0,0), (-1,-1), 5),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-        ('RIGHTPADDING',(0,0), (-1,-1), 8),
-        ('VALIGN',      (0,0), (-1,-1), 'MIDDLE'),
-        ('ROWBACKGROUNDS',(0,0),(-1,-1), [LIGHT_BG, WHITE]),
-    ]))
-    story.append(info_tbl)
-    story.append(Spacer(1, 6*mm))
-
-    # ── Scope of work note ────────────────────────────────────────────
-    sow = q['sow'] if q['sow'] else None
-    note = q['quotation_note'] if q['quotation_note'] else None
-    if sow or note:
-        story.append(HRFlowable(width='100%', thickness=0.5, color=PURPLE_LITE))
-        story.append(Spacer(1, 3*mm))
-        if sow:
-            story.append(Paragraph('SCOPE OF WORK', s_label))
-            story.append(Spacer(1, 1*mm))
-            story.append(Paragraph(sow, s_note))
-            story.append(Spacer(1, 2*mm))
-        if note:
-            story.append(Paragraph('NOTES', s_label))
-            story.append(Spacer(1, 1*mm))
-            story.append(Paragraph(note, s_note))
-            story.append(Spacer(1, 2*mm))
-
-    # ── Line items table ──────────────────────────────────────────────
-    story.append(HRFlowable(width='100%', thickness=1, color=GOLD))
-    story.append(Spacer(1, 2*mm))
-
-    # Section header row
-    sec_data = [[Paragraph('  BILL OF QUANTITIES', s_section)]]
-    sec_tbl = Table(sec_data, colWidths=[page_w - 30*mm])
-    sec_tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), PURPLE),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
-        ('LEFTPADDING',(0,0),(-1,-1), 8),
-        ('BOX', (0,0),(-1,-1), 0, WHITE),
-    ]))
-    story.append(sec_tbl)
-    story.append(Spacer(1, 2*mm))
-
-    if items:
-        hdrs = [
-            Paragraph('#', s_table_h),
-            Paragraph('Part Number', s_table_h),
-            Paragraph('Description', s_table_h),
-            Paragraph('UOM', s_table_h),
-            Paragraph('Qty', s_table_h),
-            Paragraph('Unit Price (SAR)', s_table_h),
-            Paragraph('Total (SAR)', s_table_h),
-        ]
-        col_widths = [10*mm, 30*mm, 68*mm, 14*mm, 13*mm, 22*mm, 22*mm]
-        tbl_data = [hdrs]
-        grand_total = 0.0
-        for idx, item in enumerate(items, 1):
-            qty    = item['quantity'] or 0
-            u_price= item['unit_price'] or 0.0
-            t_price= item['total_price'] or (qty * u_price)
-            grand_total += t_price
-            desc = item['description'] or '—'
-            # Wrap long descriptions
-            row = [
-                Paragraph(str(idx), ps(f'n{idx}', fontSize=8, alignment=TA_CENTER, leading=11)),
-                Paragraph(str(item['part_number'] or '—'), s_table_c),
-                Paragraph(desc, s_table_c),
-                Paragraph('PC', ps(f'u{idx}', fontSize=8, alignment=TA_CENTER, leading=11)),
-                Paragraph(str(int(qty)), ps(f'q{idx}', fontSize=8, alignment=TA_CENTER, leading=11)),
-                Paragraph(f'{u_price:,.2f}', s_table_r),
-                Paragraph(f'{t_price:,.2f}', s_table_r),
-            ]
-            tbl_data.append(row)
-
-        # Total row
-        tbl_data.append([
-            Paragraph('', s_total),
-            Paragraph('', s_total),
-            Paragraph('', s_total),
-            Paragraph('', s_total),
-            Paragraph('', s_total),
-            Paragraph('TOTAL (SAR)', s_total),
-            Paragraph(f'{grand_total:,.2f}', s_total),
-        ])
-
-        items_tbl = Table(tbl_data, colWidths=col_widths, repeatRows=1)
-        n = len(tbl_data)
-        items_tbl.setStyle(TableStyle([
-            # Header row
-            ('BACKGROUND',      (0, 0), (-1, 0),  PURPLE),
-            ('TEXTCOLOR',       (0, 0), (-1, 0),  WHITE),
-            ('FONTNAME',        (0, 0), (-1, 0),  'Helvetica-Bold'),
-            # Alternating rows
-            ('ROWBACKGROUNDS',  (0, 1), (-1, n-2), [WHITE, LIGHT_BG]),
-            # Total row
-            ('BACKGROUND',      (0, n-1), (-1, n-1), TEAL),
-            ('TEXTCOLOR',       (0, n-1), (-1, n-1), WHITE),
-            ('FONTNAME',        (0, n-1), (-1, n-1), 'Helvetica-Bold'),
-            # General
-            ('ALIGN',           (0, 0), (-1, -1),  'CENTER'),
-            ('VALIGN',          (0, 0), (-1, -1),  'MIDDLE'),
-            ('TOPPADDING',      (0, 0), (-1, -1),  4),
-            ('BOTTOMPADDING',   (0, 0), (-1, -1),  4),
-            ('LEFTPADDING',     (0, 0), (-1, -1),  5),
-            ('RIGHTPADDING',    (0, 0), (-1, -1),  5),
-            ('ALIGN',           (2, 1), (2, -1),   'LEFT'),
-            ('ALIGN',           (5, 1), (6, -1),   'RIGHT'),
-            ('BOX',             (0, 0), (-1, -1),  0.5, PURPLE_LITE),
-            ('INNERGRID',       (0, 0), (-1, -2),  0.3, colors.HexColor('#D1C4E9')),
-            ('LINEBELOW',       (0, 0), (-1, 0),   1,   GOLD),
-            ('LINEABOVE',       (0, n-1),(-1,n-1), 1,   GOLD),
-        ]))
-        story.append(items_tbl)
-
+    if boq_items:
+        chunks = [boq_items[i:i+ITEMS_PER_SLIDE] for i in range(0, len(boq_items), ITEMS_PER_SLIDE)]
+        grand_total = sum(item['total'] for item in boq_items if item.get('total') and not item.get('is_section'))
+        for ci, chunk in enumerate(chunks):
+            label = f'Page {ci+1}/{len(chunks)} — {quote_ref}'
+            gt = grand_total if ci == len(chunks) - 1 else None
+            add_boq_slide(prs, chunk, label, grand_total=gt)
     else:
-        # No line items — show price summary block
-        story.append(Spacer(1, 4*mm))
-        story.append(Paragraph('No detailed line items are available for this quotation.', s_note))
-        story.append(Spacer(1, 4*mm))
-        # Price summary card
-        price_data = [
-            [Paragraph('TOTAL SELLING PRICE', s_section), Paragraph(f'SAR {price_val:,.2f}', s_section)],
-        ]
-        price_tbl = Table(price_data, colWidths=[100*mm, 74*mm])
-        price_tbl.setStyle(TableStyle([
-            ('BACKGROUND',    (0,0), (-1,-1), TEAL),
-            ('TOPPADDING',    (0,0), (-1,-1), 10),
-            ('BOTTOMPADDING',(0,0), (-1,-1), 10),
-            ('LEFTPADDING',  (0,0), (-1,-1), 12),
-            ('RIGHTPADDING', (0,0), (-1,-1), 12),
-            ('ALIGN',        (1,0), (1,0), 'RIGHT'),
-        ]))
-        story.append(price_tbl)
+        # Fallback slide if no Excel or can't parse
+        slide = prs.slides.add_slide(blank_layout)
+        rect(slide, 0, 0, SLIDE_W, 0.9, C_PURPLE)
+        r_a = slide.shapes.add_shape(1, 0, Inches(0.9), Inches(SLIDE_W), Inches(0.05))
+        r_a.fill.solid(); r_a.fill.fore_color.rgb = C_GOLD; r_a.line.width = 0
+        txt_box(slide, 'BILL OF QUANTITIES', 0.5, 0.15, 12.0, 0.6, size=20, bold=True, color=C_WHITE)
+        if excel_error:
+            msg = f'Could not parse Excel file: {excel_error}'
+        elif not xl_data:
+            msg = 'No quotation Excel file is uploaded for this quotation.'
+        else:
+            msg = 'The uploaded quotation file is a PDF. BOQ items cannot be extracted automatically.'
+        txt_box(slide, msg, 1.0, 2.0, 11.0, 1.0, size=13, color=C_GREY_TXT)
+        if selling_price and selling_price > 0:
+            rect(slide, 0.5, 3.5, 12.33, 1.5, C_TEAL)
+            txt_box(slide, 'TOTAL SELLING PRICE', 0.7, 3.6, 7.0, 0.5, size=12, bold=True, color=C_WHITE)
+            txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 4.05, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
 
-    # ── Terms & Conditions block ──────────────────────────────────────
-    story.append(Spacer(1, 6*mm))
-    story.append(HRFlowable(width='100%', thickness=0.5, color=PURPLE_LITE))
-    story.append(Spacer(1, 3*mm))
-
-    terms_header_data = [[Paragraph('  TERMS & CONDITIONS', s_section)]]
-    terms_header_tbl = Table(terms_header_data, colWidths=[page_w - 30*mm])
-    terms_header_tbl.setStyle(TableStyle([
-        ('BACKGROUND',    (0,0),(-1,-1), PURPLE_LITE),
-        ('TOPPADDING',    (0,0),(-1,-1), 5),
-        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
-        ('LEFTPADDING',  (0,0),(-1,-1), 8),
-    ]))
-    story.append(terms_header_tbl)
-    story.append(Spacer(1, 2*mm))
+    # ═══════════════════════════════════════════════════════════════
+    # LAST SLIDE — TERMS & THANK YOU
+    # ═══════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(blank_layout)
+    rect(slide, 0, 0, SLIDE_W, 0.9, C_PURPLE)
+    r4 = slide.shapes.add_shape(1, 0, Inches(0.9), Inches(SLIDE_W), Inches(0.05))
+    r4.fill.solid(); r4.fill.fore_color.rgb = C_GOLD; r4.line.width = 0
+    try:
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.08), width=Inches(1.3))
+    except Exception:
+        pass
+    txt_box(slide, 'TERMS & CONDITIONS', 1.9, 0.15, 9.0, 0.6, size=20, bold=True, color=C_WHITE)
 
     terms = [
-        ('1. VALIDITY',    'This quotation is valid for 30 days from the date of issue.'),
-        ('2. PAYMENT',     'Payment terms as per agreement: 50% advance, 50% upon delivery/completion.'),
-        ('3. DELIVERY',    'Delivery schedule to be confirmed upon receipt of purchase order.'),
-        ('4. WARRANTY',    'All products carry standard manufacturer warranty. Installation warranty: 1 year.'),
-        ('5. SCOPE',       'This quotation covers supply and installation as per the scope defined above. Any additional works will be quoted separately.'),
-        ('6. TAXES',       'All prices are exclusive of VAT (15%). VAT will be added to the final invoice as per Saudi regulations.'),
-        ('7. ACCEPTANCE',  'This quotation becomes binding only upon receipt of a signed Purchase Order.'),
+        ('Validity',    'This quotation is valid for 30 days from the date of issue.'),
+        ('Payment',     '50% advance payment upon order, 50% upon delivery/completion.'),
+        ('Delivery',    'Delivery schedule to be confirmed upon receipt of Purchase Order.'),
+        ('Warranty',    'All products carry standard manufacturer warranty. Installation warranty: 1 year.'),
+        ('Scope',       'Covers supply and installation as specified. Additional works quoted separately.'),
+        ('Taxes',       'Prices are exclusive of VAT (15%). VAT added to the final invoice per KSA regulations.'),
+        ('Acceptance',  'This quotation becomes binding only upon receipt of a signed Purchase Order.'),
     ]
-    terms_data = [[Paragraph(f'<b>{t[0]}</b>', s_note), Paragraph(t[1], s_note)] for t in terms]
-    terms_tbl = Table(terms_data, colWidths=[38*mm, 136*mm])
-    terms_tbl.setStyle(TableStyle([
-        ('ROWBACKGROUNDS',(0,0),(-1,-1), [WHITE, LIGHT_BG]),
-        ('TOPPADDING',    (0,0),(-1,-1), 4),
-        ('BOTTOMPADDING',(0,0),(-1,-1), 4),
-        ('LEFTPADDING',  (0,0),(-1,-1), 8),
-        ('RIGHTPADDING', (0,0),(-1,-1), 8),
-        ('VALIGN',       (0,0),(-1,-1), 'TOP'),
-        ('BOX',          (0,0),(-1,-1), 0.3, PURPLE_LITE),
-        ('INNERGRID',    (0,0),(-1,-1), 0.3, colors.HexColor('#EDE7F6')),
-    ]))
-    story.append(terms_tbl)
-    story.append(Spacer(1, 5*mm))
+    y_pos = 1.1
+    for term_title, term_text in terms:
+        rect(slide, 0.3, y_pos, 2.1, 0.42, C_GREY_HDR)
+        txt_box(slide, term_title, 0.35, y_pos + 0.05, 2.0, 0.38, size=9, bold=True, color=C_PURPLE)
+        txt_box(slide, term_text,  2.5, y_pos + 0.04, 10.5, 0.42, size=9, color=C_DARK)
+        y_pos += 0.48
 
-    # ── Signature block ───────────────────────────────────────────────
-    sig_data = [
-        [Paragraph('<b>For: CLIENT</b>', s_note), Paragraph('', s_note), Paragraph(f'<b>For: {company_name}</b>', s_note)],
-        [Paragraph('Name: ______________________', s_note), Paragraph('', s_note), Paragraph('Name: ______________________', s_note)],
-        [Paragraph('Signature: _________________', s_note), Paragraph('', s_note), Paragraph('Signature: _________________', s_note)],
-        [Paragraph('Date: ______________________', s_note), Paragraph('', s_note), Paragraph('Date: ______________________', s_note)],
-        [Paragraph('Stamp:  ____________________', s_note), Paragraph('', s_note), Paragraph('Stamp:  ____________________', s_note)],
-    ]
-    sig_tbl = Table(sig_data, colWidths=[74*mm, 26*mm, 74*mm])
-    sig_tbl.setStyle(TableStyle([
-        ('BOX',         (0,0),(0,-1), 0.5, PURPLE_LITE),
-        ('BOX',         (2,0),(2,-1), 0.5, PURPLE_LITE),
-        ('TOPPADDING',  (0,0),(-1,-1), 5),
-        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
-        ('LEFTPADDING', (0,0),(-1,-1), 8),
-        ('BACKGROUND',  (0,0),(0,0), HEADER_BG),
-        ('BACKGROUND',  (2,0),(2,0), HEADER_BG),
-    ]))
-    story.append(sig_tbl)
+    # Thank you banner
+    rect(slide, 0, 6.8, SLIDE_W, 0.7, C_PURPLE2)
+    thank_parts = [company_name]
+    if company_email: thank_parts.append(company_email)
+    if company_phone: thank_parts.append(company_phone)
+    txt_box(slide, '   |   '.join(thank_parts), 0, 6.87, SLIDE_W, 0.5, size=10, bold=False, color=C_WHITE, align=PP_ALIGN.CENTER)
 
-    # ── Build PDF ─────────────────────────────────────────────────────
-    margin_lr = 15*mm
-    margin_top = 60*mm   # leave room for header strip (55mm) + 5mm gap
-    margin_bot = 22*mm   # leave room for footer strip (18mm) + 4mm
+    # ── Save and send ─────────────────────────────────────────────────
+    out = BytesIO()
+    prs.save(out)
+    out.seek(0)
+    filename = f'Presentation_{quote_ref}.pptx'
+    return send_file(out, download_name=filename, as_attachment=True,
+                     mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
 
-    doc = SimpleDocTemplate(
-        buf,
-        pagesize=A4,
-        leftMargin=margin_lr,
-        rightMargin=margin_lr,
-        topMargin=margin_top,
-        bottomMargin=margin_bot,
-        title=f'Quotation Presentation - {quote_ref}',
-        author=company_name,
-    )
-    doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page)
-
-    buf.seek(0)
-    filename = f'Presentation_{quote_ref}.pdf'
-    return send_file(buf, download_name=filename, as_attachment=True, mimetype='application/pdf')
 
 @app.route('/download_quotation/<quote_ref>', methods=['GET'])
 @login_required
