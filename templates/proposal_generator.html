@@ -93,12 +93,33 @@
 
 <div class="container-fluid py-3" style="max-width:1200px;">
 
+  <div class="d-flex align-items-center mb-3">
+    <a href="{{ url_for('proposal_generator') }}" class="btn btn-sm btn-outline-secondary mr-3">
+      <i class="fas fa-arrow-left mr-1"></i> Back to Selection
+    </a>
+    {% if project_name %}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <span class="badge badge-pill px-3 py-2" style="background:#4B2D8F;color:#fff;font-size:.82rem;">
+        <i class="fas fa-project-diagram mr-1"></i> {{ project_name }}
+      </span>
+      {% if rfq_ref %}
+      <span class="badge badge-pill px-3 py-2" style="background:#1B7B4B;color:#fff;font-size:.82rem;">
+        <i class="fas fa-file-alt mr-1"></i> RFQ: {{ rfq_ref }}
+      </span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
   <div class="pg-hero">
     <div class="d-flex align-items-center">
       <i class="fas fa-file-alt mr-3" style="font-size:2rem;opacity:.85;"></i>
       <div>
         <h3><i class="fas fa-magic mr-2" style="font-size:1.1rem;opacity:.8;"></i>Proposal Generator</h3>
-        <p>Create professional Commercial or Technical proposals in one click</p>
+        <p>
+          {% if project_name %}{{ project_name }}{% if rfq_ref %} &nbsp;·&nbsp; {{ rfq_ref }}{% endif %}
+          {% else %}Create professional Commercial or Technical proposals in one click{% endif %}
+        </p>
       </div>
     </div>
   </div>
@@ -167,7 +188,8 @@
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
-                  <input type="text" class="form-control form-control-sm" name="quoteref" placeholder="QT-EJT-…">
+                  <input type="text" class="form-control form-control-sm" name="quoteref"
+                         value="{{ quoteref }}" placeholder="QT-EJT-…">
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>

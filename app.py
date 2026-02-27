@@ -6162,10 +6162,54 @@ def download_quotation(quote_ref):
 @app.route('/proposal_generator', methods=['GET'])
 @login_required
 def proposal_generator():
+    """Gateway: select Project, RFQ, enter Quote Ref before opening the editor."""
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    # Distinct project names from projects table (non-empty)
+    c.execute("""SELECT DISTINCT project_name FROM projects
+                 WHERE project_name IS NOT NULL AND project_name != ''
+                 ORDER BY project_name""")
+    projects = [r[0].strip() for r in c.fetchall() if r[0].strip()]
+    conn.close()
+    return render_template('proposal_gateway.html', projects=projects)
+
+
+@app.route('/proposal_generator/rfqs_for_project', methods=['GET'])
+@login_required
+def proposal_rfqs_for_project():
+    """AJAX: return RFQ references for the selected project name."""
+    from flask import request as _req, jsonify
+    project = _req.args.get('project', '').strip()
+    if not project:
+        return jsonify([])
+    conn = sqlite3.connect('ProjectStatus.db')
+    c = conn.cursor()
+    # RFQs from rfq_requests table
+    c.execute("""SELECT rfq_reference FROM rfq_requests
+                 WHERE TRIM(project_name) = ?
+                 AND rfq_reference IS NOT NULL AND rfq_reference != ''
+                 ORDER BY rfq_reference""", (project,))
+    rfqs = [r[0] for r in c.fetchall()]
+    conn.close()
+    return jsonify(rfqs)
+
+
+@app.route('/proposal_generator/create', methods=['GET'])
+@login_required
+def proposal_generator_main():
     """Standalone Proposal Generator page — Commercial & Technical tabs."""
     from datetime import date
+    from flask import request as _req
     today = date.today().strftime('%d-%m-%Y')
-    return render_template('proposal_generator.html', today=today)
+    project_name = _req.args.get('project','')
+    rfq_ref      = _req.args.get('rfq','')
+    quoteref     = _req.args.get('quoteref','')
+    # Pre-fill client from project record
+    client_name = ''
+    return render_template('proposal_generator.html', today=today,
+                           project_name=project_name, rfq_ref=rfq_ref,
+                           quoteref=quoteref, client_name='')
 
 
 @app.route('/proposal_generator/parse_costsheet', methods=['POST'])

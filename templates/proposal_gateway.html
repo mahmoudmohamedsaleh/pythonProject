@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Proposal Generator — Select Project{% endblock %}
+
+{% block content %}
+<style>
+  .gw-hero {
+    background: linear-gradient(135deg, #4B2D8F 0%, #7B52D3 100%);
+    border-radius: 14px;
+    padding: 30px 34px;
+    color: #fff;
+    margin-bottom: 32px;
+  }
+  .gw-hero h3 { margin: 0; font-weight: 700; font-size: 1.6rem; }
+  .gw-hero p  { margin: 6px 0 0; opacity: .85; font-size: .95rem; }
+
+  .gw-card {
+    max-width: 580px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 14px;
+    box-shadow: 0 6px 30px rgba(75,45,143,.12);
+    overflow: hidden;
+  }
+  .gw-card-header {
+    background: linear-gradient(135deg, #4B2D8F, #7B52D3);
+    color: #fff;
+    padding: 18px 26px;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .gw-card-body { padding: 28px 30px; }
+
+  .step-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #4B2D8F; color: #fff; font-weight: 700; font-size: .85rem;
+    margin-right: 10px; flex-shrink: 0;
+  }
+  .step-label {
+    font-weight: 600; font-size: .9rem; color: #4B2D8F;
+    display: flex; align-items: center; margin-bottom: 6px;
+  }
+
+  .form-control-lg-custom {
+    height: calc(2.4rem + 2px);
+    font-size: .95rem;
+    border-radius: 8px;
+    border: 1.5px solid #d0c4f0;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .form-control-lg-custom:focus {
+    border-color: #4B2D8F;
+    box-shadow: 0 0 0 3px rgba(75,45,143,.12);
+  }
+
+  .btn-forward {
+    background: linear-gradient(135deg, #4B2D8F, #7B52D3);
+    color: #fff; border: none;
+    padding: 13px 0; font-size: 1rem; font-weight: 700;
+    border-radius: 10px; width: 100%; cursor: pointer;
+    transition: .2s; letter-spacing: .02em;
+  }
+  .btn-forward:hover { opacity: .92; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(75,45,143,.25); }
+  .btn-forward:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+  .divider { border-top: 1px solid #ede7f6; margin: 20px 0; }
+
+  #rfqGroup { transition: .3s; }
+  #rfqLoading { display: none; font-size:.82rem; color:#888; }
+  #noRfqMsg  { display: none; font-size:.82rem; color:#e65100; margin-top:4px; }
+</style>
+
+<div class="container-fluid py-4" style="max-width:680px;">
+
+  <div class="gw-hero">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-magic mr-3" style="font-size:2rem;opacity:.85;"></i>
+      <div>
+        <h3>Proposal Generator</h3>
+        <p>Select a project and RFQ to begin building your professional proposal</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="gw-card">
+    <div class="gw-card-header">
+      <i class="fas fa-search mr-2"></i> Project &amp; Reference Selection
+    </div>
+    <div class="gw-card-body">
+      <form id="gwForm" onsubmit="return forwardToGenerator()">
+
+        <!-- Step 1: Project Name -->
+        <div class="mb-4">
+          <div class="step-label">
+            <span class="step-badge">1</span> Select Project Name
+          </div>
+          <select class="form-control form-control-lg-custom" id="projectSelect" required
+                  onchange="loadRfqs()">
+            <option value="">— Choose a project —</option>
+            {% for p in projects %}
+            <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Step 2: RFQ Reference -->
+        <div class="mb-4" id="rfqGroup">
+          <div class="step-label">
+            <span class="step-badge">2</span> RFQ Reference
+            <span id="rfqLoading" class="ml-2">
+              <i class="fas fa-spinner fa-spin mr-1"></i> Loading…
+            </span>
+          </div>
+          <select class="form-control form-control-lg-custom" id="rfqSelect">
+            <option value="">— Select a project first —</option>
+          </select>
+          <div id="noRfqMsg">
+            <i class="fas fa-info-circle mr-1"></i>
+            No RFQs found for this project — you can still continue without one.
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Step 3: Quote Reference -->
+        <div class="mb-4">
+          <div class="step-label">
+            <span class="step-badge">3</span> Enter Quote Reference
+          </div>
+          <input type="text" class="form-control form-control-lg-custom" id="quoterefInput"
+                 placeholder="e.g. QT-EJT-ClientName-CCTV-PA-16022026-R01" required>
+          <small class="text-muted mt-1 d-block">Enter the quotation reference number for this proposal</small>
+        </div>
+
+        <button type="submit" class="btn-forward" id="forwardBtn">
+          <i class="fas fa-arrow-right mr-2"></i> Open Proposal Generator
+        </button>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function loadRfqs() {
+  const proj = document.getElementById('projectSelect').value;
+  const rfqSel = document.getElementById('rfqSelect');
+  const loading = document.getElementById('rfqLoading');
+  const noMsg   = document.getElementById('noRfqMsg');
+
+  rfqSel.innerHTML = '<option value="">— Loading… —</option>';
+  noMsg.style.display = 'none';
+
+  if (!proj) {
+    rfqSel.innerHTML = '<option value="">— Select a project first —</option>';
+    return;
+  }
+
+  loading.style.display = '';
+  fetch(`{{ url_for('proposal_rfqs_for_project') }}?project=${encodeURIComponent(proj)}`)
+    .then(r => r.json())
+    .then(rfqs => {
+      loading.style.display = 'none';
+      rfqSel.innerHTML = '<option value="">— None / Not applicable —</option>';
+      if (rfqs.length === 0) {
+        noMsg.style.display = '';
+      } else {
+        rfqs.forEach(r => {
+          const opt = document.createElement('option');
+          opt.value = r; opt.textContent = r;
+          rfqSel.appendChild(opt);
+        });
+        if (rfqs.length === 1) rfqSel.value = rfqs[0];
+      }
+    })
+    .catch(() => {
+      loading.style.display = 'none';
+      rfqSel.innerHTML = '<option value="">— Failed to load —</option>';
+    });
+}
+
+function forwardToGenerator() {
+  const proj     = document.getElementById('projectSelect').value.trim();
+  const rfq      = document.getElementById('rfqSelect').value.trim();
+  const quoteref = document.getElementById('quoterefInput').value.trim();
+
+  if (!proj || !quoteref) {
+    alert('Please select a project and enter a quote reference.');
+    return false;
+  }
+
+  const params = new URLSearchParams({project: proj, rfq: rfq, quoteref: quoteref});
+  window.location.href = `{{ url_for('proposal_generator_main') }}?${params.toString()}`;
+  return false;
+}
+</script>
+{% endblock %}
