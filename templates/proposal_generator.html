@@ -193,7 +193,8 @@
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
-                  <input type="text" class="form-control form-control-sm" name="engref" placeholder="e.g. MF1012">
+                  <input type="text" class="form-control form-control-sm" name="engref"
+                         value="{{ eng_ref }}" placeholder="e.g. MMA784">
                 </div>
               </div>
             </div>
@@ -214,11 +215,13 @@
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">From</label>
-                  <input type="text" class="form-control form-control-sm" name="frm" value="Eng m.alfakharany">
+                  <input type="text" class="form-control form-control-sm" name="frm"
+                         value="{{ frm }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Contact / Mobile</label>
-                  <input type="text" class="form-control form-control-sm" name="cont" placeholder="+966…">
+                  <input type="text" class="form-control form-control-sm" name="cont"
+                         value="{{ contact }}" placeholder="+966…">
                 </div>
               </div>
             </div>
@@ -231,7 +234,7 @@
               <div class="form-group">
                 <label class="small font-weight-bold text-muted mb-1">SUB. (Subject)</label>
                 <input type="text" class="form-control form-control-sm" name="sub"
-                       placeholder="PROPOSAL OF … SYSTEM For …">
+                       value="{{ subject }}" placeholder="PROPOSAL OF … SYSTEM For …">
               </div>
               <div class="form-group mb-0">
                 <label class="small font-weight-bold text-muted mb-1">Scope of Supply</label>
@@ -285,7 +288,8 @@
               <div class="form-row">
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Prepared By (Name)</label>
-                  <input type="text" class="form-control form-control-sm" name="prep_by_name">
+                  <input type="text" class="form-control form-control-sm" name="prep_by_name"
+                         value="{{ presale_name }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Prepared By (Title)</label>
@@ -293,7 +297,8 @@
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Reviewed By (Name)</label>
-                  <input type="text" class="form-control form-control-sm" name="mgr_name">
+                  <input type="text" class="form-control form-control-sm" name="mgr_name"
+                         value="{{ sales_name }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Reviewed By (Title)</label>

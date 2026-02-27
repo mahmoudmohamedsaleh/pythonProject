@@ -6205,11 +6205,69 @@ def proposal_generator_main():
     project_name = _req.args.get('project','')
     rfq_ref      = _req.args.get('rfq','')
     quoteref     = _req.args.get('quoteref','')
-    # Pre-fill client from project record
-    client_name = ''
+
+    # Defaults
+    eng_ref   = ''
+    frm       = 'EJ TECH'
+    contact   = ''
+    subject   = ''
+
+    if project_name:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        # Get project record
+        c.execute("SELECT * FROM projects WHERE TRIM(project_name)=? LIMIT 1", (project_name.strip(),))
+        proj = c.fetchone()
+        if proj:
+            presale_username = proj['presale_eng'] or ''
+            sales_username   = proj['sales_eng']   or ''
+            system_type      = proj['system']       or ''
+
+            # Look up presale engineer details → From + Contact
+            if presale_username:
+                c.execute("SELECT name, phone FROM engineers WHERE username=? LIMIT 1", (presale_username,))
+                pe = c.fetchone()
+                if pe:
+                    frm     = ('Eng. ' + pe['name']) if pe['name'] else presale_username
+                    contact = pe['phone'] or ''
+
+            # Look up sales engineer engineer_code → Eng. Reference
+            if sales_username:
+                c.execute("SELECT engineer_code, name FROM engineers WHERE username=? LIMIT 1", (sales_username,))
+                se = c.fetchone()
+                if se and se['engineer_code']:
+                    eng_ref = se['engineer_code']
+                elif se:
+                    eng_ref = sales_username   # fallback to username if no code
+
+            # Auto-build subject
+            if system_type:
+                subject = f"PROPOSAL OF {system_type.upper()} SYSTEM For {project_name.strip()}"
+
+        conn.close()
+
+    # Build signature names from engineer lookups
+    presale_name = frm.replace('Eng. ', '') if frm.startswith('Eng. ') else frm
+    sales_name   = ''
+    if project_name:
+        conn2 = sqlite3.connect('ProjectStatus.db')
+        conn2.row_factory = sqlite3.Row
+        c2 = conn2.cursor()
+        c2.execute("SELECT sales_eng FROM projects WHERE TRIM(project_name)=? LIMIT 1", (project_name.strip(),))
+        p2 = c2.fetchone()
+        if p2 and p2['sales_eng']:
+            c2.execute("SELECT name FROM engineers WHERE username=? LIMIT 1", (p2['sales_eng'],))
+            se2 = c2.fetchone()
+            if se2: sales_name = se2['name'] or ''
+        conn2.close()
+
     return render_template('proposal_generator.html', today=today,
                            project_name=project_name, rfq_ref=rfq_ref,
-                           quoteref=quoteref, client_name='')
+                           quoteref=quoteref, client_name='',
+                           eng_ref=eng_ref, frm=frm, contact=contact,
+                           subject=subject, presale_name=presale_name,
+                           sales_name=sales_name)
 
 
 @app.route('/proposal_generator/parse_costsheet', methods=['POST'])
