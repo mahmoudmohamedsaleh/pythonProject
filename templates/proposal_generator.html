@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+{% block title %}Proposal Generator{% endblock %}
+
+{% block content %}
+<style>
+  .pg-hero {
+    background: linear-gradient(135deg, #4B2D8F 0%, #7B52D3 100%);
+    border-radius: 12px;
+    padding: 24px 28px;
+    color: #fff;
+    margin-bottom: 24px;
+  }
+  .pg-hero h3 { margin: 0; font-weight: 700; font-size: 1.5rem; }
+  .pg-hero p  { margin: 4px 0 0; opacity: .85; font-size: .9rem; }
+
+  .tab-nav { display: flex; gap: 0; border-bottom: 3px solid #4B2D8F; margin-bottom: 24px; }
+  .tab-btn {
+    padding: 10px 28px; border: none; background: transparent;
+    font-weight: 600; font-size: .9rem; cursor: pointer; color: #6c757d;
+    border-bottom: 3px solid transparent; margin-bottom: -3px;
+    transition: .2s;
+  }
+  .tab-btn.active { color: #4B2D8F; border-bottom-color: #4B2D8F; }
+  .tab-btn:hover  { color: #4B2D8F; background: #f8f5ff; border-radius: 6px 6px 0 0; }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .card-header-pg { background: #4B2D8F; color: #fff; font-weight: 600; font-size: .88rem; padding: 10px 16px; border-radius: 6px 6px 0 0; }
+  .card-header-green { background: #1B7B4B; color: #fff; font-weight: 600; font-size: .88rem; padding: 10px 16px; border-radius: 6px 6px 0 0; }
+
+  .upload-zone {
+    border: 2.5px dashed #b39ddb;
+    border-radius: 10px;
+    padding: 28px 20px;
+    text-align: center;
+    background: #f8f5ff;
+    cursor: pointer;
+    transition: .2s;
+    position: relative;
+  }
+  .upload-zone:hover { border-color: #4B2D8F; background: #ede7f6; }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .upload-icon { font-size: 2rem; color: #7B52D3; margin-bottom: 8px; }
+  .upload-zone .upload-lbl { font-weight: 600; color: #4B2D8F; }
+  .upload-zone .upload-hint { font-size: .78rem; color: #888; }
+
+  #uploadStatus { display: none; }
+
+  /* Systems table */
+  .sys-table th { background: #4B2D8F; color: #fff; font-size: .78rem; padding: 7px 10px; }
+  .sys-table td { font-size: .82rem; padding: 6px 8px; vertical-align: middle; }
+  .sys-table tr.summary-row td { background: #f3e5f5; font-weight: 600; color: #4B2D8F; }
+  .sys-table tr.grand-row td  { background: #4B2D8F; color: #fff; font-weight: 700; }
+  .sys-table .del-btn { border: none; background: transparent; color: #dc3545; padding: 2px 6px; }
+  .sys-table .del-btn:hover { color: #a71d2a; }
+
+  /* Terms */
+  .term-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .term-row input { flex: 1; }
+
+  /* Generate button */
+  .btn-generate {
+    background: linear-gradient(135deg, #dc3545, #b71c1c);
+    color: #fff; border: none; padding: 12px 28px;
+    font-size: 1rem; font-weight: 700; border-radius: 8px;
+    width: 100%; cursor: pointer; transition: .2s;
+  }
+  .btn-generate:hover { opacity: .9; transform: translateY(-1px); }
+
+  .tech-placeholder {
+    text-align: center; padding: 60px 20px; color: #999;
+  }
+  .tech-placeholder i { font-size: 3rem; color: #b39ddb; margin-bottom: 14px; }
+  .tech-placeholder h5 { color: #6c757d; font-weight: 600; }
+
+  .loader-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+    z-index:9999; align-items:center; justify-content:center;
+  }
+  .loader-overlay.active { display:flex; }
+  .loader-box { background:#fff; border-radius:12px; padding:36px 48px; text-align:center; }
+  .loader-box .spinner-border { width:3rem; height:3rem; border-width:.3em; color:#4B2D8F; }
+</style>
+
+<!-- Loader -->
+<div class="loader-overlay" id="loaderOverlay">
+  <div class="loader-box">
+    <div class="spinner-border mb-3" role="status"></div>
+    <p class="mb-0 font-weight-bold text-muted">Generating PDF, please wait…</p>
+  </div>
+</div>
+
+<div class="container-fluid py-3" style="max-width:1200px;">
+
+  <div class="pg-hero">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-file-alt mr-3" style="font-size:2rem;opacity:.85;"></i>
+      <div>
+        <h3><i class="fas fa-magic mr-2" style="font-size:1.1rem;opacity:.8;"></i>Proposal Generator</h3>
+        <p>Create professional Commercial or Technical proposals in one click</p>
+      </div>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'danger' if cat=='danger' else 'warning' if cat=='warning' else 'info' }} alert-dismissible fade show">
+      {{ msg }}<button type="button" class="close" data-dismiss="alert">&times;</button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Tab Nav -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('commercial', this)">
+      <i class="fas fa-file-invoice-dollar mr-1"></i> Commercial Proposal
+    </button>
+    <button class="tab-btn" onclick="switchTab('technical', this)">
+      <i class="fas fa-drafting-compass mr-1"></i> Technical Proposal
+    </button>
+  </div>
+
+  <!-- ══════════════ COMMERCIAL TAB ══════════════ -->
+  <div class="tab-pane active" id="tab-commercial">
+
+    <form method="POST" action="{{ url_for('proposal_generate_pdf') }}"
+          enctype="multipart/form-data" id="commForm">
+
+      <div class="row">
+
+        <!-- ─── LEFT: Cover Fields ─── -->
+        <div class="col-lg-7">
+
+          <!-- Cost Sheet Upload -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-green">
+              <i class="fas fa-upload mr-1"></i> Upload Cost Sheet (Excel)
+              <span class="font-weight-normal ml-2" style="opacity:.8;font-size:.8rem;">— auto-populates the systems summary table</span>
+            </div>
+            <div class="card-body py-3">
+              <div class="upload-zone" id="dropZone">
+                <input type="file" name="cost_sheet_file" id="costSheetFile" accept=".xlsx,.xls" onchange="handleFileSelect(this)">
+                <div class="upload-icon"><i class="fas fa-file-excel"></i></div>
+                <div class="upload-lbl" id="uploadLabel">Click or drag & drop your Cost Sheet here</div>
+                <div class="upload-hint mt-1">Accepts .xlsx / .xls files · Round Up column used as unit price</div>
+              </div>
+              <div id="uploadStatus" class="mt-2">
+                <div class="d-flex align-items-center">
+                  <div class="spinner-border spinner-border-sm text-success mr-2" role="status" id="parseSpinner"></div>
+                  <span id="parseMsg" class="text-muted small">Parsing cost sheet…</span>
+                </div>
+              </div>
+              <div id="parseError" class="alert alert-warning mt-2 py-2" style="display:none;"></div>
+            </div>
+          </div>
+
+          <!-- Document Info -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-info-circle mr-1"></i> Document Information</div>
+            <div class="card-body py-3">
+              <div class="form-row">
+                <div class="form-group col-md-4">
+                  <label class="small font-weight-bold text-muted mb-1">Date</label>
+                  <input type="text" class="form-control form-control-sm" name="date"
+                         value="{{ today }}" placeholder="DD-MM-YYYY">
+                </div>
+                <div class="form-group col-md-4">
+                  <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
+                  <input type="text" class="form-control form-control-sm" name="quoteref" placeholder="QT-EJT-…">
+                </div>
+                <div class="form-group col-md-4">
+                  <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
+                  <input type="text" class="form-control form-control-sm" name="engref" placeholder="e.g. MF1012">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Client Info -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-building mr-1"></i> Client Information</div>
+            <div class="card-body py-3">
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">To (Company)</label>
+                  <input type="text" class="form-control form-control-sm" name="to">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Attention (Contact Person)</label>
+                  <input type="text" class="form-control form-control-sm" name="attn">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">From</label>
+                  <input type="text" class="form-control form-control-sm" name="frm" value="Eng m.alfakharany">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Contact / Mobile</label>
+                  <input type="text" class="form-control form-control-sm" name="cont" placeholder="+966…">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subject & Scope -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-align-left mr-1"></i> Subject &amp; Scope</div>
+            <div class="card-body py-3">
+              <div class="form-group">
+                <label class="small font-weight-bold text-muted mb-1">SUB. (Subject)</label>
+                <input type="text" class="form-control form-control-sm" name="sub"
+                       placeholder="PROPOSAL OF … SYSTEM For …">
+              </div>
+              <div class="form-group mb-0">
+                <label class="small font-weight-bold text-muted mb-1">Scope of Supply</label>
+                <input type="text" class="form-control form-control-sm" name="scope"
+                       value="Supply, Installation, Testing and Commissioning">
+              </div>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-list-ul mr-1"></i> Terms &amp; Conditions</div>
+            <div class="card-body py-3">
+              <div id="termsContainer">
+                <div class="term-row">
+                  <input type="text" class="form-control form-control-sm" name="term_key[]"   placeholder="Label (e.g. Payment Terms)" value="Price">
+                  <input type="text" class="form-control form-control-sm" name="term_value[]" placeholder="Value" value="SAR, Excluding VAT">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="term-row">
+                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Payment Terms">
+                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="30 days from invoice date">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="term-row">
+                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Offer Validity">
+                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="30 days">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="term-row">
+                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Warranty">
+                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="1 Year">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="term-row">
+                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Delivery Terms">
+                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="4-6 Weeks ARO">
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addTerm()">
+                <i class="fas fa-plus mr-1"></i> Add Term
+              </button>
+            </div>
+          </div>
+
+          <!-- Signatures -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-signature mr-1"></i> Signatures</div>
+            <div class="card-body py-3">
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Prepared By (Name)</label>
+                  <input type="text" class="form-control form-control-sm" name="prep_by_name">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Prepared By (Title)</label>
+                  <input type="text" class="form-control form-control-sm" name="prep_by_title" value="Pre-Sales Engineer">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Reviewed By (Name)</label>
+                  <input type="text" class="form-control form-control-sm" name="mgr_name">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Reviewed By (Title)</label>
+                  <input type="text" class="form-control form-control-sm" name="mgr_title" value="Sales Manager">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ─── RIGHT: Systems + Actions ─── -->
+        <div class="col-lg-5">
+
+          <!-- Generate button -->
+          <div class="card mb-3 shadow-sm" style="border:2px solid #dc3545;">
+            <div class="card-body py-3 text-center">
+              <p class="small text-muted mb-2">
+                <i class="fas fa-info-circle text-primary mr-1"></i>
+                Edit fields on the left, upload a cost sheet, then generate your PDF.
+              </p>
+              <button type="submit" class="btn-generate" onclick="showLoader()">
+                <i class="fas fa-file-pdf mr-2"></i> Generate &amp; Download PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- BOQ Sheets indicator -->
+          <div class="card mb-3 shadow-sm" id="sheetsCard" style="display:none;">
+            <div class="card-header-green"><i class="fas fa-table mr-1"></i> BOQ Sheets (from Cost Sheet)</div>
+            <div class="card-body py-2 px-3" id="sheetsList"></div>
+          </div>
+
+          <!-- Summary Systems -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-list-ol mr-1"></i> Summary Systems</span>
+              <button type="button" class="btn btn-sm btn-warning btn-xs font-weight-bold"
+                      onclick="addSystemRow()" style="font-size:.75rem;padding:2px 10px;">+ Add Row</button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm sys-table mb-0" id="sysTable">
+                  <thead>
+                    <tr>
+                      <th width="30">#</th>
+                      <th>System / Line Item</th>
+                      <th width="110">Total (SAR)</th>
+                      <th width="70">Type</th>
+                      <th width="30"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sysTbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Preview -->
+          <div class="card mb-3 shadow-sm" id="summaryPreviewCard" style="display:none;">
+            <div class="card-header-pg"><i class="fas fa-eye mr-1"></i> Summary Preview</div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0 sys-table" id="summaryPreviewTable">
+                <thead><tr><th width="30">#</th><th>System</th><th>Total (SAR)</th></tr></thead>
+                <tbody id="summaryPreviewBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </form>
+  </div>
+  <!-- END COMMERCIAL TAB -->
+
+  <!-- ══════════════ TECHNICAL TAB ══════════════ -->
+  <div class="tab-pane" id="tab-technical">
+    <div class="tech-placeholder">
+      <div><i class="fas fa-drafting-compass d-block mb-3" style="font-size:3rem;color:#b39ddb;"></i></div>
+      <h5>Technical Proposal — Coming Soon</h5>
+      <p class="text-muted" style="max-width:400px;margin:auto;">
+        This section will allow you to generate structured Technical Proposal documents
+        including architecture diagrams, system descriptions, and compliance statements.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ── Tab switching ──────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Loader ────────────────────────────────────────────────────────────
+function showLoader() {
+  document.getElementById('loaderOverlay').classList.add('active');
+}
+
+// ── Terms ─────────────────────────────────────────────────────────────
+function addTerm() {
+  const div = document.createElement('div');
+  div.className = 'term-row';
+  div.innerHTML = `
+    <input type="text" class="form-control form-control-sm" name="term_key[]"   placeholder="Label">
+    <input type="text" class="form-control form-control-sm" name="term_value[]" placeholder="Value">
+    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>`;
+  document.getElementById('termsContainer').appendChild(div);
+}
+function removeTerm(btn) { btn.closest('.term-row').remove(); }
+
+// ── Systems table ─────────────────────────────────────────────────────
+let sysRows = [];
+
+function renderSysTable() {
+  const tbody = document.getElementById('sysTbody');
+  tbody.innerHTML = '';
+  sysRows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    if (row.is_summary && row.name === 'Grand Total') tr.classList.add('grand-row');
+    else if (row.is_summary) tr.classList.add('summary-row');
+    tr.innerHTML = `
+      <td>
+        <input type="hidden" name="sys_idx[]" value="${escHtml(row.idx)}">
+        <input type="hidden" name="sys_is_summary[]" value="${row.is_summary ? 1 : 0}">
+        <span class="text-muted">${escHtml(row.idx)}</span>
+      </td>
+      <td><input type="text" class="form-control form-control-sm border-0 bg-transparent p-0"
+           name="sys_name[]" value="${escHtml(row.name)}" ${row.is_summary?'style="font-weight:600;"':''}
+           onchange="syncPreview()"></td>
+      <td><input type="number" step="0.01" class="form-control form-control-sm border-0 bg-transparent p-0"
+           name="sys_total[]" value="${row.total || 0}" style="min-width:80px;"
+           onchange="syncPreview()"></td>
+      <td>
+        ${row.is_summary
+          ? '<span class="badge badge-secondary badge-sm">Summary</span>'
+          : '<span class="badge badge-sm text-white" style="background:#4B2D8F;">System</span>'}
+      </td>
+      <td>${!row.is_summary
+          ? `<button type="button" class="del-btn" onclick="deleteRow(${i})"><i class="fas fa-times"></i></button>`
+          : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  syncPreview();
+}
+
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function deleteRow(i) {
+  sysRows.splice(i, 1);
+  recalcSummaryRows();
+  renderSysTable();
+}
+
+function addSystemRow() {
+  const nextIdx = (sysRows.filter(r=>!r.is_summary).length + 1).toString();
+  const insertBefore = sysRows.findIndex(r => r.is_summary);
+  const newRow = {idx: nextIdx, name: 'New System', total: 0, is_summary: false};
+  if (insertBefore >= 0) sysRows.splice(insertBefore, 0, newRow);
+  else sysRows.push(newRow);
+  recalcSummaryRows();
+  renderSysTable();
+}
+
+function recalcSummaryRows() {
+  sysRows = sysRows.filter(r => !r.is_summary);
+  const grand = sysRows.reduce((s,r) => s + (parseFloat(r.total)||0), 0);
+  const vat   = grand * 0.15;
+  sysRows.push({idx:'', name:'Total (SAR)',  total: +grand.toFixed(2), is_summary:true});
+  sysRows.push({idx:'', name:'VAT (15%)',    total: +vat.toFixed(2),   is_summary:true});
+  sysRows.push({idx:'', name:'Grand Total',  total: +(grand+vat).toFixed(2), is_summary:true});
+}
+
+function syncPreview() {
+  const previewCard = document.getElementById('summaryPreviewCard');
+  const tbody = document.getElementById('summaryPreviewBody');
+  const rows = document.querySelectorAll('#sysTbody tr');
+  if (rows.length === 0) { previewCard.style.display = 'none'; return; }
+  previewCard.style.display = '';
+  tbody.innerHTML = '';
+  rows.forEach(tr => {
+    const isSummaryClass = tr.classList.contains('summary-row');
+    const isGrandClass   = tr.classList.contains('grand-row');
+    const idx  = tr.querySelector('input[name="sys_idx[]"]')?.value || '';
+    const name = tr.querySelector('input[name="sys_name[]"]')?.value || '';
+    const tot  = parseFloat(tr.querySelector('input[name="sys_total[]"]')?.value || 0);
+    const pRow = document.createElement('tr');
+    if (isGrandClass)   pRow.classList.add('grand-row');
+    else if (isSummaryClass) pRow.classList.add('summary-row');
+    pRow.innerHTML = `<td>${escHtml(idx)}</td><td>${escHtml(name)}</td><td>${fmt(tot)}</td>`;
+    tbody.appendChild(pRow);
+  });
+}
+
+function fmt(n) {
+  if (n === null || n === undefined) return '';
+  return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// ── Cost Sheet upload & parse ─────────────────────────────────────────
+function handleFileSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  document.getElementById('uploadLabel').textContent = file.name;
+  document.getElementById('uploadStatus').style.display = '';
+  document.getElementById('parseSpinner').style.display = '';
+  document.getElementById('parseMsg').textContent = 'Parsing cost sheet…';
+  document.getElementById('parseError').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('cost_sheet', file);
+  fetch("{{ url_for('proposal_parse_costsheet') }}", {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('parseSpinner').style.display = 'none';
+      if (data.error) {
+        document.getElementById('parseMsg').textContent = '';
+        document.getElementById('parseError').style.display = '';
+        document.getElementById('parseError').textContent = '⚠ ' + data.error;
+        return;
+      }
+      document.getElementById('parseMsg').textContent =
+        `✓ Loaded ${data.sheets.length} sheet(s) — Grand Total: SAR ${fmt(data.grand_total)}`;
+
+      // Show sheet names
+      const sheetsCard = document.getElementById('sheetsCard');
+      const sheetsList = document.getElementById('sheetsList');
+      sheetsCard.style.display = '';
+      sheetsList.innerHTML = data.sheets.map(s =>
+        `<div class="py-1" style="border-bottom:1px solid #f0f0f0;">
+           <i class="fas fa-file-excel text-success mr-2" style="font-size:.85rem;"></i>
+           <span style="font-size:.85rem;">${escHtml(s)}</span>
+         </div>`
+      ).join('');
+
+      // Populate systems
+      sysRows = data.systems.map((s,i) => ({
+        idx: s.idx,
+        name: s.name,
+        total: s.total,
+        is_summary: s.is_summary
+      }));
+      renderSysTable();
+    })
+    .catch(err => {
+      document.getElementById('parseSpinner').style.display = 'none';
+      document.getElementById('parseMsg').textContent = '';
+      document.getElementById('parseError').style.display = '';
+      document.getElementById('parseError').textContent = '⚠ Upload failed: ' + err;
+    });
+}
+
+// ── Drag & drop ───────────────────────────────────────────────────────
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.style.borderColor='#4B2D8F'; });
+dz.addEventListener('dragleave', () => { dz.style.borderColor=''; });
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.style.borderColor='';
+  const fi = document.getElementById('costSheetFile');
+  const dt = new DataTransfer();
+  dt.items.add(e.dataTransfer.files[0]);
+  fi.files = dt.files;
+  handleFileSelect(fi);
+});
+
+// ── Init with a blank systems table ───────────────────────────────────
+recalcSummaryRows();
+renderSysTable();
+</script>
+{% endblock %}

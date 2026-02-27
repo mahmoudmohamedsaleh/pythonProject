@@ -6157,6 +6157,110 @@ def download_quotation(quote_ref):
         flash('Quotation not found!', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
+# ═══════════════════════════ PROPOSAL GENERATOR ═══════════════════════════
+
+@app.route('/proposal_generator', methods=['GET'])
+@login_required
+def proposal_generator():
+    """Standalone Proposal Generator page — Commercial & Technical tabs."""
+    from datetime import date
+    today = date.today().strftime('%d-%m-%Y')
+    return render_template('proposal_generator.html', today=today)
+
+
+@app.route('/proposal_generator/parse_costsheet', methods=['POST'])
+@login_required
+def proposal_parse_costsheet():
+    """AJAX: receive uploaded cost-sheet, return parsed summary data as JSON."""
+    import openpyxl
+    from flask import request as _req, jsonify
+    f = _req.files.get('cost_sheet')
+    if not f:
+        return jsonify({'error': 'No file uploaded'}), 400
+    try:
+        wb = openpyxl.load_workbook(BytesIO(f.read()), data_only=True)
+        boq_sheets = _parse_cost_sheet_boq(wb)
+        if not boq_sheets:
+            return jsonify({'error': 'No priced data found. Ensure the file has a "Round up" or "Unit Price" column.'}), 400
+        sheet_names = [bs['name'] for bs in boq_sheets]
+        grand_total = sum(bs['grand_total'] for bs in boq_sheets)
+        vat         = round(grand_total * 0.15, 2)
+        systems = []
+        for i, bs in enumerate(boq_sheets, start=1):
+            systems.append({'idx': str(i), 'name': bs['name'],
+                            'total': round(bs['grand_total'], 2), 'is_summary': False})
+        systems.append({'idx':'', 'name':'Total (SAR)',  'total': round(grand_total, 2),         'is_summary': True})
+        systems.append({'idx':'', 'name':'VAT (15%)',    'total': vat,                            'is_summary': True})
+        systems.append({'idx':'', 'name':'Grand Total',  'total': round(grand_total + vat, 2),   'is_summary': True})
+        return jsonify({'sheets': sheet_names, 'systems': systems,
+                        'grand_total': round(grand_total, 2)})
+    except Exception as e:
+        import traceback
+        app.logger.error(f"parse_costsheet error: {e}\n{traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/proposal_generator/generate_pdf', methods=['POST'])
+@login_required
+def proposal_generate_pdf():
+    """Generate a quotation PDF from the Proposal Generator form data.
+    The uploaded cost-sheet (if any) drives the BOQ; form fields drive the cover page."""
+    import openpyxl
+    from flask import request as _req
+    try:
+        # ── Build cover dict from form ─────────────────────────────────
+        cover = {
+            'date':          _req.form.get('date', ''),
+            'quoteref':      _req.form.get('quoteref', ''),
+            'engref':        _req.form.get('engref', ''),
+            'to':            _req.form.get('to', ''),
+            'attn':          _req.form.get('attn', ''),
+            'frm':           _req.form.get('frm', ''),
+            'cont':          _req.form.get('cont', ''),
+            'sub':           _req.form.get('sub', ''),
+            'scope':         _req.form.get('scope', ''),
+            'prep_by_name':  _req.form.get('prep_by_name', ''),
+            'prep_by_title': _req.form.get('prep_by_title', ''),
+            'mgr_name':      _req.form.get('mgr_name', ''),
+            'mgr_title':     _req.form.get('mgr_title', ''),
+            'systems': [], 'terms': {},
+        }
+        # Systems
+        sys_idx  = _req.form.getlist('sys_idx[]')
+        sys_name = _req.form.getlist('sys_name[]')
+        sys_tot  = _req.form.getlist('sys_total[]')
+        sys_sum  = _req.form.getlist('sys_is_summary[]')
+        for i in range(len(sys_name)):
+            if sys_name[i].strip():
+                try: tot = float(str(sys_tot[i]).replace(',','')) if i < len(sys_tot) else 0
+                except: tot = 0
+                is_sum = (i < len(sys_sum) and sys_sum[i] == '1')
+                cover['systems'].append({'idx': sys_idx[i] if i < len(sys_idx) else '',
+                                         'name': sys_name[i], 'total': tot, 'is_summary': is_sum})
+        # Terms
+        for k, v in zip(_req.form.getlist('term_key[]'), _req.form.getlist('term_value[]')):
+            if k.strip(): cover['terms'][k.strip()] = v.strip()
+
+        # ── Parse BOQ from uploaded cost-sheet (or empty) ─────────────
+        boq_sheets = []
+        cs_file = _req.files.get('cost_sheet_file')
+        if cs_file and cs_file.filename:
+            wb = openpyxl.load_workbook(BytesIO(cs_file.read()), data_only=True)
+            boq_sheets = _parse_cost_sheet_boq(wb)
+
+        quote_ref = cover.get('quoteref') or 'Proposal'
+        buf = _build_quotation_pdf(cover, boq_sheets, quote_ref)
+        safe = quote_ref.replace('/', '-').replace('\\', '-').replace(' ', '_')
+        return send_file(buf, as_attachment=True,
+                         download_name=f'{safe}_Commercial_Proposal.pdf',
+                         mimetype='application/pdf')
+    except Exception as e:
+        import traceback
+        app.logger.error(f"proposal_generate_pdf error: {e}\n{traceback.format_exc()}")
+        flash(f'PDF generation failed: {str(e)}', 'danger')
+        return redirect(url_for('proposal_generator'))
+
+
 def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     """Build a BytesIO PDF from parsed cover dict and boq_sheets list."""
     from reportlab.lib.pagesizes import A4
@@ -6494,6 +6598,85 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
     buf.seek(0)
     return buf
+
+
+def _parse_cost_sheet_boq(wb):
+    """Parse EJTech cost-sheet workbook → boq_sheets list.
+    Uses 'Round up' column as unit price; Total = Round_up * Qty.
+    Rows with '*' in S.# are section headers. Skips Summary & BOQ sheets."""
+    SKIP = {'SUMMARY'}
+    boq_sheets = []
+    for sname in wb.sheetnames:
+        if sname.upper().strip() in SKIP: continue
+        if 'BOQ' in sname.upper(): continue
+        ws = wb[sname]
+        hdr_row_idx = None
+        col_map = {}
+        for row in ws.iter_rows(min_row=1, max_row=5):
+            row_vals = {cell.column: str(cell.value).strip() if cell.value is not None else '' for cell in row}
+            flat = ' '.join(row_vals.values()).upper()
+            if 'QTY' not in flat and 'QUANTITY' not in flat: continue
+            for ci, hv in row_vals.items():
+                hu = hv.upper().strip()
+                if hu in ('S.#','S/#','S.NO','S/N','NO','#','NO.') and 'sn' not in col_map: col_map['sn'] = ci
+                elif ('CODE' in hu or 'PART' in hu) and 'code' not in col_map: col_map['code'] = ci
+                elif 'DESC' in hu and 'desc' not in col_map: col_map['desc'] = ci
+                elif hu in ('UOM','UNIT','U/M','U.O.M') and 'uom' not in col_map: col_map['uom'] = ci
+                elif hu in ('QTY','QUANTITY') and 'qty' not in col_map: col_map['qty'] = ci
+                elif 'ROUND' in hu and 'round' not in col_map: col_map['round'] = ci
+                elif 'UNIT PRICE' in hu and 'unit_price' not in col_map: col_map['unit_price'] = ci
+                elif hu in ('%','MARGIN','MARGIN%') and 'pct' not in col_map: col_map['pct'] = ci
+                elif hu == 'TOTAL' and ci > col_map.get('qty', 0):
+                    if 'round' in col_map and ci > col_map['round']: col_map['total_sell'] = ci
+                    elif 'total_cost' not in col_map: col_map['total_cost'] = ci
+            if col_map.get('desc'):
+                hdr_row_idx = row[0].row
+                # Detect unlabeled round-up col after % column
+                if 'round' not in col_map and 'pct' in col_map:
+                    pct_ci = col_map['pct']
+                    for chk_row in ws.iter_rows(min_row=hdr_row_idx+1, max_row=hdr_row_idx+3):
+                        for cell in chk_row:
+                            if cell.column > pct_ci:
+                                try: float(cell.value); col_map['round'] = cell.column; break
+                                except (TypeError, ValueError): pass
+                        if 'round' in col_map: break
+                break
+        if hdr_row_idx is None or 'desc' not in col_map: continue
+        price_col = col_map.get('round') or col_map.get('unit_price')
+        total_col = col_map.get('total_sell')
+        items = []
+        for row in ws.iter_rows(min_row=hdr_row_idx + 1):
+            def _v(ci, _row=row):
+                if ci is None: return None
+                cell = next((c for c in _row if c.column == ci), None)
+                return cell.value if cell else None
+            sn_val = _v(col_map.get('sn')); desc_val = _v(col_map.get('desc'))
+            code_val = _v(col_map.get('code'))
+            if desc_val is None and sn_val is None: continue
+            sn_str = str(sn_val).strip() if sn_val is not None else ''
+            desc_str = str(desc_val).strip() if desc_val is not None else ''
+            code_str = str(code_val).strip() if code_val is not None else ''
+            if not desc_str and not sn_str: continue
+            if any(kw in desc_str.upper() for kw in ('GRAND TOTAL','TOTAL EXCL','TOTAL INCL','EXCLUDING VAT','VALUE ADDED')): continue
+            if any(kw in sn_str.upper() for kw in ('TOTAL','VAT')): continue
+            if sn_str == '*':
+                sec_desc = code_str or desc_str
+                if sec_desc: items.append({'sn':'','code':'','desc':sec_desc,'uom':'','qty':None,'unit_price':None,'total':None,'is_section':True})
+                continue
+            def _f(val):
+                if val is None: return None
+                try: return float(val)
+                except: return None
+            qty_val = _f(_v(col_map.get('qty'))); up_val = _f(_v(price_col)); tot_val = _f(_v(total_col))
+            if up_val is None and tot_val is None: continue
+            if tot_val is None and up_val is not None and qty_val: tot_val = round(up_val * qty_val, 2)
+            uom_val = str(_v(col_map.get('uom')) or '').strip()
+            items.append({'sn':sn_str,'code':code_str,'desc':desc_str,'uom':uom_val,'qty':qty_val,
+                          'unit_price':up_val,'total':tot_val,'is_section':False})
+        priced = [it for it in items if it.get('total') and not it.get('is_section')]
+        if priced:
+            boq_sheets.append({'name':sname,'items':items,'grand_total':sum(it['total'] for it in priced)})
+    return boq_sheets
 
 
 @app.route('/quotation_pdf_professional/<path:quote_ref>', methods=['GET'])

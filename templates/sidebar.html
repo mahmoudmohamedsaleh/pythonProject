@@ -591,6 +591,12 @@
                         </a>
                     </li>
                     {% endif %}
+                    <li class="nav-item tooltip-wrapper" data-tooltip="Proposal Generator">
+                        <a href="{{ url_for('proposal_generator') }}" class="{{ 'active' if 'proposal_generator' in request.endpoint else '' }}">
+                            <i class="fas fa-magic"></i>
+                            <span>Proposal Generator</span>
+                        </a>
+                    </li>
                 </ul>
             </li>
             {% endif %}
