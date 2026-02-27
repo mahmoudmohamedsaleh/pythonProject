@@ -6301,25 +6301,25 @@ def quotation_pdf_professional(quote_ref):
                 has_qty  = 'QTY' in row_text or 'QUANTITY' in row_text
                 has_sn   = any(v in ('S.#','S.NO','NO','S/N','#','NO.') for v in vals)
                 if not (has_desc and (has_qty or has_sn)): continue
-                cm = dict(sn=None,code=None,desc=None,uom=None,qty=None,uprice=None,total=None)
+                col_map = dict(sn=None,code=None,desc=None,uom=None,qty=None,uprice=None,total=None)
                 for cell in rr:
                     hv = str(cell.value).upper().strip() if cell.value else ''
                     ci = cell.column
-                    if hv in ('S.#','S.NO','NO','S/N','#','NO.'): cm['sn'] = ci
-                    elif ('CODE' in hv or 'PART' in hv or 'P/N' in hv or hv=='PN') and cm['code'] is None: cm['code'] = ci
-                    elif 'DESC' in hv and cm['desc'] is None: cm['desc'] = ci
-                    elif hv in ('UOM','UNIT','U/M','U.O.M') and cm['uom'] is None: cm['uom'] = ci
-                    elif hv in ('QTY',"QUANTITY","Q\'TY") and cm['qty'] is None: cm['qty'] = ci
-                    elif ('UNIT PRICE' in hv or 'UNIT COST' in hv or hv in ('U.P','U/P')) and cm['uprice'] is None: cm['uprice'] = ci
-                    elif 'TOTAL' in hv and cm['total'] is None: cm['total'] = ci
-                if cm['desc']:
-                    return rr[0].row, cm
+                    if hv in ('S.#','S.NO','NO','S/N','#','NO.'): col_map['sn'] = ci
+                    elif ('CODE' in hv or 'PART' in hv or 'P/N' in hv or hv=='PN') and col_map['code'] is None: col_map['code'] = ci
+                    elif 'DESC' in hv and col_map['desc'] is None: col_map['desc'] = ci
+                    elif hv in ('UOM','UNIT','U/M','U.O.M') and col_map['uom'] is None: col_map['uom'] = ci
+                    elif hv in ('QTY',"QUANTITY","Q\'TY") and col_map['qty'] is None: col_map['qty'] = ci
+                    elif ('UNIT PRICE' in hv or 'UNIT COST' in hv or hv in ('U.P','U/P')) and col_map['uprice'] is None: col_map['uprice'] = ci
+                    elif 'TOTAL' in hv and col_map['total'] is None: col_map['total'] = ci
+                if col_map['desc']:
+                    return rr[0].row, col_map
             return None
 
-        def _read_boq_items(ws, hdr_idx, cm):
+        def _read_boq_items(ws, hdr_idx, col_map):
             items = []
             for row2 in ws.iter_rows(min_row=hdr_idx + 1):
-                dv = row2[cm['desc']-1].value if cm.get('desc') else None
+                dv = row2[col_map['desc']-1].value if col_map.get('desc') else None
                 if dv is None or str(dv).strip() == '': continue
                 ds = str(dv).strip()
                 if any(kw in ds.upper() for kw in ('GRAND TOTAL','VAT AMOUNT','TOTAL EXCL','TOTAL INCL','VALUE ADDED')): continue
@@ -6333,12 +6333,12 @@ def quotation_pdf_professional(quote_ref):
                     v = row2[col-1].value
                     s = str(v).strip() if v is not None else ''
                     return '' if s == 'None' else s
-                qv = _n(cm.get('qty')); upv = _n(cm.get('uprice'))
-                tv = _n(cm.get('total'))
+                qv = _n(col_map.get('qty')); upv = _n(col_map.get('uprice'))
+                tv = _n(col_map.get('total'))
                 if tv is None and qv and upv: tv = qv * upv
                 is_sec = (qv is None and upv is None)
-                items.append({'sn':_s(cm.get('sn')),'code':_s(cm.get('code')),'desc':ds,
-                              'uom':_s(cm.get('uom')),'qty':qv,'unit_price':upv,'total':tv,'is_section':is_sec})
+                items.append({'sn':_s(col_map.get('sn')),'code':_s(col_map.get('code')),'desc':ds,
+                              'uom':_s(col_map.get('uom')),'qty':qv,'unit_price':upv,'total':tv,'is_section':is_sec})
             return items
 
         boq_sheets = []
@@ -6347,8 +6347,8 @@ def quotation_pdf_professional(quote_ref):
             ws2 = wb[sname]
             res = _parse_boq_sheet(ws2)
             if res is None: continue
-            hdr_idx, cm = res
-            items = _read_boq_items(ws2, hdr_idx, cm)
+            hdr_idx, col_map = res
+            items = _read_boq_items(ws2, hdr_idx, col_map)
             priced = [it for it in items if it.get('total') and not it.get('is_section')]
             if priced:
                 boq_sheets.append({'name': sname, 'items': items,
