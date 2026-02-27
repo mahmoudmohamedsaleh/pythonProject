@@ -323,7 +323,7 @@
                     <a href="{{ url_for('download_quotation', quote_ref=quotation['quote_ref']) }}" class="btn btn-block btn-primary mb-2">
                         <i class="fas fa-file-excel"></i> Download Quotation Excel
                     </a>
-                    <a href="{{ url_for('quotation_pdf_professional', quote_ref=quotation['quote_ref']) }}" class="btn btn-block mb-2" style="background: linear-gradient(135deg, #C62828, #E53935); color: white; border: none;">
+                    <a href="{{ url_for('quotation_pdf_preview', quote_ref=quotation['quote_ref']) }}" class="btn btn-block mb-2" style="background: linear-gradient(135deg, #C62828, #E53935); color: white; border: none;">
                         <i class="fas fa-file-pdf"></i> Download Quotation PDF
                     </a>
                     {% endif %}

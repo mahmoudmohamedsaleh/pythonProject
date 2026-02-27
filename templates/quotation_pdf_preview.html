@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}Edit Quotation PDF — {{ quote_ref }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center mb-3">
+    <a href="{{ url_for('quotation_profile', quote_ref=quote_ref) }}" class="btn btn-sm btn-outline-secondary mr-2">
+      <i class="fas fa-arrow-left"></i> Back
+    </a>
+    <h4 class="mb-0 font-weight-bold" style="color:#4B2D8F;">
+      <i class="fas fa-file-pdf text-danger mr-1"></i> Edit Quotation PDF — {{ quote_ref }}
+    </h4>
+  </div>
+
+  <form method="POST" action="{{ url_for('quotation_pdf_generate', quote_ref=quote_ref) }}" id="pdfForm">
+
+    <div class="row">
+
+      <!-- ═══════════════ LEFT COLUMN: Cover Page Fields ═══════════════ -->
+      <div class="col-lg-7">
+
+        <!-- Document Info -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2" style="background:#4B2D8F;">
+            <i class="fas fa-info-circle mr-1"></i> <strong>Document Information</strong>
+          </div>
+          <div class="card-body py-3">
+            <div class="form-row">
+              <div class="form-group col-md-4">
+                <label class="small font-weight-bold text-muted mb-1">Date</label>
+                <input type="text" class="form-control form-control-sm" name="date" value="{{ cover.get('date','') }}">
+              </div>
+              <div class="form-group col-md-4">
+                <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
+                <input type="text" class="form-control form-control-sm" name="quoteref" value="{{ cover.get('quoteref', quote_ref) }}">
+              </div>
+              <div class="form-group col-md-4">
+                <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
+                <input type="text" class="form-control form-control-sm" name="engref" value="{{ cover.get('engref','') }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client Info -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2" style="background:#4B2D8F;">
+            <i class="fas fa-building mr-1"></i> <strong>Client Information</strong>
+          </div>
+          <div class="card-body py-3">
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label class="small font-weight-bold text-muted mb-1">To (Company)</label>
+                <input type="text" class="form-control form-control-sm" name="to" value="{{ cover.get('to','') }}">
+              </div>
+              <div class="form-group col-md-6">
+                <label class="small font-weight-bold text-muted mb-1">Attention (Contact Person)</label>
+                <input type="text" class="form-control form-control-sm" name="attn" value="{{ cover.get('attn','') }}">
+              </div>
+              <div class="form-group col-md-6">
+                <label class="small font-weight-bold text-muted mb-1">From</label>
+                <input type="text" class="form-control form-control-sm" name="frm" value="{{ cover.get('frm','') }}">
+              </div>
+              <div class="form-group col-md-6">
+                <label class="small font-weight-bold text-muted mb-1">Contact / Mobile</label>
+                <input type="text" class="form-control form-control-sm" name="cont" value="{{ cover.get('cont','') }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject & Scope -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2" style="background:#4B2D8F;">
+            <i class="fas fa-file-alt mr-1"></i> <strong>Subject &amp; Scope</strong>
+          </div>
+          <div class="card-body py-3">
+            <div class="form-group mb-2">
+              <label class="small font-weight-bold text-muted mb-1">SUB. (Subject)</label>
+              <input type="text" class="form-control form-control-sm" name="sub" value="{{ cover.get('sub','') }}">
+            </div>
+            <div class="form-group mb-0">
+              <label class="small font-weight-bold text-muted mb-1">Scope of Supply</label>
+              <input type="text" class="form-control form-control-sm" name="scope" value="{{ cover.get('scope','') }}">
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Systems Table -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2 d-flex justify-content-between align-items-center" style="background:#4B2D8F;">
+            <span><i class="fas fa-list-ol mr-1"></i> <strong>Summary Systems</strong></span>
+            <button type="button" class="btn btn-sm btn-warning" onclick="addSystemRow()">
+              <i class="fas fa-plus"></i> Add Row
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-bordered mb-0" id="systemsTable">
+              <thead style="background:#EDE7F6;">
+                <tr>
+                  <th style="width:50px;" class="text-center">#</th>
+                  <th>System / Line Item</th>
+                  <th style="width:130px;">Total (SAR)</th>
+                  <th style="width:80px;" class="text-center">Type</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody id="systemsTbody">
+                {% for sys in systems_list %}
+                <tr class="{% if sys.is_summary %}table-secondary{% endif %}" data-summary="{{ '1' if sys.is_summary else '0' }}">
+                  <td>
+                    <input type="text" class="form-control form-control-sm border-0 text-center" name="sys_idx[]"
+                           value="{{ sys.idx }}" style="min-width:35px;">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm border-0" name="sys_name[]"
+                           value="{{ sys.name }}">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm border-0 text-right sys-total"
+                           name="sys_total[]" value="{{ sys.total }}">
+                  </td>
+                  <td class="text-center">
+                    <input type="hidden" name="sys_is_summary[]" value="{{ '1' if sys.is_summary else '0' }}">
+                    <span class="badge badge-{% if sys.is_summary %}dark{% else %}primary{% endif %} badge-sm">
+                      {{ 'Summary' if sys.is_summary else 'System' }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger" onclick="removeRow(this)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2 d-flex justify-content-between align-items-center" style="background:#4B2D8F;">
+            <span><i class="fas fa-file-contract mr-1"></i> <strong>Terms &amp; Conditions</strong></span>
+            <button type="button" class="btn btn-sm btn-warning" onclick="addTermRow()">
+              <i class="fas fa-plus"></i> Add Term
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-bordered mb-0" id="termsTable">
+              <thead style="background:#EDE7F6;">
+                <tr>
+                  <th style="width:160px;">Label</th>
+                  <th>Value</th>
+                  <th style="width:40px;"></th>
+                </tr>
+              </thead>
+              <tbody id="termsTbody">
+                {% for key, val in terms_list %}
+                <tr>
+                  <td>
+                    <input type="text" class="form-control form-control-sm border-0 font-weight-bold" name="term_key[]" value="{{ key }}">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm border-0" name="term_value[]" value="{{ val }}">
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger" onclick="removeRow(this)">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Signatures -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2" style="background:#4B2D8F;">
+            <i class="fas fa-signature mr-1"></i> <strong>Signatures</strong>
+          </div>
+          <div class="card-body py-3">
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label class="small font-weight-bold mb-1" style="color:#4B2D8F;">Prepared By — Name</label>
+                <input type="text" class="form-control form-control-sm" name="prep_by_name" value="{{ cover.get('prep_by_name','') }}">
+              </div>
+              <div class="form-group col-md-6">
+                <label class="small font-weight-bold mb-1" style="color:#4B2D8F;">Prepared By — Title</label>
+                <input type="text" class="form-control form-control-sm" name="prep_by_title" value="{{ cover.get('prep_by_title','Pre-Sales Engineer') or 'Pre-Sales Engineer' }}">
+              </div>
+              <div class="form-group col-md-6 mb-0">
+                <label class="small font-weight-bold mb-1" style="color:#00897B;">Managed By — Name</label>
+                <input type="text" class="form-control form-control-sm" name="mgr_name" value="{{ cover.get('mgr_name','') }}">
+              </div>
+              <div class="form-group col-md-6 mb-0">
+                <label class="small font-weight-bold mb-1" style="color:#00897B;">Managed By — Title</label>
+                <input type="text" class="form-control form-control-sm" name="mgr_title" value="{{ cover.get('mgr_title','Sales Engineer') or 'Sales Engineer' }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /col-lg-7 -->
+
+      <!-- ═══════════════ RIGHT COLUMN: BOQ Info + Generate ═══════════════ -->
+      <div class="col-lg-5">
+
+        <!-- Generate Button (sticky) -->
+        <div class="card mb-3 shadow" style="border:2px solid #C62828; position:sticky; top:70px; z-index:10;">
+          <div class="card-body text-center py-3">
+            <p class="text-muted small mb-2">
+              <i class="fas fa-info-circle mr-1"></i>
+              Edit any fields on the left, then click below to generate the PDF.
+            </p>
+            <button type="submit" class="btn btn-block btn-lg" id="generateBtn"
+                    style="background:linear-gradient(135deg,#C62828,#E53935);color:white;font-weight:bold;font-size:1rem;">
+              <i class="fas fa-file-pdf mr-2"></i> Generate &amp; Download PDF
+            </button>
+            <a href="{{ url_for('quotation_pdf_professional', quote_ref=quote_ref) }}"
+               class="btn btn-block btn-outline-secondary btn-sm mt-2">
+              <i class="fas fa-bolt mr-1"></i> Quick Download (no edits)
+            </a>
+          </div>
+        </div>
+
+        <!-- BOQ Sheets Info (read-only) -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header text-white py-2" style="background:#00897B;">
+            <i class="fas fa-table mr-1"></i> <strong>BOQ Sheets (from Excel)</strong>
+          </div>
+          <div class="card-body py-2 px-3">
+            <p class="text-muted small mb-2">The BOQ item details come directly from the uploaded Excel file and are not editable here. To change item descriptions or prices, update the Excel file and re-upload it.</p>
+            {% if boq_sheet_names %}
+            <ul class="list-group list-group-flush">
+              {% for name in boq_sheet_names %}
+              <li class="list-group-item px-0 py-1 d-flex align-items-center" style="background:transparent;">
+                <i class="fas fa-file-excel text-success mr-2" style="font-size:0.85rem;"></i>
+                <span class="small">{{ name }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted small mb-0"><i class="fas fa-exclamation-triangle text-warning mr-1"></i> No BOQ sheets found in the Excel file.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Live Summary Preview -->
+        <div class="card mb-3 shadow-sm">
+          <div class="card-header py-2" style="background:#F3F0FA; border-left:4px solid #4B2D8F;">
+            <i class="fas fa-eye mr-1" style="color:#4B2D8F;"></i> <strong style="color:#4B2D8F;">Summary Preview</strong>
+          </div>
+          <div class="card-body py-2 px-3">
+            <table class="table table-sm table-bordered mb-0" style="font-size:0.82rem;">
+              <thead style="background:#4B2D8F; color:white;">
+                <tr>
+                  <th style="width:40px;">#</th>
+                  <th>System</th>
+                  <th class="text-right">Total (SAR)</th>
+                </tr>
+              </thead>
+              <tbody id="summaryPreview">
+                {% for sys in systems_list %}
+                <tr class="{{ 'font-weight-bold' if sys.is_summary else '' }}"
+                    style="{{ 'background:#EDE7F6;' if sys.is_summary else '' }}">
+                  <td class="text-center">{{ sys.idx }}</td>
+                  <td>{{ sys.name }}</td>
+                  <td class="text-right">
+                    {% if sys.total %}
+                      {% if sys.total is number %}
+                        {{ "{:,.2f}".format(sys.total|float) }}
+                      {% else %}
+                        {{ sys.total }}
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /col-lg-5 -->
+    </div><!-- /row -->
+
+    <!-- Bottom generate button -->
+    <div class="text-center mt-2 mb-4">
+      <button type="submit" class="btn btn-danger btn-lg px-5" id="generateBtn2">
+        <i class="fas fa-file-pdf mr-2"></i> Generate &amp; Download PDF
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<style>
+  .card-header { font-size: 0.88rem; }
+  .form-control-sm { font-size: 0.82rem; }
+  .table td, .table th { vertical-align: middle; font-size: 0.82rem; }
+  input.border-0:focus { box-shadow: 0 0 0 2px rgba(75,45,143,0.25); border-radius: 3px; }
+  #generateBtn:hover, #generateBtn2:hover { opacity: 0.92; transform: translateY(-1px); transition: all 0.15s; }
+</style>
+
+<script>
+function removeRow(btn) {
+  btn.closest('tr').remove();
+}
+
+function addSystemRow() {
+  var tbody = document.getElementById('systemsTbody');
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="text" class="form-control form-control-sm border-0 text-center" name="sys_idx[]" placeholder="#"></td>' +
+    '<td><input type="text" class="form-control form-control-sm border-0" name="sys_name[]" placeholder="System name..."></td>' +
+    '<td><input type="text" class="form-control form-control-sm border-0 text-right sys-total" name="sys_total[]" placeholder="0.00"></td>' +
+    '<td class="text-center"><input type="hidden" name="sys_is_summary[]" value="0"><span class="badge badge-primary">System</span></td>' +
+    '<td class="text-center"><button type="button" class="btn btn-link btn-sm p-0 text-danger" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>';
+  tbody.appendChild(tr);
+}
+
+function addTermRow() {
+  var tbody = document.getElementById('termsTbody');
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td><input type="text" class="form-control form-control-sm border-0 font-weight-bold" name="term_key[]" placeholder="Label..."></td>' +
+    '<td><input type="text" class="form-control form-control-sm border-0" name="term_value[]" placeholder="Value..."></td>' +
+    '<td class="text-center"><button type="button" class="btn btn-link btn-sm p-0 text-danger" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>';
+  tbody.appendChild(tr);
+}
+
+// Show loading state on form submit
+document.getElementById('pdfForm').addEventListener('submit', function() {
+  var btns = document.querySelectorAll('#generateBtn, #generateBtn2');
+  btns.forEach(function(btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Generating PDF...';
+  });
+  setTimeout(function() {
+    btns.forEach(function(btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i> Generate &amp; Download PDF';
+    });
+  }, 8000);
+});
+</script>
+{% endblock %}
