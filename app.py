@@ -5803,25 +5803,43 @@ Rules:
 
         def _ai_batch_call(batch):
             """Call AI for one batch; returns dict code -> {product_specs, required_specs}."""
+            import re as _re, traceback as _tb, sys as _sys
             _item_txt = '\n'.join(
-                f"- Code: {it['code']} | Description: {it['desc'][:110]}"
+                f"- Code: {it['code'].strip()} | Description: {it['desc'][:110]}"
                 for it in batch
             )
+            _codes_list = ', '.join(repr(it['code'].strip()) for it in batch)
             _prompt = (
                 "You are a certified ICT/security/building-systems technical engineer.\n"
-                "For each product below provide:\n"
-                "  1. product_specs  — 6 actual product specification bullets\n"
-                "  2. required_specs — 5 project/client requirement bullets\n\n"
-                'Return ONLY valid JSON:\n{"items":[{"code":"<code>",'
-                '"product_specs":["Name: value",...6],'
-                '"required_specs":["Req: detail",...5]}]}\n\n'
-                "Rules:\n"
-                "- product_specs: format \"SpecName: value\" EXACTLY 6 bullets\n"
-                "- required_specs: format \"Requirement: detail\" EXACTLY 5 bullets\n"
-                "- Each bullet max 18 words\n\n"
+                f"Return technical specifications for EXACTLY these {len(batch)} products.\n"
+                f"Product codes: {_codes_list}\n\n"
+                "For EACH product provide:\n"
+                "  - product_specs: 6 specific technical spec bullets (format 'Name: value')\n"
+                "  - required_specs: 5 project requirement bullets (format 'Requirement: detail')\n\n"
+                "IMPORTANT: Each bullet must be specific to that exact product model. No generic text.\n"
+                "Return ONLY valid JSON — no markdown, no extra text:\n"
+                '{\"items\":[{\"code\":\"exact_code_as_given\",'
+                '\"product_specs\":[\"Name: val\",...x6],'
+                '\"required_specs\":[\"Req: detail\",...x5]}]}\n\n'
                 f"Products:\n{_item_txt}"
             )
             _result = {}
+            _code_map       = {it['code'].strip(): it for it in batch}
+            _code_map_lower = {k.lower(): k for k in _code_map}
+
+            def _extract_json(raw):
+                s = raw.strip()
+                if s.startswith('```'):
+                    s = '\n'.join(s.split('\n')[1:])
+                if '```' in s:
+                    s = s[:s.rfind('```')]
+                s = s.strip()
+                start = s.find('{')
+                end   = s.rfind('}')
+                if start != -1 and end != -1 and end > start:
+                    s = s[start:end+1]
+                return _tjson.loads(s)
+
             try:
                 if _toai is None:
                     raise RuntimeError("openai not available")
@@ -5829,46 +5847,56 @@ Rules:
                     api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
                     base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
                 )
+                _max_tok = max(2000, min(len(batch) * 220 + 400, 8000))
                 _resp = _cl.chat.completions.create(
                     model='gpt-4o-mini',
                     messages=[{'role': 'user', 'content': _prompt}],
-                    max_tokens=2500,
-                    temperature=0.25,
+                    max_tokens=_max_tok,
+                    temperature=0.3,
                 )
-                _raw = _resp.choices[0].message.content.strip()
-                if _raw.startswith('```'):
-                    _raw = '\n'.join(_raw.split('\n')[1:])
-                if '```' in _raw:
-                    _raw = _raw[:_raw.rfind('```')]
-                _parsed = _tjson.loads(_raw.strip())
+                _raw = _resp.choices[0].message.content
+                _parsed = _extract_json(_raw)
                 for _entry in _parsed.get('items', []):
-                    _result[_entry.get('code', '').strip()] = {
+                    _ret_code = _entry.get('code', '').strip()
+                    _canonical = _ret_code if _ret_code in _code_map else _code_map_lower.get(_ret_code.lower(), _ret_code)
+                    _result[_canonical] = {
                         'product_specs':  _entry.get('product_specs', [])[:6],
                         'required_specs': _entry.get('required_specs', [])[:5],
                     }
-            except Exception:
+            except Exception as _exc:
+                _sys.stderr.write(f"[PPTX AI] batch of {len(batch)} failed ({type(_exc).__name__}: {_exc})\n")
+                _sys.stderr.write(_tb.format_exc())
+                _sys.stderr.flush()
                 for _uti in batch:
-                    _result[_uti['code'].strip()] = {
-                        'product_specs': [
-                            'Standard: Meets relevant IEC/ISO international standards',
-                            'Build Quality: Commercial-grade, factory tested and certified',
-                            'Operating Temp: -10\u00b0C to +50\u00b0C standard range',
-                            'Power Supply: Compliant with regional electrical standards',
-                            'Dimensions: As per manufacturer datasheet',
-                            'Warranty: Full manufacturer warranty included',
-                        ],
-                        'required_specs': [
-                            'Compliance: Must conform to applicable IEC/ISO standards',
-                            'Certification: CE, RoHS, or equivalent regional certification required',
-                            'Environment: Suitable for installation conditions as applicable',
-                            'Quality: Commercial grade with documented QA/QC process',
-                            'Approval: Approved manufacturer on project approved vendor list',
-                        ],
-                    }
+                    _uc = _uti['code'].strip()
+                    _ud = _uti['desc']
+                    try:
+                        if _toai is None:
+                            raise RuntimeError("no client")
+                        _cl2 = _toai.OpenAI(
+                            api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+                            base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+                        )
+                        _pr2 = (
+                            f"Technical specs for: {_uc} — {_ud[:120]}\n"
+                            'Return ONLY JSON: {"product_specs":["Name: val",...x6],"required_specs":["Req: det",...x5]}'
+                        )
+                        _r2 = _cl2.chat.completions.create(
+                            model='gpt-4o-mini',
+                            messages=[{'role': 'user', 'content': _pr2}],
+                            max_tokens=700, temperature=0.3,
+                        )
+                        _p2 = _extract_json(_r2.choices[0].message.content)
+                        _result[_uc] = {
+                            'product_specs':  _p2.get('product_specs', [])[:6],
+                            'required_specs': _p2.get('required_specs', [])[:5],
+                        }
+                    except Exception:
+                        pass
             return _result
 
-        # Split into batches of 25 and call in parallel
-        BATCH_SZ = 25
+        # Smaller batch size = fewer tokens per call = less chance of truncation
+        BATCH_SZ = 10
         _batches  = [_all_items_list[i:i+BATCH_SZ]
                      for i in range(0, len(_all_items_list), BATCH_SZ)]
         _global_tdata = {}   # code -> {product_specs, required_specs}
