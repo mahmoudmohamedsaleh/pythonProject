@@ -6359,7 +6359,7 @@ def quotation_pdf_professional(quote_ref):
         MARGINS = 1.8*cm
         doc = SimpleDocTemplate(buf, pagesize=A4,
                                 leftMargin=MARGINS, rightMargin=MARGINS,
-                                topMargin=1.5*cm, bottomMargin=2*cm,
+                                topMargin=1.8*cm, bottomMargin=2*cm,
                                 title=f"Quotation {quote_ref}")
         BW = W - 2*MARGINS  # body width
         story = []
@@ -6388,66 +6388,74 @@ def quotation_pdf_professional(quote_ref):
             return rows
 
         # ══════════════════ COVER PAGE ════════════════════════════════════
-        # -- Top header: logo | spacer | doc info
+        # -- Top header: logo left | doc info right with purple accent box
         try:
             logo_img = RLImage(os.path.join(os.path.dirname(__file__), 'static', 'ejt.png'),
-                               width=3.2*cm, height=1.1*cm)
+                               width=3.6*cm, height=1.25*cm)
         except Exception:
             logo_img = _p('<b>EJ TECH</b>', _ps('lg', fontName='Helvetica-Bold', fontSize=14, textColor=C_PURPLE))
 
-        doc_info = Table([
-            [_p(f"<b>Date:</b> {cover.get('date','')}", S_BODY)],
-            [_p(f"<b>Quote Ref:</b> {cover.get('quoteref','')}", _ps('qr', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE))],
-            [_p(f"<b>Eng. Ref:</b> {cover.get('engref','')}", S_BODY)],
-        ], colWidths=[BW - 5*cm])
-        hdr_tbl = Table([[logo_img, _p(''), doc_info]], colWidths=[3.5*cm, 2*cm, BW-5.5*cm])
+        doc_info_rows = [
+            [_p(f"<b>Date:</b> {cover.get('date','')}", _ps('di1', fontSize=9, textColor=C_DARK))],
+            [_p(f"<b>Quote Ref:</b> {cover.get('quoteref','')}", _ps('di2', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE))],
+        ]
+        if cover.get('engref'):
+            doc_info_rows.append([_p(f"<b>Eng. Ref:</b> {cover.get('engref','')}", _ps('di3', fontSize=9, textColor=C_DARK))])
+        doc_info_inner = Table(doc_info_rows, colWidths=[BW-5.5*cm])
+        doc_info_inner.setStyle(TableStyle([('PADDING',(0,0),(-1,-1),3),('LEFTPADDING',(0,0),(-1,-1),8)]))
+        doc_info_box = Table([[doc_info_inner]], colWidths=[BW-5.5*cm])
+        doc_info_box.setStyle(TableStyle([
+            ('BOX',(0,0),(-1,-1),1,C_PURPLE),
+            ('BACKGROUND',(0,0),(-1,-1),C_GREY_HDR),
+            ('PADDING',(0,0),(-1,-1),0),
+        ]))
+        hdr_tbl = Table([[logo_img, _p(''), doc_info_box]], colWidths=[3.8*cm, 1.2*cm, BW-5*cm])
         hdr_tbl.setStyle(TableStyle([
             ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ('LINEBELOW',(0,0),(-1,0),1.5,C_PURPLE),
-            ('BOTTOMPADDING',(0,0),(-1,0),8),('TOPPADDING',(0,0),(-1,0),4),
+            ('LINEBELOW',(0,0),(-1,0),2,C_PURPLE),
+            ('LINEBELOW',(0,0),(-1,0),0.5,C_GOLD),
+            ('BOTTOMPADDING',(0,0),(-1,0),6),('TOPPADDING',(0,0),(-1,0),3),
         ]))
         story.append(hdr_tbl)
-        story.append(Spacer(1, 0.4*cm))
+        story.append(Spacer(1, 0.28*cm))
 
-        # -- Client info grid
+        # -- Client info grid (label cells with purple background)
+        S_LBL = _ps('lbl', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE)
         ci = Table([
-            [_p('<b>To:</b>', S_BOLD), _p(cover.get('to',''), S_BODY),
-             _p('<b>Attn.:</b>', S_BOLD), _p(cover.get('attn',''), S_BODY)],
-            [_p('<b>From:</b>', S_BOLD), _p(cover.get('frm',''), S_BODY),
-             _p('<b>Contact:</b>', S_BOLD), _p(cover.get('cont',''), S_BODY)],
-        ], colWidths=[2.3*cm, 5.5*cm, 2.3*cm, BW-10.1*cm])
+            [_p('To:', S_LBL), _p(cover.get('to',''), S_BODY),
+             _p('Attn.:', S_LBL), _p(cover.get('attn',''), S_BODY)],
+            [_p('From:', S_LBL), _p(cover.get('frm',''), S_BODY),
+             _p('Contact:', S_LBL), _p(cover.get('cont',''), S_BODY)],
+        ], colWidths=[1.8*cm, 6*cm, 1.9*cm, BW-9.7*cm])
         ci.setStyle(TableStyle([
-            ('BOX',(0,0),(-1,-1),0.5,C_PURPLE2),
+            ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
             ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#CCCCCC')),
-            ('BACKGROUND',(0,0),(0,-1),C_GREY_HDR),
-            ('BACKGROUND',(2,0),(2,-1),C_GREY_HDR),
-            ('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
-            ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),
+            ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
+            ('BACKGROUND',(2,0),(2,-1),C_PURPLE),
             ('PADDING',(0,0),(-1,-1),5),('FONTSIZE',(0,0),(-1,-1),9),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, C_GREY_ROW]),
         ]))
         story.append(ci)
-        story.append(Spacer(1, 0.35*cm))
+        story.append(Spacer(1, 0.22*cm))
         story.extend(_sub_scope_block())
-        story.append(Spacer(1, 0.45*cm))
+        story.append(Spacer(1, 0.28*cm))
 
         # -- Letter body
         story.append(_p('Dear Sir,', S_BOLD))
-        story.append(Spacer(1, 0.2*cm))
+        story.append(Spacer(1, 0.12*cm))
         story.append(_p('We thank you for your subject enquiry and have pleasure in putting together a comprehensive '
                         'proposal for the same. We hope this is in line with your requirements and that you will '
                         'favour us with your order.', S_BODY))
-        story.append(Spacer(1, 0.45*cm))
+        story.append(Spacer(1, 0.28*cm))
 
         # -- Summary table
         story.append(_header_band('SUMMARY'))
-        story.append(Spacer(1, 0.1*cm))
+        story.append(Spacer(1, 0.08*cm))
 
         sum_hdr = [_p('No.', S_CODHD), _p('System', S_CODHD),
                    _p('Total Price (SAR)', _ps('sph', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE, alignment=TA_RIGHT))]
-        sum_scope = [_p('', S_BODY),
-                     _p(cover.get('scope',''), _ps('ssc', fontSize=8, textColor=C_DARK)),
-                     _p('', S_BODY)]
-        sum_data = [sum_hdr, sum_scope]
+        sum_data = [sum_hdr]
 
         systems = cover.get('systems', [])
         for sys in systems:
@@ -6492,28 +6500,29 @@ def quotation_pdf_professional(quote_ref):
         sum_tbl = Table(sum_data, colWidths=[1.5*cm, BW-7*cm, 5.5*cm])
         sum_tbl.setStyle(sum_ts)
         story.append(sum_tbl)
-        story.append(Spacer(1, 0.4*cm))
+        story.append(Spacer(1, 0.2*cm))
 
         # -- Terms & Conditions
         terms = cover.get('terms', {})
         if terms:
             story.append(_header_band('TERMS & CONDITIONS'))
-            story.append(Spacer(1, 0.1*cm))
+            story.append(Spacer(1, 0.08*cm))
             t_rows = []
             for k, v in terms.items():
                 t_rows.append([_p(k, _ps('tk', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE)),
                                 _p(v, _ps('tv', fontSize=8.5, leading=12))])
             terms_tbl = Table(t_rows, colWidths=[3.2*cm, BW-3.2*cm])
             terms_tbl.setStyle(TableStyle([
-                ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),
+                ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
                 ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
-                ('BACKGROUND',(0,0),(0,-1),C_GREY_HDR),
+                ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
+                ('TEXTCOLOR',(0,0),(0,-1),C_WHITE),
                 ('VALIGN',(0,0),(-1,-1),'TOP'),
-                ('PADDING',(0,0),(-1,-1),5),
-                ('ROWBACKGROUNDS',(0,0),(-1,-1),[C_GREY_ROW, C_WHITE]),
+                ('PADDING',(0,0),(-1,-1),4),
+                ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_GREY_ROW, C_WHITE]),
             ]))
             story.append(terms_tbl)
-            story.append(Spacer(1, 0.3*cm))
+            story.append(Spacer(1, 0.18*cm))
         elif not terms:
             # Default terms if none in Excel
             default_terms = [
@@ -6525,27 +6534,20 @@ def quotation_pdf_professional(quote_ref):
                 ('Notes:', 'Quotation based on the BOQ, any variation from the BOQ will be charged extra.'),
             ]
             story.append(_header_band('TERMS & CONDITIONS'))
-            story.append(Spacer(1, 0.1*cm))
-            t_rows = [[_p(k, _ps('tk', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE)),
-                       _p(v, _ps('tv', fontSize=8.5, leading=12))] for k,v in default_terms]
+            story.append(Spacer(1, 0.08*cm))
+            t_rows = [[_p(k, _ps('tk', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE)),
+                       _p(v, _ps('tv', fontSize=8.5, leading=11))] for k,v in default_terms]
             dt = Table(t_rows, colWidths=[3.2*cm, BW-3.2*cm])
             dt.setStyle(TableStyle([
-                ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
-                ('BACKGROUND',(0,0),(0,-1),C_GREY_HDR),('VALIGN',(0,0),(-1,-1),'TOP'),
-                ('PADDING',(0,0),(-1,-1),5),('ROWBACKGROUNDS',(0,0),(-1,-1),[C_GREY_ROW,C_WHITE]),
+                ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
+                ('BACKGROUND',(0,0),(0,-1),C_PURPLE),('TEXTCOLOR',(0,0),(0,-1),C_WHITE),
+                ('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('PADDING',(0,0),(-1,-1),4),('ROWBACKGROUNDS',(1,0),(-1,-1),[C_GREY_ROW,C_WHITE]),
             ]))
             story.append(dt)
-            story.append(Spacer(1, 0.3*cm))
+            story.append(Spacer(1, 0.18*cm))
 
-        # -- Closing & signatures
-        story.append(_p('In the meantime, should you have any questions or need to discuss the commercials in greater detail, '
-                        'please do not hesitate to contact the undersigned.', S_BODY))
-        story.append(Spacer(1, 0.12*cm))
-        story.append(_p('We thank you for your support to EJ TECH and look forward to the pleasure of doing business.', S_BODY))
-        story.append(Spacer(1, 0.15*cm))
-        story.append(_p('With best regards,', S_BODY))
-        story.append(Spacer(1, 0.55*cm))
-
+        # -- Closing & signatures (kept together to stay on page 1)
         prep_name  = cover.get('prep_by_name','')  or proj.get('presale_eng','')
         prep_title = cover.get('prep_by_title','') or 'Pre-Sales Engineer'
         mgr_name   = cover.get('mgr_name','')  or proj.get('sales_eng','')
@@ -6553,9 +6555,9 @@ def quotation_pdf_professional(quote_ref):
 
         def _sig_col(label, name, title):
             return Table([
-                [_p(label, S_BOLD)],
-                [Spacer(1, 0.5*cm)],
-                [_p(name, _ps('sn', fontName='Helvetica-Bold', fontSize=9.5, textColor=C_PURPLE))],
+                [_p(label, _ps('slbl', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE2))],
+                [Spacer(1, 0.35*cm)],
+                [_p(name, _ps('sn', fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE))],
                 [_p(title, _ps('st', fontSize=8.5, textColor=colors.HexColor('#555555')))],
             ], colWidths=[BW/2-1*cm])
 
@@ -6564,11 +6566,22 @@ def quotation_pdf_professional(quote_ref):
                         colWidths=[BW/2, BW/2])
         sig_tbl.setStyle(TableStyle([
             ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('LINEABOVE',(0,0),(0,0),0.5,C_PURPLE),
-            ('LINEABOVE',(1,0),(1,0),0.5,C_PURPLE),
-            ('TOPPADDING',(0,0),(-1,-1),4),
+            ('LINEABOVE',(0,0),(0,0),1.5,C_PURPLE),
+            ('LINEABOVE',(1,0),(1,0),1.5,C_PURPLE),
+            ('TOPPADDING',(0,0),(-1,-1),5),
         ]))
-        story.append(sig_tbl)
+
+        closing_block = KeepTogether([
+            _p('In the meantime, should you have any questions or need to discuss the commercials in greater detail, '
+               'please do not hesitate to contact the undersigned.', S_BODY),
+            Spacer(1, 0.1*cm),
+            _p('We thank you for your support to EJ TECH and look forward to the pleasure of doing business.', S_BODY),
+            Spacer(1, 0.1*cm),
+            _p('With best regards,', S_BODY),
+            Spacer(1, 0.4*cm),
+            sig_tbl,
+        ])
+        story.append(closing_block)
 
         # ══════════════════ BOQ PAGES ═════════════════════════════════════
         COL_W = [0.8*cm, 2.8*cm, BW-12.2*cm, 1.3*cm, 1.2*cm, 2.3*cm, 2.8*cm]
@@ -6690,19 +6703,19 @@ def quotation_pdf_professional(quote_ref):
         # ── Page header/footer callback ─────────────────────────────────
         def on_page(canv, doc):
             canv.saveState()
+            # Top purple stripe — all pages
+            canv.setFillColor(C_PURPLE)
+            canv.rect(0, H - 0.75*cm, W, 0.75*cm, fill=1, stroke=0)
+            canv.setFillColor(C_GOLD)
+            canv.rect(0, H - 0.8*cm, W, 0.06*cm, fill=1, stroke=0)
+            # Bottom footer
             canv.setFont('Helvetica', 7.5)
-            canv.setFillColor(colors.HexColor('#888888'))
+            canv.setFillColor(colors.HexColor('#666666'))
             canv.drawString(MARGINS, 0.9*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
             canv.drawRightString(W - MARGINS, 0.9*cm, f"Page {doc.page}")
             canv.setStrokeColor(C_PURPLE2)
             canv.setLineWidth(0.5)
             canv.line(MARGINS, 1.2*cm, W - MARGINS, 1.2*cm)
-            # Top logo stripe on every page except first (handled inline)
-            if doc.page > 1:
-                canv.setFillColor(C_PURPLE)
-                canv.rect(0, H-0.6*cm, W, 0.6*cm, fill=1, stroke=0)
-                canv.setFillColor(C_GOLD)
-                canv.rect(0, H-0.65*cm, W, 0.05*cm, fill=1, stroke=0)
             canv.restoreState()
 
         doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
