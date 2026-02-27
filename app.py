@@ -6157,6 +6157,569 @@ def download_quotation(quote_ref):
         flash('Quotation not found!', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
+@app.route('/quotation_pdf_professional/<path:quote_ref>', methods=['GET'])
+@login_required
+def quotation_pdf_professional(quote_ref):
+    """Generate a professional formatted PDF quotation from the Excel BOQ data."""
+    if not user_has_permission('download_quotation'):
+        flash('You do not have permission to download quotations.', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
+
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM projects WHERE quote_ref=?", (quote_ref,))
+    proj = c.fetchone()
+    conn.close()
+
+    if not proj or not proj['quotation']:
+        flash('Quotation file not found.', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm
+        from reportlab.lib import colors
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                        TableStyle, PageBreak, KeepTogether)
+        from reportlab.platypus import Image as RLImage
+        import openpyxl
+
+        W, H = A4
+
+        # ── Brand colours ──────────────────────────────────────────────────
+        C_PURPLE   = colors.HexColor('#4B2D8F')
+        C_PURPLE2  = colors.HexColor('#7B5EA7')
+        C_GOLD     = colors.HexColor('#F9A825')
+        C_TEAL     = colors.HexColor('#00897B')
+        C_DARK     = colors.HexColor('#212121')
+        C_GREY_HDR = colors.HexColor('#F3F0FA')
+        C_GREY_ROW = colors.HexColor('#F8F8F8')
+        C_SEC_BG   = colors.HexColor('#EDE7F6')
+        C_WHITE    = colors.white
+
+        def _ps(name, **kw):
+            base = ParagraphStyle(name, fontName='Helvetica', fontSize=9, textColor=C_DARK, leading=12)
+            for k, v in kw.items():
+                setattr(base, k, v)
+            return base
+
+        S_BODY  = _ps('body')
+        S_BOLD  = _ps('bold', fontName='Helvetica-Bold')
+        S_SUBHD = _ps('subhd', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE2)
+        S_WHITE = _ps('wht', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_CENTER)
+        S_ITEM  = _ps('item', fontSize=8.5, leading=11)
+        S_CODE  = _ps('code', fontSize=8, fontName='Helvetica')
+        S_RIGHT = _ps('right', alignment=TA_RIGHT)
+        S_CENT  = _ps('cent', alignment=TA_CENTER)
+        S_NUM   = _ps('num', fontSize=8.5, alignment=TA_RIGHT)
+        S_SEC   = _ps('sec', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE, alignment=TA_CENTER)
+        S_CODHD = _ps('codhd', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_CENTER)
+        S_GREY  = _ps('grey', fontSize=8, textColor=colors.HexColor('#666666'))
+
+        def _p(text, style=None):
+            return Paragraph(str(text) if text else '', style or S_BODY)
+
+        def _fmt(v):
+            try: return f'{float(v):,.2f}'
+            except: return str(v) if v else ''
+
+        def _logo():
+            lp = os.path.join(os.path.dirname(__file__), 'static', 'ejt.png')
+            try: return RLImage(lp, width=3.2*cm, height=1.1*cm)
+            except: return _p('<b>EJ TECH</b>', _ps('lg', fontName='Helvetica-Bold', fontSize=13, textColor=C_PURPLE))
+
+        # ── Parse COVER PAGE ──────────────────────────────────────────────
+        wb = openpyxl.load_workbook(BytesIO(proj['quotation']), data_only=True)
+        cov_ws = next((wb[s] for s in wb.sheetnames if 'COVER' in s.upper()), None)
+
+        def _parse_cover(ws):
+            cells = {}
+            if ws is None: return {}
+            for row in ws.iter_rows():
+                for cell in row:
+                    if cell.value is not None:
+                        cells[(cell.row, cell.column)] = str(cell.value).strip()
+            def g(r, c): return cells.get((r, c), '')
+            data = {
+                'date':    g(1,1).replace('Date:','').strip(),
+                'quoteref': g(1,3).replace('Quote Ref.:','').strip() or quote_ref,
+                'engref':  g(1,4).replace('Eng. Ref:','').replace('Eng. Ref. :','').strip(),
+                'to':      g(2,1).replace('To:','').strip(),
+                'attn':    g(2,3).replace('Attn.:','').strip(),
+                'frm':     g(2,4).replace('From:','').strip(),
+                'cont':    g(3,4).replace('Cont.:','').strip(),
+                'sub': '', 'scope': '', 'systems': [], 'terms': {},
+                'prep_by_label':'Prepared By:', 'mgr_label':'Managed by:',
+                'prep_by_name':'','mgr_name':'','prep_by_title':'','mgr_title':'',
+            }
+            for (r, c), v in sorted(cells.items()):
+                if v.startswith('SUB.:'):   data['sub']   = v[5:].strip()
+                elif v.startswith('SCOPE:'): data['scope'] = v[6:].strip()
+            in_sum = False
+            for r in range(1, 70):
+                c1 = cells.get((r,1),''); c2 = cells.get((r,2),''); c4 = cells.get((r,4),'')
+                if c1 == 'SUMMARY': in_sum = True; continue
+                if in_sum and c1 not in ('No.','') and not c1.startswith('Supply') and not c1.startswith('\xa0'):
+                    if c1.strip().lstrip('0123456789') == '' and c4:
+                        data['systems'].append({'idx':c1,'name':c2,'total':c4})
+                    elif c1 in ('Total (SAR)','VAT (15%)','Grand Total') and c4:
+                        data['systems'].append({'idx':'','name':c1,'total':c4,'is_summary':True})
+                # Terms
+                if c1 in ('Price','Payment Terms','Offer Validity','Delivery Terms','Scope of Work','Warranty','Notes:','Exclusions'):
+                    c2v = cells.get((r,2),'')
+                    if c2v: data['terms'][c1] = c2v
+                # Signatures
+                if 'Prepared By' in c2:
+                    data['prep_by_label'] = c2; data['mgr_label'] = cells.get((r,3),'Managed by:')
+                    data['prep_by_name']  = cells.get((r+1,2),''); data['mgr_name'] = cells.get((r+1,3),'')
+                    data['prep_by_title'] = cells.get((r+2,2),''); data['mgr_title'] = cells.get((r+2,3),'')
+            return data
+
+        cover = _parse_cover(cov_ws)
+        if not cover.get('sub'):
+            cover['sub'] = f"PROPOSAL OF {proj.get('system','')} SYSTEM For {proj.get('project_name','')}"
+        if not cover.get('scope'):
+            cover['scope'] = proj.get('sow','Supply, Installation, Testing and Commissioning')
+        if not cover.get('quoteref'):
+            cover['quoteref'] = quote_ref
+        if not cover.get('prep_by_name'):
+            cover['prep_by_name'] = proj.get('presale_eng','')
+        if not cover.get('mgr_name'):
+            cover['mgr_name'] = proj.get('sales_eng','')
+
+        # ── Parse BOQ sheets ──────────────────────────────────────────────
+        SKIP_SHEETS = {'COVER PAGE','COVER PAGE ','COVER PAGE  ','COVER','SUMMARY','INDEX','TOC'}
+
+        def _parse_boq_sheet(ws):
+            for rr in ws.iter_rows(min_row=1, max_row=20):
+                vals = [str(c.value).upper().strip() if c.value else '' for c in rr]
+                row_text = ' '.join(vals)
+                has_desc = 'DESCRIPTION' in row_text or 'ITEM DESC' in row_text
+                has_qty  = 'QTY' in row_text or 'QUANTITY' in row_text
+                has_sn   = any(v in ('S.#','S.NO','NO','S/N','#','NO.') for v in vals)
+                if not (has_desc and (has_qty or has_sn)): continue
+                cm = dict(sn=None,code=None,desc=None,uom=None,qty=None,uprice=None,total=None)
+                for cell in rr:
+                    hv = str(cell.value).upper().strip() if cell.value else ''
+                    ci = cell.column
+                    if hv in ('S.#','S.NO','NO','S/N','#','NO.'): cm['sn'] = ci
+                    elif ('CODE' in hv or 'PART' in hv or 'P/N' in hv or hv=='PN') and cm['code'] is None: cm['code'] = ci
+                    elif 'DESC' in hv and cm['desc'] is None: cm['desc'] = ci
+                    elif hv in ('UOM','UNIT','U/M','U.O.M') and cm['uom'] is None: cm['uom'] = ci
+                    elif hv in ('QTY',"QUANTITY","Q\'TY") and cm['qty'] is None: cm['qty'] = ci
+                    elif ('UNIT PRICE' in hv or 'UNIT COST' in hv or hv in ('U.P','U/P')) and cm['uprice'] is None: cm['uprice'] = ci
+                    elif 'TOTAL' in hv and cm['total'] is None: cm['total'] = ci
+                if cm['desc']:
+                    return rr[0].row, cm
+            return None
+
+        def _read_boq_items(ws, hdr_idx, cm):
+            items = []
+            for row2 in ws.iter_rows(min_row=hdr_idx + 1):
+                dv = row2[cm['desc']-1].value if cm.get('desc') else None
+                if dv is None or str(dv).strip() == '': continue
+                ds = str(dv).strip()
+                if any(kw in ds.upper() for kw in ('GRAND TOTAL','VAT AMOUNT','TOTAL EXCL','TOTAL INCL','VALUE ADDED')): continue
+                def _n(col):
+                    if not col: return None
+                    raw = row2[col-1].value
+                    try: return float(raw) if raw is not None else None
+                    except: return None
+                def _s(col):
+                    if not col: return ''
+                    v = row2[col-1].value
+                    s = str(v).strip() if v is not None else ''
+                    return '' if s == 'None' else s
+                qv = _n(cm.get('qty')); upv = _n(cm.get('uprice'))
+                tv = _n(cm.get('total'))
+                if tv is None and qv and upv: tv = qv * upv
+                is_sec = (qv is None and upv is None)
+                items.append({'sn':_s(cm.get('sn')),'code':_s(cm.get('code')),'desc':ds,
+                              'uom':_s(cm.get('uom')),'qty':qv,'unit_price':upv,'total':tv,'is_section':is_sec})
+            return items
+
+        boq_sheets = []
+        for sname in wb.sheetnames:
+            if sname.upper().strip() in SKIP_SHEETS: continue
+            ws2 = wb[sname]
+            res = _parse_boq_sheet(ws2)
+            if res is None: continue
+            hdr_idx, cm = res
+            items = _read_boq_items(ws2, hdr_idx, cm)
+            priced = [it for it in items if it.get('total') and not it.get('is_section')]
+            if priced:
+                boq_sheets.append({'name': sname, 'items': items,
+                                   'grand_total': sum(it['total'] for it in priced)})
+
+        # ── Build PDF flowables ────────────────────────────────────────────
+        buf = BytesIO()
+        MARGINS = 1.8*cm
+        doc = SimpleDocTemplate(buf, pagesize=A4,
+                                leftMargin=MARGINS, rightMargin=MARGINS,
+                                topMargin=1.5*cm, bottomMargin=2*cm,
+                                title=f"Quotation {quote_ref}")
+        BW = W - 2*MARGINS  # body width
+        story = []
+
+        def _header_band(text, color=None):
+            color = color or C_PURPLE
+            return Table([[_p(text, _ps('hb', fontName='Helvetica-Bold', fontSize=9.5, textColor=C_WHITE, alignment=TA_CENTER))]],
+                         colWidths=[BW],
+                         style=TableStyle([('BACKGROUND',(0,0),(-1,-1),color),
+                                           ('PADDING',(0,0),(-1,-1),6),
+                                           ('ALIGN',(0,0),(-1,-1),'CENTER')]))
+
+        def _sub_scope_block():
+            sub  = cover.get('sub','')
+            scop = cover.get('scope','')
+            rows = []
+            if sub:
+                rows.append(Table([[_p(f'<b>SUB.:</b> {sub}', S_SUBHD)]],colWidths=[BW],
+                    style=TableStyle([('BACKGROUND',(0,0),(-1,-1),C_GREY_HDR),
+                                      ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('PADDING',(0,0),(-1,-1),5)])))
+                rows.append(Spacer(1, 0.15*cm))
+            if scop:
+                rows.append(Table([[_p(f'<b>SCOPE:</b> {scop}', S_BODY)]],colWidths=[BW],
+                    style=TableStyle([('BACKGROUND',(0,0),(-1,-1),C_GREY_HDR),
+                                      ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('PADDING',(0,0),(-1,-1),5)])))
+            return rows
+
+        # ══════════════════ COVER PAGE ════════════════════════════════════
+        # -- Top header: logo | spacer | doc info
+        try:
+            logo_img = RLImage(os.path.join(os.path.dirname(__file__), 'static', 'ejt.png'),
+                               width=3.2*cm, height=1.1*cm)
+        except Exception:
+            logo_img = _p('<b>EJ TECH</b>', _ps('lg', fontName='Helvetica-Bold', fontSize=14, textColor=C_PURPLE))
+
+        doc_info = Table([
+            [_p(f"<b>Date:</b> {cover.get('date','')}", S_BODY)],
+            [_p(f"<b>Quote Ref:</b> {cover.get('quoteref','')}", _ps('qr', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE))],
+            [_p(f"<b>Eng. Ref:</b> {cover.get('engref','')}", S_BODY)],
+        ], colWidths=[BW - 5*cm])
+        hdr_tbl = Table([[logo_img, _p(''), doc_info]], colWidths=[3.5*cm, 2*cm, BW-5.5*cm])
+        hdr_tbl.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('LINEBELOW',(0,0),(-1,0),1.5,C_PURPLE),
+            ('BOTTOMPADDING',(0,0),(-1,0),8),('TOPPADDING',(0,0),(-1,0),4),
+        ]))
+        story.append(hdr_tbl)
+        story.append(Spacer(1, 0.4*cm))
+
+        # -- Client info grid
+        ci = Table([
+            [_p('<b>To:</b>', S_BOLD), _p(cover.get('to',''), S_BODY),
+             _p('<b>Attn.:</b>', S_BOLD), _p(cover.get('attn',''), S_BODY)],
+            [_p('<b>From:</b>', S_BOLD), _p(cover.get('frm',''), S_BODY),
+             _p('<b>Contact:</b>', S_BOLD), _p(cover.get('cont',''), S_BODY)],
+        ], colWidths=[2.3*cm, 5.5*cm, 2.3*cm, BW-10.1*cm])
+        ci.setStyle(TableStyle([
+            ('BOX',(0,0),(-1,-1),0.5,C_PURPLE2),
+            ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#CCCCCC')),
+            ('BACKGROUND',(0,0),(0,-1),C_GREY_HDR),
+            ('BACKGROUND',(2,0),(2,-1),C_GREY_HDR),
+            ('FONTNAME',(0,0),(0,-1),'Helvetica-Bold'),
+            ('FONTNAME',(2,0),(2,-1),'Helvetica-Bold'),
+            ('PADDING',(0,0),(-1,-1),5),('FONTSIZE',(0,0),(-1,-1),9),
+        ]))
+        story.append(ci)
+        story.append(Spacer(1, 0.35*cm))
+        story.extend(_sub_scope_block())
+        story.append(Spacer(1, 0.45*cm))
+
+        # -- Letter body
+        story.append(_p('Dear Sir,', S_BOLD))
+        story.append(Spacer(1, 0.2*cm))
+        story.append(_p('We thank you for your subject enquiry and have pleasure in putting together a comprehensive '
+                        'proposal for the same. We hope this is in line with your requirements and that you will '
+                        'favour us with your order.', S_BODY))
+        story.append(Spacer(1, 0.45*cm))
+
+        # -- Summary table
+        story.append(_header_band('SUMMARY'))
+        story.append(Spacer(1, 0.1*cm))
+
+        sum_hdr = [_p('No.', S_CODHD), _p('System', S_CODHD),
+                   _p('Total Price (SAR)', _ps('sph', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE, alignment=TA_RIGHT))]
+        sum_scope = [_p('', S_BODY),
+                     _p(cover.get('scope',''), _ps('ssc', fontSize=8, textColor=C_DARK)),
+                     _p('', S_BODY)]
+        sum_data = [sum_hdr, sum_scope]
+
+        systems = cover.get('systems', [])
+        for sys in systems:
+            if sys.get('is_summary'):
+                nm = sys['name']
+                is_grand = (nm == 'Grand Total')
+                fst = _ps('sf', fontName='Helvetica-Bold',
+                           fontSize=10 if is_grand else 9,
+                           textColor=C_WHITE, alignment=TA_RIGHT)
+                nst = _ps('sn', fontName='Helvetica-Bold',
+                           fontSize=10 if is_grand else 9,
+                           textColor=C_WHITE)
+                sum_data.append([_p('', S_BODY), _p(nm, nst), _p(_fmt(sys['total']), fst)])
+            else:
+                sum_data.append([
+                    _p(sys['idx'], _ps('si', fontSize=9, alignment=TA_CENTER)),
+                    _p(sys['name'], S_ITEM),
+                    _p(_fmt(sys['total']), _ps('sv', fontSize=9, alignment=TA_RIGHT)),
+                ])
+
+        sum_ts = TableStyle([
+            ('BACKGROUND',(0,0),(-1,0), C_PURPLE),
+            ('TEXTCOLOR',(0,0),(-1,0), C_WHITE),
+            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+            ('FONTSIZE',(0,0),(-1,0), 9),
+            ('ALIGN',(0,1),(0,-1),'CENTER'),
+            ('ALIGN',(2,0),(2,-1),'RIGHT'),
+            ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),
+            ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
+            ('PADDING',(0,0),(-1,-1),5),
+            ('FONTSIZE',(0,1),(-1,-1), 9),
+            ('ROWBACKGROUNDS',(0,2),(-1,-1),[C_GREY_ROW, C_WHITE]),
+        ])
+        for i, sys in enumerate(systems, start=2):
+            if sys.get('is_summary'):
+                nm = sys['name']
+                bg = C_TEAL if nm=='Grand Total' else C_PURPLE2
+                sum_ts.add('BACKGROUND',(0,i),(-1,i),bg)
+                sum_ts.add('TEXTCOLOR',(0,i),(-1,i),C_WHITE)
+                sum_ts.add('FONTNAME',(0,i),(-1,i),'Helvetica-Bold')
+
+        sum_tbl = Table(sum_data, colWidths=[1.5*cm, BW-7*cm, 5.5*cm])
+        sum_tbl.setStyle(sum_ts)
+        story.append(sum_tbl)
+        story.append(Spacer(1, 0.4*cm))
+
+        # -- Terms & Conditions
+        terms = cover.get('terms', {})
+        if terms:
+            story.append(_header_band('TERMS & CONDITIONS'))
+            story.append(Spacer(1, 0.1*cm))
+            t_rows = []
+            for k, v in terms.items():
+                t_rows.append([_p(k, _ps('tk', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE)),
+                                _p(v, _ps('tv', fontSize=8.5, leading=12))])
+            terms_tbl = Table(t_rows, colWidths=[3.2*cm, BW-3.2*cm])
+            terms_tbl.setStyle(TableStyle([
+                ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),
+                ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
+                ('BACKGROUND',(0,0),(0,-1),C_GREY_HDR),
+                ('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('PADDING',(0,0),(-1,-1),5),
+                ('ROWBACKGROUNDS',(0,0),(-1,-1),[C_GREY_ROW, C_WHITE]),
+            ]))
+            story.append(terms_tbl)
+            story.append(Spacer(1, 0.3*cm))
+        elif not terms:
+            # Default terms if none in Excel
+            default_terms = [
+                ('Price', 'All prices are in Saudi Riyals. Any change in quantity will require a requote.'),
+                ('Payment Terms', '70% Advance, and 30% Before Delivery.'),
+                ('Offer Validity', '2 Weeks'),
+                ('Delivery Terms', '8-12 Weeks on receipt of confirmed PO and confirmation of payment terms.'),
+                ('Warranty', '24 months from the date of supply against manufacturing defects.'),
+                ('Notes:', 'Quotation based on the BOQ, any variation from the BOQ will be charged extra.'),
+            ]
+            story.append(_header_band('TERMS & CONDITIONS'))
+            story.append(Spacer(1, 0.1*cm))
+            t_rows = [[_p(k, _ps('tk', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE)),
+                       _p(v, _ps('tv', fontSize=8.5, leading=12))] for k,v in default_terms]
+            dt = Table(t_rows, colWidths=[3.2*cm, BW-3.2*cm])
+            dt.setStyle(TableStyle([
+                ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
+                ('BACKGROUND',(0,0),(0,-1),C_GREY_HDR),('VALIGN',(0,0),(-1,-1),'TOP'),
+                ('PADDING',(0,0),(-1,-1),5),('ROWBACKGROUNDS',(0,0),(-1,-1),[C_GREY_ROW,C_WHITE]),
+            ]))
+            story.append(dt)
+            story.append(Spacer(1, 0.3*cm))
+
+        # -- Closing & signatures
+        story.append(_p('In the meantime, should you have any questions or need to discuss the commercials in greater detail, '
+                        'please do not hesitate to contact the undersigned.', S_BODY))
+        story.append(Spacer(1, 0.12*cm))
+        story.append(_p('We thank you for your support to EJ TECH and look forward to the pleasure of doing business.', S_BODY))
+        story.append(Spacer(1, 0.15*cm))
+        story.append(_p('With best regards,', S_BODY))
+        story.append(Spacer(1, 0.55*cm))
+
+        prep_name  = cover.get('prep_by_name','')  or proj.get('presale_eng','')
+        prep_title = cover.get('prep_by_title','') or 'Pre-Sales Engineer'
+        mgr_name   = cover.get('mgr_name','')  or proj.get('sales_eng','')
+        mgr_title  = cover.get('mgr_title','') or 'Sales Engineer'
+
+        def _sig_col(label, name, title):
+            return Table([
+                [_p(label, S_BOLD)],
+                [Spacer(1, 0.5*cm)],
+                [_p(name, _ps('sn', fontName='Helvetica-Bold', fontSize=9.5, textColor=C_PURPLE))],
+                [_p(title, _ps('st', fontSize=8.5, textColor=colors.HexColor('#555555')))],
+            ], colWidths=[BW/2-1*cm])
+
+        sig_tbl = Table([[_sig_col('Prepared By:', prep_name, prep_title),
+                          _sig_col('Managed by:', mgr_name, mgr_title)]],
+                        colWidths=[BW/2, BW/2])
+        sig_tbl.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('LINEABOVE',(0,0),(0,0),0.5,C_PURPLE),
+            ('LINEABOVE',(1,0),(1,0),0.5,C_PURPLE),
+            ('TOPPADDING',(0,0),(-1,-1),4),
+        ]))
+        story.append(sig_tbl)
+
+        # ══════════════════ BOQ PAGES ═════════════════════════════════════
+        COL_W = [0.8*cm, 2.8*cm, BW-12.2*cm, 1.3*cm, 1.2*cm, 2.3*cm, 2.8*cm]
+        BOQ_HDR_STYLE = [
+            ('BACKGROUND',(0,0),(-1,0),C_PURPLE),
+            ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+            ('FONTSIZE',(0,0),(-1,0),8),
+            ('TEXTCOLOR',(0,0),(-1,0),C_WHITE),
+            ('ALIGN',(0,0),(0,-1),'CENTER'),
+            ('ALIGN',(3,0),(3,-1),'CENTER'),
+            ('ALIGN',(4,0),(4,-1),'RIGHT'),
+            ('ALIGN',(5,0),(5,-1),'RIGHT'),
+            ('ALIGN',(6,0),(6,-1),'RIGHT'),
+            ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),
+            ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
+            ('FONTSIZE',(0,1),(-1,-1),8.5),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('TOPPADDING',(0,0),(-1,-1),4),
+            ('BOTTOMPADDING',(0,0),(-1,-1),4),
+            ('LEFTPADDING',(0,0),(-1,-1),4),
+            ('RIGHTPADDING',(0,0),(-1,-1),4),
+        ]
+
+        for bs in boq_sheets:
+            story.append(PageBreak())
+
+            # Page sub-header
+            ph = Table([[
+                _p(f"<b>Date:</b> {cover.get('date','')}", S_BODY),
+                _p(f"<b>Quote Ref.:</b> {cover.get('quoteref','')}", _ps('qrp', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE, alignment=TA_RIGHT)),
+            ]], colWidths=[BW/2, BW/2])
+            ph.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),1,C_PURPLE),
+                                     ('PADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+            story.append(ph)
+            story.append(Spacer(1, 0.3*cm))
+            story.extend(_sub_scope_block())
+            story.append(Spacer(1, 0.35*cm))
+
+            # BOQ table
+            boq_hdr = [
+                _p('S.#', S_CODHD), _p('ITEM CODE', S_CODHD),
+                _p('ITEM DESCRIPTION', S_CODHD),
+                _p('UOM', S_CODHD), _p('QTY', _ps('qhd', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
+                _p('UNIT PRICE', _ps('uph', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
+                _p('TOTAL', _ps('tth', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
+            ]
+            tbl_data   = [boq_hdr]
+            style_cmds = list(BOQ_HDR_STYLE)
+            item_ctr   = 0
+            grand_tot  = 0.0
+            ri         = 1
+
+            for it in bs['items']:
+                is_sec  = it.get('is_section', False)
+                desc    = it.get('desc','')
+                code    = it.get('code','')
+                uom     = it.get('uom','')
+                qty     = it.get('qty')
+                up      = it.get('unit_price')
+                tot     = it.get('total')
+                sn      = it.get('sn','')
+
+                if is_sec:
+                    # Section / sub-header row (spans full width)
+                    tbl_data.append([
+                        _p('', S_BODY), _p('', S_BODY),
+                        _p(f'<b>{desc}</b>', S_SEC),
+                        _p('', S_BODY), _p('', S_BODY), _p('', S_BODY), _p('', S_BODY),
+                    ])
+                    style_cmds += [
+                        ('SPAN',(0,ri),(-1,ri)),
+                        ('BACKGROUND',(0,ri),(-1,ri),C_SEC_BG),
+                        ('ALIGN',(0,ri),(-1,ri),'CENTER'),
+                        ('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),
+                        ('FONTSIZE',(0,ri),(-1,ri),8.5),
+                        ('LINEABOVE',(0,ri),(-1,ri),0.5,C_PURPLE2),
+                    ]
+                else:
+                    item_ctr += 1
+                    if tot: grand_tot += float(tot)
+                    try:   qs = str(int(float(qty))) if qty is not None else ''
+                    except: qs = str(qty) if qty else ''
+                    tot_str = _fmt(tot) if tot else ('Option' if up else '')
+                    up_str  = _fmt(up)  if up  else ''
+
+                    tbl_data.append([
+                        _p(sn or str(item_ctr), _ps(f'sn{ri}', fontSize=8.5, alignment=TA_CENTER)),
+                        _p(code, _ps(f'cd{ri}', fontSize=7.5)),
+                        _p(desc, _ps(f'ds{ri}', fontSize=8.5, leading=11)),
+                        _p(uom, _ps(f'um{ri}', fontSize=8.5, alignment=TA_CENTER)),
+                        _p(qs, _ps(f'qt{ri}', fontSize=8.5, alignment=TA_RIGHT)),
+                        _p(up_str, _ps(f'up{ri}', fontSize=8.5, alignment=TA_RIGHT)),
+                        _p(tot_str, _ps(f'tt{ri}', fontSize=8.5, alignment=TA_RIGHT)),
+                    ])
+                    bg = C_GREY_ROW if item_ctr % 2 == 0 else C_WHITE
+                    style_cmds.append(('BACKGROUND',(0,ri),(-1,ri),bg))
+
+                ri += 1
+
+            # Grand total row
+            tbl_data.append([
+                _p('', S_BODY), _p('', S_BODY), _p('', S_BODY), _p('', S_BODY), _p('', S_BODY),
+                _p('Total Excluding VAT', _ps('gtt', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_RIGHT)),
+                _p(_fmt(grand_tot), _ps('gtv', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_RIGHT)),
+            ])
+            style_cmds += [
+                ('BACKGROUND',(0,ri),(-1,ri),C_TEAL),
+                ('TEXTCOLOR',(0,ri),(-1,ri),C_WHITE),
+                ('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),
+                ('SPAN',(0,ri),(4,ri)),
+                ('LINEABOVE',(0,ri),(-1,ri),1,C_TEAL),
+                ('PADDING',(0,ri),(-1,ri),5),
+            ]
+
+            boq_tbl = Table(tbl_data, colWidths=COL_W, repeatRows=1)
+            boq_tbl.setStyle(TableStyle(style_cmds))
+            story.append(boq_tbl)
+
+        # ── Page header/footer callback ─────────────────────────────────
+        def on_page(canv, doc):
+            canv.saveState()
+            canv.setFont('Helvetica', 7.5)
+            canv.setFillColor(colors.HexColor('#888888'))
+            canv.drawString(MARGINS, 0.9*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
+            canv.drawRightString(W - MARGINS, 0.9*cm, f"Page {doc.page}")
+            canv.setStrokeColor(C_PURPLE2)
+            canv.setLineWidth(0.5)
+            canv.line(MARGINS, 1.2*cm, W - MARGINS, 1.2*cm)
+            # Top logo stripe on every page except first (handled inline)
+            if doc.page > 1:
+                canv.setFillColor(C_PURPLE)
+                canv.rect(0, H-0.6*cm, W, 0.6*cm, fill=1, stroke=0)
+                canv.setFillColor(C_GOLD)
+                canv.rect(0, H-0.65*cm, W, 0.05*cm, fill=1, stroke=0)
+            canv.restoreState()
+
+        doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
+
+        buf.seek(0)
+        safe_name = quote_ref.replace('/', '-').replace('\\', '-').replace(' ', '_')
+        return send_file(buf, as_attachment=True,
+                         download_name=f'{safe_name}_Quotation.pdf',
+                         mimetype='application/pdf')
+
+    except Exception as _pdf_err:
+        import traceback
+        app.logger.error(f"PDF generation failed: {_pdf_err}\n{traceback.format_exc()}")
+        flash(f'PDF generation failed: {str(_pdf_err)}', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quote_ref))
+
+
 @app.route('/download_cost_sheet/<quote_ref>', methods=['GET'])
 @login_required
 def download_cost_sheet(quote_ref):
