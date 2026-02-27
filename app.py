@@ -5113,116 +5113,115 @@ def quotation_presentation(quote_ref):
     status_val  = q['status'] or '—'
     selling_price = q['quotation_selling_price'] or 0
 
-    # ── Parse Excel BOQ items if available ────────────────────────────
-    boq_items   = []   # list of dicts: sn, code, desc, uom, qty, unit_price, total
-    xl_data     = q['quotation']
-    has_excel   = False
-    excel_error = None
+    # ── Parse Excel BOQ items — supports multi-sheet workbooks ──────────
+    boq_sections = []  # list of {sheet_name, items, grand_total}
+    boq_items    = []  # flat combined list (used for tech specs)
+    xl_data      = q['quotation']
+    has_excel    = False
+    excel_error  = None
+
+    def _parse_boq_sheet(ws):
+        """Return (header_row_idx, col_map) or None if sheet has no BOQ header."""
+        _SKIP_SHEETS = {'COVER PAGE', 'COVER', 'SUMMARY', 'INDEX', 'TOC'}
+        if ws.title.upper().strip() in _SKIP_SHEETS:
+            return None
+        for row in ws.iter_rows(min_row=1, max_row=15):
+            vals = [str(c.value).upper().strip() if c.value else '' for c in row]
+            row_text = ' '.join(vals)
+            has_sn   = any(v in ('S.#', 'S.NO', 'NO', 'S/N', '#', 'NO.') for v in vals)
+            has_desc = 'DESCRIPTION' in row_text or 'ITEM DESC' in row_text
+            has_qty  = 'QTY' in row_text or 'QUANTITY' in row_text
+            if not (has_desc and (has_qty or has_sn)):
+                continue
+            # Found header row — map columns
+            cm = dict(sn=None, code=None, desc=None, uom=None,
+                      qty=None, uprice=None, total=None)
+            for cell in row:
+                hv = str(cell.value).upper().strip() if cell.value else ''
+                ci = cell.column
+                if hv in ('S.#', 'S.NO', 'NO', 'S/N', '#', 'NO.'):
+                    cm['sn'] = ci
+                elif ('CODE' in hv or 'PART' in hv or 'P/N' in hv or hv == 'PN') and cm['code'] is None:
+                    cm['code'] = ci
+                elif ('DESC' in hv) and cm['desc'] is None:
+                    cm['desc'] = ci
+                elif hv in ('UOM', 'UNIT', 'U/M', 'U.O.M'):
+                    cm['uom'] = ci
+                elif hv in ("QTY", "QUANTITY", "Q'TY") and cm['qty'] is None:
+                    cm['qty'] = ci
+                elif ('UNIT PRICE' in hv or 'UNIT COST' in hv or hv in ('U.P', 'U/P')) and cm['uprice'] is None:
+                    cm['uprice'] = ci
+                elif 'TOTAL' in hv and cm['total'] is None:
+                    cm['total'] = ci
+            if cm['desc']:
+                return row[0].row, cm
+        return None
+
+    def _read_sheet_items(ws, header_row_idx, cm):
+        items = []
+        row_num = 0
+        for row in ws.iter_rows(min_row=header_row_idx + 1):
+            desc_val = row[cm['desc'] - 1].value if cm['desc'] else None
+            if desc_val is None or str(desc_val).strip() == '':
+                continue
+            desc_str = str(desc_val).strip()
+            # Skip obvious footer rows (TOTAL / VAT lines)
+            if any(kw in desc_str.upper() for kw in ('TOTAL EXCLUDING', 'TOTAL INCLUDING', 'GRAND TOTAL', 'VAT AMOUNT', 'VALUE ADDED TAX')):
+                continue
+
+            def _num(col):
+                if not col: return None
+                raw = row[col - 1].value
+                try: return float(raw) if raw is not None else None
+                except (TypeError, ValueError): return None
+
+            qty_val    = _num(cm['qty'])
+            uprice_val = _num(cm['uprice'])
+            total_val  = _num(cm['total'])
+            if total_val is None and qty_val and uprice_val:
+                total_val = qty_val * uprice_val
+
+            def _str(col):
+                if not col: return ''
+                v = row[col - 1].value
+                s = str(v).strip() if v is not None else ''
+                return '' if s == 'None' else s
+
+            is_section = (qty_val is None and uprice_val is None)
+            row_num += 1
+            items.append({
+                'sn':         _str(cm['sn']) or (str(row_num) if not is_section else ''),
+                'code':       _str(cm['code']),
+                'desc':       desc_str,
+                'uom':        _str(cm['uom']),
+                'qty':        qty_val,
+                'unit_price': uprice_val,
+                'total':      total_val,
+                'is_section': is_section,
+            })
+        return items
 
     if xl_data and isinstance(xl_data, bytes) and xl_data[:2] == b'PK':
         try:
             wb = openpyxl.load_workbook(BytesIO(xl_data), data_only=True)
-            # Find BOQ sheet: look for one containing S.# / ITEM CODE header
-            boq_sheet = None
             for sname in wb.sheetnames:
                 ws = wb[sname]
-                for row in ws.iter_rows(min_row=1, max_row=10):
-                    vals = [str(cell.value).upper().strip() if cell.value else '' for cell in row]
-                    row_text = ' '.join(vals)
-                    if ('S.#' in row_text or 'S.NO' in row_text or 'ITEM CODE' in row_text or
-                            'PART NUMBER' in row_text or 'DESCRIPTION' in row_text and 'QTY' in row_text):
-                        boq_sheet = ws
-                        # find header row index
-                        header_row_idx = row[0].row
-                        # Identify column indices
-                        col_sn    = col_code   = col_desc   = col_uom = None
-                        col_qty   = col_uprice = col_total  = None
-                        for cell in row:
-                            hv = str(cell.value).upper().strip() if cell.value else ''
-                            ci = cell.column
-                            if hv in ('S.#', 'S.NO', 'NO', 'S/N', '#', 'NO.'):
-                                col_sn = ci
-                            elif 'CODE' in hv or 'PART' in hv or 'P/N' in hv or 'PN' == hv:
-                                col_code = ci
-                            elif 'DESC' in hv or 'ITEM DESC' in hv or 'DESCRIPTION' in hv:
-                                col_desc = ci
-                            elif hv in ('UOM', 'UNIT', 'U/M', 'U.O.M'):
-                                col_uom = ci
-                            elif hv in ('QTY', 'QUANTITY', 'Q\'TY'):
-                                col_qty = ci
-                            elif 'UNIT PRICE' in hv or 'UNIT COST' in hv or 'U.P' == hv or 'U/P' == hv:
-                                col_uprice = ci
-                            elif 'TOTAL' in hv and col_total is None:
-                                col_total = ci
-                        break
-                if boq_sheet:
-                    break
-
-            if boq_sheet and col_desc:
+                result = _parse_boq_sheet(ws)
+                if result is None:
+                    continue
+                hdr_idx, cm = result
+                items = _read_sheet_items(ws, hdr_idx, cm)
+                if not items:
+                    continue
+                gt = sum(it['total'] for it in items if it.get('total') and not it.get('is_section'))
+                boq_sections.append({
+                    'sheet_name':  sname,
+                    'items':       items,
+                    'grand_total': gt,
+                })
+                boq_items.extend(items)
+            if boq_sections:
                 has_excel = True
-                row_num = 0
-                for row in boq_sheet.iter_rows(min_row=header_row_idx + 1):
-                    desc_val = row[col_desc - 1].value if col_desc else None
-                    if desc_val is None or str(desc_val).strip() == '':
-                        continue
-                    desc_str = str(desc_val).strip()
-                    # Skip rows that are section headers (no qty / price)
-                    qty_val = None
-                    if col_qty:
-                        raw_q = row[col_qty - 1].value
-                        try:
-                            qty_val = float(raw_q) if raw_q is not None else None
-                        except (TypeError, ValueError):
-                            qty_val = None
-
-                    uprice_val = None
-                    if col_uprice:
-                        raw_u = row[col_uprice - 1].value
-                        try:
-                            uprice_val = float(raw_u) if raw_u is not None else None
-                        except (TypeError, ValueError):
-                            uprice_val = None
-
-                    total_val = None
-                    if col_total:
-                        raw_t = row[col_total - 1].value
-                        try:
-                            total_val = float(raw_t) if raw_t is not None else None
-                        except (TypeError, ValueError):
-                            total_val = None
-
-                    if total_val is None and qty_val and uprice_val:
-                        total_val = qty_val * uprice_val
-
-                    sn_val = ''
-                    if col_sn:
-                        raw_sn = row[col_sn - 1].value
-                        sn_val = str(raw_sn).strip() if raw_sn is not None else ''
-
-                    code_val = ''
-                    if col_code:
-                        raw_c = row[col_code - 1].value
-                        code_val = str(raw_c).strip() if raw_c is not None else ''
-
-                    uom_val = ''
-                    if col_uom:
-                        raw_uom = row[col_uom - 1].value
-                        uom_val = str(raw_uom).strip() if raw_uom is not None else ''
-
-                    # Detect section header rows (no numeric qty/price)
-                    is_section = (qty_val is None and uprice_val is None)
-
-                    row_num += 1
-                    boq_items.append({
-                        'sn':          sn_val if sn_val and sn_val != 'None' else (str(row_num) if not is_section else ''),
-                        'code':        code_val if code_val != 'None' else '',
-                        'desc':        desc_str,
-                        'uom':         uom_val if uom_val != 'None' else '',
-                        'qty':         qty_val,
-                        'unit_price':  uprice_val,
-                        'total':       total_val,
-                        'is_section':  is_section,
-                    })
         except Exception as ex:
             excel_error = str(ex)
 
@@ -5699,13 +5698,75 @@ Rules:
 
         return slide
 
-    if boq_items:
-        chunks = [boq_items[i:i+ITEMS_PER_SLIDE] for i in range(0, len(boq_items), ITEMS_PER_SLIDE)]
-        grand_total = sum(item['total'] for item in boq_items if item.get('total') and not item.get('is_section'))
-        for ci, chunk in enumerate(chunks):
-            label = f'Page {ci+1}/{len(chunks)} — {quote_ref}'
-            gt = grand_total if ci == len(chunks) - 1 else None
-            add_boq_slide(prs, chunk, label, grand_total=gt)
+    # ── Section divider slide ────────────────────────────────────────
+    _SEC_COLORS = [
+        RGBColor(0x4A, 0x14, 0x8C),  # deep purple
+        RGBColor(0x00, 0x69, 0x6E),  # teal
+        RGBColor(0x1A, 0x23, 0x7E),  # navy
+        RGBColor(0x4E, 0x34, 0x2E),  # brown
+        RGBColor(0x1B, 0x5E, 0x20),  # dark green
+        RGBColor(0xBF, 0x36, 0x0C),  # dark orange
+    ]
+
+    def add_section_divider(sec_name, sec_idx, total_secs, sec_grand_total):
+        slide = prs.slides.add_slide(blank_layout)
+        _col = _SEC_COLORS[sec_idx % len(_SEC_COLORS)]
+
+        # Full purple-to-color gradient simulation: top half coloured, bottom white
+        rect(slide, 0, 0, SLIDE_W, 4.5, _col)
+        rect(slide, 0, 4.5, SLIDE_W, 3.0, C_WHITE)
+
+        # Gold accent bar at midpoint
+        _acc = slide.shapes.add_shape(1, 0, Inches(4.5), Inches(SLIDE_W), Inches(0.08))
+        _acc.fill.solid(); _acc.fill.fore_color.rgb = C_GOLD; _acc.line.width = 0
+
+        # Logo top-left
+        try:
+            slide.shapes.add_picture(LOGO_PATH, Inches(0.4), Inches(0.25), width=Inches(1.6))
+        except Exception:
+            pass
+
+        # Section counter top-right
+        if total_secs > 1:
+            txt_box(slide, f'Section {sec_idx+1} of {total_secs}', 10.5, 0.25, 2.6, 0.5,
+                    size=10, color=C_GOLD, align=PP_ALIGN.RIGHT)
+
+        # Large system / sheet name
+        txt_box(slide, sec_name.upper(), 0, 1.5, SLIDE_W, 1.4,
+                size=36, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+
+        # Subtitle label
+        txt_box(slide, 'BILL OF QUANTITIES', 0, 2.95, SLIDE_W, 0.7,
+                size=18, bold=False, color=RGBColor(0xD1, 0xC4, 0xE9), align=PP_ALIGN.CENTER)
+
+        # Section total (bottom half)
+        if sec_grand_total:
+            _tot_lbl = f'Section Total (SAR):  {sec_grand_total:,.2f}'
+            txt_box(slide, _tot_lbl, 0, 5.1, SLIDE_W, 0.7,
+                    size=22, bold=True, color=_col, align=PP_ALIGN.CENTER)
+
+        # Thin divider line above total
+        _ln = slide.shapes.add_shape(1, Inches(3.5), Inches(4.95), Inches(6.3), Inches(0.04))
+        _ln.fill.solid(); _ln.fill.fore_color.rgb = _col; _ln.line.width = 0
+
+    # ── Generate BOQ slides (one section per sheet) ───────────────────
+    if boq_sections:
+        _multi = len(boq_sections) > 1
+        for _sec_idx, _section in enumerate(boq_sections):
+            _sec_name   = _section['sheet_name']
+            _sec_items  = _section['items']
+            _sec_total  = _section['grand_total']
+
+            # Section divider (always shown — helps navigation)
+            add_section_divider(_sec_name, _sec_idx, len(boq_sections), _sec_total)
+
+            # BOQ table slides for this section
+            _chunks = [_sec_items[i:i+ITEMS_PER_SLIDE]
+                       for i in range(0, len(_sec_items), ITEMS_PER_SLIDE)]
+            for _ci, _chunk in enumerate(_chunks):
+                _lbl = f'{_sec_name}  |  Page {_ci+1}/{len(_chunks)} — {quote_ref}'
+                _gt  = _sec_total if _ci == len(_chunks) - 1 else None
+                add_boq_slide(prs, _chunk, _lbl, grand_total=_gt)
     else:
         # Fallback slide if no Excel or can't parse
         slide = prs.slides.add_slide(blank_layout)
