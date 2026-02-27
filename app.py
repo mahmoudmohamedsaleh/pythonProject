@@ -5780,15 +5780,110 @@ Rules:
     # ── Generate BOQ slides (one section per sheet) ───────────────────
     if boq_sections:
 
-        # ── Tech specs per section ──────────────────────────────────────
-        def _gen_tech_slides_for_section(sec_items, sec_color, sec_name):
-            """Generate 3-col tech spec slides for all unique items in sec_items."""
-            import os as _tos, json as _tjson
-            try:
-                import openai as _toai
-            except ImportError:
-                _toai = None
+        # ══════════════════════════════════════════════════════════════════
+        # PRE-COMPUTE TECH SPECS FOR ALL SECTIONS IN PARALLEL
+        # — collect all unique items, batch them, call AI concurrently
+        # ══════════════════════════════════════════════════════════════════
+        import os as _tos, json as _tjson
+        from concurrent.futures import ThreadPoolExecutor, as_completed as _asc
+        try:
+            import openai as _toai
+        except ImportError:
+            _toai = None
 
+        # Deduplicate items across all sections by item code
+        _all_unique_map = {}  # code -> item dict
+        for _s in boq_sections:
+            for _it in _s['items']:
+                if not _it.get('is_section') and _it.get('code') and _it['code'].strip():
+                    _c = _it['code'].strip()
+                    if _c not in _all_unique_map:
+                        _all_unique_map[_c] = _it
+        _all_items_list = list(_all_unique_map.values())
+
+        def _ai_batch_call(batch):
+            """Call AI for one batch; returns dict code -> {product_specs, required_specs}."""
+            _item_txt = '\n'.join(
+                f"- Code: {it['code']} | Description: {it['desc'][:110]}"
+                for it in batch
+            )
+            _prompt = (
+                "You are a certified ICT/security/building-systems technical engineer.\n"
+                "For each product below provide:\n"
+                "  1. product_specs  — 6 actual product specification bullets\n"
+                "  2. required_specs — 5 project/client requirement bullets\n\n"
+                'Return ONLY valid JSON:\n{"items":[{"code":"<code>",'
+                '"product_specs":["Name: value",...6],'
+                '"required_specs":["Req: detail",...5]}]}\n\n'
+                "Rules:\n"
+                "- product_specs: format \"SpecName: value\" EXACTLY 6 bullets\n"
+                "- required_specs: format \"Requirement: detail\" EXACTLY 5 bullets\n"
+                "- Each bullet max 18 words\n\n"
+                f"Products:\n{_item_txt}"
+            )
+            _result = {}
+            try:
+                if _toai is None:
+                    raise RuntimeError("openai not available")
+                _cl = _toai.OpenAI(
+                    api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+                    base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+                )
+                _resp = _cl.chat.completions.create(
+                    model='gpt-4o-mini',
+                    messages=[{'role': 'user', 'content': _prompt}],
+                    max_tokens=2500,
+                    temperature=0.25,
+                )
+                _raw = _resp.choices[0].message.content.strip()
+                if _raw.startswith('```'):
+                    _raw = '\n'.join(_raw.split('\n')[1:])
+                if '```' in _raw:
+                    _raw = _raw[:_raw.rfind('```')]
+                _parsed = _tjson.loads(_raw.strip())
+                for _entry in _parsed.get('items', []):
+                    _result[_entry.get('code', '').strip()] = {
+                        'product_specs':  _entry.get('product_specs', [])[:6],
+                        'required_specs': _entry.get('required_specs', [])[:5],
+                    }
+            except Exception:
+                for _uti in batch:
+                    _result[_uti['code'].strip()] = {
+                        'product_specs': [
+                            'Standard: Meets relevant IEC/ISO international standards',
+                            'Build Quality: Commercial-grade, factory tested and certified',
+                            'Operating Temp: -10\u00b0C to +50\u00b0C standard range',
+                            'Power Supply: Compliant with regional electrical standards',
+                            'Dimensions: As per manufacturer datasheet',
+                            'Warranty: Full manufacturer warranty included',
+                        ],
+                        'required_specs': [
+                            'Compliance: Must conform to applicable IEC/ISO standards',
+                            'Certification: CE, RoHS, or equivalent regional certification required',
+                            'Environment: Suitable for installation conditions as applicable',
+                            'Quality: Commercial grade with documented QA/QC process',
+                            'Approval: Approved manufacturer on project approved vendor list',
+                        ],
+                    }
+            return _result
+
+        # Split into batches of 25 and call in parallel
+        BATCH_SZ = 25
+        _batches  = [_all_items_list[i:i+BATCH_SZ]
+                     for i in range(0, len(_all_items_list), BATCH_SZ)]
+        _global_tdata = {}   # code -> {product_specs, required_specs}
+
+        if _batches:
+            _workers = min(len(_batches), 4)   # max 4 parallel threads
+            with ThreadPoolExecutor(max_workers=_workers) as _pool:
+                _futs = {_pool.submit(_ai_batch_call, b): b for b in _batches}
+                for _fut in _asc(_futs):
+                    _global_tdata.update(_fut.result())
+
+        # ══════════════════════════════════════════════════════════════════
+        # SLIDE GENERATION HELPER — uses pre-computed data, no network I/O
+        # ══════════════════════════════════════════════════════════════════
+        def _gen_tech_slides_for_section(sec_items, sec_color, sec_name, tdata):
             _tech_raw = [it for it in sec_items
                          if not it.get('is_section') and it.get('code') and it['code'].strip()]
             _seen = set()
@@ -5801,114 +5896,25 @@ Rules:
             if not _unique:
                 return
 
-            # Batch AI calls: up to 25 items per call
-            BATCH = 25
-            _batches = [_unique[i:i+BATCH] for i in range(0, len(_unique), BATCH)]
-            _tdata = {}   # code -> {product_specs, required_specs, image_url}
-
-            for _batch in _batches:
-                _item_txt = '\n'.join(
-                    f"- Code: {it['code']} | Description: {it['desc'][:110]}"
-                    for it in _batch
-                )
-                _prompt = (
-                    "You are a certified ICT/security/building-systems technical engineer.\n"
-                    "For each product below provide:\n"
-                    "  1. product_specs  — 6 actual product specification bullets\n"
-                    "  2. required_specs — 5 project/client requirement bullets\n"
-                    "  3. image_url      — direct product image URL from manufacturer site\n\n"
-                    'Return ONLY valid JSON:\n{"items":[{"code":"<code>","product_specs":[...6],'
-                    '"required_specs":[...5],"image_url":"..."}]}\n\n'
-                    "Rules:\n"
-                    "- product_specs: format \"Name: value\", EXACTLY 6 bullets\n"
-                    "- required_specs: format \"Requirement: detail\", EXACTLY 5 bullets\n"
-                    "- Each bullet max 18 words\n"
-                    "- image_url: direct PNG/JPG; if unknown: https://via.placeholder.com/400x300?text=<Code>\n\n"
-                    f"Products:\n{_item_txt}"
-                )
-                try:
-                    if _toai is None:
-                        raise RuntimeError("openai not available")
-                    _tclient = _toai.OpenAI(
-                        api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-                        base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
-                    )
-                    _tresp = _tclient.chat.completions.create(
-                        model='gpt-4o-mini',
-                        messages=[{'role': 'user', 'content': _prompt}],
-                        max_tokens=4000,
-                        temperature=0.25,
-                    )
-                    _raw = _tresp.choices[0].message.content.strip()
-                    if _raw.startswith('```'):
-                        _raw = '\n'.join(_raw.split('\n')[1:])
-                    if '```' in _raw:
-                        _raw = _raw[:_raw.rfind('```')]
-                    _parsed = _tjson.loads(_raw.strip())
-                    for _entry in _parsed.get('items', []):
-                        _tdata[_entry.get('code', '').strip()] = {
-                            'product_specs':  _entry.get('product_specs', [])[:6],
-                            'required_specs': _entry.get('required_specs', [])[:5],
-                            'image_url':      _entry.get('image_url', ''),
-                        }
-                except Exception:
-                    for _uti in _batch:
-                        _c2 = _uti['code'].strip()
-                        _tdata[_c2] = {
-                            'product_specs': [
-                                'Standard: Meets relevant IEC/ISO international standards',
-                                'Build Quality: Commercial-grade, factory tested and certified',
-                                'Operating Temp: -10\u00b0C to +50\u00b0C standard range',
-                                'Power Supply: Compliant with regional electrical standards',
-                                'Dimensions: As per manufacturer datasheet',
-                                'Warranty: Full manufacturer warranty included',
-                            ],
-                            'required_specs': [
-                                'Compliance: Must conform to applicable IEC/ISO standards',
-                                'Certification: CE, RoHS, or equivalent regional certification required',
-                                'Environment: Suitable for installation conditions as applicable',
-                                'Quality: Commercial grade with documented QA/QC process',
-                                'Approval: Approved manufacturer brand on project approved vendor list',
-                            ],
-                            'image_url': '',
-                        }
-
-            def _fetch_img(url):
-                if not url:
-                    return None
-                try:
-                    import urllib.request as _ur
-                    req = _ur.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                    with _ur.urlopen(req, timeout=4) as resp:
-                        d = resp.read()
-                    if len(d) > 3000:
-                        return BytesIO(d)
-                except Exception:
-                    pass
-                return None
-
-            # Column geometry
             _BODY_Y, _BODY_BOTTOM = 1.60, 7.38
             _SEC_H, _SPEC_Y = 0.38, 2.03
             _SPEC_AREA_H = _BODY_BOTTOM - _SPEC_Y
             _C1_X, _C1_W = 0.12, 3.85
             _C2_X, _C2_W = 4.10, 4.35
             _C3_X, _C3_W = 8.57, 4.64
-            _C_SEC_BG = sec_color
-            _C_SEC2   = C_TEAL if sec_color != C_TEAL else RGBColor(0x1A,0x23,0x7E)
+            _C_SEC2 = C_TEAL if sec_color != C_TEAL else RGBColor(0x1A, 0x23, 0x7E)
 
             for _tci, _titem in enumerate(_unique):
-                _code  = _titem['code'].strip()
-                _desc  = _titem['desc']
-                _tinfo = _tdata.get(_code, {})
+                _code   = _titem['code'].strip()
+                _desc   = _titem['desc']
+                _tinfo  = tdata.get(_code, {})
                 _pspecs = _tinfo.get('product_specs',  [])
                 _rspecs = _tinfo.get('required_specs', [])
-                _imgurl = _tinfo.get('image_url', '')
 
                 slide = prs.slides.add_slide(blank_layout)
 
                 # Header bar
-                rect(slide, 0, 0, SLIDE_W, 0.88, _C_SEC_BG)
+                rect(slide, 0, 0, SLIDE_W, 0.88, sec_color)
                 _rac = slide.shapes.add_shape(1, 0, Inches(0.88), Inches(SLIDE_W), Inches(0.05))
                 _rac.fill.solid(); _rac.fill.fore_color.rgb = C_GOLD; _rac.line.width = 0
                 try:
@@ -5926,14 +5932,14 @@ Rules:
                 _short = _desc[:145] + ('...' if len(_desc) > 145 else '')
                 txt_box(slide, _short, 2.85, 1.01, 10.35, 0.43, size=9.5, color=C_WHITE)
 
-                # Section headers
-                rect(slide, _C1_X, _BODY_Y, _C1_W, _SEC_H, _C_SEC_BG)
+                # Section column headers
+                rect(slide, _C1_X, _BODY_Y, _C1_W, _SEC_H, sec_color)
                 txt_box(slide, 'PRODUCT SPECS', _C1_X+0.08, _BODY_Y+0.05, _C1_W-0.1, _SEC_H-0.05,
                         size=10, bold=True, color=C_WHITE)
                 rect(slide, _C2_X, _BODY_Y, _C2_W, _SEC_H, _C_SEC2)
                 txt_box(slide, 'REQUIRED SPECS', _C2_X+0.08, _BODY_Y+0.05, _C2_W-0.1, _SEC_H-0.05,
                         size=10, bold=True, color=C_WHITE)
-                rect(slide, _C3_X, _BODY_Y, _C3_W, _SEC_H, RGBColor(0x1A,0x23,0x7E))
+                rect(slide, _C3_X, _BODY_Y, _C3_W, _SEC_H, RGBColor(0x1A, 0x23, 0x7E))
                 txt_box(slide, 'PRODUCT IMAGE', _C3_X+0.08, _BODY_Y+0.05, _C3_W-0.1, _SEC_H-0.05,
                         size=10, bold=True, color=C_WHITE)
 
@@ -5942,76 +5948,89 @@ Rules:
                 _rh1 = _SPEC_AREA_H / _n1
                 for _si, _spec in enumerate(_pspecs):
                     _sy = _SPEC_Y + _si * _rh1
-                    _bar1 = slide.shapes.add_shape(1, Inches(_C1_X), Inches(_sy+0.04), Inches(0.06), Inches(_rh1*0.80))
-                    _bar1.fill.solid(); _bar1.fill.fore_color.rgb = _C_SEC_BG; _bar1.line.width = 0
-                    _bg1 = slide.shapes.add_shape(1, Inches(_C1_X+0.07), Inches(_sy+0.02), Inches(_C1_W-0.09), Inches(_rh1*0.90))
-                    _bg1.fill.solid(); _bg1.fill.fore_color.rgb = C_GREY_BG if _si % 2 == 0 else C_WHITE; _bg1.line.width = 0
-                    _tb1 = slide.shapes.add_textbox(Inches(_C1_X+0.18), Inches(_sy+0.09), Inches(_C1_W-0.22), Inches(_rh1*0.82))
+                    _bar1 = slide.shapes.add_shape(1, Inches(_C1_X), Inches(_sy+0.04),
+                                                    Inches(0.06), Inches(_rh1*0.80))
+                    _bar1.fill.solid(); _bar1.fill.fore_color.rgb = sec_color; _bar1.line.width = 0
+                    _bg1 = slide.shapes.add_shape(1, Inches(_C1_X+0.07), Inches(_sy+0.02),
+                                                   Inches(_C1_W-0.09), Inches(_rh1*0.90))
+                    _bg1.fill.solid()
+                    _bg1.fill.fore_color.rgb = C_GREY_BG if _si % 2 == 0 else C_WHITE
+                    _bg1.line.width = 0
+                    _tb1 = slide.shapes.add_textbox(Inches(_C1_X+0.18), Inches(_sy+0.09),
+                                                     Inches(_C1_W-0.22), Inches(_rh1*0.82))
                     _tf1 = _tb1.text_frame; _tf1.word_wrap = True
                     _p1 = _tf1.paragraphs[0]; _p1.alignment = PP_ALIGN.LEFT
                     if ':' in _spec:
-                        _sn, _sv = _spec.split(':', 1)
-                        _r1n = _p1.add_run(); _r1n.text = _sn.strip().lstrip('*-').strip() + ':  '
+                        _sn2, _sv2 = _spec.split(':', 1)
+                        _r1n = _p1.add_run()
+                        _r1n.text = _sn2.strip().lstrip('*-').strip() + ':  '
                         _r1n.font.size = Pt(10.5); _r1n.font.bold = True
-                        _r1n.font.color.rgb = _C_SEC_BG; _r1n.font.name = 'Calibri'
-                        _r1v = _p1.add_run(); _r1v.text = _sv.strip()
-                        _r1v.font.size = Pt(10.5); _r1v.font.color.rgb = C_DARK; _r1v.font.name = 'Calibri'
+                        _r1n.font.color.rgb = sec_color; _r1n.font.name = 'Calibri'
+                        _r1v = _p1.add_run(); _r1v.text = _sv2.strip()
+                        _r1v.font.size = Pt(10.5); _r1v.font.color.rgb = C_DARK
+                        _r1v.font.name = 'Calibri'
                     else:
                         _r1 = _p1.add_run(); _r1.text = _spec.lstrip('*-').strip()
-                        _r1.font.size = Pt(10.5); _r1.font.color.rgb = C_DARK; _r1.font.name = 'Calibri'
+                        _r1.font.size = Pt(10.5); _r1.font.color.rgb = C_DARK
+                        _r1.font.name = 'Calibri'
 
                 # Col 2: Required Specs
                 _n2 = max(len(_rspecs), 1)
                 _rh2 = _SPEC_AREA_H / _n2
                 for _ri, _rspec in enumerate(_rspecs):
                     _ry = _SPEC_Y + _ri * _rh2
-                    _bar2 = slide.shapes.add_shape(1, Inches(_C2_X), Inches(_ry+0.04), Inches(0.06), Inches(_rh2*0.80))
+                    _bar2 = slide.shapes.add_shape(1, Inches(_C2_X), Inches(_ry+0.04),
+                                                    Inches(0.06), Inches(_rh2*0.80))
                     _bar2.fill.solid(); _bar2.fill.fore_color.rgb = _C_SEC2; _bar2.line.width = 0
-                    _bg2 = slide.shapes.add_shape(1, Inches(_C2_X+0.07), Inches(_ry+0.02), Inches(_C2_W-0.09), Inches(_rh2*0.90))
-                    _bg2.fill.solid(); _bg2.fill.fore_color.rgb = RGBColor(0xE0,0xF2,0xF1) if _ri % 2 == 0 else C_WHITE; _bg2.line.width = 0
-                    _tb2 = slide.shapes.add_textbox(Inches(_C2_X+0.18), Inches(_ry+0.09), Inches(_C2_W-0.22), Inches(_rh2*0.82))
+                    _bg2 = slide.shapes.add_shape(1, Inches(_C2_X+0.07), Inches(_ry+0.02),
+                                                   Inches(_C2_W-0.09), Inches(_rh2*0.90))
+                    _bg2.fill.solid()
+                    _bg2.fill.fore_color.rgb = RGBColor(0xE0, 0xF2, 0xF1) if _ri % 2 == 0 else C_WHITE
+                    _bg2.line.width = 0
+                    _tb2 = slide.shapes.add_textbox(Inches(_C2_X+0.18), Inches(_ry+0.09),
+                                                     Inches(_C2_W-0.22), Inches(_rh2*0.82))
                     _tf2 = _tb2.text_frame; _tf2.word_wrap = True
                     _p2 = _tf2.paragraphs[0]; _p2.alignment = PP_ALIGN.LEFT
                     if ':' in _rspec:
-                        _rn, _rv = _rspec.split(':', 1)
-                        _r2n = _p2.add_run(); _r2n.text = _rn.strip().lstrip('*-').strip() + ':  '
+                        _rn2, _rv2 = _rspec.split(':', 1)
+                        _r2n = _p2.add_run()
+                        _r2n.text = _rn2.strip().lstrip('*-').strip() + ':  '
                         _r2n.font.size = Pt(10.5); _r2n.font.bold = True
                         _r2n.font.color.rgb = _C_SEC2; _r2n.font.name = 'Calibri'
-                        _r2v = _p2.add_run(); _r2v.text = _rv.strip()
-                        _r2v.font.size = Pt(10.5); _r2v.font.color.rgb = C_DARK; _r2v.font.name = 'Calibri'
+                        _r2v = _p2.add_run(); _r2v.text = _rv2.strip()
+                        _r2v.font.size = Pt(10.5); _r2v.font.color.rgb = C_DARK
+                        _r2v.font.name = 'Calibri'
                     else:
                         _r2 = _p2.add_run(); _r2.text = _rspec.lstrip('*-').strip()
-                        _r2.font.size = Pt(10.5); _r2.font.color.rgb = C_DARK; _r2.font.name = 'Calibri'
+                        _r2.font.size = Pt(10.5); _r2.font.color.rgb = C_DARK
+                        _r2.font.name = 'Calibri'
 
-                # Col 3: Product Image
-                _ib = _fetch_img(_imgurl)
+                # Col 3: Product Image placeholder (no network fetch)
                 _ix, _iy = _C3_X + 0.10, _SPEC_Y
                 _iw, _ih = _C3_W - 0.20, _BODY_BOTTOM - _SPEC_Y - 0.08
-                if _ib:
-                    try:
-                        _ib.seek(0)
-                        slide.shapes.add_picture(_ib, Inches(_ix), Inches(_iy),
-                                                  width=Inches(_iw), height=Inches(_ih))
-                    except Exception:
-                        _ib = None
-                if not _ib:
-                    _ph = slide.shapes.add_shape(1, Inches(_ix), Inches(_iy), Inches(_iw), Inches(_ih))
-                    _ph.fill.solid(); _ph.fill.fore_color.rgb = RGBColor(0xED,0xEB,0xF5); _ph.line.width = 0
-                    txt_box(slide, 'Product Image  |  Not Available',
-                            _ix, _iy + _ih/2 - 0.3, _iw, 0.6,
-                            size=10, color=C_GREY_TXT, align=PP_ALIGN.CENTER, italic=True)
+                _ph = slide.shapes.add_shape(1, Inches(_ix), Inches(_iy), Inches(_iw), Inches(_ih))
+                _ph.fill.solid(); _ph.fill.fore_color.rgb = RGBColor(0xED, 0xEB, 0xF5)
+                _ph.line.width = 0
+                txt_box(slide, 'Product Image',
+                        _ix, _iy + _ih/2 - 0.45, _iw, 0.4,
+                        size=11, color=C_GREY_TXT, align=PP_ALIGN.CENTER, italic=True)
+                txt_box(slide, 'Not Available in Presentation Mode',
+                        _ix, _iy + _ih/2 - 0.05, _iw, 0.4,
+                        size=9, color=RGBColor(0x9E, 0x9E, 0x9E), align=PP_ALIGN.CENTER, italic=True)
 
-        # ── Main loop: Section divider → BOQ slides → Tech slides ──────
+        # ══════════════════════════════════════════════════════════════════
+        # BUILD SLIDES: Section Divider → BOQ → Tech Specs
+        # ══════════════════════════════════════════════════════════════════
         for _sec_idx, _section in enumerate(boq_sections):
             _sec_name  = _section['sheet_name']
             _sec_items = _section['items']
             _sec_total = _section['grand_total']
             _sec_color = _SEC_COLORS[_sec_idx % len(_SEC_COLORS)]
 
-            # Section divider slide
+            # 1. Section divider slide
             add_section_divider(_sec_name, _sec_idx, len(boq_sections), _sec_total)
 
-            # BOQ table slides for this section
+            # 2. BOQ table slides
             _chunks = [_sec_items[i:i+ITEMS_PER_SLIDE]
                        for i in range(0, len(_sec_items), ITEMS_PER_SLIDE)]
             for _ci, _chunk in enumerate(_chunks):
@@ -6019,8 +6038,8 @@ Rules:
                 _gt  = _sec_total if _ci == len(_chunks) - 1 else None
                 add_boq_slide(prs, _chunk, _lbl, grand_total=_gt)
 
-            # Technical Specifications slides for this section
-            _gen_tech_slides_for_section(_sec_items, _sec_color, _sec_name)
+            # 3. Tech spec slides (pre-computed data, no AI calls here)
+            _gen_tech_slides_for_section(_sec_items, _sec_color, _sec_name, _global_tdata)
 
     else:
         # Fallback slide if no Excel or can't parse
