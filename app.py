@@ -6994,12 +6994,15 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
     ri += 1
 
     grand_total = 0.0
-    for idx2, sys in enumerate(cover.get("systems",[]), start=1):
+    row_num = 0
+    for sys in cover.get("systems",[]):
+        if sys.get("is_summary"): continue   # skip Total/VAT/Grand Total summary rows
         tot = float(sys.get("total",0) or 0)
         grand_total += tot
-        rf = WHITE_F if idx2 % 2 else LGREY_F
+        row_num += 1
+        rf = WHITE_F if row_num % 2 else LGREY_F
         _row_h(ws, ri, 16)
-        _c(ws, ri, 1, idx2, rf, _font("Calibri",9,True,"C30010"), _al("center","center"), _bd())
+        _c(ws, ri, 1, row_num, rf, _font("Calibri",9,True,"C30010"), _al("center","center"), _bd())
         _merge(ws, ri, 2, 4, sys.get("name",""), rf,
                _font("Calibri",9,False,"1A0000"), _al("left","center"), _bd())
         tc = _merge(ws, ri, 5, NC, tot, rf,
