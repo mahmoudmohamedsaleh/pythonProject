@@ -6472,6 +6472,47 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
                                     TableStyle, PageBreak, KeepTogether)
     from reportlab.platypus import Image as RLImage
     from io import BytesIO
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    # ── Arabic font registration ──────────────────────────────────────────
+    _AMIRI_FONT = 'Amiri'
+    try:
+        _amiri_path = os.path.join(os.path.dirname(__file__), 'static', 'Amiri-Regular.ttf')
+        pdfmetrics.registerFont(TTFont(_AMIRI_FONT, _amiri_path))
+        _arabic_ok = True
+    except Exception:
+        _arabic_ok = False
+
+    def _has_arabic(text):
+        if not text: return False
+        return any('؀' <= ch <= 'ۿ' or 'ݐ' <= ch <= 'ݿ' or
+                   'ﭐ' <= ch <= '﷿' or 'ﹰ' <= ch <= '﻿' for ch in str(text))
+
+    def _fix_arabic(text):
+        """Reshape + bidi-reorder Arabic text for ReportLab."""
+        if not text or not _arabic_ok: return str(text) if text else ''
+        try:
+            import arabic_reshaper
+            from bidi.algorithm import get_display
+            if _has_arabic(str(text)):
+                reshaped = arabic_reshaper.reshape(str(text))
+                return get_display(reshaped)
+        except Exception:
+            pass
+        return str(text) if text else ''
+
+    def _p_ar(text, style=None):
+        """Return Paragraph with Arabic-safe rendering (auto-detects Arabic)."""
+        t = str(text) if text else ''
+        if _has_arabic(t) and _arabic_ok:
+            ar_style = ParagraphStyle(
+                'ar_auto', fontName=_AMIRI_FONT, fontSize=10,
+                textColor=(style.textColor if style else colors.HexColor('#0F172A')),
+                alignment=TA_RIGHT, leading=14,
+            )
+            return Paragraph(_fix_arabic(t), ar_style)
+        return Paragraph(t, style or S_BODY)
 
     W, H = A4
     C_NAVY     = colors.HexColor('#1A0000')   # deep dark red
@@ -6598,11 +6639,16 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     def _ref_card(label, value, highlight=False):
         val_col = C_NAVY if highlight else C_DARK
         val_font = 'Helvetica-Bold' if highlight else 'Helvetica'
+        val_text = value or '—'
+        if _has_arabic(val_text) and _arabic_ok:
+            val_cell = _p_ar(val_text)
+        else:
+            val_cell = _p(val_text, _ps(f'rv{label}', fontName=val_font, fontSize=9.5,
+                                        textColor=val_col, leading=12))
         return Table([
             [_p(label, _ps(f'rl{label}', fontName='Helvetica-Bold', fontSize=7,
                            textColor=C_PURPLE, leading=9, spaceAfter=1))],
-            [_p(value or '—', _ps(f'rv{label}', fontName=val_font, fontSize=9.5,
-                                  textColor=val_col, leading=12))],
+            [val_cell],
         ], colWidths=[(BW_eff - 0.4*cm) / 3])
 
     ref_row = [
@@ -6639,7 +6685,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     VW_A = BW_eff * 0.345   # value col width
 
     def _lbl_p(t, c): return _p(t, _ps(f'lbl{t}', fontName='Helvetica-Bold', fontSize=8, textColor=c))
-    def _val_p(t):    return _p(t or '—', _ps(f'val{t}', fontSize=9, textColor=C_DARK, leading=12))
+    def _val_p(t):    return _p_ar(t or '—', _ps(f'val{t[:8]}', fontSize=9, textColor=C_DARK, leading=12))
 
     ci = Table([
         [_lbl_p('COMPANY',  C_WHITE), _val_p(cover.get('to','')),
