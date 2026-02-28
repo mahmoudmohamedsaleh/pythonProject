@@ -7300,14 +7300,14 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
 
     # Column order: S.# | [ITEM CODE] | ITEM DESCRIPTION | [VENDOR] | UOM | QTY | UNIT PRICE | TOTAL | [STOCK]
     # Fixed always-present overhead: sn(0.6)+uom(1.1)+qty(1.1)+up(2.0)+tot(2.5)+gutter(1.0) = 8.3
-    _FIXED_OH = 8.3
+    _FIXED_OH = 8.7
     _code_w   = 2.0 if _show_code   else 0
     _vend_w   = 1.7 if _show_vendor else 0
     _stck_w   = 1.4 if _show_stock  else 0
     _desc_w   = BW - (_FIXED_OH + _code_w + _vend_w + _stck_w) * cm
 
     # Dynamic column spec: (key, header_label, width_cm, align)
-    _COLDEFS = [('sn',   'S.#',            0.6,  'CENTER')]
+    _COLDEFS = [('sn',   'S.#',            1.0,  'CENTER')]
     if _show_code:   _COLDEFS.append(('code',   'ITEM CODE', _code_w, 'CENTER'))
     _COLDEFS.append(('desc',  'ITEM DESCRIPTION', _desc_w/cm, 'LEFT'))
     if _show_vendor: _COLDEFS.append(('vendor', 'VENDOR',     _vend_w, 'CENTER'))
