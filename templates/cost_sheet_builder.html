@@ -135,6 +135,15 @@
 .col-pct  { width: 58px; }
 .col-act  { width: 46px; }
 
+/* ── Set Margin button ───────────────────────────────────────────────── */
+.btn-set-margin {
+  background: linear-gradient(135deg, #1F3864, #2a4d8f);
+  color: #fff; border: none; padding: 7px 16px; font-weight: 700;
+  font-size: .82rem; border-radius: 8px; cursor: pointer; transition: .2s;
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.btn-set-margin:hover { opacity: .88; transform: translateY(-1px); }
+
 /* ── Cost Summary Table ──────────────────────────────────────────────── */
 .cost-summary-wrap { margin-top: 32px; margin-bottom: 24px; }
 .cost-summary-title {
@@ -270,10 +279,42 @@
     <button class="btn-add-item" onclick="addRow('item')">
       <i class="fas fa-plus mr-1"></i> Add Item Row
     </button>
-    <span class="ml-auto small text-muted align-self-center">
+    <button class="btn-set-margin ml-auto" onclick="openSetMarginModal()">
+      <i class="fas fa-percent mr-1"></i> Set Margin for All
+    </button>
+    <span class="small text-muted align-self-center ml-2" style="white-space:nowrap;">
       <i class="fas fa-lightbulb text-warning mr-1"></i>
       Total Sell = Qty × Unit Price · Margin = (1 − Unit Cost ÷ Unit Price) · changing Margin recalculates Unit Price
     </span>
+  </div>
+
+  <!-- Set Margin Modal -->
+  <div id="setMarginOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9990; align-items:center; justify-content:center;">
+    <div style="background:#fff; border-radius:12px; padding:28px 32px; width:340px; box-shadow:0 8px 32px rgba(0,0,0,.22);">
+      <h6 style="font-weight:700; color:#1F3864; margin-bottom:4px;">
+        <i class="fas fa-percent text-danger mr-2"></i>Set Margin for All Items
+      </h6>
+      <p style="font-size:.8rem; color:#6c757d; margin-bottom:16px;">
+        Applies to all item rows in the <strong id="setMarginSystemName"></strong> system.<br>
+        Unit Price will be recalculated from Unit Cost.
+      </p>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:20px;">
+        <input type="number" id="setMarginInput" min="-999" max="99.99" step="0.01"
+               placeholder="e.g. 20"
+               style="flex:1; padding:9px 12px; border:2px solid #1F3864; border-radius:8px;
+                      font-size:1rem; font-weight:700; text-align:center; outline:none;">
+        <span style="font-size:1.1rem; font-weight:700; color:#1F3864;">%</span>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button onclick="applyMarginToAll()" class="btn-save" style="flex:1; padding:10px;">
+          <i class="fas fa-check mr-1"></i> Apply
+        </button>
+        <button onclick="closeSetMarginModal()" style="flex:1; padding:10px; border:1px solid #ccc;
+                background:#fff; border-radius:8px; font-weight:600; cursor:pointer; font-size:.88rem;">
+          Cancel
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Cost Sheet Table -->
@@ -867,6 +908,46 @@ function renderSummary() {
 // ── Discount inputs: set up once, never re-created ────────────────────
 document.getElementById('smDiscCost').addEventListener('change', renderSummary);
 document.getElementById('smDiscSell').addEventListener('change', renderSummary);
+
+// ── Set Margin for All ────────────────────────────────────────────────
+function openSetMarginModal() {
+  document.getElementById('setMarginSystemName').textContent = sheets[activeSheet]?.name || 'current';
+  document.getElementById('setMarginInput').value = '';
+  const ov = document.getElementById('setMarginOverlay');
+  ov.style.display = 'flex';
+  setTimeout(() => document.getElementById('setMarginInput').focus(), 80);
+}
+function closeSetMarginModal() {
+  document.getElementById('setMarginOverlay').style.display = 'none';
+}
+function applyMarginToAll() {
+  const margin = parseFloat(document.getElementById('setMarginInput').value);
+  if (isNaN(margin) || margin >= 100) {
+    alert('Please enter a valid margin % (must be less than 100).');
+    return;
+  }
+  const rows = sheets[activeSheet].rows;
+  rows.forEach(row => {
+    if (row.type !== 'item') return;
+    const uc = parseNum(row.unit_cost);
+    if (!uc) return;
+    const newUp = +(uc / (1 - margin / 100)).toFixed(4);
+    row.unit_price = newUp;
+    row.margin = margin;
+  });
+  closeSetMarginModal();
+  renderTable();
+  renderSummary();
+  showToast('✓ Margin set to ' + margin + '% for all items in "' + sheets[activeSheet].name + '"', 'success');
+}
+// Close modal on overlay click
+document.getElementById('setMarginOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeSetMarginModal();
+});
+// Close modal on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSetMarginModal();
+});
 
 // ── Any cell change → keep summary live ──────────────────────────────
 document.getElementById('csTable').addEventListener('change', () => {
