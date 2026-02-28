@@ -129,7 +129,7 @@
   <div class="tab-pane active" id="tab-commercial">
 
     <form method="POST" action="{{ url_for('proposal_generate_pdf') }}"
-          enctype="multipart/form-data" id="commForm" target="_blank">
+          enctype="multipart/form-data" id="commForm" onsubmit="return false;">
 
       <input type="hidden" name="rfq_ref" value="{{ rfq_ref }}">
 
@@ -299,7 +299,7 @@
                 <i class="fas fa-info-circle text-primary mr-1"></i>
                 BOQ with Unit Prices is pulled automatically from the saved Cost Sheet. Fill in the fields on the left, then generate.
               </p>
-              <button type="submit" class="btn-generate" onclick="showLoader()">
+              <button type="button" class="btn-generate" onclick="generatePdf()">
                 <i class="fas fa-file-pdf mr-2"></i> Generate &amp; View PDF Quotation
               </button>
             </div>
@@ -378,11 +378,33 @@ function switchTab(name, btn) {
 }
 
 // ── Loader ────────────────────────────────────────────────────────────
-function showLoader() {
-  const overlay = document.getElementById('loaderOverlay');
-  overlay.classList.add('active');
-  // PDF opens in a new tab so the original page never reloads — auto-hide after 6s
-  setTimeout(() => overlay.classList.remove('active'), 6000);
+function showLoader() { document.getElementById('loaderOverlay').classList.add('active'); }
+function hideLoader() { document.getElementById('loaderOverlay').classList.remove('active'); }
+
+// ── PDF generation via fetch (opens blob in new tab, dismisses spinner instantly) ──
+async function generatePdf() {
+  showLoader();
+  try {
+    const form = document.getElementById('commForm');
+    const fd = new FormData(form);
+    const resp = await fetch(form.action, { method: 'POST', body: fd });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(txt || 'Server error ' + resp.status);
+    }
+    const contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('application/pdf')) {
+      const txt = await resp.text();
+      throw new Error(txt || 'Unexpected response from server');
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (err) {
+    alert('PDF generation failed: ' + err.message);
+  } finally {
+    hideLoader();
+  }
 }
 
 // ── Terms ─────────────────────────────────────────────────────────────
