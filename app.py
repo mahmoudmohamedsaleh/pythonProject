@@ -6756,7 +6756,6 @@ def cost_sheet_save():
     """AJAX: Upsert cost sheet data keyed by rfq_ref+quote_ref."""
     import sqlite3, json
     from flask import request as _req, jsonify, session
-    from flask_login import current_user as _cu
     data = _req.get_json(force=True) or {}
     rfq_ref      = data.get('rfq_ref', '').strip()
     quote_ref    = data.get('quote_ref', '').strip()
@@ -6767,7 +6766,7 @@ def cost_sheet_save():
     if not sheets:
         return jsonify({'error': 'No sheet data to save.'}), 400
     sheets_json = json.dumps(sheets, ensure_ascii=False)
-    saved_by = (_cu.username if _cu.is_authenticated else None) or session.get('username', 'unknown')
+    saved_by = session.get('username', 'unknown')
     try:
         conn = sqlite3.connect('ProjectStatus.db')
         sql = ('INSERT INTO cost_sheets (rfq_ref, quote_ref, project_name, sheets_json, saved_by, updated_at) '
