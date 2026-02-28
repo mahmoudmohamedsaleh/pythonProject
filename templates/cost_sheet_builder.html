@@ -134,6 +134,46 @@
 .col-num  { width: 95px; }
 .col-pct  { width: 58px; }
 .col-act  { width: 46px; }
+
+/* ── Cost Summary Table ──────────────────────────────────────────────── */
+.cost-summary-wrap { margin-top: 32px; margin-bottom: 24px; }
+.cost-summary-title {
+  font-size: 1rem; font-weight: 700; color: #1F3864;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.cost-summary-table {
+  width: 100%; border-collapse: collapse; font-size: .85rem;
+  border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.cost-summary-table thead tr {
+  background: #8B0000; color: #fff;
+}
+.cost-summary-table thead th {
+  padding: 10px 16px; font-weight: 700; font-size: .82rem; text-align: left;
+  border: 1px solid #6a0000;
+}
+.cost-summary-table thead th:not(:first-child) { text-align: right; }
+.cost-summary-table tbody tr { border-bottom: 1px solid #e9ecef; }
+.cost-summary-table tbody tr:hover { background: #fff8f8; }
+.cost-summary-table tbody td {
+  padding: 9px 16px; color: #1F3864; border: 1px solid #e9ecef;
+}
+.cost-summary-table tbody td:not(:first-child) { text-align: right; font-family: monospace; font-size: .84rem; }
+.cost-summary-table tr.sum-sys-row td { background: #fff; font-weight: 600; }
+.cost-summary-table tr.sum-total-row td {
+  background: #f5f5f5; font-weight: 700; color: #1F3864; border-top: 2px solid #8B0000;
+}
+.cost-summary-table tr.sum-discount-row td { background: #fff9e6; }
+.cost-summary-table tr.sum-after-discount-row td { background: #e8f5e9; font-weight: 700; }
+.cost-summary-table tr.sum-vat-row td { background: #fff; color: #555; }
+.cost-summary-table tr.sum-grand-row td {
+  background: #8B0000; color: #fff; font-weight: 700; font-size: .9rem;
+}
+.discount-input {
+  border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px;
+  width: 130px; text-align: right; font-size: .84rem; font-family: monospace;
+  background: #fffde7;
+}
 .btn-save {
   background: linear-gradient(135deg, #1B5E20, #2E7D32);
   color: #fff; border: none; padding: 10px 20px; font-weight: 700;
@@ -272,6 +312,24 @@
     <input type="hidden" name="project_name" value="{{ project_name }}">
     <input type="hidden" name="quoteref" value="{{ quoteref }}">
   </form>
+
+  <!-- ── Cost Summary Section ─────────────────────────────────────────── -->
+  <div class="cost-summary-wrap" id="costSummaryWrap">
+    <div class="cost-summary-title">
+      <i class="fas fa-table text-danger"></i> Cost Summary
+    </div>
+    <table class="cost-summary-table">
+      <thead>
+        <tr>
+          <th style="width:38%;">System</th>
+          <th style="width:22%;">Cost Price</th>
+          <th style="width:22%;">Selling Price</th>
+          <th style="width:18%;">Margin %</th>
+        </tr>
+      </thead>
+      <tbody id="costSummaryBody"></tbody>
+    </table>
+  </div>
 
 </div>
 
@@ -696,7 +754,136 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
                   .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function updateTotals() { renderTable(); }
+function updateTotals() { renderTable(); renderSummary(); }
+
+// ── Cost Summary ──────────────────────────────────────────────────────
+// Persist discount values across re-renders
+let summaryDiscountCost = 0;
+let summaryDiscountSell = 0;
+
+function fmtSar(n) {
+  return 'SAR ' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function calcMarginPct(cost, sell) {
+  if (!sell || sell === 0) return '—';
+  return ((1 - cost / sell) * 100).toFixed(2) + '%';
+}
+
+function renderSummary() {
+  saveCurrentRows();
+
+  const sysRows = [];
+
+  sheets.forEach(sheet => {
+    let currentSectionIsSRV = false;
+    let currentSectionName = '';
+    let matCost = 0, matSell = 0;
+    let srvCost = 0, srvSell = 0;
+    let srvLabel = sheet.name + ' SRV';
+
+    sheet.rows.forEach(row => {
+      if (row.type === 'section') {
+        currentSectionIsSRV = row.desc && row.desc.toUpperCase().includes('SRV');
+        currentSectionName = row.desc || '';
+        if (currentSectionIsSRV) srvLabel = currentSectionName || (sheet.name + ' SRV');
+      } else if (row.type === 'item') {
+        const qty = parseNum(row.qty);
+        const uc  = parseNum(row.unit_cost);
+        const up  = parseNum(row.unit_price);
+        const tc  = qty * uc;
+        const ts  = qty * up;
+        if (currentSectionIsSRV) { srvCost += tc; srvSell += ts; }
+        else                     { matCost += tc; matSell += ts; }
+      }
+    });
+
+    if (matCost > 0 || matSell > 0) {
+      sysRows.push({ name: sheet.name + ' Material', cost: matCost, sell: matSell });
+    }
+    if (srvCost > 0 || srvSell > 0) {
+      sysRows.push({ name: srvLabel, cost: srvCost, sell: srvSell, isSrv: true });
+    }
+  });
+
+  const totalCost = sysRows.reduce((s, r) => s + r.cost, 0);
+  const totalSell = sysRows.reduce((s, r) => s + r.sell, 0);
+
+  const discCost   = summaryDiscountCost;
+  const discSell   = summaryDiscountSell;
+  const afterCost  = totalCost - discCost;
+  const afterSell  = totalSell - discSell;
+  const vatCost    = +(afterCost * 0.15).toFixed(2);
+  const vatSell    = +(afterSell * 0.15).toFixed(2);
+  const grandCost  = +(afterCost + vatCost).toFixed(2);
+  const grandSell  = +(afterSell + vatSell).toFixed(2);
+
+  const tbody = document.getElementById('costSummaryBody');
+  let html = '';
+
+  // ── System rows
+  sysRows.forEach(r => {
+    html += `<tr class="sum-sys-row">
+      <td>${esc(r.name)}</td>
+      <td>${fmtSar(r.cost)}</td>
+      <td>${fmtSar(r.sell)}</td>
+      <td style="text-align:center;">${calcMarginPct(r.cost, r.sell)}</td>
+    </tr>`;
+  });
+
+  // ── Total
+  html += `<tr class="sum-total-row">
+    <td>Total</td>
+    <td>${fmtSar(totalCost)}</td>
+    <td>${fmtSar(totalSell)}</td>
+    <td style="text-align:center;">${calcMarginPct(totalCost, totalSell)}</td>
+  </tr>`;
+
+  // ── Discount (editable)
+  html += `<tr class="sum-discount-row">
+    <td>Discount</td>
+    <td><input class="discount-input" id="smDiscCost" type="number" min="0" step="0.01" value="${discCost.toFixed(2)}"></td>
+    <td><input class="discount-input" id="smDiscSell" type="number" min="0" step="0.01" value="${discSell.toFixed(2)}"></td>
+    <td></td>
+  </tr>`;
+
+  // ── After Discount
+  html += `<tr class="sum-after-discount-row">
+    <td>After Discount</td>
+    <td>${fmtSar(afterCost)}</td>
+    <td>${fmtSar(afterSell)}</td>
+    <td style="text-align:center;">${calcMarginPct(afterCost, afterSell)}</td>
+  </tr>`;
+
+  // ── VAT 15%
+  html += `<tr class="sum-vat-row">
+    <td>VAT 15%</td>
+    <td>${fmtSar(vatCost)}</td>
+    <td>${fmtSar(vatSell)}</td>
+    <td></td>
+  </tr>`;
+
+  // ── Total With VAT
+  html += `<tr class="sum-grand-row">
+    <td>Total With VAT</td>
+    <td>${fmtSar(grandCost)}</td>
+    <td>${fmtSar(grandSell)}</td>
+    <td></td>
+  </tr>`;
+
+  tbody.innerHTML = html;
+
+  // Re-attach discount listeners (inputs were just re-created)
+  const dcInp = document.getElementById('smDiscCost');
+  const dsInp = document.getElementById('smDiscSell');
+  if (dcInp) dcInp.addEventListener('input', () => {
+    summaryDiscountCost = parseFloat(dcInp.value) || 0;
+    renderSummary();
+  });
+  if (dsInp) dsInp.addEventListener('input', () => {
+    summaryDiscountSell = parseFloat(dsInp.value) || 0;
+    renderSummary();
+  });
+}
 
 // ── Keyboard shortcut: Tab in last cell adds new item ─────────────────
 document.getElementById('csTable').addEventListener('keydown', e => {
@@ -762,5 +949,6 @@ function showToast(msg, type) {
 // ── Init ──────────────────────────────────────────────────────────────
 renderTabs();
 renderTable();
+renderSummary();
 </script>
 {% endblock %}
