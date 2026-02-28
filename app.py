@@ -6288,110 +6288,138 @@ Rules:
     txt_box(slide, '   |   '.join(thank_parts), 0, 6.87, SLIDE_W, 0.5, size=10, bold=False, color=C_WHITE, align=PP_ALIGN.CENTER)
 
     # ═══════════════════════════════════════════════════════════════
-    # SLIDE — CALL TO ACTION (last slide)
+    # SLIDE — CALL TO ACTION (last slide — redesigned)
     # ═══════════════════════════════════════════════════════════════
     slide = prs.slides.add_slide(blank_layout)
 
-    _C_CTA_DARK = RGBColor(0x1A, 0x0A, 0x45)   # near-black purple
+    _C_CTA_BG    = RGBColor(0x0F, 0x07, 0x30)   # very deep navy-purple
+    _C_CTA_MID   = RGBColor(0x1E, 0x0F, 0x52)   # mid-dark purple
+    _C_CTA_CARD  = RGBColor(0x2A, 0x16, 0x6E)   # card purple
+    _C_CTA_LIGHT = RGBColor(0xD1, 0xC4, 0xE9)   # soft lavender text
 
-    # Full dark background
-    rect(slide, 0, 0, SLIDE_W, SLIDE_H, _C_CTA_DARK)
+    # ── Background layers ─────────────────────────────────────────
+    rect(slide, 0, 0, SLIDE_W, SLIDE_H, _C_CTA_BG)
 
-    # Gold accent top bar
-    _ga = slide.shapes.add_shape(1, 0, Inches(0), Inches(SLIDE_W), Inches(0.09))
-    _ga.fill.solid(); _ga.fill.fore_color.rgb = C_GOLD; _ga.line.width = 0
+    # Soft purple sweep (bottom-right triangle illusion via large rect)
+    _sweep = slide.shapes.add_shape(1, Inches(5.5), Inches(3.8), Inches(7.83), Inches(3.7))
+    _sweep.fill.solid(); _sweep.fill.fore_color.rgb = _C_CTA_MID; _sweep.line.width = 0
 
-    # Decorative large circle (top-right)
-    _dc = slide.shapes.add_shape(9, Inches(9.5), Inches(-1.2), Inches(5.5), Inches(5.5))
-    _dc.fill.solid(); _dc.fill.fore_color.rgb = RGBColor(0x2E, 0x1A, 0x6E)
-    _dc.line.width = 0
+    # Decorative circles for depth
+    for _cx_c, _cy_c, _sz_c, _col_c in [
+        (10.2, -1.5, 5.8, RGBColor(0x2E, 0x1A, 0x8A)),  # top-right large
+        (-1.8, 5.2,  4.2, RGBColor(0x1A, 0x0D, 0x55)),  # bottom-left
+        (5.5,  6.0,  2.8, RGBColor(0x25, 0x12, 0x70)),  # bottom-center
+    ]:
+        _circ = slide.shapes.add_shape(9, Inches(_cx_c), Inches(_cy_c), Inches(_sz_c), Inches(_sz_c))
+        _circ.fill.solid(); _circ.fill.fore_color.rgb = _col_c; _circ.line.width = 0
 
-    # Logo top-left
+    # Gold top accent bar
+    _top_bar = slide.shapes.add_shape(1, 0, 0, Inches(SLIDE_W), Inches(0.1))
+    _top_bar.fill.solid(); _top_bar.fill.fore_color.rgb = C_GOLD; _top_bar.line.width = 0
+
+    # ── Logo — top left ───────────────────────────────────────────
     try:
-        slide.shapes.add_picture(LOGO_PATH, Inches(0.45), Inches(0.22), width=Inches(1.6))
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.5), Inches(0.25), width=Inches(1.7))
     except Exception:
         pass
 
-    # ── Main heading ─────────────────────────────────────────────────
-    txt_box(slide, "LET'S GET STARTED", 0, 1.1, SLIDE_W, 1.05,
-            size=42, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
-    txt_box(slide, 'We are ready to partner with you and deliver excellence', 0, 2.1, SLIDE_W, 0.5,
-            size=15, bold=False, color=RGBColor(0xD1, 0xC4, 0xE9), align=PP_ALIGN.CENTER)
+    # ── Main headline ─────────────────────────────────────────────
+    txt_box(slide, 'THANK YOU', 0, 0.88, SLIDE_W, 1.1,
+            size=56, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
 
-    # Gold divider
-    _gd = slide.shapes.add_shape(1, Inches(3.5), Inches(2.72), Inches(6.33), Inches(0.06))
-    _gd.fill.solid(); _gd.fill.fore_color.rgb = C_GOLD; _gd.line.width = 0
+    # Gold double-rule under heading
+    for _gy in [1.98, 2.06]:
+        _gr = slide.shapes.add_shape(1, Inches(4.2), Inches(_gy), Inches(4.93), Inches(0.04))
+        _gr.fill.solid(); _gr.fill.fore_color.rgb = C_GOLD; _gr.line.width = 0
 
-    # ── CTA body text (from proposal or default) ─────────────────────
-    _cta_body = _prop_form.get('cta_body', '') if _prop_form else ''
+    # Sub-tagline
+    txt_box(slide, 'We look forward to the opportunity to work together',
+            0, 2.18, SLIDE_W, 0.44, size=14, bold=False,
+            color=_C_CTA_LIGHT, align=PP_ALIGN.CENTER)
+
+    # ── CTA message box ───────────────────────────────────────────
+    _cta_body = (_prop_form.get('cta_body', '') if _prop_form else '').strip()
     if not _cta_body:
-        _cta_body = 'We would be happy to discuss this proposal further and answer any technical or commercial questions. Please do not hesitate to reach out to our team.'
-    txt_box(slide, _cta_body, 1.5, 2.88, 10.33, 0.7, size=11,
-            color=RGBColor(0xD1, 0xC4, 0xE9), align=PP_ALIGN.CENTER, italic=True)
+        _cta_body = (
+            'We truly appreciate your interest in this proposal. Our team is ready to answer '
+            'any questions and discuss the next steps toward a successful partnership.'
+        )
+    _msg_bg = slide.shapes.add_shape(1, Inches(1.8), Inches(2.72), Inches(9.73), Inches(0.9))
+    _msg_bg.fill.solid(); _msg_bg.fill.fore_color.rgb = _C_CTA_CARD; _msg_bg.line.width = 0
+    _msg_left = slide.shapes.add_shape(1, Inches(1.8), Inches(2.72), Inches(0.08), Inches(0.9))
+    _msg_left.fill.solid(); _msg_left.fill.fore_color.rgb = C_GOLD; _msg_left.line.width = 0
+    txt_box(slide, _cta_body, 2.0, 2.77, 9.3, 0.8, size=10.5,
+            color=_C_CTA_LIGHT, align=PP_ALIGN.LEFT, italic=True)
 
-    # ── Contact cards row ────────────────────────────────────────────
-    _cta_email_val = prop_cta_email or company_email
-    _cta_phone_val = prop_cta_phone or company_phone
-    _cta_cards = []
+    # ── Contact info — 3 premium cards ───────────────────────────
+    _cta_email_val = (prop_cta_email or company_email or '').strip()
+    _cta_phone_val = (prop_cta_phone or company_phone or '').strip()
+
+    _CARD_ICONS = {'EMAIL': 'EMAIL', 'PHONE': 'PHONE', 'COMPANY': 'COMPANY'}
+    _contact_entries = []
     if _cta_email_val:
-        _cta_cards.append(('✉  Email', _cta_email_val))
+        _contact_entries.append(('EMAIL', _cta_email_val))
     if _cta_phone_val:
-        _cta_cards.append(('📞  Phone', _cta_phone_val))
-    _cta_cards.append(('🏢  Company', company_name))
+        _contact_entries.append(('PHONE', _cta_phone_val))
+    _contact_entries.append(('COMPANY', company_name))
 
-    _card_count = len(_cta_cards)
-    _card_w     = 3.9 if _card_count <= 3 else 2.9
-    _card_gap   = (SLIDE_W - _card_w * _card_count) / (_card_count + 1)
-    _cx = _card_gap
-    for _ci_label, _ci_val in _cta_cards:
-        # Card
-        _cc = slide.shapes.add_shape(1, Inches(_cx), Inches(3.75), Inches(_card_w), Inches(0.9))
-        _cc.fill.solid(); _cc.fill.fore_color.rgb = RGBColor(0x2E, 0x1A, 0x6E)
-        _cc.line.fill.background(); _cc.line.width = 0
-        # Left accent
-        _ca = slide.shapes.add_shape(1, Inches(_cx), Inches(3.75), Inches(0.07), Inches(0.9))
-        _ca.fill.solid(); _ca.fill.fore_color.rgb = C_GOLD; _ca.line.width = 0
-        txt_box(slide, _ci_label, _cx + 0.14, 3.80, _card_w - 0.18, 0.3,
-                size=8, bold=True, color=C_GOLD, align=PP_ALIGN.LEFT)
-        txt_box(slide, _ci_val, _cx + 0.14, 4.08, _card_w - 0.18, 0.52,
-                size=9.5, bold=False, color=C_WHITE, align=PP_ALIGN.LEFT)
-        _cx += _card_w + _card_gap
+    _n_cards   = len(_contact_entries)
+    _CARD_H    = 1.35
+    _CARD_W    = (SLIDE_W - 1.1) / _n_cards - 0.18
+    _CARD_Y    = 3.82
+    _CARD_X_START = 0.55
 
-    # ── Prepared by / Approved by row ────────────────────────────────
-    _has_prep = prop_prep_name or presale_eng
-    _has_mgr  = prop_mgr_name
+    _card_accent_cols = [C_GOLD, C_TEAL, C_PURPLE2]
 
-    if _has_prep or _has_mgr:
-        rect(slide, 0.4, 4.88, 12.53, 1.4, RGBColor(0x2E, 0x1A, 0x6E))
-        txt_box(slide, 'YOUR CONTACTS', 0, 4.92, SLIDE_W, 0.32,
-                size=9, bold=True, color=C_GOLD, align=PP_ALIGN.CENTER)
-        _ln2 = slide.shapes.add_shape(1, Inches(3.5), Inches(5.21), Inches(6.33), Inches(0.025))
-        _ln2.fill.solid(); _ln2.fill.fore_color.rgb = RGBColor(0x4B, 0x2D, 0x8F); _ln2.line.width = 0
+    for _ci, (_clabel, _cval) in enumerate(_contact_entries):
+        _CX = _CARD_X_START + _ci * (_CARD_W + 0.18)
+        _acc = _card_accent_cols[_ci % len(_card_accent_cols)]
 
-        _sig_items = []
-        if _has_prep:
-            _sig_items.append((prop_prep_name or presale_eng, prop_prep_title or 'Presales Engineer'))
-        if _has_mgr:
-            _sig_items.append((prop_mgr_name, prop_mgr_title or 'Manager'))
+        # Card body
+        _cb = slide.shapes.add_shape(1, Inches(_CX), Inches(_CARD_Y), Inches(_CARD_W), Inches(_CARD_H))
+        _cb.fill.solid(); _cb.fill.fore_color.rgb = _C_CTA_CARD; _cb.line.width = 0
 
-        _sw = 5.5 if len(_sig_items) == 2 else 8.0
-        _sx = (SLIDE_W - _sw * len(_sig_items)) / 2
-        for _sname, _stitle in _sig_items:
-            txt_box(slide, _sname,  _sx, 5.28, _sw, 0.40, size=14, bold=True,
-                    color=C_WHITE, align=PP_ALIGN.CENTER)
-            txt_box(slide, _stitle, _sx, 5.68, _sw, 0.30, size=9.5, bold=False,
-                    color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER)
-            _sx += _sw
+        # Top accent bar on card
+        _ct = slide.shapes.add_shape(1, Inches(_CX), Inches(_CARD_Y), Inches(_CARD_W), Inches(0.1))
+        _ct.fill.solid(); _ct.fill.fore_color.rgb = _acc; _ct.line.width = 0
 
-    # ── Bottom footer band ───────────────────────────────────────────
-    rect(slide, 0, 6.65, SLIDE_W, 0.85, C_PURPLE)
+        # Icon circle
+        _ic = slide.shapes.add_shape(9, Inches(_CX + 0.18), Inches(_CARD_Y + 0.2),
+                                      Inches(0.52), Inches(0.52))
+        _ic.fill.solid(); _ic.fill.fore_color.rgb = _acc; _ic.line.width = 0
+
+        # Icon letter
+        _icon_char = {'EMAIL': 'E', 'PHONE': 'P', 'COMPANY': 'C'}.get(_clabel, _clabel[0])
+        _ic_tb = slide.shapes.add_textbox(Inches(_CX + 0.18), Inches(_CARD_Y + 0.2),
+                                           Inches(0.52), Inches(0.52))
+        _ic_tf = _ic_tb.text_frame; _ic_tf.text = ''
+        _ic_p  = _ic_tf.paragraphs[0]; _ic_p.alignment = PP_ALIGN.CENTER
+        _ic_r  = _ic_p.add_run(); _ic_r.text = _icon_char
+        _ic_r.font.size = Pt(13); _ic_r.font.bold = True
+        _ic_r.font.color.rgb = C_WHITE; _ic_r.font.name = 'Calibri'
+
+        # Label
+        txt_box(slide, _clabel, _CX + 0.82, _CARD_Y + 0.18, _CARD_W - 0.95, 0.3,
+                size=8, bold=True, color=_acc, align=PP_ALIGN.LEFT)
+
+        # Value
+        txt_box(slide, _cval, _CX + 0.12, _CARD_Y + 0.72, _CARD_W - 0.2, 0.55,
+                size=11, bold=False, color=C_WHITE, align=PP_ALIGN.LEFT)
+
+    # ── Bottom footer — full-width purple band ─────────────────────
+    rect(slide, 0, 6.72, SLIDE_W, 0.78, C_PURPLE)
+
+    # Gold thin line above footer
+    _fl = slide.shapes.add_shape(1, 0, Inches(6.72), Inches(SLIDE_W), Inches(0.04))
+    _fl.fill.solid(); _fl.fill.fore_color.rgb = C_GOLD; _fl.line.width = 0
+
     _footer_parts = [company_name]
     if company_email: _footer_parts.append(company_email)
     if company_phone: _footer_parts.append(company_phone)
-    txt_box(slide, '   |   '.join(_footer_parts), 0, 6.72, SLIDE_W, 0.5,
-            size=10, bold=False, color=C_WHITE, align=PP_ALIGN.CENTER)
-    txt_box(slide, quote_ref, 0, 7.1, SLIDE_W, 0.3,
-            size=8, color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER, italic=True)
+    txt_box(slide, '   |   '.join(_footer_parts), 0, 6.79, SLIDE_W, 0.38,
+            size=10.5, bold=False, color=C_WHITE, align=PP_ALIGN.CENTER)
+    txt_box(slide, quote_ref, 0, 7.18, SLIDE_W, 0.28,
+            size=8, color=_C_CTA_LIGHT, align=PP_ALIGN.CENTER, italic=True)
 
     # ── Save and send ─────────────────────────────────────────────────
     out = BytesIO()
