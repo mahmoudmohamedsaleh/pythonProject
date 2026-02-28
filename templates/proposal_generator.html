@@ -379,7 +379,10 @@ function switchTab(name, btn) {
 
 // ── Loader ────────────────────────────────────────────────────────────
 function showLoader() {
-  document.getElementById('loaderOverlay').classList.add('active');
+  const overlay = document.getElementById('loaderOverlay');
+  overlay.classList.add('active');
+  // PDF opens in a new tab so the original page never reloads — auto-hide after 6s
+  setTimeout(() => overlay.classList.remove('active'), 6000);
 }
 
 // ── Terms ─────────────────────────────────────────────────────────────
