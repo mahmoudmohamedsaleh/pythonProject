@@ -1007,7 +1007,7 @@ async function openSubmitModal(){
   const rfq={{ rfq_ref|tojson }};
   const quoteref={{ quoteref|tojson }};
   const project={{ project_name|tojson }};
-  const presale={{ presale_username|tojson }};
+  const presale={{ session['username']|tojson }};
   const sales={{ eng_ref|tojson }};
   document.getElementById('sqRfq').value=rfq;
   document.getElementById('sqQuoteRef').value=quoteref;
