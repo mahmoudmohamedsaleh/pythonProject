@@ -275,12 +275,27 @@
         <!-- ─── RIGHT: Systems + Actions ─── -->
         <div class="col-lg-5">
 
+          <!-- Create Cost Sheet button -->
+          <div class="card mb-3 shadow-sm" style="border:2px solid #1B7B4B;">
+            <div class="card-body py-3 text-center">
+              <p class="small text-muted mb-2">
+                <i class="fas fa-info-circle text-success mr-1"></i>
+                Open the Cost Sheet Builder to create or edit your cost sheet for this quotation.
+              </p>
+              <a href="{{ url_for('cost_sheet_builder') }}?project={{ project_name|urlencode }}&rfq={{ rfq_ref|urlencode }}&quoteref={{ quoteref }}"
+                 class="btn btn-block font-weight-bold"
+                 style="background:linear-gradient(135deg,#1B7B4B,#27ae60);color:#fff;padding:11px 0;border-radius:8px;font-size:.95rem;">
+                <i class="fas fa-table mr-2"></i> Create Cost Sheet
+              </a>
+            </div>
+          </div>
+
           <!-- Generate button -->
           <div class="card mb-3 shadow-sm" style="border:2px solid #dc3545;">
             <div class="card-body py-3 text-center">
               <p class="small text-muted mb-2">
                 <i class="fas fa-info-circle text-primary mr-1"></i>
-                Edit fields on the left, upload a cost sheet, then generate your PDF.
+                Edit fields on the left, then generate your PDF.
               </p>
               <button type="submit" class="btn-generate" onclick="showLoader()">
                 <i class="fas fa-file-pdf mr-2"></i> Generate &amp; Download PDF
