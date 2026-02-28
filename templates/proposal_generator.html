@@ -927,7 +927,12 @@ renderSysTable();
           <div class="form-row">
             <div class="form-group col-md-6">
               <label class="font-weight-bold small">Presale Engineer</label>
-              <input type="text" class="form-control form-control-sm" name="presale_eng" id="sqPresale" readonly style="background:#e9ecef;">
+              <select class="form-control form-control-sm" name="presale_eng" id="sqPresale">
+                <option value="">-- Select --</option>
+                {% for pe in presale_engineers_list %}
+                <option value="{{ pe }}">{{ pe }}</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="form-group col-md-6">
               <label class="font-weight-bold small">Sales Engineer</label>
@@ -1015,7 +1020,7 @@ async function openSubmitModal(){
   document.getElementById('sqRfqDisp').value=rfq;
   document.getElementById('sqQuoteRefDisp').value=quoteref;
   document.getElementById('sqProjectDisp').value=project;
-  document.getElementById('sqPresale').value=presale;
+  document.getElementById('sqPresale').value=presale;  // pre-select logged-in user
   document.getElementById('sqSales').value=sales;
   document.getElementById('sqStatus').value='Quotation Sent';
   document.getElementById('sqProgress').value='5.00%';

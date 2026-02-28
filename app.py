@@ -6558,6 +6558,17 @@ def proposal_generator_main():
         subject      = saved_form.get('sub',           subject)
         presale_name = saved_form.get('prep_by_name',  presale_name)
 
+    # Fetch presale engineers for the submit-quotation modal dropdown
+    try:
+        _pe_conn = sqlite3.connect('ProjectStatus.db')
+        _pe_rows = _pe_conn.execute(
+            "SELECT username FROM engineers WHERE role IN ('Presale Engineer','Technical Team Leader') ORDER BY username"
+        ).fetchall()
+        _pe_conn.close()
+        presale_engineers_list = [r[0] for r in _pe_rows]
+    except Exception:
+        presale_engineers_list = []
+
     resp = make_response(render_template('proposal_generator.html', today=today,
                            project_name=project_name, rfq_ref=rfq_ref,
                            quoteref=quoteref,
@@ -6570,7 +6581,8 @@ def proposal_generator_main():
                            cs_scope=cs_scope,
                            cs_system_scopes=cs_system_scopes,
                            se_email=se_email,
-                           saved_form=saved_form))
+                           saved_form=saved_form,
+                           presale_engineers_list=presale_engineers_list))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'
     return resp
