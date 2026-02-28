@@ -6195,6 +6195,97 @@ def proposal_rfqs_for_project():
     return jsonify(rfqs)
 
 
+@app.route('/proposal_generator/ai_executive_summary', methods=['POST'])
+@login_required
+def proposal_ai_executive_summary():
+    """AJAX: generate an AI executive summary from cost sheet systems for the proposal."""
+    from flask import request as _req, jsonify
+    import json as _json, os as _os
+    data = _req.get_json(force=True) or {}
+    rfq_ref   = data.get('rfq_ref', '').strip()
+    quote_ref = data.get('quote_ref', '').strip()
+    project   = data.get('project', '').strip()
+    to_co     = data.get('to', '').strip()
+    try:
+        import openai as _openai
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'OpenAI not available'}), 500
+
+    # Load systems from cost sheet
+    systems_text = ''
+    grand_total  = 0.0
+    if rfq_ref:
+        try:
+            conn = sqlite3.connect('ProjectStatus.db')
+            row = conn.execute(
+                "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                (rfq_ref, quote_ref)
+            ).fetchone()
+            conn.close()
+            if row and row[0]:
+                sheets = _json.loads(row[0])
+                lines = []
+                for sh in sheets:
+                    sname = sh.get('name', 'System')
+                    scope = (sh.get('scope') or '').strip()
+                    total = sum(
+                        float(r.get('qty') or 0) * float(r.get('unit_price') or 0)
+                        for r in sh.get('rows', [])
+                        if r.get('type') == 'item'
+                    )
+                    grand_total += total
+                    lines.append(f"- System: {sname} | Scope: {scope or 'Supply, Installation, Testing and Commissioning'} | Value: SAR {total:,.2f}")
+                systems_text = '\n'.join(lines)
+        except Exception as e:
+            app.logger.warning(f"AI summary load error: {e}")
+
+    total_str = f"SAR {grand_total:,.2f}" if grand_total else 'Not specified'
+    systems_text = systems_text or '- Systems not specified'
+
+    _prompt = f"""You are a senior presales engineer at EJTech, a professional ICT solutions company.
+Write a professional Executive Summary paragraph (3-5 sentences) for a commercial quotation proposal.
+The summary should be client-facing, persuasive, and professional. Cover: what is being offered, the systems/technologies involved, the value proposition, and a closing confidence statement.
+
+Project: {project or 'Client Project'}
+Client Company: {to_co or 'Valued Client'}
+Systems & Scope:
+{systems_text}
+Total Proposal Value: {total_str}
+
+Rules:
+- Write flowing prose paragraphs, NOT bullet points.
+- Keep it concise: 3-5 sentences max, under 120 words.
+- Do not use the word "I" or first-person singular.
+- Maintain formal, professional B2B tone.
+- Do not include greetings or sign-offs.
+- Output ONLY the summary text, nothing else."""
+
+    try:
+        _client = _openai.OpenAI(
+            api_key=_os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=_os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+        )
+        resp = _client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{'role': 'user', 'content': _prompt}],
+            max_tokens=200,
+            temperature=0.70,
+        )
+        summary = resp.choices[0].message.content.strip()
+        return jsonify({'ok': True, 'summary': summary})
+    except Exception as e:
+        app.logger.error(f"AI executive summary error: {e}")
+        fallback = (
+            f"EJTech is pleased to submit this commercial proposal for the supply, installation, and commissioning "
+            f"of integrated ICT systems for {to_co or 'your esteemed organization'}. "
+            f"This proposal encompasses {len([l for l in systems_text.split(chr(10)) if l.strip()])} specialized system(s) "
+            f"with a total investment of {total_str}, designed and engineered to meet your project's specific requirements. "
+            f"Our team of certified engineers ensures seamless project delivery, backed by full manufacturer warranties and dedicated after-sales support. "
+            f"We are confident this proposal represents the best value-for-quality solution for your needs."
+        )
+        return jsonify({'ok': True, 'summary': fallback})
+
+
 @app.route('/proposal_generator/save_form', methods=['POST'])
 @login_required
 def proposal_save_form():
@@ -6435,6 +6526,7 @@ def proposal_generate_pdf():
             'cont':          _req.form.get('cont', ''),
             'sub':           _req.form.get('sub', ''),
             'scope':         _req.form.get('scope', ''),
+            'exec_summary':  _req.form.get('exec_summary', ''),
             'prep_by_name':  _req.form.get('prep_by_name', ''),
             'prep_by_title': _req.form.get('prep_by_title', ''),
             'mgr_name':      _req.form.get('mgr_name', ''),
@@ -6820,6 +6912,31 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         'favour us with your order.',
         _ps('body3', fontSize=9, textColor=C_DARK, leading=13)))
     story.append(Spacer(1, 0.28*cm))
+
+    # ── 4b. EXECUTIVE SUMMARY (AI) ───────────────────────────────────────
+    _exec_sum = (cover.get('exec_summary') or '').strip()
+    if _exec_sum:
+        from reportlab.platypus import HRFlowable
+        # Section header bar
+        _es_hdr = Table([[
+            _p('EXECUTIVE SUMMARY', _pw('esh', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white)),
+        ]], colWidths=[BW_eff])
+        _es_hdr.setStyle(TableStyle([
+            ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#4B2D8F')),
+            ('LINEBELOW',  (0,0),(-1,-1), 2, colors.HexColor('#F59E0B')),
+            ('TOPPADDING', (0,0),(-1,-1), 5),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+            ('LEFTPADDING', (0,0),(-1,-1), 10),
+        ]))
+        story.append(_es_hdr)
+        story.append(Spacer(1, 0.12*cm))
+        # Split by newlines — each non-empty paragraph on its own
+        _es_paras = [ln.strip() for ln in _exec_sum.split('\n') if ln.strip()]
+        _es_body_style = _ps('esb', fontName='Helvetica', fontSize=8.8, textColor=C_DARK, leading=13.5,
+                              leftIndent=4, rightIndent=4)
+        for _ep in _es_paras:
+            story.append(_p(_ep, _es_body_style))
+        story.append(Spacer(1, 0.25*cm))
 
     # ── 5. COMMERCIAL SUMMARY ─────────────────────────────────────────────
     # Header

@@ -233,6 +233,31 @@
             </div>
           </div>
 
+          <!-- Executive Summary -->
+          <div class="card mb-3 shadow-sm" style="border:2px solid #4B2D8F;">
+            <div class="card-header-pg d-flex justify-content-between align-items-center"
+                 style="background:linear-gradient(135deg,#4B2D8F,#7B5EA7);">
+              <span><i class="fas fa-robot mr-1"></i> Executive Summary <span style="font-size:.75rem;opacity:.8;font-weight:400;">(AI-Generated)</span></span>
+              <button type="button" id="aiGenBtn" onclick="generateAISummary()"
+                      style="background:#F59E0B;border:none;color:#1A0000;font-weight:700;
+                             font-size:.75rem;border-radius:5px;padding:3px 12px;cursor:pointer;">
+                <i class="fas fa-magic mr-1"></i> Generate with AI
+              </button>
+            </div>
+            <div class="card-body py-3">
+              <div id="aiSummaryStatus" style="display:none; font-size:.8rem; color:#4B2D8F; margin-bottom:8px;">
+                <i class="fas fa-spinner fa-spin mr-1"></i> Generating executive summary with AI…
+              </div>
+              <textarea name="exec_summary" id="execSummaryTA" rows="5"
+                style="width:100%; border:1px solid #c9b8e8; border-radius:5px; padding:8px 10px;
+                       font-size:.85rem; line-height:1.6; color:#1A1A2E; resize:vertical;"
+                placeholder="Click 'Generate with AI' to auto-create a professional executive summary based on your systems and scope, or type your own…">{{ saved_form.get('exec_summary', '') if saved_form else '' }}</textarea>
+              <p class="text-muted mt-1 mb-0" style="font-size:.72rem;">
+                <i class="fas fa-info-circle mr-1"></i>This summary will appear on the PDF cover page. You can edit it after generation.
+              </p>
+            </div>
+          </div>
+
           <!-- Terms -->
           <div class="card mb-3 shadow-sm">
             <div class="card-header-pg"><i class="fas fa-list-ul mr-1"></i> Terms &amp; Conditions</div>
@@ -515,6 +540,39 @@ function fmt(n) {
   return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// ── AI Executive Summary ───────────────────────────────────────────────
+async function generateAISummary() {
+  const btn  = document.getElementById('aiGenBtn');
+  const stat = document.getElementById('aiSummaryStatus');
+  const ta   = document.getElementById('execSummaryTA');
+  btn.disabled = true;
+  stat.style.display = 'block';
+  try {
+    const resp = await fetch('{{ url_for("proposal_ai_executive_summary") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        rfq_ref:   '{{ rfq_ref }}',
+        quote_ref: document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}',
+        project:   '{{ project_name }}',
+        to:        document.querySelector('[name="to"]')?.value || '',
+      }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      ta.value = data.summary;
+      ta.style.borderColor = '#4B2D8F';
+    } else {
+      alert('AI generation failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    stat.style.display = 'none';
+  }
+}
+
 // ── Rebuild hidden scope field from per-system inputs ─────────────────
 function rebuildScope() {
   const hidden = document.getElementById('scopeHidden');
@@ -578,6 +636,7 @@ async function saveDraft() {
     cont:          document.querySelector('[name="cont"]')?.value || '',
     sub:           document.querySelector('[name="sub"]')?.value || '',
     scope:         document.querySelector('[name="scope"]')?.value || '',
+    exec_summary:  document.getElementById('execSummaryTA')?.value || '',
     prep_by_name:  document.querySelector('[name="prep_by_name"]')?.value || '',
     prep_by_title: document.querySelector('[name="prep_by_title"]')?.value || '',
     mgr_name:      document.querySelector('[name="mgr_name"]')?.value || '',
