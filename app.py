@@ -6570,7 +6570,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     story.append(Spacer(1, 0.35*cm))
 
     # ── 2. Document reference strip (3 equal columns) ───────────────────
-    C_REF_BG = colors.HexColor('#F3F0FA')
+    C_REF_BG = colors.white
     def _ref_cell(label, value, bold_val=False):
         val_style = _ps('rv', fontName='Helvetica-Bold' if bold_val else 'Helvetica',
                         fontSize=9, textColor=C_PURPLE if bold_val else C_DARK)
@@ -6635,7 +6635,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
         ('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),
-        ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, colors.HexColor('#F5F3FC')]),
+        ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, colors.HexColor('#F8F7FB')]),
         ('FONTSIZE',(0,0),(-1,-1),9),
     ]))
     story.append(ci)
@@ -6681,8 +6681,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     # ── 6. Commercial Summary table ──────────────────────────────────────
     cs_hdr_tbl = Table([[
         _p('COMMERCIAL SUMMARY', _ps('csh', fontName='Helvetica-Bold', fontSize=9.5, textColor=C_WHITE)),
-        _p('(Prices in SAR, Excluding VAT)', _ps('csn', fontSize=8, textColor=colors.HexColor('#D0C8E8'), alignment=TA_RIGHT)),
-    ]], colWidths=[BW*0.55, BW*0.45])
+    ]], colWidths=[BW])
     cs_hdr_tbl.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,-1),C_PURPLE),
         ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
@@ -6724,7 +6723,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#CCCCCC')),
         ('ALIGN',(0,1),(0,-1),'CENTER'),('ALIGN',(2,0),(2,-1),'RIGHT'),
         ('PADDING',(0,0),(-1,-1),6),('FONTSIZE',(0,1),(-1,-1),9),
-        ('ROWBACKGROUNDS',(0,1),(-1,-1),[C_WHITE, colors.HexColor('#F5F3FC')]),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[C_WHITE, colors.HexColor('#F8F7FB')]),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
     ])
     for i, sys in enumerate(systems, start=1):
@@ -6899,12 +6898,18 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
 
     def on_page(canv, doc):
         canv.saveState()
+        # Subtle page background
+        canv.setFillColor(colors.HexColor('#F4F2F9'))
+        canv.rect(0, 0, W, H, fill=1, stroke=0)
+        # Top purple header strip
         canv.setFillColor(C_PURPLE)
         canv.rect(0, H - 0.75*cm, W, 0.75*cm, fill=1, stroke=0)
+        # Gold accent line below header
         canv.setFillColor(C_GOLD)
         canv.rect(0, H - 0.8*cm, W, 0.06*cm, fill=1, stroke=0)
+        # Footer text
         canv.setFont('Helvetica', 7.5)
-        canv.setFillColor(colors.HexColor('#666666'))
+        canv.setFillColor(colors.HexColor('#555555'))
         canv.drawString(MARGINS, 0.9*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
         canv.drawRightString(W - MARGINS, 0.9*cm, f"Page {doc.page}")
         canv.setStrokeColor(C_PURPLE2); canv.setLineWidth(0.5)
