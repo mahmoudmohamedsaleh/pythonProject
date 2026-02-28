@@ -6976,7 +6976,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
             scope_tbl = Table([[_p(f'<b>SCOPE:</b> {sys_scope}', S_SCOPTXT)]],
                 colWidths=[BW],
                 style=TableStyle([
-                    ('BACKGROUND', (0,0), (-1,-1), HexColor('#FFF0F0')),
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FFF0F0')),
                     ('BOX', (0,0), (-1,-1), 0.6, C_PURPLE),
                     ('TOPPADDING',    (0,0), (-1,-1), 5),
                     ('BOTTOMPADDING', (0,0), (-1,-1), 5),
