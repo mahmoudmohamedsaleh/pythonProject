@@ -6719,17 +6719,73 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
 @app.route('/cost_sheet_builder', methods=['GET'])
 @login_required
 def cost_sheet_builder():
-    """Standalone Cost Sheet Builder page."""
+    """Standalone Cost Sheet Builder page - loads previously saved sheet if any."""
     from flask import request as _req
+    import sqlite3
     project_name = _req.args.get('project', '')
     rfq_ref      = _req.args.get('rfq', '')
     quoteref     = _req.args.get('quoteref', '')
+    saved_sheets_json = None
+    saved_at = None
+    if rfq_ref:
+        try:
+            conn = sqlite3.connect('ProjectStatus.db')
+            row = conn.execute(
+                "SELECT sheets_json, updated_at FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                (rfq_ref, quoteref or '')
+            ).fetchone()
+            conn.close()
+            if row:
+                saved_sheets_json = row[0]
+                saved_at = row[1]
+        except Exception as e:
+            app.logger.warning(f"cost_sheet load error: {e}")
     return render_template('cost_sheet_builder.html',
                            project_name=project_name,
                            rfq_ref=rfq_ref,
-                           quoteref=quoteref)
+                           quoteref=quoteref,
+                           saved_sheets_json=saved_sheets_json,
+                           saved_at=saved_at)
 
 
+
+
+@app.route('/cost_sheet_builder/save', methods=['POST'])
+@login_required
+def cost_sheet_save():
+    """AJAX: Upsert cost sheet data keyed by rfq_ref+quote_ref."""
+    import sqlite3, json
+    from flask import request as _req, jsonify
+    data = _req.get_json(force=True) or {}
+    rfq_ref      = data.get('rfq_ref', '').strip()
+    quote_ref    = data.get('quote_ref', '').strip()
+    project_name = data.get('project_name', '').strip()
+    sheets       = data.get('sheets')
+    if not rfq_ref:
+        return jsonify({'error': 'RFQ reference is required to save.'}), 400
+    if not sheets:
+        return jsonify({'error': 'No sheet data to save.'}), 400
+    sheets_json = json.dumps(sheets, ensure_ascii=False)
+    saved_by = current_user.username if current_user.is_authenticated else 'unknown'
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        sql = ('INSERT INTO cost_sheets (rfq_ref, quote_ref, project_name, sheets_json, saved_by, updated_at) '
+               'VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) '
+               'ON CONFLICT(rfq_ref, quote_ref) DO UPDATE SET '
+               'sheets_json=excluded.sheets_json, project_name=excluded.project_name, '
+               'saved_by=excluded.saved_by, updated_at=CURRENT_TIMESTAMP')
+        conn.execute(sql, (rfq_ref, quote_ref, project_name, sheets_json, saved_by))
+        conn.commit()
+        row = conn.execute(
+            'SELECT updated_at FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?',
+            (rfq_ref, quote_ref)
+        ).fetchone()
+        conn.close()
+        return jsonify({'ok': True, 'updated_at': row[0] if row else ''})
+    except Exception as e:
+        import traceback
+        app.logger.error(f'cost_sheet_save error: {e}')
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/cost_sheet_builder/import', methods=['POST'])
 @login_required

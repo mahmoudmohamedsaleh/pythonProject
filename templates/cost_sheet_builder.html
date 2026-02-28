@@ -134,6 +134,15 @@
 .col-num  { width: 95px; }
 .col-pct  { width: 58px; }
 .col-act  { width: 46px; }
+.btn-save {
+  background: linear-gradient(135deg, #1B5E20, #2E7D32);
+  color: #fff; border: none; padding: 10px 20px; font-weight: 700;
+  font-size: .88rem; border-radius: 8px; cursor: pointer; transition: .2s;
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 4px;
+  white-space: nowrap;
+}
+.btn-save:hover { opacity: .9; transform: translateY(-1px); }
+.btn-save:disabled { opacity:.6; cursor:default; transform:none; }
 .btn-import {
   background: linear-gradient(135deg, #1565C0, #1976D2);
   color: #fff; border: none; padding: 10px 20px; font-weight: 700;
@@ -182,6 +191,9 @@
           <input type="file" id="importFileInput" accept=".xlsx,.xls"
                  style="display:none;" onchange="importExcel(this)">
         </label>
+        <button class="btn-save" id="btnSave" onclick="saveSheet()" title="Save cost sheet to server">
+          <i class="fas fa-save mr-2"></i> Save
+        </button>
         <button class="btn-export" onclick="exportExcel()">
           <i class="fas fa-file-excel mr-2"></i> Export to Excel
         </button>
@@ -202,6 +214,15 @@
   <div class="sheet-tabs" id="sheetTabs"></div>
 
   <!-- Toolbar -->
+  {% if saved_at %}
+  <div id="savedInfo" style="font-size:.78rem;color:#1B7B4B;margin:-6px 0 6px 0;">
+    <i class="fas fa-check-circle"></i> Last saved: <span id="savedAt">{{ saved_at }}</span>
+  </div>
+  {% else %}
+  <div id="savedInfo" style="font-size:.78rem;color:#6c757d;margin:-6px 0 6px 0;display:none;">
+    <i class="fas fa-check-circle"></i> Saved: <span id="savedAt"></span>
+  </div>
+  {% endif %}
   <div class="cs-toolbar">
     <button class="btn-add-section" onclick="addRow('section')">
       <i class="fas fa-heading mr-1"></i> Add Section Header
@@ -258,7 +279,11 @@
 // ── Data model ────────────────────────────────────────────────────────
 // sheets: [{name, rows: [{type:'section'|'item', desc, item_code, uom, qty, unit_cost, unit_price, margin}]}]
 // Margin % = (1 - Unit Cost / Unit Price) × 100  |  Total Sell = Qty × Unit Price
+{% if saved_sheets_json %}
+let sheets = {{ saved_sheets_json | safe }};
+{% else %}
 let sheets = [{ name: 'System 1', rows: [] }];
+{% endif %}
 let activeSheet = 0;
 
 // ── Render sheet tabs ─────────────────────────────────────────────────
@@ -612,6 +637,41 @@ function saveCurrentRows() {
   });
 }
 
+// ── Save to server ────────────────────────────────────────────────────
+function saveSheet(silent) {
+  saveCurrentRows();
+  const rfqRef  = "{{ rfq_ref }}";
+  const qRef    = "{{ quoteref }}";
+  const projName = "{{ project_name }}";
+  if (!rfqRef) {
+    if (!silent) alert('Cannot save: no RFQ reference linked to this cost sheet.');
+    return;
+  }
+  const btn = document.getElementById('btnSave');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving…'; }
+  fetch("{{ url_for('cost_sheet_save') }}", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rfq_ref: rfqRef, quote_ref: qRef, project_name: projName, sheets })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Save'; }
+    if (data.error) {
+      if (!silent) alert('Save failed: ' + data.error);
+      return;
+    }
+    const info = document.getElementById('savedInfo');
+    const ts   = document.getElementById('savedAt');
+    if (info && ts) { ts.textContent = data.updated_at || new Date().toLocaleString(); info.style.display = ''; }
+    if (!silent) showToast('✓ Cost sheet saved successfully', 'success');
+  })
+  .catch(err => {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-2"></i> Save'; }
+    if (!silent) alert('Save error: ' + err);
+  });
+}
+
 // ── Export ────────────────────────────────────────────────────────────
 function exportExcel() {
   saveCurrentRows();
@@ -621,6 +681,7 @@ function exportExcel() {
     alert('Please add at least one item before exporting.');
     return;
   }
+  saveSheet(true);   // silent auto-save before export
   document.getElementById('exportSheetsData').value = JSON.stringify(sheets);
   document.getElementById('exportForm').submit();
 }
