@@ -7298,18 +7298,24 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     _show_vendor   = _boq_opts.get('show_vendor',    False)
     _show_stock    = _boq_opts.get('show_stock',     False)
 
-    # Dynamic column spec: each entry = (key, header_label, width_cm, align)
-    _COLDEFS = [('sn',    'S.#',            0.8,  'CENTER')]
-    if _show_code:   _COLDEFS.append(('code',   'ITEM CODE', 2.5,  'CENTER'))
-    if _show_vendor: _COLDEFS.append(('vendor', 'VENDOR',    2.0,  'CENTER'))
-    if _show_stock:  _COLDEFS.append(('stock',  'STOCK',     1.6,  'CENTER'))
-    _opt_w  = (2.5 if _show_code else 0) + (2.0 if _show_vendor else 0) + (1.6 if _show_stock else 0)
-    _desc_w = BW - (9.4 + _opt_w)*cm   # 9.4 = sn+uom+qty+up+tot+gutter fixed overhead
+    # Column order: S.# | [ITEM CODE] | ITEM DESCRIPTION | [VENDOR] | UOM | QTY | UNIT PRICE | TOTAL | [STOCK]
+    # Fixed always-present overhead: sn(0.6)+uom(1.1)+qty(1.1)+up(2.0)+tot(2.5)+gutter(1.0) = 8.3
+    _FIXED_OH = 8.3
+    _code_w   = 2.0 if _show_code   else 0
+    _vend_w   = 1.7 if _show_vendor else 0
+    _stck_w   = 1.4 if _show_stock  else 0
+    _desc_w   = BW - (_FIXED_OH + _code_w + _vend_w + _stck_w) * cm
+
+    # Dynamic column spec: (key, header_label, width_cm, align)
+    _COLDEFS = [('sn',   'S.#',            0.6,  'CENTER')]
+    if _show_code:   _COLDEFS.append(('code',   'ITEM CODE', _code_w, 'CENTER'))
     _COLDEFS.append(('desc',  'ITEM DESCRIPTION', _desc_w/cm, 'LEFT'))
-    _COLDEFS.append(('uom',   'UOM',              1.3,  'CENTER'))
-    _COLDEFS.append(('qty',   'QTY',              1.2,  'RIGHT'))
-    _COLDEFS.append(('up',    'UNIT PRICE',        2.3,  'RIGHT'))
-    _COLDEFS.append(('total', 'TOTAL',             2.8,  'RIGHT'))
+    if _show_vendor: _COLDEFS.append(('vendor', 'VENDOR',     _vend_w, 'CENTER'))
+    _COLDEFS.append(('uom',   'UOM',              1.1,  'CENTER'))
+    _COLDEFS.append(('qty',   'QTY',              1.1,  'RIGHT'))
+    _COLDEFS.append(('up',    'UNIT PRICE',        2.0,  'RIGHT'))
+    _COLDEFS.append(('total', 'TOTAL',             2.5,  'RIGHT'))
+    if _show_stock:  _COLDEFS.append(('stock',  'STOCK',      _stck_w, 'CENTER'))
 
     _NCOLS_G = len(_COLDEFS)
     COL_W    = [c[2]*cm for c in _COLDEFS]
