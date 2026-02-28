@@ -6220,40 +6220,39 @@ def proposal_generator_main():
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
-        # projects table
-        c.execute("SELECT * FROM projects WHERE TRIM(project_name)=? LIMIT 1", (project_name.strip(),))
-        proj = c.fetchone()
-        if proj:
-            presale_username = proj['presale_eng'] or ''
-            sales_username   = proj['sales_eng']   or ''
-            system_type      = proj['system']       or ''
-
-            # Eng. Reference = sales engineer username (e.g. A.Farouk)
-            eng_ref = sales_username
-
-            # From + Contact = sales engineer name + phone
-            if sales_username:
-                c.execute("SELECT name, phone FROM engineers WHERE username=? LIMIT 1", (sales_username,))
-                se = c.fetchone()
-                if se:
-                    frm     = ('Eng. ' + se['name']) if se['name'] else sales_username
-                    contact = se['phone'] or ''
-
-            # Prepared By = presale engineer full name
-            if presale_username:
-                c.execute("SELECT name FROM engineers WHERE username=? LIMIT 1", (presale_username,))
-                pe = c.fetchone()
-                if pe: presale_name = pe['name'] or ''
-
-            # Auto-build subject
-            if system_type:
-                subject = f"PROPOSAL OF {system_type.upper()} SYSTEM For {project_name.strip()}"
-
-        # register_project → client name + contact person (To + Attention)
-        c.execute("""SELECT client_type, contractor_id, end_user_id
+        # register_project is the authoritative source for sales engineer + client
+        c.execute("""SELECT sales_engineer_id, client_type, contractor_id, end_user_id
                      FROM register_project WHERE TRIM(project_name)=? LIMIT 1""",
                   (project_name.strip(),))
         rp = c.fetchone()
+
+        # Sales engineer: prefer register_project.sales_engineer_id (by id), fallback to projects.sales_eng
+        c.execute("SELECT * FROM projects WHERE TRIM(project_name)=? LIMIT 1", (project_name.strip(),))
+        proj = c.fetchone()
+        presale_username = (proj['presale_eng'] if proj else '') or ''
+
+        se_row = None
+        if rp and rp['sales_engineer_id']:
+            c.execute("SELECT username, name, phone FROM engineers WHERE id=? LIMIT 1",
+                      (int(rp['sales_engineer_id']),))
+            se_row = c.fetchone()
+        if se_row is None and proj and proj['sales_eng']:
+            c.execute("SELECT username, name, phone FROM engineers WHERE username=? LIMIT 1",
+                      (proj['sales_eng'],))
+            se_row = c.fetchone()
+
+        if se_row:
+            eng_ref = se_row['username'] or ''
+            frm     = ('Eng. ' + se_row['name']) if se_row['name'] else (se_row['username'] or '')
+            contact = se_row['phone'] or ''
+
+        # Prepared By = presale engineer full name
+        if presale_username:
+            c.execute("SELECT name FROM engineers WHERE username=? LIMIT 1", (presale_username,))
+            pe = c.fetchone()
+            if pe: presale_name = pe['name'] or ''
+
+        # Client info from register_project
         if rp:
             ctype = (rp['client_type'] or '').strip().lower()
             if 'contractor' in ctype and rp['contractor_id']:
