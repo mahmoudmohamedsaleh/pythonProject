@@ -82,6 +82,24 @@
            font-size: .85rem; padding: 0 4px; }
 .row-del:hover { color: #a71d2a; }
 
+/* Insert row buttons */
+.row-actions { display:flex; flex-direction:column; align-items:center; gap:2px; position:relative; }
+.btn-ins { border:none; background:none; color:#adb5bd; cursor:pointer;
+           font-size:.7rem; padding:0 2px; line-height:1.1; transition:.15s; }
+.btn-ins:hover { color:#4B2D8F; transform:scale(1.3); }
+
+/* Insert popup menu */
+.ins-menu { display:none; position:absolute; right:26px; background:#fff;
+            border:1px solid #dee2e6; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.15);
+            z-index:500; min-width:148px; overflow:hidden; white-space:nowrap; }
+.ins-menu.open { display:block; }
+.ins-menu-title { background:#f8f9fa; font-size:.72rem; font-weight:700;
+                  color:#6c757d; padding:5px 10px; border-bottom:1px solid #dee2e6; }
+.ins-menu a { display:block; padding:6px 12px; font-size:.8rem; cursor:pointer;
+              color:#212529; text-decoration:none; }
+.ins-menu a:hover { background:#f0f7ff; color:#1F3864; }
+.ins-menu a i { width:14px; margin-right:5px; }
+
 /* Toolbar */
 .cs-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .btn-add-section { background: #D6E4F7; border: 1px solid #90b4d6; color: #1F3864;
@@ -115,7 +133,7 @@
 .col-qty  { width: 65px; }
 .col-num  { width: 95px; }
 .col-pct  { width: 58px; }
-.col-act  { width: 30px; }
+.col-act  { width: 46px; }
 .btn-import {
   background: linear-gradient(135deg, #1565C0, #1976D2);
   color: #fff; border: none; padding: 10px 20px; font-weight: 700;
@@ -317,8 +335,17 @@ function buildSectionRow(row, ri) {
              value="${esc(row.desc || '')}"
              onchange="updateRow(${ri},'desc',this.value)">
     </td>
-    <td style="text-align:center;">
-      <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
+    <td style="text-align:center;padding:2px;">
+      <div class="row-actions">
+        <button class="btn-ins" onclick="toggleInsMenu(event,${ri},'before')" title="Insert above"><i class="fas fa-caret-up"></i></button>
+        <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
+        <button class="btn-ins" onclick="toggleInsMenu(event,${ri},'after')" title="Insert below"><i class="fas fa-caret-down"></i></button>
+        <div class="ins-menu" id="insMenu-${ri}">
+          <div class="ins-menu-title" id="insMenuTitle-${ri}"></div>
+          <a onclick="doInsert(${ri},'item')"><i class="fas fa-plus-circle" style="color:#1B5E20;"></i> Item Row</a>
+          <a onclick="doInsert(${ri},'section')"><i class="fas fa-heading" style="color:#1F3864;"></i> Section Header</a>
+        </div>
+      </div>
     </td>`;
   return tr;
 }
@@ -363,8 +390,17 @@ function buildItemRow(row, ri, itemNo) {
          style="font-weight:700;color:${pctColor};"
          value="${margin||''}" placeholder="0.00"
          onchange="updateRow(${ri},'margin',this.value);onMarginChange(${ri})"></td>
-    <td style="text-align:center;">
-      <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
+    <td style="text-align:center;padding:2px;">
+      <div class="row-actions">
+        <button class="btn-ins" onclick="toggleInsMenu(event,${ri},'before')" title="Insert above"><i class="fas fa-caret-up"></i></button>
+        <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
+        <button class="btn-ins" onclick="toggleInsMenu(event,${ri},'after')" title="Insert below"><i class="fas fa-caret-down"></i></button>
+        <div class="ins-menu" id="insMenu-${ri}">
+          <div class="ins-menu-title" id="insMenuTitle-${ri}"></div>
+          <a onclick="doInsert(${ri},'item')"><i class="fas fa-plus-circle" style="color:#1B5E20;"></i> Item Row</a>
+          <a onclick="doInsert(${ri},'section')"><i class="fas fa-heading" style="color:#1F3864;"></i> Section Header</a>
+        </div>
+      </div>
     </td>`;
   return tr;
 }
@@ -414,9 +450,62 @@ function addRow(type) {
 }
 
 function deleteRow(ri) {
+  saveCurrentRows();
   sheets[activeSheet].rows.splice(ri, 1);
   renderTable();
 }
+
+// ── Insert row above / below ───────────────────────────────────────────
+let _insState = { ri: null, pos: null };   // track current open menu
+
+function toggleInsMenu(e, ri, pos) {
+  e.stopPropagation();
+  saveCurrentRows();
+  // Close any open menu first
+  document.querySelectorAll('.ins-menu.open').forEach(m => m.classList.remove('open'));
+  const menu = document.getElementById(`insMenu-${ri}`);
+  const title = document.getElementById(`insMenuTitle-${ri}`);
+  if (!menu) return;
+  if (_insState.ri === ri && _insState.pos === pos) {
+    // Toggle off
+    _insState = { ri: null, pos: null };
+    return;
+  }
+  title.textContent = pos === 'before' ? '▲ Insert Above' : '▼ Insert Below';
+  menu.style.top = pos === 'before' ? '0' : 'auto';
+  menu.style.bottom = pos === 'before' ? 'auto' : '0';
+  menu.classList.add('open');
+  _insState = { ri, pos };
+}
+
+function doInsert(ri, type) {
+  document.querySelectorAll('.ins-menu.open').forEach(m => m.classList.remove('open'));
+  const pos = _insState.pos || 'after';
+  _insState = { ri: null, pos: null };
+
+  const insertIdx = pos === 'before' ? ri : ri + 1;
+  const newRow = type === 'section'
+    ? { type: 'section', desc: '' }
+    : { type: 'item', item_code: '', desc: '', uom: '', qty: '', unit_cost: '', unit_price: '', margin: '' };
+
+  sheets[activeSheet].rows.splice(insertIdx, 0, newRow);
+  renderTable();
+
+  // Focus first editable input of the new row
+  setTimeout(() => {
+    const tr = document.querySelector(`#csTbody tr[data-ri="${insertIdx}"]`);
+    if (tr) {
+      const inp = tr.querySelector('input:not([readonly])');
+      if (inp) inp.focus();
+    }
+  }, 50);
+}
+
+// Close insert menu when clicking elsewhere
+document.addEventListener('click', () => {
+  document.querySelectorAll('.ins-menu.open').forEach(m => m.classList.remove('open'));
+  _insState = { ri: null, pos: null };
+});
 
 function updateRow(ri, field, value) {
   if (sheets[activeSheet].rows[ri]) {
