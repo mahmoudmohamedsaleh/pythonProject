@@ -193,7 +193,7 @@
     </button>
     <span class="ml-auto small text-muted align-self-center">
       <i class="fas fa-lightbulb text-warning mr-1"></i>
-      Total = Qty × Round up · exported Excel is ready to upload in Proposal Generator
+      Total Sell = Qty × Unit Price · Margin = (1 − Unit Cost ÷ Unit Price) · changing Margin recalculates Unit Price
     </span>
   </div>
 
@@ -208,11 +208,10 @@
           <th class="col-uom">UOM</th>
           <th class="col-qty">Qty</th>
           <th class="col-num">Unit Cost</th>
-          <th class="col-num">Total</th>
+          <th class="col-num" style="background:#b5cce8;color:#1F3864;">Total Cost</th>
           <th class="col-num">Unit Price</th>
-          <th class="col-num">Round up</th>
-          <th class="col-num">Total</th>
-          <th class="col-pct">%</th>
+          <th class="col-num" style="background:#b5cce8;color:#1F3864;">Total Sell</th>
+          <th class="col-pct" title="Editable — changing Margin recalculates Unit Price">Margin %</th>
           <th class="col-act"></th>
         </tr>
       </thead>
@@ -239,7 +238,8 @@
 
 <script>
 // ── Data model ────────────────────────────────────────────────────────
-// sheets: [{name, rows: [{type:'section'|'item', desc, item_code, uom, qty, unit_cost, unit_price, round_up}]}]
+// sheets: [{name, rows: [{type:'section'|'item', desc, item_code, uom, qty, unit_cost, unit_price, margin}]}]
+// Margin % = (1 - Unit Cost / Unit Price) × 100  |  Total Sell = Qty × Unit Price
 let sheets = [{ name: 'System 1', rows: [] }];
 let activeSheet = 0;
 
@@ -324,12 +324,15 @@ function buildSectionRow(row, ri) {
 }
 
 function buildItemRow(row, ri, itemNo) {
-  const qty = parseNum(row.qty);
-  const uc  = parseNum(row.unit_cost);
-  const ru  = parseNum(row.round_up);
+  const qty  = parseNum(row.qty);
+  const uc   = parseNum(row.unit_cost);
+  const up   = parseNum(row.unit_price);
+  let margin = parseNum(row.margin);
+  if (!margin && uc && up) margin = +((1 - uc / up) * 100).toFixed(2);
+
   const tot_cost = qty && uc ? +(qty * uc).toFixed(2) : 0;
-  const tot_sell = qty && ru ? +(qty * ru).toFixed(2) : 0;
-  const pct = tot_cost ? +(((tot_sell / tot_cost) - 1) * 100).toFixed(1) : 0;
+  const tot_sell = qty && up ? +(qty * up).toFixed(2) : 0;
+  const pctColor = margin > 0 ? '#1B5E20' : margin < 0 ? '#c0392b' : '#888';
 
   const tr = document.createElement('tr');
   tr.className = 'item-row';
@@ -344,19 +347,22 @@ function buildItemRow(row, ri, itemNo) {
          placeholder="EA" style="text-align:center;"
          onchange="updateRow(${ri},'uom',this.value)"></td>
     <td><input class="cs-input num" type="number" step="any" value="${row.qty||''}"
-         placeholder="0" onchange="updateRow(${ri},'qty',this.value);recalcRow(this,${ri})"></td>
+         placeholder="0"
+         onchange="updateRow(${ri},'qty',this.value);recalcRow(${ri})"></td>
     <td><input class="cs-input num" type="number" step="any" value="${row.unit_cost||''}"
-         placeholder="0.00" onchange="updateRow(${ri},'unit_cost',this.value);recalcRow(this,${ri})"></td>
+         placeholder="0.00"
+         onchange="updateRow(${ri},'unit_cost',this.value);onUcChange(${ri})"></td>
     <td><input class="cs-input num calc" readonly tabindex="-1"
          value="${tot_cost ? fmt(tot_cost) : ''}" placeholder="auto"></td>
     <td><input class="cs-input num" type="number" step="any" value="${row.unit_price||''}"
-         placeholder="0.00" onchange="updateRow(${ri},'unit_price',this.value)"></td>
-    <td><input class="cs-input num" type="number" step="any" value="${row.round_up||''}"
-         placeholder="0.00" onchange="updateRow(${ri},'round_up',this.value);recalcRow(this,${ri})"></td>
+         placeholder="0.00"
+         onchange="updateRow(${ri},'unit_price',this.value);onUpChange(${ri})"></td>
     <td><input class="cs-input num calc" readonly tabindex="-1"
          value="${tot_sell ? fmt(tot_sell) : ''}" placeholder="auto"></td>
-    <td style="text-align:center;color:${pct>0?'#1B5E20':pct<0?'#c0392b':'#888'};font-weight:600;">
-         ${tot_cost ? pct.toFixed(0)+'%' : ''}</td>
+    <td><input class="cs-input num margin-input" type="number" step="0.01"
+         style="font-weight:700;color:${pctColor};"
+         value="${margin||''}" placeholder="0.00"
+         onchange="updateRow(${ri},'margin',this.value);onMarginChange(${ri})"></td>
     <td style="text-align:center;">
       <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
     </td>`;
@@ -367,11 +373,11 @@ function buildTotalRow() {
   const rows = sheets[activeSheet].rows;
   let tot_cost = 0, tot_sell = 0;
   rows.filter(r=>r.type==='item').forEach(r => {
-    const q = parseNum(r.qty), uc = parseNum(r.unit_cost), ru = parseNum(r.round_up);
+    const q = parseNum(r.qty), uc = parseNum(r.unit_cost), up = parseNum(r.unit_price);
     if (q && uc) tot_cost += q * uc;
-    if (q && ru) tot_sell += q * ru;
+    if (q && up) tot_sell += q * up;
   });
-  const pct = tot_cost ? (((tot_sell / tot_cost) - 1) * 100).toFixed(3) : 0;
+  const pct = tot_cost ? ((1 - tot_cost / tot_sell) * 100).toFixed(2) : 0;
   const shName = sheets[activeSheet].name;
   const tr = document.createElement('tr');
   tr.className = 'total-row';
@@ -380,10 +386,9 @@ function buildTotalRow() {
     <td colspan="2" style="text-align:center;">TOTAL EXCLUDING VAT</td>
     <td class="val">${fmt(tot_cost)}</td>
     <td style="text-align:center;">Total</td>
-    <td style="text-align:center;">Total</td>
     <td class="val">${fmt(tot_sell)}</td>
     <td></td>
-    <td style="text-align:center;">${pct}%</td>
+    <td style="text-align:center;font-weight:700;">${pct}%</td>
     <td></td>`;
   return tr;
 }
@@ -394,7 +399,7 @@ function addRow(type) {
   const newRow = type === 'section'
     ? { type: 'section', desc: '' }
     : { type: 'item', item_code: '', desc: '', uom: '', qty: '', unit_cost: '',
-        unit_price: '', round_up: '' };
+        unit_price: '', margin: '' };
   sheets[activeSheet].rows.push(newRow);
   renderTable();
   // Focus last input of the new row
@@ -419,29 +424,77 @@ function updateRow(ri, field, value) {
   }
 }
 
-function recalcRow(inputEl, ri) {
-  updateRow(ri, inputEl.closest('tr').dataset.ri || ri, inputEl.value);
-  // Re-render just the total row
-  const tbody = document.getElementById('csTbody');
-  const lastRow = tbody.querySelector('.total-row');
-  if (lastRow) tbody.replaceChild(buildTotalRow(), lastRow);
+// Find the <tr> for a given row index in the current sheet
+function findTr(ri) {
+  return document.querySelector(`#csTbody tr[data-ri="${ri}"]`);
+}
 
-  // Update calc cells in the row
-  const tr = inputEl.closest('tr');
-  if (!tr) return;
+function recalcRow(ri) {
   const row = sheets[activeSheet].rows[ri];
-  const qty = parseNum(row.qty), uc = parseNum(row.unit_cost), ru = parseNum(row.round_up);
+  const tr  = findTr(ri);
+  if (!tr || !row) return;
+  const qty = parseNum(row.qty), uc = parseNum(row.unit_cost), up = parseNum(row.unit_price);
   const tot_cost = qty && uc ? +(qty * uc).toFixed(2) : 0;
-  const tot_sell = qty && ru ? +(qty * ru).toFixed(2) : 0;
-  const pct = tot_cost ? +(((tot_sell / tot_cost) - 1) * 100).toFixed(0) : 0;
+  const tot_sell = qty && up ? +(qty * up).toFixed(2) : 0;
+  const margin   = uc && up  ? +((1 - uc / up) * 100).toFixed(2) : parseNum(row.margin);
+
   const calcs = tr.querySelectorAll('.calc');
   if (calcs[0]) calcs[0].value = tot_cost ? fmt(tot_cost) : '';
   if (calcs[1]) calcs[1].value = tot_sell ? fmt(tot_sell) : '';
-  const pctCell = tr.cells[10];
-  if (pctCell) {
-    pctCell.textContent = tot_cost ? pct + '%' : '';
-    pctCell.style.color = pct > 0 ? '#1B5E20' : pct < 0 ? '#c0392b' : '#888';
+
+  // Update margin input colour
+  const marginInput = tr.querySelector('input[type="number"]:not(.calc):last-of-type');
+  if (marginInput && uc && up) {
+    marginInput.value = margin || '';
+    marginInput.style.color = margin > 0 ? '#1B5E20' : margin < 0 ? '#c0392b' : '#888';
+    row.margin = margin;
   }
+
+  // Refresh grand total row
+  const tbody = document.getElementById('csTbody');
+  const lastRow = tbody.querySelector('.total-row');
+  if (lastRow) tbody.replaceChild(buildTotalRow(), lastRow);
+}
+
+// Unit Price changed → recalc margin and totals
+function onUpChange(ri) {
+  const row = sheets[activeSheet].rows[ri];
+  const uc  = parseNum(row.unit_cost);
+  const up  = parseNum(row.unit_price);
+  if (uc && up) {
+    row.margin = +((1 - uc / up) * 100).toFixed(2);
+  }
+  recalcRow(ri);
+}
+
+// Margin changed → back-calc Unit Price, then recalc totals
+function onMarginChange(ri) {
+  const row    = sheets[activeSheet].rows[ri];
+  const uc     = parseNum(row.unit_cost);
+  const margin = parseNum(row.margin);
+  if (uc && margin < 100) {
+    const newUp = +(uc / (1 - margin / 100)).toFixed(4);
+    row.unit_price = newUp;
+    // Update the Unit Price input in the same row
+    const tr = findTr(ri);
+    if (tr) {
+      const upInputs = tr.querySelectorAll('input[type="number"]:not(.calc)');
+      // upInputs order: qty(0), unit_cost(1), unit_price(2), margin(3)
+      if (upInputs[2]) upInputs[2].value = newUp;
+    }
+  }
+  recalcRow(ri);
+}
+
+// Unit Cost changed → re-derive margin from existing unit_price, recalc totals
+function onUcChange(ri) {
+  const row = sheets[activeSheet].rows[ri];
+  const uc  = parseNum(row.unit_cost);
+  const up  = parseNum(row.unit_price);
+  if (uc && up) {
+    row.margin = +((1 - uc / up) * 100).toFixed(2);
+  }
+  recalcRow(ri);
 }
 
 // Save DOM inputs → JS model before tab switch / export
@@ -456,7 +509,7 @@ function saveCurrentRows() {
     if (row.type === 'section') {
       if (inputs[0]) row.desc = inputs[0].value;
     } else {
-      const fields = ['item_code','desc','uom','qty','unit_cost','unit_price','round_up'];
+      const fields = ['item_code','desc','uom','qty','unit_cost','unit_price','margin'];
       let ii = 0;
       inputs.forEach(inp => {
         if (ii < fields.length) { row[fields[ii]] = inp.value; ii++; }

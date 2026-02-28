@@ -6844,6 +6844,11 @@ def cost_sheet_import():
                 up_val  = _fv(_cv(row, col_map.get('unit_price', 0)))
                 ru_val  = _fv(_cv(row, col_map.get('round',      0)))
 
+                # If old sheet has Round up but no Unit Price, treat Round up as Unit Price
+                effective_up = up_val if up_val else ru_val
+                uc_f = float(uc_val) if uc_val else 0
+                up_f = float(effective_up) if effective_up else 0
+                margin_val = round((1 - uc_f / up_f) * 100, 2) if uc_f and up_f else ''
                 rows_out.append({
                     'type':       'item',
                     'item_code':  code_str,
@@ -6851,8 +6856,8 @@ def cost_sheet_import():
                     'uom':        str(_cv(row, col_map.get('uom', 0)) or '').strip(),
                     'qty':        _fv(qty_val),
                     'unit_cost':  uc_val,
-                    'unit_price': up_val,
-                    'round_up':   ru_val,
+                    'unit_price': effective_up,
+                    'margin':     margin_val,
                 })
 
             if rows_out:
@@ -6907,8 +6912,8 @@ def cost_sheet_export():
                                top=thin_side, bottom=thin_side)
 
         COLS = ["S.#", "Item Code", "Item Description", "UOM", "Qty",
-                "Unit Cost", "Total", "Unit Price", "Round up", "Total", "%"]
-        COL_WIDTHS = [5, 12, 55, 7, 7, 11, 12, 11, 11, 12, 7]
+                "Unit Cost", "Total Cost", "Unit Price", "Total Sell", "Margin %"]
+        COL_WIDTHS = [5, 12, 55, 7, 7, 11, 12, 11, 12, 8]
 
         for sh_data in sheets:
             ws = wb.create_sheet(title=sh_data.get('name', 'Sheet')[:31])
@@ -6935,25 +6940,27 @@ def cost_sheet_export():
                                        value=row.get('desc', ''))
                     sec_cell.font = Font(bold=True, name="Calibri", size=10)
                     sec_cell.fill = SECTION_FILL
-                    for ci in range(1, 12):
+                    for ci in range(1, 11):
                         ws.cell(row=row_idx, column=ci).fill = SECTION_FILL
                         ws.cell(row=row_idx, column=ci).border = thin_border
                     ws.row_dimensions[row_idx].height = 18
                 else:
                     # Item row
                     item_counter += 1
-                    try: qty  = float(row.get('qty')  or 0)
+                    try: qty = float(row.get('qty')       or 0)
                     except: qty = 0
-                    try: uc   = float(row.get('unit_cost')   or 0)
+                    try: uc  = float(row.get('unit_cost')  or 0)
                     except: uc = 0
-                    try: up   = float(row.get('unit_price')  or 0)
+                    try: up  = float(row.get('unit_price') or 0)
                     except: up = 0
-                    try: ru   = float(row.get('round_up')    or 0)
-                    except: ru = 0
+                    # Margin: use stored value or derive from uc/up
+                    try: stored_margin = float(row.get('margin') or 0)
+                    except: stored_margin = 0
+                    if not stored_margin and uc and up:
+                        stored_margin = round((1 - uc / up) * 100, 2)
 
                     tot_cost = round(qty * uc, 2) if qty and uc else 0
-                    tot_sell = round(qty * ru, 2)  if qty and ru else 0
-                    margin   = round((tot_sell / tot_cost - 1) * 100, 1) if tot_cost else 0
+                    tot_sell = round(qty * up, 2) if qty and up else 0
                     section_total_cost += tot_cost
                     section_total_sell += tot_sell
 
@@ -6961,17 +6968,17 @@ def cost_sheet_export():
                             row.get('item_code', ''),
                             row.get('desc', ''),
                             row.get('uom', ''),
-                            qty, uc, tot_cost, up, ru, tot_sell,
-                            f"{margin:.0f}%"]
+                            qty, uc, tot_cost, up, tot_sell,
+                            f"{stored_margin:.2f}%"]
                     for ci, v in enumerate(vals, start=1):
                         cell = ws.cell(row=row_idx, column=ci, value=v)
                         cell.font = item_font
                         cell.border = thin_border
-                        if ci in (5, 6, 7, 8, 9, 10):
+                        if ci in (5, 6, 7, 8, 9):
                             cell.alignment = right
                             if isinstance(v, (int, float)):
                                 cell.number_format = '#,##0.00'
-                        elif ci == 11:
+                        elif ci == 10:
                             cell.alignment = center
                         elif ci == 3:
                             cell.alignment = left
@@ -6981,14 +6988,12 @@ def cost_sheet_export():
 
                 row_idx += 1
 
-            # ── Total row ──────────────────────────────────────────────
-            margin_total = round((section_total_sell / section_total_cost - 1) * 100, 3)                            if section_total_cost else 0
+            # ── Total row (10 cols: no Round up) ───────────────────────
+            margin_total = round((1 - section_total_cost / section_total_sell) * 100, 3) \
+                           if section_total_sell else 0
             sh_name = sh_data.get('name', 'System')
-            total_vals = [f"Total {sh_name}",
-                          "TOTAL EXCLUDING VAT", '',
-                          section_total_cost, "Total", "Total",
-                          section_total_sell, f"{margin_total:.3f}%"]
-            # Merge first 3 cols for label
+
+            # Col 1-3: merged label
             ws.merge_cells(start_row=row_idx, start_column=1,
                            end_row=row_idx, end_column=3)
             ws.cell(row=row_idx, column=1,
@@ -6996,6 +7001,7 @@ def cost_sheet_export():
             ws.cell(row=row_idx, column=1).fill = TOTAL_FILL
             ws.cell(row=row_idx, column=1).alignment = center
 
+            # Col 4-5: merged "TOTAL EXCLUDING VAT"
             ws.merge_cells(start_row=row_idx, start_column=4,
                            end_row=row_idx, end_column=5)
             ws.cell(row=row_idx, column=4,
@@ -7003,35 +7009,31 @@ def cost_sheet_export():
             ws.cell(row=row_idx, column=4).fill = TOTAL_FILL
             ws.cell(row=row_idx, column=4).alignment = center
 
-            ws.cell(row=row_idx, column=6, value=section_total_cost)
-            ws.cell(row=row_idx, column=6).font = total_font
-            ws.cell(row=row_idx, column=6).fill = TOTAL_FILL
-            ws.cell(row=row_idx, column=6).number_format = '#,##0.00'
-            ws.cell(row=row_idx, column=6).alignment = right
+            # Col 6: blank (Unit Cost column)
+            ws.cell(row=row_idx, column=6, value='').fill = TOTAL_FILL
 
-            ws.cell(row=row_idx, column=7, value="Total")
+            # Col 7: Total Cost
+            ws.cell(row=row_idx, column=7, value=section_total_cost)
             ws.cell(row=row_idx, column=7).font = total_font
             ws.cell(row=row_idx, column=7).fill = TOTAL_FILL
-            ws.cell(row=row_idx, column=7).alignment = center
+            ws.cell(row=row_idx, column=7).number_format = '#,##0.00'
+            ws.cell(row=row_idx, column=7).alignment = right
 
-            ws.cell(row=row_idx, column=8, value="Total")
-            ws.cell(row=row_idx, column=8).font = total_font
-            ws.cell(row=row_idx, column=8).fill = TOTAL_FILL
-            ws.cell(row=row_idx, column=8).alignment = center
+            # Col 8: blank (Unit Price column)
+            ws.cell(row=row_idx, column=8, value='').fill = TOTAL_FILL
 
+            # Col 9: Total Sell
             ws.cell(row=row_idx, column=9, value=section_total_sell)
             ws.cell(row=row_idx, column=9).font = total_font
             ws.cell(row=row_idx, column=9).fill = TOTAL_FILL
             ws.cell(row=row_idx, column=9).number_format = '#,##0.00'
             ws.cell(row=row_idx, column=9).alignment = right
 
-            ws.cell(row=row_idx, column=10, value='')
+            # Col 10: Overall Margin %
+            ws.cell(row=row_idx, column=10, value=f"{margin_total:.3f}%")
+            ws.cell(row=row_idx, column=10).font = total_font
             ws.cell(row=row_idx, column=10).fill = TOTAL_FILL
-
-            ws.cell(row=row_idx, column=11, value=f"{margin_total:.3f}%")
-            ws.cell(row=row_idx, column=11).font = total_font
-            ws.cell(row=row_idx, column=11).fill = TOTAL_FILL
-            ws.cell(row=row_idx, column=11).alignment = center
+            ws.cell(row=row_idx, column=10).alignment = center
 
             ws.row_dimensions[row_idx].height = 22
             ws.freeze_panes = "A2"
