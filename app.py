@@ -6668,7 +6668,12 @@ def proposal_generate_pdf():
             except Exception as db_err:
                 app.logger.warning(f"Could not load cost sheet from DB: {db_err}")
 
-        buf = _build_quotation_pdf(cover, boq_sheets, quote_ref)
+        boq_opts = {
+            'show_item_code': 'boq_show_item_code' in _req.form,
+            'show_vendor':    'boq_show_vendor'    in _req.form,
+            'show_stock':     'boq_show_stock'     in _req.form,
+        }
+        buf = _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=boq_opts)
         safe = quote_ref.replace('/', '-').replace('\\', '-').replace(' ', '_')
         response = send_file(buf, as_attachment=False,
                              download_name=f'{safe}_Commercial_Proposal.pdf',
@@ -6711,6 +6716,8 @@ def _cost_sheet_json_to_boq(sheets):
                     'sn':         str(sn_ctr),
                     'code':       str(row.get('item_code', '') or '').strip(),
                     'desc':       str(row.get('desc', '') or '').strip(),
+                    'vendor':     str(row.get('vendor', '') or '').strip(),
+                    'stock':      str(row.get('stock',  '') or '').strip(),
                     'uom':        str(row.get('uom', '') or '').strip(),
                     'qty':        qty,
                     'unit_price': up,
@@ -6728,7 +6735,7 @@ def _cost_sheet_json_to_boq(sheets):
     return boq_sheets
 
 
-def _build_quotation_pdf(cover, boq_sheets, quote_ref):
+def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     """Build a BytesIO PDF from parsed cover dict and boq_sheets list."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -7285,17 +7292,32 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     story.append(closing_block)
 
     # ── BOQ pages ────────────────────────────────────────────────────────
-    COL_W = [0.8*cm, 2.8*cm, BW-12.2*cm, 1.3*cm, 1.2*cm, 2.3*cm, 2.8*cm]
-    BOQ_HDR_STYLE = [
-        ('BACKGROUND',(0,0),(-1,0),C_PURPLE),('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-        ('FONTSIZE',(0,0),(-1,0),8),('TEXTCOLOR',(0,0),(-1,0),C_WHITE),
-        ('ALIGN',(0,0),(0,-1),'CENTER'),('ALIGN',(3,0),(3,-1),'CENTER'),
-        ('ALIGN',(4,0),(4,-1),'RIGHT'),('ALIGN',(5,0),(5,-1),'RIGHT'),('ALIGN',(6,0),(6,-1),'RIGHT'),
-        ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#FFE4E6')),
-        ('FONTSIZE',(0,1),(-1,-1),8.5),('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-        ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
-        ('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),
-    ]
+    # ── BOQ column visibility (from boq_opts) ─────────────────────────────
+    _boq_opts      = boq_opts or {}
+    _show_code     = _boq_opts.get('show_item_code', True)
+    _show_vendor   = _boq_opts.get('show_vendor',    False)
+    _show_stock    = _boq_opts.get('show_stock',     False)
+
+    # Dynamic column spec: each entry = (key, header_label, width_cm, align)
+    _COLDEFS = [('sn',    'S.#',            0.8,  'CENTER')]
+    if _show_code:   _COLDEFS.append(('code',   'ITEM CODE', 2.5,  'CENTER'))
+    if _show_vendor: _COLDEFS.append(('vendor', 'VENDOR',    2.0,  'CENTER'))
+    if _show_stock:  _COLDEFS.append(('stock',  'STOCK',     1.6,  'CENTER'))
+    _opt_w  = (2.5 if _show_code else 0) + (2.0 if _show_vendor else 0) + (1.6 if _show_stock else 0)
+    _desc_w = BW - (9.4 + _opt_w)*cm   # 9.4 = sn+uom+qty+up+tot+gutter fixed overhead
+    _COLDEFS.append(('desc',  'ITEM DESCRIPTION', _desc_w/cm, 'LEFT'))
+    _COLDEFS.append(('uom',   'UOM',              1.3,  'CENTER'))
+    _COLDEFS.append(('qty',   'QTY',              1.2,  'RIGHT'))
+    _COLDEFS.append(('up',    'UNIT PRICE',        2.3,  'RIGHT'))
+    _COLDEFS.append(('total', 'TOTAL',             2.8,  'RIGHT'))
+
+    _NCOLS_G = len(_COLDEFS)
+    COL_W    = [c[2]*cm for c in _COLDEFS]
+
+    def _ci(key):
+        for i, c in enumerate(_COLDEFS): 
+            if c[0] == key: return i
+        return -1
 
     for bs in boq_sheets:
         story.append(PageBreak())
@@ -7311,7 +7333,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         # ── System name + scope embedded in table (repeats on every page) ─
         sys_name  = bs.get('name', '')
         sys_scope = bs.get('scope', '')
-        _NCOLS = 7  # number of columns in BOQ table
+        _NCOLS = _NCOLS_G  # number of columns in BOQ table (dynamic)
 
         S_SYSHD  = _ps('syshd',  fontName='Helvetica-Bold', fontSize=10,
                        textColor=C_WHITE, leading=14, alignment=TA_LEFT)
@@ -7348,15 +7370,17 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
             ]
             ri_offset = 2
 
-        # Column header row (at ri_offset)
+        # Column header row (at ri_offset) — dynamic columns
         _hri = ri_offset
-        boq_hdr = [
-            _p('S.#', S_CODHD), _p('ITEM CODE', S_CODHD), _p('ITEM DESCRIPTION', S_CODHD),
-            _p('UOM', S_CODHD),
-            _p('QTY',        _ps('qhd', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
-            _p('UNIT PRICE', _ps('uph', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
-            _p('TOTAL',      _ps('tth', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
-        ]
+        _i_uom   = _ci('uom'); _i_qty = _ci('qty')
+        _i_up    = _ci('up');  _i_tot = _ci('total')
+        boq_hdr = []
+        for _ckey, _clabel, _cw, _calign in _COLDEFS:
+            if _calign == 'RIGHT':
+                _hs = _ps(f'h_{_ckey}', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)
+            else:
+                _hs = S_CODHD
+            boq_hdr.append(_p(_clabel, _hs))
         tbl_data.append(boq_hdr)
         style_cmds += [
             ('BACKGROUND', (0, _hri), (-1, _hri), C_PURPLE),
@@ -7369,11 +7393,11 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
             ('RIGHTPADDING',  (0, 0),    (-1, -1),   4),
             ('TOPPADDING',    (0, 0),    (-1, -1),   4),
             ('BOTTOMPADDING', (0, 0),    (-1, -1),   4),
-            ('ALIGN',  (0, 0), (0, -1), 'CENTER'),
-            ('ALIGN',  (3, 0), (3, -1), 'CENTER'),
-            ('ALIGN',  (4, 0), (4, -1), 'RIGHT'),
-            ('ALIGN',  (5, 0), (5, -1), 'RIGHT'),
-            ('ALIGN',  (6, 0), (6, -1), 'RIGHT'),
+            ('ALIGN',  (0, 0),       (0, -1),       'CENTER'),
+            ('ALIGN',  (_i_uom, 0),  (_i_uom, -1),  'CENTER'),
+            ('ALIGN',  (_i_qty, 0),  (_i_qty, -1),  'RIGHT'),
+            ('ALIGN',  (_i_up,  0),  (_i_up,  -1),  'RIGHT'),
+            ('ALIGN',  (_i_tot, 0),  (_i_tot, -1),  'RIGHT'),
             ('BOX',       (0, 0), (-1, -1), 0.5, C_PURPLE),
             ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#FFE4E6')),
             ('FONTSIZE',  (0, _hri+1), (-1, -1), 8.5),
@@ -7390,7 +7414,10 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
             up = it.get('unit_price'); tot = it.get('total'); sn = it.get('sn','')
 
             if is_sec:
-                tbl_data.append([_p(''),_p(''),_p(f'<b>{desc}</b>', S_SEC),_p(''),_p(''),_p(''),_p('')])
+                _i_desc = _ci('desc')
+                _sec_cells = [_p('') for _ in range(_NCOLS_G)]
+                _sec_cells[_i_desc] = _p(f'<b>{desc}</b>', S_SEC)
+                tbl_data.append(_sec_cells)
                 style_cmds += [
                     ('SPAN',(0,ri),(-1,ri)),('BACKGROUND',(0,ri),(-1,ri),C_SEC_BG),
                     ('ALIGN',(0,ri),(-1,ri),'CENTER'),('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),
@@ -7403,26 +7430,31 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
                 except: qs = str(qty) if qty else ''
                 tot_str = _fmt(tot) if tot else ('Option' if up else '')
                 up_str  = _fmt(up)  if up  else ''
-                tbl_data.append([
-                    _p(sn or str(item_ctr), _ps(f'sn{ri}', fontSize=8.5, alignment=TA_CENTER)),
-                    _p(code, _ps(f'cd{ri}', fontSize=7.5)),
-                    _p(desc, _ps(f'ds{ri}', fontSize=8.5, leading=11)),
-                    _p(uom, _ps(f'um{ri}', fontSize=8.5, alignment=TA_CENTER)),
-                    _p(qs, _ps(f'qt{ri}', fontSize=8.5, alignment=TA_RIGHT)),
-                    _p(up_str, _ps(f'up{ri}', fontSize=8.5, alignment=TA_RIGHT)),
-                    _p(tot_str, _ps(f'tt{ri}', fontSize=8.5, alignment=TA_RIGHT)),
-                ])
+                _row_cells = {}
+                _row_cells['sn']     = _p(sn or str(item_ctr), _ps(f'sn{ri}', fontSize=8.5, alignment=TA_CENTER))
+                _row_cells['code']   = _p(code,    _ps(f'cd{ri}', fontSize=7.5))
+                _row_cells['vendor'] = _p(it.get('vendor',''), _ps(f'vd{ri}', fontSize=7.5, alignment=TA_CENTER))
+                _row_cells['stock']  = _p(it.get('stock',''),  _ps(f'st{ri}', fontSize=7.5, alignment=TA_CENTER))
+                _row_cells['desc']   = _p(desc,    _ps(f'ds{ri}', fontSize=8.5, leading=11))
+                _row_cells['uom']    = _p(uom,     _ps(f'um{ri}', fontSize=8.5, alignment=TA_CENTER))
+                _row_cells['qty']    = _p(qs,      _ps(f'qt{ri}', fontSize=8.5, alignment=TA_RIGHT))
+                _row_cells['up']     = _p(up_str,  _ps(f'up{ri}', fontSize=8.5, alignment=TA_RIGHT))
+                _row_cells['total']  = _p(tot_str, _ps(f'tt{ri}', fontSize=8.5, alignment=TA_RIGHT))
+                tbl_data.append([_row_cells[c[0]] for c in _COLDEFS])
                 bg = C_GREY_ROW if item_ctr % 2 == 0 else C_WHITE
                 style_cmds.append(('BACKGROUND',(0,ri),(-1,ri),bg))
             ri += 1
 
-        tbl_data.append([_p(''),_p(''),_p(''),_p(''),_p(''),
-            _p('Total Excluding VAT', _ps('gtt', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_RIGHT)),
-            _p(_fmt(grand_tot), _ps('gtv', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_RIGHT)),
-        ])
+        _i_up_tot = _ci('up'); _i_tot_tot = _ci('total')
+        _span_end  = _i_up_tot - 1  # merge everything before UNIT PRICE into label
+        _tot_cells = [_p('') for _ in range(_NCOLS_G)]
+        _tot_cells[0]          = _p('')
+        _tot_cells[_i_up_tot]  = _p('Total Excluding VAT', _ps('gtt', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_RIGHT))
+        _tot_cells[_i_tot_tot] = _p(_fmt(grand_tot), _ps('gtv', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_RIGHT))
+        tbl_data.append(_tot_cells)
         style_cmds += [
             ('BACKGROUND',(0,ri),(-1,ri),C_TEAL),('TEXTCOLOR',(0,ri),(-1,ri),C_WHITE),
-            ('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),('SPAN',(0,ri),(4,ri)),
+            ('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),('SPAN',(0,ri),(_span_end,ri)),
             ('LINEABOVE',(0,ri),(-1,ri),1,C_TEAL),('PADDING',(0,ri),(-1,ri),5),
         ]
         boq_tbl = Table(tbl_data, colWidths=COL_W, repeatRows=repeat_rows)

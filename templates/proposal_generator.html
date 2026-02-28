@@ -43,6 +43,17 @@
   .term-row input { flex: 1; }
 
   /* Generate button */
+  .boq-col-toggle {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+    padding: 6px 12px; border-radius: 20px; font-size: .82rem; font-weight: 600;
+    border: 2px solid #d0d0d0; background: #f8f9fa; color: #555; user-select: none;
+    transition: all .18s;
+  }
+  .boq-col-toggle input[type=checkbox] { display: none; }
+  .boq-col-toggle.active {
+    border-color: #4a235a; background: linear-gradient(135deg,#4a235a,#7b3f9e);
+    color: #fff;
+  }
   .btn-generate {
     background: linear-gradient(135deg, #dc3545, #b71c1c);
     color: #fff; border: none; padding: 12px 28px;
@@ -369,6 +380,35 @@
             </div>
           </div>
 
+          <!-- BOQ Column Options -->
+          <div class="card mb-3 shadow-sm" style="border:1px solid #c8a0c8;">
+            <div class="card-header-pg" style="background:linear-gradient(135deg,#4a235a,#7b3f9e);">
+              <i class="fas fa-columns mr-1"></i> BOQ Table Columns
+            </div>
+            <div class="card-body py-2 px-3">
+              <p class="small text-muted mb-2" style="font-size:.78rem;">
+                Choose which optional columns appear in the PDF quotation BOQ table.
+              </p>
+              <div class="d-flex flex-wrap" style="gap:10px;">
+                <label class="boq-col-toggle active" id="tog-code">
+                  <input type="checkbox" name="boq_show_item_code" value="1" id="chk_code" checked
+                         onchange="updateColToggle('tog-code', this.checked)">
+                  <i class="fas fa-barcode mr-1"></i> Part Number
+                </label>
+                <label class="boq-col-toggle" id="tog-vendor">
+                  <input type="checkbox" name="boq_show_vendor" value="1" id="chk_vendor"
+                         onchange="updateColToggle('tog-vendor', this.checked)">
+                  <i class="fas fa-building mr-1"></i> Vendor
+                </label>
+                <label class="boq-col-toggle" id="tog-stock">
+                  <input type="checkbox" name="boq_show_stock" value="1" id="chk_stock"
+                         onchange="updateColToggle('tog-stock', this.checked)">
+                  <i class="fas fa-boxes mr-1"></i> Stock
+                </label>
+              </div>
+            </div>
+          </div>
+
           <!-- Generate button -->
           <div class="card mb-3 shadow-sm" style="border:2px solid #dc3545;">
             <div class="card-body py-3 text-center">
@@ -487,6 +527,12 @@ async function generatePdf() {
   } finally {
     hideLoader();
   }
+}
+
+// ── BOQ Column Toggle ─────────────────────────────────────────────────
+function updateColToggle(labelId, checked) {
+  const lbl = document.getElementById(labelId);
+  if (lbl) lbl.classList.toggle('active', checked);
 }
 
 // ── Terms ─────────────────────────────────────────────────────────────
