@@ -344,6 +344,13 @@
                        class="btn btn-block mb-2" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;">
                         <i class="fas fa-file-alt mr-1"></i> Open Proposal Generator
                     </a>
+                    {% if quotation['rfq_reference'] %}
+                    <a href="{{ url_for('proposal_quick_pdf', rfq=quotation['rfq_reference'], quoteref=quotation['quote_ref']) }}"
+                       target="_blank"
+                       class="btn btn-block mb-2" style="background:linear-gradient(135deg,#C62828,#E53935);color:#fff;border:none;">
+                        <i class="fas fa-file-pdf mr-1"></i> View PDF Quotation (Proposal)
+                    </a>
+                    {% endif %}
                 </div>
             </div>
 

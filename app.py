@@ -6620,6 +6620,85 @@ def proposal_parse_costsheet():
         return jsonify({'error': str(e)}), 500
 
 
+
+@app.route('/proposal_generator/quick_pdf')
+@login_required
+def proposal_quick_pdf():
+    """Generate and view PDF from the last saved proposal draft (GET, opens inline)."""
+    rfq_ref   = request.args.get('rfq', '').strip()
+    quoteref  = request.args.get('quoteref', '').strip()
+    if not rfq_ref or not quoteref:
+        flash('RFQ reference and Quote reference are required to generate PDF.', 'danger')
+        return redirect(url_for('registered_quotations'))
+
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+
+        pf_row = conn.execute(
+            'SELECT form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?',
+            (rfq_ref, quoteref)
+        ).fetchone()
+        saved_form = json.loads(pf_row['form_json']) if pf_row and pf_row['form_json'] else {}
+
+        cs_row = conn.execute(
+            'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?',
+            (rfq_ref, quoteref)
+        ).fetchone()
+        sheets = json.loads(cs_row['sheets_json']) if cs_row and cs_row['sheets_json'] else []
+        conn.close()
+
+        from datetime import date as _date
+        systems_list = []
+        for sh in sheets:
+            sh_sell = sum(
+                float(r.get('qty') or 0) * float(r.get('unit_price') or 0)
+                for r in sh.get('rows', []) if r.get('type') == 'item'
+            )
+            systems_list.append({'idx': '', 'name': sh.get('name', ''), 'total': round(sh_sell, 2), 'is_summary': False})
+
+        terms = saved_form.get('terms', {})
+        if isinstance(terms, list):
+            terms = {item.get('key', ''): item.get('value', '') for item in terms if item.get('key')}
+
+        cover = {
+            'date':          saved_form.get('date', _date.today().strftime('%d-%m-%Y')),
+            'quoteref':      quoteref,
+            'engref':        saved_form.get('engref', ''),
+            'to':            saved_form.get('to', ''),
+            'attn':          saved_form.get('attn', ''),
+            'frm':           saved_form.get('frm', ''),
+            'cont':          saved_form.get('cont', ''),
+            'sub':           saved_form.get('sub', ''),
+            'scope':         saved_form.get('scope', ''),
+            'exec_summary':  saved_form.get('exec_summary', ''),
+            'cta_email':     saved_form.get('cta_email', ''),
+            'cta_phone':     saved_form.get('cta_phone', ''),
+            'cta_body':      saved_form.get('cta_body', ''),
+            'prep_by_name':  saved_form.get('prep_by_name', ''),
+            'prep_by_title': saved_form.get('prep_by_title', ''),
+            'mgr_name':      saved_form.get('mgr_name', ''),
+            'mgr_title':     saved_form.get('mgr_title', ''),
+            'systems':       systems_list,
+            'terms':         terms,
+        }
+
+        boq_sheets = _cost_sheet_json_to_boq(sheets) if sheets else []
+        boq_opts = {'show_item_code': True, 'show_vendor': False, 'show_stock': False}
+
+        buf = _build_quotation_pdf(cover, boq_sheets, quoteref, boq_opts=boq_opts)
+        safe = quoteref.replace('/', '-').replace('\\', '-').replace(' ', '_')
+        response = send_file(buf, as_attachment=False,
+                             download_name=f'{safe}_Commercial_Proposal.pdf',
+                             mimetype='application/pdf')
+        response.headers['Content-Disposition'] = f'inline; filename="{safe}_Commercial_Proposal.pdf"'
+        return response
+
+    except Exception as e:
+        app.logger.error(f'proposal_quick_pdf error: {e}')
+        flash(f'Could not generate PDF: {e}', 'danger')
+        return redirect(url_for('quotation_profile', quote_ref=quoteref))
+
 @app.route('/proposal_generator/generate_pdf', methods=['POST'])
 @login_required
 def proposal_generate_pdf():
