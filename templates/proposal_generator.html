@@ -260,8 +260,14 @@
 
           <!-- Call to Action -->
           <div class="card mb-3 shadow-sm" style="border:2px solid #1B7B4B;">
-            <div class="card-header-pg" style="background:linear-gradient(135deg,#1B7B4B,#2ea868);">
-              <i class="fas fa-phone-alt mr-1"></i> Call to Action
+            <div class="card-header-pg d-flex justify-content-between align-items-center"
+                 style="background:linear-gradient(135deg,#1B7B4B,#2ea868);">
+              <span><i class="fas fa-phone-alt mr-1"></i> Call to Action</span>
+              <button type="button" id="aiCtaBtn" onclick="generateAICta()"
+                      style="background:#F59E0B;border:none;color:#1A0000;font-weight:700;
+                             font-size:.75rem;border-radius:5px;padding:3px 12px;cursor:pointer;">
+                <i class="fas fa-magic mr-1"></i> Generate with AI
+              </button>
             </div>
             <div class="card-body py-3">
               <p class="text-muted mb-2" style="font-size:.78rem;">
@@ -281,6 +287,20 @@
                          placeholder="05XXXXXXXX"
                          value="{{ saved_form.get('cta_phone', contact) if saved_form else contact }}">
                 </div>
+              </div>
+              <div id="aiCtaStatus" style="display:none; font-size:.8rem; color:#1B7B4B; margin-bottom:8px;">
+                <i class="fas fa-spinner fa-spin mr-1"></i> Generating professional closing with AI…
+              </div>
+              <div class="form-group mb-2">
+                <label class="small font-weight-bold text-muted mb-1">Closing Body Text</label>
+                <textarea name="cta_body" id="ctaBodyTA" rows="3"
+                  style="width:100%; border:1px solid #b8ddc8; border-radius:5px; padding:7px 10px;
+                         font-size:.83rem; line-height:1.6; color:#1A1A2E; resize:vertical;"
+                  placeholder="Click 'Generate with AI' for a tailored closing, or leave blank to use the default text…"
+                  oninput="updateCtaPreview()">{{ saved_form.get('cta_body', '') if saved_form else '' }}</textarea>
+                <p class="text-muted mb-0 mt-1" style="font-size:.72rem;">
+                  <i class="fas fa-info-circle mr-1"></i>Leave blank to use the standard closing text. AI generates a custom version based on your project.
+                </p>
               </div>
               <div id="ctaPreview" style="background:#f8f9fa; border:1px solid #d4edda; border-radius:5px;
                                           padding:8px 12px; font-size:.82rem; color:#333; margin-top:4px; line-height:1.6;">
@@ -570,11 +590,48 @@ function fmt(n) {
   return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// ── AI CTA generation ─────────────────────────────────────────────────
+async function generateAICta() {
+  const btn  = document.getElementById('aiCtaBtn');
+  const stat = document.getElementById('aiCtaStatus');
+  const ta   = document.getElementById('ctaBodyTA');
+  btn.disabled = true;
+  stat.style.display = 'block';
+  try {
+    const resp = await fetch('{{ url_for("proposal_ai_cta") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        rfq_ref:   '{{ rfq_ref }}',
+        quote_ref: document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}',
+        project:   '{{ project_name }}',
+        to:        document.querySelector('[name="to"]')?.value || '',
+        cta_email: document.getElementById('ctaEmail')?.value || '',
+        cta_phone: document.getElementById('ctaPhone')?.value || '',
+      }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      ta.value = data.body;
+      ta.style.borderColor = '#1B7B4B';
+      updateCtaPreview();
+    } else {
+      alert('AI generation failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    stat.style.display = 'none';
+  }
+}
+
 // ── Call to Action live preview ───────────────────────────────────────
 function updateCtaPreview() {
-  const email = document.getElementById('ctaEmail')?.value.trim() || '';
-  const phone = document.getElementById('ctaPhone')?.value.trim() || '';
-  const prev  = document.getElementById('ctaPreview');
+  const email   = document.getElementById('ctaEmail')?.value.trim() || '';
+  const phone   = document.getElementById('ctaPhone')?.value.trim() || '';
+  const bodyTxt = document.getElementById('ctaBodyTA')?.value.trim() || '';
+  const prev    = document.getElementById('ctaPreview');
   if (!prev) return;
   let p1 = '';
   if (email || phone) {
@@ -584,13 +641,15 @@ function updateCtaPreview() {
     else                contact = `<b>${phone}</b>`;
     p1 = `<p style="margin:0 0 6px 0;">To proceed with this proposal or for any further discussion, please contact our sales team at ${contact}. We look forward to partnering with you.</p>`;
   }
+  const bodyLines = bodyTxt
+    ? bodyTxt.split('\n').filter(l => l.trim()).map(l => `<p style="margin:0 0 6px 0;">${l}</p>`).join('')
+    : `<p style="margin:0 0 6px 0;">In the meantime, should you have any questions or need to discuss the commercials in greater detail, please do not hesitate to contact the undersigned.</p>
+       <p style="margin:0 0 6px 0;">We thank you for your support to EJ TECH and look forward to the pleasure of doing business.</p>`;
   prev.innerHTML = `
     <span style="color:#1B7B4B;font-weight:700;font-size:.8rem;letter-spacing:.5px;">CALL TO ACTION</span>
     <hr style="border:none;border-top:2px solid #F59E0B;margin:4px 0 8px 0;">
-    ${p1}
-    <p style="margin:0 0 6px 0;">In the meantime, should you have any questions or need to discuss the commercials in greater detail, please do not hesitate to contact the undersigned.</p>
-    <p style="margin:0 0 6px 0;">We thank you for your support to EJ TECH and look forward to the pleasure of doing business.</p>
-    <p style="margin:0;font-style:italic;">With best regards,</p>`;
+    ${p1}${bodyLines}
+    <p style="margin:4px 0 0 0;font-style:italic;">With best regards,</p>`;
 }
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ctaEmail')?.addEventListener('input', updateCtaPreview);
@@ -697,6 +756,7 @@ async function saveDraft() {
     exec_summary:  document.getElementById('execSummaryTA')?.value || '',
     cta_email:     document.getElementById('ctaEmail')?.value || '',
     cta_phone:     document.getElementById('ctaPhone')?.value || '',
+    cta_body:      document.getElementById('ctaBodyTA')?.value || '',
     prep_by_name:  document.querySelector('[name="prep_by_name"]')?.value || '',
     prep_by_title: document.querySelector('[name="prep_by_title"]')?.value || '',
     mgr_name:      document.querySelector('[name="mgr_name"]')?.value || '',

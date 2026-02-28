@@ -6286,6 +6286,90 @@ Rules:
         return jsonify({'ok': True, 'summary': fallback})
 
 
+@app.route('/proposal_generator/ai_cta', methods=['POST'])
+@login_required
+def proposal_ai_cta():
+    """AJAX: generate an AI-written Call to Action closing for the proposal cover page."""
+    from flask import request as _req, jsonify
+    import json as _json, os as _os
+    data = _req.get_json(force=True) or {}
+    rfq_ref   = data.get('rfq_ref', '').strip()
+    quote_ref = data.get('quote_ref', '').strip()
+    project   = data.get('project', '').strip()
+    to_co     = data.get('to', '').strip()
+    cta_email = data.get('cta_email', '').strip()
+    cta_phone = data.get('cta_phone', '').strip()
+    try:
+        import openai as _openai
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'OpenAI not available'}), 500
+
+    # Gather systems context
+    systems_text = ''
+    if rfq_ref and quote_ref:
+        try:
+            conn = sqlite3.connect('ProjectStatus.db')
+            row = conn.execute(
+                "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                (rfq_ref, quote_ref)
+            ).fetchone()
+            conn.close()
+            if row and row[0]:
+                sheets = _json.loads(row[0])
+                systems_text = ', '.join(
+                    sh.get('name', '') for sh in sheets if sh.get('name')
+                )
+        except Exception:
+            pass
+
+    contact_info = ''
+    if cta_email and cta_phone:
+        contact_info = f'{cta_email} or by phone at {cta_phone}'
+    elif cta_email:
+        contact_info = cta_email
+    elif cta_phone:
+        contact_info = cta_phone
+
+    _prompt = f"""You are a professional presales engineer at EJTech writing a closing "Call to Action" paragraph for a commercial proposal.
+Write a concise, warm, and professional 3-sentence closing paragraph (no bullet points) that:
+1. Invites the client to reach out for questions or to discuss the commercials{(' via ' + contact_info) if contact_info else ''}
+2. Expresses gratitude for their trust/support and enthusiasm for the partnership
+3. Ends with a forward-looking statement about doing business together
+
+Project: {project or 'Client Project'}
+Client: {to_co or 'Valued Client'}
+Systems: {systems_text or 'ICT Systems'}
+
+Rules:
+- Output ONLY the paragraph text — no heading, no "With best regards", no sign-off
+- Maximum 60 words
+- Professional B2B tone, warm but not casual
+- Do not include the specific email/phone in the output (they are shown separately)"""
+
+    try:
+        _client = _openai.OpenAI(
+            api_key=_os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
+            base_url=_os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
+        )
+        resp = _client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[{'role': 'user', 'content': _prompt}],
+            max_tokens=120,
+            temperature=0.72,
+        )
+        body = resp.choices[0].message.content.strip()
+        return jsonify({'ok': True, 'body': body})
+    except Exception as e:
+        app.logger.error(f"AI CTA error: {e}")
+        fallback = (
+            f"Should you have any questions or wish to discuss the details of this proposal further, "
+            f"please do not hesitate to contact the undersigned. "
+            f"We thank you for your continued trust in EJTech and look forward to the opportunity "
+            f"of delivering this solution for {to_co or 'your esteemed organisation'}."
+        )
+        return jsonify({'ok': True, 'body': fallback})
+
+
 @app.route('/proposal_generator/save_form', methods=['POST'])
 @login_required
 def proposal_save_form():
@@ -6536,6 +6620,7 @@ def proposal_generate_pdf():
             'exec_summary':  _req.form.get('exec_summary', ''),
             'cta_email':     _req.form.get('cta_email', ''),
             'cta_phone':     _req.form.get('cta_phone', ''),
+            'cta_body':      _req.form.get('cta_body', ''),
             'prep_by_name':  _req.form.get('prep_by_name', ''),
             'prep_by_title': _req.form.get('prep_by_title', ''),
             'mgr_name':      _req.form.get('mgr_name', ''),
@@ -7101,20 +7186,24 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
             _cta_ps))
         story.append(Spacer(1, 0.10*cm))
 
-    # Paragraph 2 — invite further discussion
-    story.append(_p(
-        'In the meantime, should you have any questions or need to discuss the commercials in '
-        'greater detail, please do not hesitate to contact the undersigned.',
-        _cta_ps))
-    story.append(Spacer(1, 0.10*cm))
+    # Paragraphs 2-3 — use AI/custom body if provided, else defaults
+    _cta_body = (cover.get('cta_body') or '').strip()
+    if _cta_body:
+        for _cb_line in [ln.strip() for ln in _cta_body.split('\n') if ln.strip()]:
+            story.append(_p(_cb_line, _cta_ps))
+            story.append(Spacer(1, 0.08*cm))
+    else:
+        story.append(_p(
+            'In the meantime, should you have any questions or need to discuss the commercials in '
+            'greater detail, please do not hesitate to contact the undersigned.',
+            _cta_ps))
+        story.append(Spacer(1, 0.10*cm))
+        story.append(_p(
+            'We thank you for your support to EJ TECH and look forward to the pleasure of doing business.',
+            _cta_ps))
+        story.append(Spacer(1, 0.10*cm))
 
-    # Paragraph 3 — gratitude
-    story.append(_p(
-        'We thank you for your support to EJ TECH and look forward to the pleasure of doing business.',
-        _cta_ps))
-    story.append(Spacer(1, 0.10*cm))
-
-    # Paragraph 4 — sign-off
+    # Sign-off
     story.append(_p('With best regards,',
         _ps('ctabr', fontName='Helvetica-Oblique', fontSize=9, textColor=C_DARK, leading=13,
             leftIndent=4)))
