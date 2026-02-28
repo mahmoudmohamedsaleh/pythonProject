@@ -143,6 +143,7 @@ select.stock-sel {
 select.stock-sel.s-instock  { background:#d1fae5; color:#065F46; border-color:#6ee7b7; }
 select.stock-sel.s-poa      { background:#fff3cd; color:#92400E; border-color:#fcd34d; }
 select.stock-sel.s-leadtime { background:#dbeafe; color:#1e40af; border-color:#93c5fd; }
+select.stock-sel.s-weeks    { background:#fff7ed; color:#c2410c; border-color:#fdba74; }
 select.stock-sel.s-oos      { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
 select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
 
@@ -398,6 +399,14 @@ select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
         <option value="POA">$ POA</option>
         <option value="Lead Time">⏱ Lead Time</option>
         <option value="Out of Stock">✕ Out of Stock</option>
+        <optgroup label="── Delivery Lead Time ──">
+          <option value="2-4 Weeks">⏱ 2–4 Weeks</option>
+          <option value="4-6 Weeks">⏱ 4–6 Weeks</option>
+          <option value="6-8 Weeks">⏱ 6–8 Weeks</option>
+          <option value="8-10 Weeks">⏱ 8–10 Weeks</option>
+          <option value="10-12 Weeks">⏱ 10–12 Weeks</option>
+          <option value="12-16 Weeks">⏱ 12–16 Weeks</option>
+        </optgroup>
       </select>
       <div style="display:flex; gap:10px;">
         <button onclick="applyStockToAll()"
@@ -543,24 +552,34 @@ function deleteSheet(idx) {
 
 // ── Stock Availability dropdown builder ───────────────────────────────
 const STOCK_OPTS = [
-  { val: '',          label: '— Stock —',    cls: 's-empty'    },
-  { val: 'In Stock',  label: '✓ In Stock',   cls: 's-instock'  },
-  { val: 'POA',       label: '$ POA',        cls: 's-poa'      },
-  { val: 'Lead Time', label: '⏱ Lead Time',  cls: 's-leadtime' },
-  { val: 'Out of Stock', label: '✕ Out of Stock', cls: 's-oos' },
+  { val: '',             label: '— Stock —',       cls: 's-empty'    },
+  { val: 'In Stock',     label: '✓ In Stock',      cls: 's-instock'  },
+  { val: 'POA',          label: '$ POA',           cls: 's-poa'      },
+  { val: 'Lead Time',    label: '⏱ Lead Time',     cls: 's-leadtime' },
+  { val: '2-4 Weeks',   label: '⏱ 2–4 Weeks',    cls: 's-weeks'    },
+  { val: '4-6 Weeks',   label: '⏱ 4–6 Weeks',    cls: 's-weeks'    },
+  { val: '6-8 Weeks',   label: '⏱ 6–8 Weeks',    cls: 's-weeks'    },
+  { val: '8-10 Weeks',  label: '⏱ 8–10 Weeks',   cls: 's-weeks'    },
+  { val: '10-12 Weeks', label: '⏱ 10–12 Weeks',  cls: 's-weeks'    },
+  { val: '12-16 Weeks', label: '⏱ 12–16 Weeks',  cls: 's-weeks'    },
+  { val: 'Out of Stock', label: '✕ Out of Stock', cls: 's-oos'      },
 ];
+const WEEK_VALS = new Set(['2-4 Weeks','4-6 Weeks','6-8 Weeks','8-10 Weeks','10-12 Weeks','12-16 Weeks']);
 function stockClass(val) {
   const o = STOCK_OPTS.find(o => o.val === val);
   return o ? o.cls : 's-empty';
 }
 function buildStockSel(ri, val) {
-  const opts = STOCK_OPTS.map(o =>
-    `<option value="${o.val}"${o.val===val?' selected':''}>${o.label}</option>`
-  ).join('');
   const cls = stockClass(val);
+  const mkOpt = (o) => `<option value="${o.val}"${o.val===val?' selected':''}>${o.label}</option>`;
+  const basicOpts = STOCK_OPTS.filter(o => !WEEK_VALS.has(o.val)).map(mkOpt).join('');
+  const weekOpts  = STOCK_OPTS.filter(o => WEEK_VALS.has(o.val)).map(mkOpt).join('');
   return `<select class="stock-sel ${cls}"
     onchange="updateRow(${ri},'stock',this.value);this.className='stock-sel '+stockClass(this.value)">
-    ${opts}
+    ${basicOpts}
+    <optgroup label="── Lead Time ──">
+      ${weekOpts}
+    </optgroup>
   </select>`;
 }
 
