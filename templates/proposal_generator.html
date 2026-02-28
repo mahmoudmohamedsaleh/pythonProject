@@ -258,6 +258,36 @@
             </div>
           </div>
 
+          <!-- Call to Action -->
+          <div class="card mb-3 shadow-sm" style="border:2px solid #1B7B4B;">
+            <div class="card-header-pg" style="background:linear-gradient(135deg,#1B7B4B,#2ea868);">
+              <i class="fas fa-phone-alt mr-1"></i> Call to Action
+            </div>
+            <div class="card-body py-3">
+              <p class="text-muted mb-2" style="font-size:.78rem;">
+                <i class="fas fa-info-circle mr-1 text-success"></i>
+                These details appear at the end of the cover page, inviting the client to get in touch.
+              </p>
+              <div class="form-row">
+                <div class="form-group col-md-6 mb-2">
+                  <label class="small font-weight-bold text-muted mb-1"><i class="fas fa-envelope mr-1"></i>Sales Engineer Email</label>
+                  <input type="email" class="form-control form-control-sm" name="cta_email" id="ctaEmail"
+                         placeholder="engineer@ejtech.sa"
+                         value="{{ saved_form.get('cta_email', '') if saved_form else '' }}">
+                </div>
+                <div class="form-group col-md-6 mb-2">
+                  <label class="small font-weight-bold text-muted mb-1"><i class="fas fa-mobile-alt mr-1"></i>Contact Number</label>
+                  <input type="text" class="form-control form-control-sm" name="cta_phone" id="ctaPhone"
+                         placeholder="05XXXXXXXX"
+                         value="{{ saved_form.get('cta_phone', contact) if saved_form else contact }}">
+                </div>
+              </div>
+              <div id="ctaPreview" style="background:#f8f9fa; border:1px solid #d4edda; border-radius:5px;
+                                          padding:8px 12px; font-size:.82rem; color:#333; margin-top:4px; line-height:1.6;">
+              </div>
+            </div>
+          </div>
+
           <!-- Terms -->
           <div class="card mb-3 shadow-sm">
             <div class="card-header-pg"><i class="fas fa-list-ul mr-1"></i> Terms &amp; Conditions</div>
@@ -540,6 +570,26 @@ function fmt(n) {
   return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// ── Call to Action live preview ───────────────────────────────────────
+function updateCtaPreview() {
+  const email = document.getElementById('ctaEmail')?.value.trim() || '';
+  const phone = document.getElementById('ctaPhone')?.value.trim() || '';
+  const prev  = document.getElementById('ctaPreview');
+  if (!prev) return;
+  if (!email && !phone) { prev.innerHTML = '<span style="color:#999;font-style:italic;">Fill in email and/or phone to preview.</span>'; return; }
+  let contact = '';
+  if (email && phone) contact = `<a href="mailto:${email}" style="color:#1155CC;">${email}</a> or call us at <b>${phone}</b>`;
+  else if (email)     contact = `<a href="mailto:${email}" style="color:#1155CC;">${email}</a>`;
+  else                contact = `<b>${phone}</b>`;
+  prev.innerHTML = `<span style="color:#1B7B4B;font-weight:700;font-size:.8rem;">Call to Action</span><br>
+    To proceed with this proposal or for any further discussion, please contact our sales team at ${contact}. We look forward to partnering with you.`;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('ctaEmail')?.addEventListener('input', updateCtaPreview);
+  document.getElementById('ctaPhone')?.addEventListener('input', updateCtaPreview);
+  updateCtaPreview();
+});
+
 // ── AI Executive Summary ───────────────────────────────────────────────
 async function generateAISummary() {
   const btn  = document.getElementById('aiGenBtn');
@@ -637,6 +687,8 @@ async function saveDraft() {
     sub:           document.querySelector('[name="sub"]')?.value || '',
     scope:         document.querySelector('[name="scope"]')?.value || '',
     exec_summary:  document.getElementById('execSummaryTA')?.value || '',
+    cta_email:     document.getElementById('ctaEmail')?.value || '',
+    cta_phone:     document.getElementById('ctaPhone')?.value || '',
     prep_by_name:  document.querySelector('[name="prep_by_name"]')?.value || '',
     prep_by_title: document.querySelector('[name="prep_by_title"]')?.value || '',
     mgr_name:      document.querySelector('[name="mgr_name"]')?.value || '',

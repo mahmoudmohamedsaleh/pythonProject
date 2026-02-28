@@ -6527,6 +6527,8 @@ def proposal_generate_pdf():
             'sub':           _req.form.get('sub', ''),
             'scope':         _req.form.get('scope', ''),
             'exec_summary':  _req.form.get('exec_summary', ''),
+            'cta_email':     _req.form.get('cta_email', ''),
+            'cta_phone':     _req.form.get('cta_phone', ''),
             'prep_by_name':  _req.form.get('prep_by_name', ''),
             'prep_by_title': _req.form.get('prep_by_title', ''),
             'mgr_name':      _req.form.get('mgr_name', ''),
@@ -7054,6 +7056,39 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     ]))
     story.append(terms_tbl)
     story.append(Spacer(1, 0.25*cm))
+
+    # ── 6b. CALL TO ACTION ────────────────────────────────────────────────
+    _cta_email = (cover.get('cta_email') or '').strip()
+    _cta_phone = (cover.get('cta_phone') or '').strip()
+    if _cta_email or _cta_phone:
+        # Build contact phrase
+        if _cta_email and _cta_phone:
+            _cta_contact = f'{_cta_email} or call us at {_cta_phone}'
+        elif _cta_email:
+            _cta_contact = _cta_email
+        else:
+            _cta_contact = _cta_phone
+        _cta_text = (
+            f'To proceed with this proposal or for any further discussion, please contact our '
+            f'sales team at <font color="#1155CC"><u>{_cta_contact}</u></font>. '
+            f'We look forward to partnering with you.'
+        )
+        _cta_hdr = Table([[
+            _p('CALL TO ACTION', _pw('ctah', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white)),
+        ]], colWidths=[BW_eff])
+        _cta_hdr.setStyle(TableStyle([
+            ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#1B7B4B')),
+            ('LINEBELOW',  (0,0),(-1,-1), 2, colors.HexColor('#F59E0B')),
+            ('TOPPADDING', (0,0),(-1,-1), 5),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+            ('LEFTPADDING', (0,0),(-1,-1), 10),
+        ]))
+        story.append(_cta_hdr)
+        story.append(Spacer(1, 0.10*cm))
+        story.append(_p(_cta_text,
+            _ps('ctab', fontName='Helvetica', fontSize=8.8, textColor=C_DARK, leading=13.5,
+                leftIndent=4, rightIndent=4)))
+        story.append(Spacer(1, 0.22*cm))
 
     # ── 7. CLOSING & SIGNATURES ───────────────────────────────────────────
     prep_name  = cover.get('prep_by_name', '')
