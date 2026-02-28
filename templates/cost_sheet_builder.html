@@ -126,14 +126,25 @@
 }
 .btn-back-proposal:hover { opacity: .9; color: #fff; text-decoration: none; }
 
-.col-sn   { width: 42px; }
-.col-code { width: 110px; }
-.col-desc { min-width: 280px; }
-.col-uom  { width: 60px; }
-.col-qty  { width: 65px; }
-.col-num  { width: 95px; }
-.col-pct  { width: 58px; }
-.col-act  { width: 46px; }
+.col-sn     { width: 42px; }
+.col-code   { width: 110px; }
+.col-desc   { min-width: 240px; }
+.col-vendor { width: 100px; }
+.col-stock  { width: 90px; }
+.col-uom    { width: 60px; }
+.col-qty    { width: 65px; }
+.col-num    { width: 95px; }
+.col-pct    { width: 58px; }
+.col-act    { width: 46px; }
+select.stock-sel {
+  width: 100%; font-size: .78rem; font-weight: 600; border-radius: 4px;
+  padding: 2px 3px; border: 1px solid #ccc; cursor: pointer; text-align: center;
+}
+select.stock-sel.s-instock  { background:#d1fae5; color:#065F46; border-color:#6ee7b7; }
+select.stock-sel.s-poa      { background:#fff3cd; color:#92400E; border-color:#fcd34d; }
+select.stock-sel.s-leadtime { background:#dbeafe; color:#1e40af; border-color:#93c5fd; }
+select.stock-sel.s-oos      { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
+select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
 
 /* ── Set Margin button ───────────────────────────────────────────────── */
 .btn-set-margin {
@@ -336,6 +347,8 @@
           <th class="col-sn">S.#</th>
           <th class="col-code">Item Code</th>
           <th class="col-desc desc-col">Item Description</th>
+          <th class="col-vendor">Vendor</th>
+          <th class="col-stock">Stock</th>
           <th class="col-uom">UOM</th>
           <th class="col-qty">Qty</th>
           <th class="col-num">Unit Cost</th>
@@ -399,7 +412,7 @@
 
 <script>
 // ── Data model ────────────────────────────────────────────────────────
-// sheets: [{name, rows: [{type:'section'|'item', desc, item_code, uom, qty, unit_cost, unit_price, margin}]}]
+// sheets: [{name, scope, rows: [{type:'section'|'item', desc, item_code, vendor, stock, uom, qty, unit_cost, unit_price, margin}]}]
 // Margin % = (1 - Unit Cost / Unit Price) × 100  |  Total Sell = Qty × Unit Price
 {% if saved_sheets_json %}
 let sheets = {{ saved_sheets_json | safe }};
@@ -453,6 +466,29 @@ function deleteSheet(idx) {
   renderTabs(); renderTable();
 }
 
+// ── Stock Availability dropdown builder ───────────────────────────────
+const STOCK_OPTS = [
+  { val: '',          label: '— Stock —',    cls: 's-empty'    },
+  { val: 'In Stock',  label: '✓ In Stock',   cls: 's-instock'  },
+  { val: 'POA',       label: '$ POA',        cls: 's-poa'      },
+  { val: 'Lead Time', label: '⏱ Lead Time',  cls: 's-leadtime' },
+  { val: 'Out of Stock', label: '✕ Out of Stock', cls: 's-oos' },
+];
+function stockClass(val) {
+  const o = STOCK_OPTS.find(o => o.val === val);
+  return o ? o.cls : 's-empty';
+}
+function buildStockSel(ri, val) {
+  const opts = STOCK_OPTS.map(o =>
+    `<option value="${o.val}"${o.val===val?' selected':''}>${o.label}</option>`
+  ).join('');
+  const cls = stockClass(val);
+  return `<select class="stock-sel ${cls}"
+    onchange="updateRow(${ri},'stock',this.value);this.className='stock-sel '+stockClass(this.value)">
+    ${opts}
+  </select>`;
+}
+
 // ── Render table for active sheet ─────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('csTbody');
@@ -478,7 +514,7 @@ function buildSectionRow(row, ri) {
   tr.dataset.ri = ri;
   tr.innerHTML = `
     <td class="sn-col" style="text-align:center;font-weight:700;color:#888;">*</td>
-    <td colspan="10">
+    <td colspan="12">
       <input class="cs-input" style="font-weight:700;color:#1F3864;width:100%;"
              placeholder="Section name (e.g. Data Outlets)"
              value="${esc(row.desc || '')}"
@@ -519,6 +555,9 @@ function buildItemRow(row, ri, itemNo) {
          placeholder="Code" onchange="updateRow(${ri},'item_code',this.value)"></td>
     <td><input class="cs-input" value="${esc(row.desc||'')}"
          placeholder="Item description" onchange="updateRow(${ri},'desc',this.value)"></td>
+    <td><input class="cs-input" value="${esc(row.vendor||'')}"
+         placeholder="Vendor" onchange="updateRow(${ri},'vendor',this.value)"></td>
+    <td>${buildStockSel(ri, row.stock||'')}</td>
     <td><input class="cs-input" value="${esc(row.uom||'')}"
          placeholder="EA" style="text-align:center;"
          onchange="updateRow(${ri},'uom',this.value)"></td>
@@ -567,7 +606,7 @@ function buildTotalRow() {
   const tr = document.createElement('tr');
   tr.className = 'total-row';
   tr.innerHTML = `
-    <td colspan="3" style="text-align:center;">Total ${shName} System</td>
+    <td colspan="5" style="text-align:center;">Total ${shName} System</td>
     <td colspan="2" style="text-align:center;">TOTAL EXCLUDING VAT</td>
     <td class="val">${fmt(tot_cost)}</td>
     <td style="text-align:center;">Total</td>
@@ -583,8 +622,8 @@ function addRow(type) {
   saveCurrentRows();
   const newRow = type === 'section'
     ? { type: 'section', desc: '' }
-    : { type: 'item', item_code: '', desc: '', uom: '', qty: '', unit_cost: '',
-        unit_price: '', margin: '' };
+    : { type: 'item', item_code: '', desc: '', vendor: '', stock: '', uom: '', qty: '',
+        unit_cost: '', unit_price: '', margin: '' };
   sheets[activeSheet].rows.push(newRow);
   renderTable();
   // Focus last input of the new row
@@ -635,7 +674,8 @@ function doInsert(ri, type) {
   const insertIdx = pos === 'before' ? ri : ri + 1;
   const newRow = type === 'section'
     ? { type: 'section', desc: '' }
-    : { type: 'item', item_code: '', desc: '', uom: '', qty: '', unit_cost: '', unit_price: '', margin: '' };
+    : { type: 'item', item_code: '', desc: '', vendor: '', stock: '', uom: '', qty: '',
+        unit_cost: '', unit_price: '', margin: '' };
 
   sheets[activeSheet].rows.splice(insertIdx, 0, newRow);
   renderTable();
@@ -755,11 +795,13 @@ function saveCurrentRows() {
     if (row.type === 'section') {
       if (inputs[0]) row.desc = inputs[0].value;
     } else {
-      const fields = ['item_code','desc','uom','qty','unit_cost','unit_price','margin'];
+      const fields = ['item_code','desc','vendor','uom','qty','unit_cost','unit_price','margin'];
       let ii = 0;
       inputs.forEach(inp => {
         if (ii < fields.length) { row[fields[ii]] = inp.value; ii++; }
       });
+      const sel = tr.querySelector('select.stock-sel');
+      if (sel) row.stock = sel.value;
     }
   });
   saveScope();
