@@ -6617,21 +6617,23 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     col_c = BW * 0.36
     col_d = BW - col_a - col_b - col_c
 
+    S_LBL_GOLD = _ps('lgld', fontName='Helvetica-Bold', fontSize=8, textColor=C_PURPLE)
     def _ci_lbl(t): return _p(t, S_LBL_PU)
+    def _ci_lbl2(t): return _p(t, S_LBL_GOLD)
     def _ci_val(t): return _p(t or '—', S_VAL_DK)
 
     ci_rows = [
         [_ci_lbl('COMPANY'), _ci_val(cover.get('to','')),
-         _ci_lbl('ATTENTION'), _ci_val(cover.get('attn',''))],
+         _ci_lbl2('ATTENTION'), _ci_val(cover.get('attn',''))],
         [_ci_lbl('FROM'), _ci_val(cover.get('frm','')),
-         _ci_lbl('CONTACT / MOBILE'), _ci_val(cover.get('cont',''))],
+         _ci_lbl2('CONTACT / MOBILE'), _ci_val(cover.get('cont',''))],
     ]
     ci = Table(ci_rows, colWidths=[col_b, col_a, col_b, col_c + col_d - col_b])
     ci.setStyle(TableStyle([
         ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
         ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#CCCCCC')),
         ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
-        ('BACKGROUND',(2,0),(2,-1),C_PURPLE),
+        ('BACKGROUND',(2,0),(2,-1),C_GOLD),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
         ('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),
