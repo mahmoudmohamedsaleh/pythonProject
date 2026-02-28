@@ -6953,49 +6953,81 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
                                  ('PADDING',(0,0),(-1,-1),4),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
         story.append(ph)
         story.append(Spacer(1, 0.3*cm))
-        story.extend(_sub_scope_block())
 
-        # ── System name banner ──────────────────────────────────────────
-        sys_name = bs.get('name', '')
+        # ── System name + scope embedded in table (repeats on every page) ─
+        sys_name  = bs.get('name', '')
         sys_scope = bs.get('scope', '')
-        S_SYSHD = _ps('syshd', fontName='Helvetica-Bold', fontSize=10,
-                      textColor=C_WHITE, leading=14, alignment=TA_LEFT)
-        sys_banner = Table([[_p(sys_name, S_SYSHD)]],
-            colWidths=[BW],
-            style=TableStyle([
-                ('BACKGROUND', (0,0), (-1,-1), C_NAVY),
-                ('TOPPADDING',   (0,0), (-1,-1), 5),
-                ('BOTTOMPADDING',(0,0), (-1,-1), 5),
-                ('LEFTPADDING',  (0,0), (-1,-1), 8),
-                ('RIGHTPADDING', (0,0), (-1,-1), 8),
-            ]))
-        story.append(sys_banner)
-        if sys_scope:
-            S_SCOPTXT = _ps('scoptxt', fontName='Helvetica', fontSize=8.5,
-                            textColor=colors.HexColor('#1A0000'), leading=12, alignment=TA_LEFT)
-            scope_tbl = Table([[_p(f'<b>SCOPE:</b> {sys_scope}', S_SCOPTXT)]],
-                colWidths=[BW],
-                style=TableStyle([
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#FFF0F0')),
-                    ('BOX', (0,0), (-1,-1), 0.6, C_PURPLE),
-                    ('TOPPADDING',    (0,0), (-1,-1), 5),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-                    ('LEFTPADDING',   (0,0), (-1,-1), 8),
-                    ('RIGHTPADDING',  (0,0), (-1,-1), 8),
-                ]))
-            story.append(scope_tbl)
-        story.append(Spacer(1, 0.35*cm))
+        _NCOLS = 7  # number of columns in BOQ table
 
+        S_SYSHD  = _ps('syshd',  fontName='Helvetica-Bold', fontSize=10,
+                       textColor=C_WHITE, leading=14, alignment=TA_LEFT)
+        S_SCOPTXT = _ps('scoptxt', fontName='Helvetica', fontSize=8.5,
+                        textColor=colors.HexColor('#1A0000'), leading=12, alignment=TA_LEFT)
+
+        tbl_data   = []
+        style_cmds = []
+
+        # Row 0 — System name banner (navy, full-width)
+        _empty = [_p('') for _ in range(_NCOLS - 1)]
+        tbl_data.append([_p(sys_name, S_SYSHD)] + _empty)
+        style_cmds += [
+            ('SPAN',          (0, 0), (-1, 0)),
+            ('BACKGROUND',    (0, 0), (-1, 0), C_NAVY),
+            ('TOPPADDING',    (0, 0), (-1, 0), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('LEFTPADDING',   (0, 0), (-1, 0), 8),
+            ('RIGHTPADDING',  (0, 0), (-1, 0), 8),
+        ]
+
+        # Row 1 (optional) — Scope of work (light red, full-width)
+        ri_offset = 1
+        if sys_scope:
+            tbl_data.append([_p(f'<b>SCOPE:</b> {sys_scope}', S_SCOPTXT)] + _empty)
+            style_cmds += [
+                ('SPAN',          (0, 1), (-1, 1)),
+                ('BACKGROUND',    (0, 1), (-1, 1), colors.HexColor('#FFF0F0')),
+                ('BOX',           (0, 1), (-1, 1), 0.6, C_PURPLE),
+                ('TOPPADDING',    (0, 1), (-1, 1), 5),
+                ('BOTTOMPADDING', (0, 1), (-1, 1), 5),
+                ('LEFTPADDING',   (0, 1), (-1, 1), 8),
+                ('RIGHTPADDING',  (0, 1), (-1, 1), 8),
+            ]
+            ri_offset = 2
+
+        # Column header row (at ri_offset)
+        _hri = ri_offset
         boq_hdr = [
             _p('S.#', S_CODHD), _p('ITEM CODE', S_CODHD), _p('ITEM DESCRIPTION', S_CODHD),
             _p('UOM', S_CODHD),
-            _p('QTY', _ps('qhd', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
+            _p('QTY',        _ps('qhd', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
             _p('UNIT PRICE', _ps('uph', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
-            _p('TOTAL', _ps('tth', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
+            _p('TOTAL',      _ps('tth', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_RIGHT)),
         ]
-        tbl_data = [boq_hdr]
-        style_cmds = list(BOQ_HDR_STYLE)
-        item_ctr = 0; grand_tot = 0.0; ri = 1
+        tbl_data.append(boq_hdr)
+        style_cmds += [
+            ('BACKGROUND', (0, _hri), (-1, _hri), C_PURPLE),
+            ('FONTNAME',   (0, _hri), (-1, _hri), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0, _hri), (-1, _hri), 8),
+            ('TEXTCOLOR',  (0, _hri), (-1, _hri), C_WHITE),
+            ('TOPPADDING',    (0, _hri), (-1, _hri), 5),
+            ('BOTTOMPADDING', (0, _hri), (-1, _hri), 5),
+            ('LEFTPADDING',   (0, 0),    (-1, -1),   4),
+            ('RIGHTPADDING',  (0, 0),    (-1, -1),   4),
+            ('TOPPADDING',    (0, 0),    (-1, -1),   4),
+            ('BOTTOMPADDING', (0, 0),    (-1, -1),   4),
+            ('ALIGN',  (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN',  (3, 0), (3, -1), 'CENTER'),
+            ('ALIGN',  (4, 0), (4, -1), 'RIGHT'),
+            ('ALIGN',  (5, 0), (5, -1), 'RIGHT'),
+            ('ALIGN',  (6, 0), (6, -1), 'RIGHT'),
+            ('BOX',       (0, 0), (-1, -1), 0.5, C_PURPLE),
+            ('INNERGRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#FFE4E6')),
+            ('FONTSIZE',  (0, _hri+1), (-1, -1), 8.5),
+            ('VALIGN',    (0, 0), (-1, -1), 'MIDDLE'),
+        ]
+
+        repeat_rows = _hri + 1   # sys name [+ scope] + col headers repeat on every page
+        item_ctr = 0; grand_tot = 0.0; ri = _hri + 1
 
         for it in bs['items']:
             is_sec = it.get('is_section', False)
@@ -7039,7 +7071,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
             ('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),('SPAN',(0,ri),(4,ri)),
             ('LINEABOVE',(0,ri),(-1,ri),1,C_TEAL),('PADDING',(0,ri),(-1,ri),5),
         ]
-        boq_tbl = Table(tbl_data, colWidths=COL_W, repeatRows=1)
+        boq_tbl = Table(tbl_data, colWidths=COL_W, repeatRows=repeat_rows)
         boq_tbl.setStyle(TableStyle(style_cmds))
         story.append(boq_tbl)
 
