@@ -6688,6 +6688,264 @@ def proposal_generate_pdf():
 
 
 
+
+@app.route('/proposal_generator/get_cost_summary')
+@login_required
+def proposal_get_cost_summary():
+    import json
+    rfq_ref  = request.args.get('rfq', '')
+    quoteref = request.args.get('quoteref', '')
+    if not rfq_ref or not quoteref:
+        return jsonify({'cost': 0, 'selling': 0, 'systems': []})
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        row  = conn.execute(
+            'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?',
+            (rfq_ref, quoteref)
+        ).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({'cost': 0, 'selling': 0, 'systems': []})
+        sheets = json.loads(row[0])
+        total_cost = 0.0
+        total_sell = 0.0
+        systems    = []
+        for sh in sheets:
+            sh_cost = 0.0; sh_sell = 0.0
+            for r in sh.get('rows', []):
+                if r.get('type') == 'item':
+                    qty  = float(r.get('qty') or 0)
+                    uc   = float(r.get('unit_cost') or 0)
+                    up   = float(r.get('unit_price') or 0)
+                    sh_cost += qty * uc
+                    sh_sell += qty * up
+            total_cost += sh_cost
+            total_sell += sh_sell
+            systems.append({'name': sh.get('name', 'System'),
+                            'cost': round(sh_cost, 2), 'sell': round(sh_sell, 2)})
+        return jsonify({'cost': round(total_cost, 2), 'selling': round(total_sell, 2), 'systems': systems})
+    except Exception as e:
+        return jsonify({'error': str(e), 'cost': 0, 'selling': 0, 'systems': []})
+
+
+@app.route('/proposal_generator/quick_submit', methods=['POST'])
+@login_required
+def proposal_quick_submit():
+    import json as _json
+    from io import BytesIO
+    from datetime import datetime as _dt, date as _date
+
+    rfq_ref    = request.form.get('rfq_ref', '')
+    quoteref   = request.form.get('quote_ref', '')
+    proj_name  = request.form.get('project_name', '')
+    presale_e  = request.form.get('presale_eng', '')
+    sales_e    = request.form.get('sales_eng', '')
+    status_v   = request.form.get('status', 'Quotation Sent')
+    progress_v = request.form.get('progress', '5.00%')
+    system_v   = request.form.get('system', '')
+    sow_v      = request.form.get('sow', '')
+    q_cost     = request.form.get('quotation_cost', '0')
+    q_sell     = request.form.get('quotation_selling_price', '0')
+    note_v     = request.form.get('quotation_note', '')
+    feedback_v = request.form.get('feedback', '')
+
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    dup = conn.execute('SELECT COUNT(*) FROM projects WHERE quote_ref=?', (quoteref,)).fetchone()[0]
+    if dup > 0:
+        conn.close()
+        flash('Error: That Quote Reference already exists. Quotation was not submitted.', 'danger')
+        return redirect(url_for('proposal_generator_main', project=proj_name, rfq=rfq_ref, quoteref=quoteref))
+
+    cs_row = conn.execute(
+        'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?', (rfq_ref, quoteref)
+    ).fetchone()
+    sheets = _json.loads(cs_row[0]) if cs_row else []
+
+    pf_row = conn.execute(
+        'SELECT form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?', (rfq_ref, quoteref)
+    ).fetchone()
+    saved_form = _json.loads(pf_row[0]) if pf_row and pf_row[0] else {}
+    conn.close()
+
+    systems_list = []
+    for sh in sheets:
+        sh_sell = sum(
+            float(r.get('qty') or 0) * float(r.get('unit_price') or 0)
+            for r in sh.get('rows', []) if r.get('type') == 'item'
+        )
+        systems_list.append({'name': sh.get('name', ''), 'total': round(sh_sell, 2), 'is_summary': False})
+
+    cover = {
+        'date':          _date.today().strftime('%d-%m-%Y'),
+        'quoteref':      quoteref,
+        'engref':        saved_form.get('engref', ''),
+        'to':            saved_form.get('to', ''),
+        'attn':          saved_form.get('attn', ''),
+        'frm':           saved_form.get('frm', ''),
+        'cont':          saved_form.get('cont', ''),
+        'sub':           saved_form.get('sub', ''),
+        'scope':         saved_form.get('scope', ''),
+        'exec_summary':  saved_form.get('exec_summary', ''),
+        'terms':         saved_form.get('terms', {}),
+        'cta_email':     saved_form.get('cta_email', ''),
+        'cta_phone':     saved_form.get('cta_phone', ''),
+        'cta_body':      saved_form.get('cta_body', ''),
+        'prep_by_name':  saved_form.get('prep_by_name', presale_e),
+        'prep_by_title': saved_form.get('prep_by_title', 'Presales Engineer'),
+        'mgr_name':      saved_form.get('mgr_name', ''),
+        'mgr_title':     saved_form.get('mgr_title', ''),
+        'systems':       systems_list,
+    }
+
+    boq_sheets = []
+    for sh in sheets:
+        items = []
+        for r in sh.get('rows', []):
+            if r.get('type') == 'section':
+                items.append({'is_section': True, 'desc': r.get('desc', '')})
+            else:
+                qty = float(r.get('qty') or 0)
+                up  = float(r.get('unit_price') or 0)
+                items.append({
+                    'is_section': False,
+                    'code':       r.get('item_code', ''),
+                    'desc':       r.get('desc', ''),
+                    'vendor':     r.get('vendor', ''),
+                    'uom':        r.get('uom', 'EA'),
+                    'qty':        r.get('qty', 0),
+                    'unit_price': up,
+                    'total':      round(qty * up, 2),
+                    'stock':      r.get('stock', ''),
+                })
+        boq_sheets.append({'name': sh.get('name', ''), 'scope': sh.get('scope', ''), 'items': items})
+
+    try:
+        excel_quot_buf  = _build_quotation_excel(cover, boq_sheets, quoteref,
+                                                  boq_opts={'show_item_code': True,
+                                                             'show_vendor': False,
+                                                             'show_stock': False})
+        excel_quot_data = excel_quot_buf.read()
+    except Exception as _qe:
+        app.logger.error(f'quick_submit: Excel quotation gen failed: {_qe}')
+        excel_quot_data = b''
+
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        cs_wb = openpyxl.Workbook()
+        cs_wb.remove(cs_wb.active)
+
+        HDR_FILL  = PatternFill('solid', fgColor='1F3864')
+        SEC_FILL  = PatternFill('solid', fgColor='D6E4F7')
+        TOT_FILL  = PatternFill('solid', fgColor='C0504D')
+        hfont     = Font(bold=True, color='FFFFFF', name='Calibri', size=10)
+        sfont     = Font(bold=True, name='Calibri', size=10)
+        ifont     = Font(name='Calibri', size=10)
+        tfont     = Font(bold=True, color='FFFFFF', name='Calibri', size=10)
+        ctr       = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        lft       = Alignment(horizontal='left',   vertical='center', wrap_text=True)
+        rgt       = Alignment(horizontal='right',  vertical='center')
+        ts        = Side(style='thin', color='BBBBBB')
+        tb        = Border(left=ts, right=ts, top=ts, bottom=ts)
+
+        CS_COLS  = ['S.#','Item Code','Item Description','Vendor','Stock','UOM','Qty',
+                    'Unit Cost','Total Cost','Unit Price','Total Sell','Margin %']
+        CS_WIDTHS = [5, 12, 45, 14, 11, 7, 7, 11, 12, 11, 12, 8]
+
+        for sh_data in sheets:
+            ws2 = cs_wb.create_sheet(title=sh_data.get('name', 'Sheet')[:31])
+            for ci, (col, w) in enumerate(zip(CS_COLS, CS_WIDTHS), start=1):
+                cell = ws2.cell(row=1, column=ci, value=col)
+                cell.fill = HDR_FILL; cell.font = hfont
+                cell.alignment = ctr; cell.border = tb
+                ws2.column_dimensions[get_column_letter(ci)].width = w
+            ws2.row_dimensions[1].height = 28
+
+            ri2 = 2; ino = 0; stc = 0.0; sts = 0.0
+            for rd in sh_data.get('rows', []):
+                if rd.get('type') == 'section':
+                    ws2.merge_cells(start_row=ri2, start_column=1, end_row=ri2, end_column=len(CS_COLS))
+                    c = ws2.cell(ri2, 1, value=rd.get('desc', ''))
+                    c.fill = SEC_FILL; c.font = sfont; c.alignment = lft; c.border = tb
+                    ws2.row_dimensions[ri2].height = 18
+                else:
+                    ino += 1
+                    qty2 = float(rd.get('qty') or 0)
+                    uc2  = float(rd.get('unit_cost') or 0)
+                    up2  = float(rd.get('unit_price') or 0)
+                    tc2  = qty2 * uc2; ts2 = qty2 * up2
+                    mg2  = ((1 - uc2/up2)*100) if up2 else 0
+                    stc += tc2; sts += ts2
+                    vals2 = [ino, rd.get('item_code',''), rd.get('desc',''),
+                             rd.get('vendor',''), rd.get('stock',''),
+                             rd.get('uom',''), qty2, uc2, tc2, up2, ts2, round(mg2,2)]
+                    for ci2, val2 in enumerate(vals2, start=1):
+                        c2 = ws2.cell(ri2, ci2, value=val2)
+                        c2.font = ifont; c2.border = tb
+                        c2.alignment = rgt if ci2 >= 7 else (ctr if ci2 == 1 else lft)
+                        if ci2 in (8,9,10,11): c2.number_format = '#,##0.00'
+                        elif ci2 == 12: c2.number_format = '0.00"%"'
+                    ws2.row_dimensions[ri2].height = 18
+                ri2 += 1
+
+            for ci3 in range(1, len(CS_COLS)+1):
+                c3 = ws2.cell(ri2, ci3); c3.fill = TOT_FILL; c3.font = tfont; c3.border = tb
+            ws2.merge_cells(start_row=ri2, start_column=1, end_row=ri2, end_column=7)
+            ws2.cell(ri2, 1, value='Total').fill = TOT_FILL
+            ws2.cell(ri2, 1).font = tfont; ws2.cell(ri2, 1).alignment = rgt
+            c9_ = ws2.cell(ri2, 9, value=stc)
+            c9_.fill = TOT_FILL; c9_.font = tfont; c9_.number_format = '#,##0.00'
+            c11_ = ws2.cell(ri2, 11, value=sts)
+            c11_.fill = TOT_FILL; c11_.font = tfont; c11_.number_format = '#,##0.00'
+            ws2.row_dimensions[ri2].height = 22
+
+        cs_buf2 = BytesIO()
+        cs_wb.save(cs_buf2)
+        cs_buf2.seek(0)
+        excel_cs_data = cs_buf2.read()
+    except Exception as _ce:
+        app.logger.error(f'quick_submit: Cost sheet gen failed: {_ce}')
+        excel_cs_data = b''
+
+    try:
+        q_cost_f = float(q_cost or 0)
+        q_sell_f = float(q_sell or 0)
+        margin2  = ((1 - q_cost_f / q_sell_f) * 100) if q_sell_f > 0 else 0
+        now2     = _dt.now()
+        quarter2 = f"Q{(now2.month - 1) // 3 + 1}"
+        now_str2 = now2.strftime('%Y-%m-%d %H:%M:%S')
+        username2 = session.get('username', '')
+
+        conn3 = sqlite3.connect('ProjectStatus.db')
+        conn3.execute(
+            '''INSERT INTO projects
+               (project_name, quote_ref, presale_eng, sales_eng, system, sow, status, quarter,
+                quotation_cost, quotation_selling_price, margin, progress, registered_date,
+                quotation_note, feedback, quotation, cost_sheet, rfq_reference, registered_by, updated_time)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (proj_name, quoteref, presale_e, sales_e, system_v, sow_v, status_v, quarter2,
+             q_cost_f, q_sell_f, margin2, progress_v, now_str2,
+             note_v, feedback_v, excel_quot_data, excel_cs_data,
+             rfq_ref, username2, now_str2))
+        if rfq_ref:
+            conn3.execute(
+                "UPDATE rfq_requests SET rfq_status='Quoted', quotation_status='Quotation Sent' WHERE rfq_reference=?",
+                (rfq_ref,))
+        conn3.commit()
+        conn3.close()
+        flash('Quotation submitted successfully! Excel files auto-generated and attached.', 'success')
+        return redirect(url_for('quotation_profile', quote_ref=quoteref))
+    except sqlite3.IntegrityError:
+        flash('Error: That Quote Reference already exists.', 'danger')
+    except Exception as _ie:
+        app.logger.error(f'quick_submit insert error: {_ie}')
+        flash(f'Submission failed: {_ie}', 'danger')
+    return redirect(url_for('proposal_generator_main', project=proj_name, rfq=rfq_ref, quoteref=quoteref))
+
+
 @app.route('/proposal_generator/generate_excel', methods=['POST'])
 @login_required
 def proposal_generate_excel():

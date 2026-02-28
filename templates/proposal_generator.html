@@ -428,6 +428,10 @@
                 <i class="fas fa-save mr-1"></i> Save Draft
               </button>
               <div id="saveStatus" style="font-size:.78rem; margin-top:5px; display:none;"></div>
+              <button type="button" class="btn btn-block mt-2" onclick="openSubmitModal()"
+                      style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;font-weight:600;font-size:.88rem;border-radius:6px;">
+                <i class="fas fa-paper-plane mr-1"></i> Submit to Quotation
+              </button>
             </div>
           </div>
 
@@ -877,4 +881,189 @@ rebuildScope();
 recalcSummaryRows();
 renderSysTable();
 </script>
+
+<!-- Submit to Quotation Modal -->
+<div class="modal fade" id="submitQuotModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;">
+        <h5 class="modal-title"><i class="fas fa-paper-plane mr-2"></i>Submit to Quotation</h5>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <form method="POST" action="/proposal_generator/quick_submit" id="submitQuotForm">
+        <div class="modal-body">
+          <div class="alert alert-info py-2 mb-3" style="font-size:.85rem;">
+            <i class="fas fa-info-circle mr-1"></i>
+            All fields are auto-filled. Excel Quotation and Cost Sheet will be generated and attached automatically.
+          </div>
+          <input type="hidden" name="rfq_ref"      id="sqRfq">
+          <input type="hidden" name="quote_ref"    id="sqQuoteRef">
+          <input type="hidden" name="project_name" id="sqProject">
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Project Name</label>
+              <input type="text" class="form-control form-control-sm" id="sqProjectDisp" readonly style="background:#e9ecef;">
+            </div>
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">RFQ Reference</label>
+              <input type="text" class="form-control form-control-sm" id="sqRfqDisp" readonly style="background:#e9ecef;">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Quote Reference</label>
+              <input type="text" class="form-control form-control-sm" id="sqQuoteRefDisp" readonly style="background:#e9ecef;">
+            </div>
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Status</label>
+              <select class="form-control form-control-sm" name="status" id="sqStatus">
+                <option value="Quotation Sent" selected>Quotation Sent</option>
+                <option value="Customer Pending">Customer Pending</option>
+                <option value="Technical Discussion">Technical Discussion</option>
+                <option value="Negotiation">Negotiation</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Presale Engineer</label>
+              <input type="text" class="form-control form-control-sm" name="presale_eng" id="sqPresale" readonly style="background:#e9ecef;">
+            </div>
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Sales Engineer</label>
+              <input type="text" class="form-control form-control-sm" name="sales_eng" id="sqSales" readonly style="background:#e9ecef;">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label class="font-weight-bold small">Progress (Probability %)</label>
+              <input type="text" class="form-control form-control-sm" name="progress" id="sqProgress" readonly style="background:#e9ecef;">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">System(s)</label>
+              <div id="sqSystemsBox" class="border rounded p-2" style="max-height:110px;overflow-y:auto;background:#f8f9fa;font-size:.83rem;"></div>
+              <input type="hidden" name="system" id="sqSystemHidden">
+            </div>
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Scope of Work (SOW)</label>
+              <div id="sqSowBox" class="border rounded p-2" style="max-height:110px;overflow-y:auto;background:#f8f9fa;font-size:.83rem;"></div>
+              <input type="hidden" name="sow" id="sqSowHidden">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Quotation Cost (After Discount) <span class="text-muted">SAR</span></label>
+              <input type="number" step="0.01" class="form-control form-control-sm" name="quotation_cost" id="sqCost" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label class="font-weight-bold small">Quotation Selling Price (After Discount) <span class="text-muted">SAR</span></label>
+              <input type="number" step="0.01" class="form-control form-control-sm" name="quotation_selling_price" id="sqSell" required>
+            </div>
+          </div>
+          <div id="sqMarginBadge" class="mb-2" style="display:none;">
+            <span class="badge badge-success px-3 py-1" id="sqMarginText" style="font-size:.9rem;"></span>
+          </div>
+          <div class="form-group">
+            <label class="font-weight-bold small">Quotation Note <span class="text-muted">(optional)</span></label>
+            <textarea class="form-control form-control-sm" name="quotation_note" rows="2"></textarea>
+          </div>
+          <div class="alert alert-success py-2 mb-0" style="font-size:.82rem;">
+            <i class="fas fa-file-excel mr-1"></i>
+            <strong>Excel Quotation</strong> and <strong>Excel Cost Sheet</strong> are generated automatically from your saved proposal data.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm font-weight-bold" id="sqSubmitBtn"
+                  style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;min-width:170px;">
+            <i class="fas fa-paper-plane mr-1"></i> Submit Quotation
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const SQ_PROB = {'Quotation Sent':5,'Customer Pending':20,'Technical Discussion':40,'Negotiation':70,'Closed Won':100,'Closed Lost':0,'Cancelled':0};
+document.getElementById('sqStatus').addEventListener('change', function(){
+  const p = SQ_PROB[this.value];
+  document.getElementById('sqProgress').value = p !== undefined ? p.toFixed(2)+'%' : '';
+  updateMarginBadge();
+});
+document.getElementById('sqCost').addEventListener('input', updateMarginBadge);
+document.getElementById('sqSell').addEventListener('input', updateMarginBadge);
+function updateMarginBadge(){
+  const cost=parseFloat(document.getElementById('sqCost').value)||0;
+  const sell=parseFloat(document.getElementById('sqSell').value)||0;
+  const badge=document.getElementById('sqMarginBadge');
+  const txt=document.getElementById('sqMarginText');
+  if(sell>0&&cost>0){txt.textContent='Margin: '+((1-cost/sell)*100).toFixed(2)+'%';badge.style.display='block';}
+  else{badge.style.display='none';}
+}
+async function openSubmitModal(){
+  const rfq={{ rfq_ref|tojson }};
+  const quoteref={{ quoteref|tojson }};
+  const project={{ project_name|tojson }};
+  const presale={{ presale_name|tojson }};
+  const sales={{ frm|tojson }};
+  document.getElementById('sqRfq').value=rfq;
+  document.getElementById('sqQuoteRef').value=quoteref;
+  document.getElementById('sqProject').value=project;
+  document.getElementById('sqRfqDisp').value=rfq;
+  document.getElementById('sqQuoteRefDisp').value=quoteref;
+  document.getElementById('sqProjectDisp').value=project;
+  document.getElementById('sqPresale').value=presale;
+  document.getElementById('sqSales').value=sales;
+  document.getElementById('sqStatus').value='Quotation Sent';
+  document.getElementById('sqProgress').value='5.00%';
+  // Systems from sysRows
+  const realSys=(typeof sysRows!=='undefined')?sysRows.filter(r=>!r.is_summary):[];
+  const sysBox=document.getElementById('sqSystemsBox');
+  const sysHid=document.getElementById('sqSystemHidden');
+  sysBox.innerHTML='';
+  const sysNames=realSys.map(r=>r.name);
+  sysNames.forEach(n=>{
+    sysBox.innerHTML+=`<div class="form-check"><input class="form-check-input sq-sys-cb" type="checkbox" value="${n}" checked onchange="updateSqSysHidden()"><label class="form-check-label">${n}</label></div>`;
+  });
+  sysHid.value=sysNames.join(', ');
+  // SOW detection from scope
+  const scopeText={{ cs_scope|tojson }}.toLowerCase();
+  const sowBox=document.getElementById('sqSowBox');
+  const sowHid=document.getElementById('sqSowHidden');
+  const sowOpts=['Supply','Installation','Configuration','Testing','Termination','Splicing','Commissioning'];
+  const detected=sowOpts.filter(s=>scopeText.includes(s.toLowerCase()));
+  sowBox.innerHTML='';
+  sowOpts.forEach(s=>{
+    const chk=detected.includes(s)?'checked':'';
+    sowBox.innerHTML+=`<div class="form-check"><input class="form-check-input sq-sow-cb" type="checkbox" value="${s}" ${chk} onchange="updateSqSowHidden()"><label class="form-check-label">${s}</label></div>`;
+  });
+  sowHid.value=detected.join(', ');
+  $('#submitQuotModal').modal('show');
+  // Fetch cost summary
+  document.getElementById('sqCost').value='';
+  document.getElementById('sqSell').value='';
+  try{
+    const resp=await fetch(`/proposal_generator/get_cost_summary?rfq=${encodeURIComponent(rfq)}&quoteref=${encodeURIComponent(quoteref)}`);
+    const data=await resp.json();
+    if(data.cost!==undefined){document.getElementById('sqCost').value=data.cost.toFixed(2);}
+    if(data.selling!==undefined){document.getElementById('sqSell').value=data.selling.toFixed(2);}
+    updateMarginBadge();
+  }catch(e){console.error('Cost summary fetch error:',e);}
+}
+function updateSqSysHidden(){
+  document.getElementById('sqSystemHidden').value=Array.from(document.querySelectorAll('.sq-sys-cb:checked')).map(c=>c.value).join(', ');
+}
+function updateSqSowHidden(){
+  document.getElementById('sqSowHidden').value=Array.from(document.querySelectorAll('.sq-sow-cb:checked')).map(c=>c.value).join(', ');
+}
+document.getElementById('submitQuotForm').addEventListener('submit',function(){
+  const btn=document.getElementById('sqSubmitBtn');
+  btn.disabled=true;
+  btn.innerHTML='<i class="fas fa-spinner fa-spin mr-1"></i> Submitting…';
+});
+</script>
+
 {% endblock %}
