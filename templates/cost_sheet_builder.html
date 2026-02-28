@@ -327,7 +327,19 @@
           <th style="width:18%;">Margin %</th>
         </tr>
       </thead>
-      <tbody id="costSummaryBody"></tbody>
+      <!-- System rows + Total (re-rendered) -->
+      <tbody id="summaryTopBody"></tbody>
+      <!-- Discount row: permanently in DOM, never re-created -->
+      <tbody>
+        <tr class="sum-discount-row" id="summaryDiscountRow">
+          <td>Discount</td>
+          <td><input class="discount-input" id="smDiscCost" type="text" inputmode="decimal" value="0.00"></td>
+          <td><input class="discount-input" id="smDiscSell" type="text" inputmode="decimal" value="0.00"></td>
+          <td></td>
+        </tr>
+      </tbody>
+      <!-- After Discount / VAT / Grand Total (re-rendered) -->
+      <tbody id="summaryBottomBody"></tbody>
     </table>
   </div>
 
@@ -757,10 +769,6 @@ function esc(s) {
 function updateTotals() { renderTable(); renderSummary(); }
 
 // ── Cost Summary ──────────────────────────────────────────────────────
-// Persist discount values across re-renders
-let summaryDiscountCost = 0;
-let summaryDiscountSell = 0;
-
 function fmtSar(n) {
   return 'SAR ' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -768,122 +776,93 @@ function calcMarginPct(cost, sell) {
   if (!sell || sell === 0) return '—';
   return ((1 - cost / sell) * 100).toFixed(2) + '%';
 }
+function getDiscountValues() {
+  const dc = parseFloat(document.getElementById('smDiscCost').value.replace(/,/g,'')) || 0;
+  const ds = parseFloat(document.getElementById('smDiscSell').value.replace(/,/g,'')) || 0;
+  return { dc, ds };
+}
 
 function renderSummary() {
   saveCurrentRows();
 
   const sysRows = [];
-
   sheets.forEach(sheet => {
-    let currentSectionIsSRV = false;
-    let currentSectionName = '';
-    let matCost = 0, matSell = 0;
-    let srvCost = 0, srvSell = 0;
+    let isSRV = false;
     let srvLabel = sheet.name + ' SRV';
+    let matCost = 0, matSell = 0, srvCost = 0, srvSell = 0;
 
     sheet.rows.forEach(row => {
       if (row.type === 'section') {
-        currentSectionIsSRV = row.desc && row.desc.toUpperCase().includes('SRV');
-        currentSectionName = row.desc || '';
-        if (currentSectionIsSRV) srvLabel = currentSectionName || (sheet.name + ' SRV');
+        isSRV = row.desc && row.desc.toUpperCase().includes('SRV');
+        if (isSRV) srvLabel = row.desc || srvLabel;
       } else if (row.type === 'item') {
-        const qty = parseNum(row.qty);
-        const uc  = parseNum(row.unit_cost);
-        const up  = parseNum(row.unit_price);
-        const tc  = qty * uc;
-        const ts  = qty * up;
-        if (currentSectionIsSRV) { srvCost += tc; srvSell += ts; }
-        else                     { matCost += tc; matSell += ts; }
+        const tc = parseNum(row.qty) * parseNum(row.unit_cost);
+        const ts = parseNum(row.qty) * parseNum(row.unit_price);
+        if (isSRV) { srvCost += tc; srvSell += ts; }
+        else       { matCost += tc; matSell += ts; }
       }
     });
-
-    if (matCost > 0 || matSell > 0) {
+    if (matCost > 0 || matSell > 0)
       sysRows.push({ name: sheet.name + ' Material', cost: matCost, sell: matSell });
-    }
-    if (srvCost > 0 || srvSell > 0) {
-      sysRows.push({ name: srvLabel, cost: srvCost, sell: srvSell, isSrv: true });
-    }
+    if (srvCost > 0 || srvSell > 0)
+      sysRows.push({ name: srvLabel, cost: srvCost, sell: srvSell });
   });
 
   const totalCost = sysRows.reduce((s, r) => s + r.cost, 0);
   const totalSell = sysRows.reduce((s, r) => s + r.sell, 0);
 
-  const discCost   = summaryDiscountCost;
-  const discSell   = summaryDiscountSell;
-  const afterCost  = totalCost - discCost;
-  const afterSell  = totalSell - discSell;
-  const vatCost    = +(afterCost * 0.15).toFixed(2);
-  const vatSell    = +(afterSell * 0.15).toFixed(2);
-  const grandCost  = +(afterCost + vatCost).toFixed(2);
-  const grandSell  = +(afterSell + vatSell).toFixed(2);
-
-  const tbody = document.getElementById('costSummaryBody');
-  let html = '';
-
-  // ── System rows
+  // ── Top body: system rows + total
+  let topHtml = '';
   sysRows.forEach(r => {
-    html += `<tr class="sum-sys-row">
+    topHtml += `<tr class="sum-sys-row">
       <td>${esc(r.name)}</td>
       <td>${fmtSar(r.cost)}</td>
       <td>${fmtSar(r.sell)}</td>
       <td style="text-align:center;">${calcMarginPct(r.cost, r.sell)}</td>
     </tr>`;
   });
-
-  // ── Total
-  html += `<tr class="sum-total-row">
+  topHtml += `<tr class="sum-total-row">
     <td>Total</td>
     <td>${fmtSar(totalCost)}</td>
     <td>${fmtSar(totalSell)}</td>
     <td style="text-align:center;">${calcMarginPct(totalCost, totalSell)}</td>
   </tr>`;
+  document.getElementById('summaryTopBody').innerHTML = topHtml;
 
-  // ── Discount (editable)
-  html += `<tr class="sum-discount-row">
-    <td>Discount</td>
-    <td><input class="discount-input" id="smDiscCost" type="number" min="0" step="0.01" value="${discCost.toFixed(2)}"></td>
-    <td><input class="discount-input" id="smDiscSell" type="number" min="0" step="0.01" value="${discSell.toFixed(2)}"></td>
-    <td></td>
-  </tr>`;
+  // ── Bottom body: after discount / VAT / grand total
+  // Read discount from the permanently-in-DOM inputs (never destroyed)
+  const { dc: discCost, ds: discSell } = getDiscountValues();
+  const afterCost = totalCost - discCost;
+  const afterSell = totalSell - discSell;
+  const vatCost   = +(afterCost * 0.15).toFixed(2);
+  const vatSell   = +(afterSell * 0.15).toFixed(2);
+  const grandCost = +(afterCost + vatCost).toFixed(2);
+  const grandSell = +(afterSell + vatSell).toFixed(2);
 
-  // ── After Discount
-  html += `<tr class="sum-after-discount-row">
+  document.getElementById('summaryBottomBody').innerHTML = `
+  <tr class="sum-after-discount-row">
     <td>After Discount</td>
     <td>${fmtSar(afterCost)}</td>
     <td>${fmtSar(afterSell)}</td>
     <td style="text-align:center;">${calcMarginPct(afterCost, afterSell)}</td>
-  </tr>`;
-
-  // ── VAT 15%
-  html += `<tr class="sum-vat-row">
+  </tr>
+  <tr class="sum-vat-row">
     <td>VAT 15%</td>
     <td>${fmtSar(vatCost)}</td>
     <td>${fmtSar(vatSell)}</td>
     <td></td>
-  </tr>`;
-
-  // ── Total With VAT
-  html += `<tr class="sum-grand-row">
+  </tr>
+  <tr class="sum-grand-row">
     <td>Total With VAT</td>
     <td>${fmtSar(grandCost)}</td>
     <td>${fmtSar(grandSell)}</td>
     <td></td>
   </tr>`;
-
-  tbody.innerHTML = html;
-
-  // Re-attach discount listeners (inputs were just re-created)
-  const dcInp = document.getElementById('smDiscCost');
-  const dsInp = document.getElementById('smDiscSell');
-  if (dcInp) dcInp.addEventListener('change', () => {
-    summaryDiscountCost = parseFloat(dcInp.value) || 0;
-    renderSummary();
-  });
-  if (dsInp) dsInp.addEventListener('change', () => {
-    summaryDiscountSell = parseFloat(dsInp.value) || 0;
-    renderSummary();
-  });
 }
+
+// ── Discount inputs: set up once, never re-created ────────────────────
+document.getElementById('smDiscCost').addEventListener('change', renderSummary);
+document.getElementById('smDiscSell').addEventListener('change', renderSummary);
 
 // ── Keyboard shortcut: Tab in last cell adds new item ─────────────────
 document.getElementById('csTable').addEventListener('keydown', e => {
