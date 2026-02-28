@@ -6455,6 +6455,7 @@ def _cost_sheet_json_to_boq(sheets):
         if priced:
             boq_sheets.append({
                 'name':        sname,
+                'scope':       str(sheet.get('scope', '') or '').strip(),
                 'items':       items,
                 'grand_total': sum(it['total'] for it in priced),
             })
@@ -6953,6 +6954,36 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         story.append(ph)
         story.append(Spacer(1, 0.3*cm))
         story.extend(_sub_scope_block())
+
+        # ── System name banner ──────────────────────────────────────────
+        sys_name = bs.get('name', '')
+        sys_scope = bs.get('scope', '')
+        S_SYSHD = _ps('syshd', fontName='Helvetica-Bold', fontSize=10,
+                      textColor=C_WHITE, leading=14, alignment=TA_LEFT)
+        sys_banner = Table([[_p(sys_name, S_SYSHD)]],
+            colWidths=[BW],
+            style=TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), C_NAVY),
+                ('TOPPADDING',   (0,0), (-1,-1), 5),
+                ('BOTTOMPADDING',(0,0), (-1,-1), 5),
+                ('LEFTPADDING',  (0,0), (-1,-1), 8),
+                ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ]))
+        story.append(sys_banner)
+        if sys_scope:
+            S_SCOPTXT = _ps('scoptxt', fontName='Helvetica', fontSize=8.5,
+                            textColor=HexColor('#1A0000'), leading=12, alignment=TA_LEFT)
+            scope_tbl = Table([[_p(f'<b>SCOPE:</b> {sys_scope}', S_SCOPTXT)]],
+                colWidths=[BW],
+                style=TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), HexColor('#FFF0F0')),
+                    ('BOX', (0,0), (-1,-1), 0.6, C_PURPLE),
+                    ('TOPPADDING',    (0,0), (-1,-1), 5),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+                    ('LEFTPADDING',   (0,0), (-1,-1), 8),
+                    ('RIGHTPADDING',  (0,0), (-1,-1), 8),
+                ]))
+            story.append(scope_tbl)
         story.append(Spacer(1, 0.35*cm))
 
         boq_hdr = [

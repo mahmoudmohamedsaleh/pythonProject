@@ -288,6 +288,17 @@
     </span>
   </div>
 
+  <!-- Scope of Work for this system -->
+  <div style="margin-bottom:10px; background:#f0f7ff; border:1px solid #b3d4f5; border-radius:6px; padding:8px 12px;">
+    <label style="font-size:.78rem; font-weight:700; color:#1A56DB; margin-bottom:4px; display:block;">
+      <i class="fas fa-list-alt mr-1"></i> Scope of Work <span style="font-weight:400; color:#6c757d;">(for this system — shown in PDF BOQ)</span>
+    </label>
+    <textarea id="systemScopeInput" rows="2"
+      style="width:100%; border:1px solid #cce0ff; border-radius:4px; padding:6px 8px; font-size:.82rem; resize:vertical; color:#1A1A2E;"
+      placeholder="e.g. Supply, Installation, Testing and Commissioning of Passive Cabling System..."
+      oninput="saveScope()"></textarea>
+  </div>
+
   <!-- Set Margin Modal -->
   <div id="setMarginOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9990; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:12px; padding:28px 32px; width:340px; box-shadow:0 8px 32px rgba(0,0,0,.22);">
@@ -457,6 +468,8 @@ function renderTable() {
     }
   });
   tbody.appendChild(buildTotalRow());
+  const ta = document.getElementById('systemScopeInput');
+  if (ta) ta.value = sheets[activeSheet].scope || '';
 }
 
 function buildSectionRow(row, ri) {
@@ -749,6 +762,14 @@ function saveCurrentRows() {
       });
     }
   });
+  saveScope();
+}
+
+function saveScope() {
+  const ta = document.getElementById('systemScopeInput');
+  if (ta && sheets[activeSheet]) {
+    sheets[activeSheet].scope = ta.value;
+  }
 }
 
 // ── Save to server ────────────────────────────────────────────────────
