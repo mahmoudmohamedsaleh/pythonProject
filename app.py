@@ -6883,8 +6883,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
                        ('TOPPADDING',(0,0),(-1,-1),2),
                        ('BOTTOMPADDING',(0,0),(-1,-1),2),
                    ]))],
-            # Generous space for handwritten signature
-            [Spacer(1, 1.5*cm)],
+            [Spacer(1, 0.25*cm)],
             # Dotted signature line
             [Table([['']], colWidths=[line_w],
                    style=TableStyle([
