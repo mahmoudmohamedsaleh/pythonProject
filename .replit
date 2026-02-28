@@ -38,3 +38,8 @@ externalPort = 80
 [deployment]
 deploymentTarget = "autoscale"
 run = ["python3", "app.py"]
+
+[userenv]
+
+[userenv.shared]
+SECRET_KEY = "9067a07ca80a9a6b6caff0c0eb86509e2f77b72a1b4478862715d7b1d26da799"
