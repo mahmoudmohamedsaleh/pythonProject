@@ -885,7 +885,8 @@ function importExcel(input) {
   const file = input.files[0];
   input.value = '';  // reset so same file can be re-imported
 
-  if (!confirm('Importing "' + file.name + '" will REPLACE the current data. Continue?')) return;
+  const currentName = sheets[activeSheet] ? sheets[activeSheet].name : 'current system';
+  if (!confirm('Import "' + file.name + '" into the "' + currentName + '" system?\n\nAll other systems will remain unchanged.')) return;
 
   document.getElementById('importOverlay').classList.add('active');
 
@@ -900,13 +901,16 @@ function importExcel(input) {
         alert('Import failed: ' + data.error);
         return;
       }
-      // Replace sheets with imported data
-      sheets = data.sheets;
-      activeSheet = 0;
+      if (!data.sheets || data.sheets.length === 0) {
+        alert('No data found in the Excel file.');
+        return;
+      }
+      // Merge only into the currently active sheet — other systems untouched
+      sheets[activeSheet].rows = data.sheets[0].rows;
       renderTabs();
       renderTable();
-      // Show success toast
-      showToast('✓ Imported ' + sheets.length + ' sheet(s) from Excel', 'success');
+      renderSummary();
+      showToast('✓ Imported into "' + currentName + '"', 'success');
     })
     .catch(err => {
       document.getElementById('importOverlay').classList.remove('active');
