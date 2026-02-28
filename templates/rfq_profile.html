@@ -526,6 +526,33 @@
 
     <!-- Right Column - Timeline & Stats -->
     <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="fas fa-bolt mr-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('edit_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-primary btn-block mb-2">
+                    <i class="fas fa-edit mr-1"></i>Edit RFQ
+                </a>
+                {% if project %}
+                <a href="{{ url_for('project_detail', project_id=project.id) }}" class="btn btn-outline-info btn-block mb-2">
+                    <i class="fas fa-project-diagram mr-1"></i>View Project
+                </a>
+                {% endif %}
+                <a href="{{ url_for('upload') }}?project_name={{ rfq.project_name|urlencode }}&rfq_reference={{ rfq.rfq_reference|urlencode }}" class="btn btn-outline-success btn-block mb-2">
+                    <i class="fas fa-paper-plane mr-1"></i>Submit Quotation
+                </a>
+                <a href="{{ url_for('proposal_generator_main', project=rfq.project_name, rfq=rfq.rfq_reference, quoteref=quotations[0].quote_ref if quotations else '') }}"
+                   class="btn btn-block mb-2" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;">
+                    <i class="fas fa-file-alt mr-1"></i>Open Proposal Generator
+                </a>
+                <a href="{{ url_for('rfq_summary') }}" class="btn btn-outline-secondary btn-block">
+                    <i class="fas fa-arrow-left mr-1"></i>Back to RFQ Dashboard
+                </a>
+            </div>
+        </div>
+
         <!-- Quick Stats -->
         <div class="row">
             <div class="col-6">
@@ -661,32 +688,6 @@
             </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="card">
-            <div class="card-header">
-                <i class="fas fa-bolt mr-2"></i>Quick Actions
-            </div>
-            <div class="card-body">
-                <a href="{{ url_for('edit_rfq', rfq_id=rfq.id) }}" class="btn btn-outline-primary btn-block mb-2">
-                    <i class="fas fa-edit mr-1"></i>Edit RFQ
-                </a>
-                {% if project %}
-                <a href="{{ url_for('project_detail', project_id=project.id) }}" class="btn btn-outline-info btn-block mb-2">
-                    <i class="fas fa-project-diagram mr-1"></i>View Project
-                </a>
-                {% endif %}
-                <a href="{{ url_for('upload') }}?project_name={{ rfq.project_name|urlencode }}&rfq_reference={{ rfq.rfq_reference|urlencode }}" class="btn btn-outline-success btn-block mb-2">
-                    <i class="fas fa-paper-plane mr-1"></i>Submit Quotation
-                </a>
-                <a href="{{ url_for('proposal_generator_main', project=rfq.project_name, rfq=rfq.rfq_reference, quoteref=quotations[0].quote_ref if quotations else '') }}"
-                   class="btn btn-block mb-2" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;">
-                    <i class="fas fa-file-alt mr-1"></i>Open Proposal Generator
-                </a>
-                <a href="{{ url_for('rfq_summary') }}" class="btn btn-outline-secondary btn-block">
-                    <i class="fas fa-arrow-left mr-1"></i>Back to RFQ Dashboard
-                </a>
-            </div>
-        </div>
     </div>
 </div>
 
