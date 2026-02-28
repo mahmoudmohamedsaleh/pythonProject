@@ -793,12 +793,16 @@ function renderSummary() {
 
     sheet.rows.forEach(row => {
       if (row.type === 'section') {
-        isSRV = row.desc && row.desc.toUpperCase().includes('SRV');
+        const d = (row.desc || '').toUpperCase();
+        isSRV = d.includes('SRV') || d.includes('SERVICE') || d.includes('PROFESSIONAL')
+             || d.includes('INSTALL') || d.includes('COMMISSION');
       } else if (row.type === 'item') {
         const tc = parseNum(row.qty) * parseNum(row.unit_cost);
         const ts = parseNum(row.qty) * parseNum(row.unit_price);
-        if (isSRV) { srvCost += tc; srvSell += ts; }
-        else       { matCost += tc; matSell += ts; }
+        // Also treat item as SRV if its item code itself is "SRV"
+        const codeSRV = (row.item_code || '').toUpperCase().trim() === 'SRV';
+        if (isSRV || codeSRV) { srvCost += tc; srvSell += ts; }
+        else                  { matCost += tc; matSell += ts; }
       }
     });
     if (matCost > 0 || matSell > 0)
