@@ -118,6 +118,13 @@
   font-size: .9rem; border-radius: 8px; cursor: pointer; transition: .2s;
 }
 .btn-export:hover { opacity: .9; transform: translateY(-1px); }
+.btn-price-check {
+  background: linear-gradient(135deg, #e65100, #ff6f00);
+  color: #fff; border: none; padding: 10px 24px; font-weight: 700;
+  font-size: .9rem; border-radius: 8px; cursor: pointer; transition: .2s;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-price-check:hover { opacity: .9; transform: translateY(-1px); color: #fff; text-decoration: none; }
 .btn-back-proposal {
   background: linear-gradient(135deg, #4B2D8F, #7B52D3);
   color: #fff; border: none; padding: 10px 20px; font-weight: 700;
@@ -258,6 +265,9 @@ select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
         <button class="btn-export" onclick="exportExcel()">
           <i class="fas fa-file-excel mr-2"></i> Export to Excel
         </button>
+        <a href="{{ url_for('quotation_price_checker') }}" target="_blank" class="btn-price-check" title="Compare cost sheet item prices against supplier quotation database">
+          <i class="fas fa-search-dollar"></i> Check Price
+        </a>
       </div>
     </div>
   </div>
