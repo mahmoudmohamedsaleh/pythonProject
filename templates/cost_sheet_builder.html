@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+{% block title %}Cost Sheet Builder{% endblock %}
+
+{% block content %}
+<style>
+/* ── Layout ─────────────────────────────────────────────────────────── */
+.csb-hero {
+  background: linear-gradient(135deg, #1B5E20 0%, #388E3C 100%);
+  border-radius: 12px; padding: 20px 28px; color: #fff; margin-bottom: 20px;
+}
+.csb-hero h3 { margin: 0; font-weight: 700; font-size: 1.3rem; }
+.csb-hero p  { margin: 4px 0 0; opacity: .85; font-size: .85rem; }
+
+/* ── Sheet Tabs ──────────────────────────────────────────────────────── */
+.sheet-tabs { display: flex; gap: 0; border-bottom: 3px solid #1B7B4B;
+              margin-bottom: 16px; flex-wrap: wrap; }
+.sheet-tab {
+  padding: 8px 20px; border: none; background: transparent;
+  font-weight: 600; font-size: .82rem; cursor: pointer; color: #6c757d;
+  border-bottom: 3px solid transparent; margin-bottom: -3px;
+  border-radius: 6px 6px 0 0; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px; transition: .15s;
+}
+.sheet-tab.active { color: #1B7B4B; border-bottom-color: #1B7B4B; background: #f0fff4; }
+.sheet-tab:hover:not(.active) { background: #f8fff8; color: #1B7B4B; }
+.sheet-tab .rename-input {
+  border: none; background: transparent; font-weight: 600; font-size: .82rem;
+  color: inherit; width: 120px; outline: none;
+}
+.sheet-tab .del-tab { color: #dc3545; font-size: .7rem; margin-left: 2px; cursor: pointer;
+                      border: none; background: none; padding: 0 2px; }
+.add-sheet-btn {
+  padding: 8px 14px; border: 2px dashed #adb5bd; background: transparent;
+  color: #6c757d; font-size: .82rem; cursor: pointer; border-radius: 6px;
+  margin: 4px 4px 4px 6px; font-weight: 600; white-space: nowrap;
+}
+.add-sheet-btn:hover { border-color: #1B7B4B; color: #1B7B4B; }
+
+/* ── Cost Sheet Table ────────────────────────────────────────────────── */
+.cs-wrap { overflow-x: auto; border: 1px solid #dee2e6; border-radius: 8px; }
+.cs-table { min-width: 1100px; width: 100%; border-collapse: collapse; font-size: .8rem; }
+.cs-table thead th {
+  background: #1F3864; color: #fff; font-weight: 700; font-size: .78rem;
+  padding: 8px 6px; text-align: center; white-space: nowrap;
+  border: 1px solid #2a4880; position: sticky; top: 0; z-index: 2;
+}
+.cs-table thead th.desc-col { text-align: left; }
+
+/* Section rows */
+.cs-table tr.section-row td {
+  background: #D6E4F7; font-weight: 700; color: #1F3864; padding: 5px 6px;
+  border: 1px solid #c5d8ef;
+}
+.cs-table tr.section-row td.sn-col { text-align: center; width: 40px; }
+
+/* Item rows */
+.cs-table tr.item-row td {
+  padding: 3px 4px; border: 1px solid #e9ecef; background: #fff; vertical-align: middle;
+}
+.cs-table tr.item-row:nth-child(even) td { background: #f9fafb; }
+.cs-table tr.item-row:hover td { background: #fff9e6; }
+.cs-table tr.item-row td.sn-col { text-align: center; color: #888; font-size: .75rem; }
+
+/* Total row */
+.cs-table tr.total-row td {
+  background: #C0504D; color: #fff; font-weight: 700; padding: 7px 6px;
+  border: 1px solid #a33b39; font-size: .82rem;
+}
+.cs-table tr.total-row td.val { text-align: right; }
+
+/* Inline inputs */
+.cs-input {
+  width: 100%; border: none; background: transparent; font-size: .8rem;
+  padding: 2px 4px; font-family: Calibri, sans-serif;
+}
+.cs-input:focus { outline: 2px solid #4B2D8F; border-radius: 3px; background: #fff; }
+.cs-input.num { text-align: right; }
+.cs-input.calc { background: #f0f7ff; color: #1a3c6e; font-weight: 600; }
+
+/* Action buttons */
+.row-del { border: none; background: none; color: #dc3545; cursor: pointer;
+           font-size: .85rem; padding: 0 4px; }
+.row-del:hover { color: #a71d2a; }
+
+/* Toolbar */
+.cs-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.btn-add-section { background: #D6E4F7; border: 1px solid #90b4d6; color: #1F3864;
+                   font-weight: 700; font-size: .8rem; padding: 6px 14px;
+                   border-radius: 6px; cursor: pointer; }
+.btn-add-section:hover { background: #b3cff0; }
+.btn-add-item    { background: #e8f5e9; border: 1px solid #81c784; color: #1B5E20;
+                   font-weight: 700; font-size: .8rem; padding: 6px 14px;
+                   border-radius: 6px; cursor: pointer; }
+.btn-add-item:hover { background: #c8e6c9; }
+
+/* Export / nav buttons */
+.btn-export {
+  background: linear-gradient(135deg, #1B5E20, #388E3C);
+  color: #fff; border: none; padding: 10px 24px; font-weight: 700;
+  font-size: .9rem; border-radius: 8px; cursor: pointer; transition: .2s;
+}
+.btn-export:hover { opacity: .9; transform: translateY(-1px); }
+.btn-back-proposal {
+  background: linear-gradient(135deg, #4B2D8F, #7B52D3);
+  color: #fff; border: none; padding: 10px 20px; font-weight: 700;
+  font-size: .88rem; border-radius: 8px; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px; transition: .2s;
+}
+.btn-back-proposal:hover { opacity: .9; color: #fff; text-decoration: none; }
+
+.col-sn   { width: 42px; }
+.col-code { width: 110px; }
+.col-desc { min-width: 280px; }
+.col-uom  { width: 60px; }
+.col-qty  { width: 65px; }
+.col-num  { width: 95px; }
+.col-pct  { width: 58px; }
+.col-act  { width: 30px; }
+</style>
+
+<div class="container-fluid py-3" style="max-width:1400px;">
+
+  <!-- Hero -->
+  <div class="csb-hero">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-table mr-3" style="font-size:1.8rem;opacity:.85;"></i>
+        <div>
+          <h3><i class="fas fa-file-excel mr-2" style="font-size:1rem;opacity:.8;"></i>Cost Sheet Builder</h3>
+          <p>
+            {% if project_name %}<strong>{{ project_name }}</strong>{% if rfq_ref %} &nbsp;·&nbsp; {{ rfq_ref }}{% endif %}{% else %}Build your cost sheet and export as Excel{% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if project_name %}
+        <a href="{{ url_for('proposal_generator_main') }}?project={{ project_name|urlencode }}&rfq={{ rfq_ref|urlencode }}&quoteref={{ quoteref|urlencode }}"
+           class="btn-back-proposal">
+          <i class="fas fa-arrow-left"></i> Back to Proposal
+        </a>
+        {% else %}
+        <a href="{{ url_for('proposal_generator') }}" class="btn-back-proposal">
+          <i class="fas fa-arrow-left"></i> Proposal Generator
+        </a>
+        {% endif %}
+        <button class="btn-export" onclick="exportExcel()">
+          <i class="fas fa-file-excel mr-2"></i> Export to Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ 'danger' if cat=='danger' else 'warning' }} alert-dismissible fade show">
+      {{ msg }}<button type="button" class="close" data-dismiss="alert">&times;</button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Sheet Tabs -->
+  <div class="sheet-tabs" id="sheetTabs"></div>
+
+  <!-- Toolbar -->
+  <div class="cs-toolbar">
+    <button class="btn-add-section" onclick="addRow('section')">
+      <i class="fas fa-heading mr-1"></i> Add Section Header
+    </button>
+    <button class="btn-add-item" onclick="addRow('item')">
+      <i class="fas fa-plus mr-1"></i> Add Item Row
+    </button>
+    <span class="ml-auto small text-muted align-self-center">
+      <i class="fas fa-lightbulb text-warning mr-1"></i>
+      Total = Qty × Round up · exported Excel is ready to upload in Proposal Generator
+    </span>
+  </div>
+
+  <!-- Cost Sheet Table -->
+  <div class="cs-wrap">
+    <table class="cs-table" id="csTable">
+      <thead>
+        <tr>
+          <th class="col-sn">S.#</th>
+          <th class="col-code">Item Code</th>
+          <th class="col-desc desc-col">Item Description</th>
+          <th class="col-uom">UOM</th>
+          <th class="col-qty">Qty</th>
+          <th class="col-num">Unit Cost</th>
+          <th class="col-num">Total</th>
+          <th class="col-num">Unit Price</th>
+          <th class="col-num">Round up</th>
+          <th class="col-num">Total</th>
+          <th class="col-pct">%</th>
+          <th class="col-act"></th>
+        </tr>
+      </thead>
+      <tbody id="csTbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Hidden export form -->
+  <form id="exportForm" method="POST" action="{{ url_for('cost_sheet_export') }}" style="display:none;">
+    <input type="hidden" name="sheets_data" id="exportSheetsData">
+    <input type="hidden" name="project_name" value="{{ project_name }}">
+    <input type="hidden" name="quoteref" value="{{ quoteref }}">
+  </form>
+
+</div>
+
+<script>
+// ── Data model ────────────────────────────────────────────────────────
+// sheets: [{name, rows: [{type:'section'|'item', desc, item_code, uom, qty, unit_cost, unit_price, round_up}]}]
+let sheets = [{ name: 'System 1', rows: [] }];
+let activeSheet = 0;
+
+// ── Render sheet tabs ─────────────────────────────────────────────────
+function renderTabs() {
+  const container = document.getElementById('sheetTabs');
+  container.innerHTML = '';
+  sheets.forEach((sh, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'sheet-tab' + (idx === activeSheet ? ' active' : '');
+    btn.onclick = () => { saveCurrentRows(); activeSheet = idx; renderTabs(); renderTable(); };
+    const inp = document.createElement('input');
+    inp.className = 'rename-input';
+    inp.value = sh.name;
+    inp.title = 'Click to rename';
+    inp.onclick = e => e.stopPropagation();
+    inp.onchange = e => { sheets[idx].name = e.target.value; updateTotals(); };
+    btn.appendChild(inp);
+    if (sheets.length > 1) {
+      const del = document.createElement('button');
+      del.className = 'del-tab'; del.innerHTML = '✕';
+      del.title = 'Delete sheet';
+      del.onclick = e => { e.stopPropagation(); deleteSheet(idx); };
+      btn.appendChild(del);
+    }
+    container.appendChild(btn);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-sheet-btn';
+  addBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add System';
+  addBtn.onclick = addSheet;
+  container.appendChild(addBtn);
+}
+
+function addSheet() {
+  saveCurrentRows();
+  sheets.push({ name: 'System ' + (sheets.length + 1), rows: [] });
+  activeSheet = sheets.length - 1;
+  renderTabs(); renderTable();
+}
+
+function deleteSheet(idx) {
+  if (!confirm('Delete sheet "' + sheets[idx].name + '"?')) return;
+  sheets.splice(idx, 1);
+  if (activeSheet >= sheets.length) activeSheet = sheets.length - 1;
+  renderTabs(); renderTable();
+}
+
+// ── Render table for active sheet ─────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('csTbody');
+  tbody.innerHTML = '';
+  const rows = sheets[activeSheet].rows;
+  let itemNo = 0;
+  rows.forEach((row, ri) => {
+    if (row.type === 'section') {
+      tbody.appendChild(buildSectionRow(row, ri));
+    } else {
+      itemNo++;
+      tbody.appendChild(buildItemRow(row, ri, itemNo));
+    }
+  });
+  tbody.appendChild(buildTotalRow());
+}
+
+function buildSectionRow(row, ri) {
+  const tr = document.createElement('tr');
+  tr.className = 'section-row';
+  tr.dataset.ri = ri;
+  tr.innerHTML = `
+    <td class="sn-col" style="text-align:center;font-weight:700;color:#888;">*</td>
+    <td colspan="10">
+      <input class="cs-input" style="font-weight:700;color:#1F3864;width:100%;"
+             placeholder="Section name (e.g. Data Outlets)"
+             value="${esc(row.desc || '')}"
+             onchange="updateRow(${ri},'desc',this.value)">
+    </td>
+    <td style="text-align:center;">
+      <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
+    </td>`;
+  return tr;
+}
+
+function buildItemRow(row, ri, itemNo) {
+  const qty = parseNum(row.qty);
+  const uc  = parseNum(row.unit_cost);
+  const ru  = parseNum(row.round_up);
+  const tot_cost = qty && uc ? +(qty * uc).toFixed(2) : 0;
+  const tot_sell = qty && ru ? +(qty * ru).toFixed(2) : 0;
+  const pct = tot_cost ? +(((tot_sell / tot_cost) - 1) * 100).toFixed(1) : 0;
+
+  const tr = document.createElement('tr');
+  tr.className = 'item-row';
+  tr.dataset.ri = ri;
+  tr.innerHTML = `
+    <td class="sn-col">${itemNo}</td>
+    <td><input class="cs-input" value="${esc(row.item_code||'')}"
+         placeholder="Code" onchange="updateRow(${ri},'item_code',this.value)"></td>
+    <td><input class="cs-input" value="${esc(row.desc||'')}"
+         placeholder="Item description" onchange="updateRow(${ri},'desc',this.value)"></td>
+    <td><input class="cs-input" value="${esc(row.uom||'')}"
+         placeholder="EA" style="text-align:center;"
+         onchange="updateRow(${ri},'uom',this.value)"></td>
+    <td><input class="cs-input num" type="number" step="any" value="${row.qty||''}"
+         placeholder="0" onchange="updateRow(${ri},'qty',this.value);recalcRow(this,${ri})"></td>
+    <td><input class="cs-input num" type="number" step="any" value="${row.unit_cost||''}"
+         placeholder="0.00" onchange="updateRow(${ri},'unit_cost',this.value);recalcRow(this,${ri})"></td>
+    <td><input class="cs-input num calc" readonly tabindex="-1"
+         value="${tot_cost ? fmt(tot_cost) : ''}" placeholder="auto"></td>
+    <td><input class="cs-input num" type="number" step="any" value="${row.unit_price||''}"
+         placeholder="0.00" onchange="updateRow(${ri},'unit_price',this.value)"></td>
+    <td><input class="cs-input num" type="number" step="any" value="${row.round_up||''}"
+         placeholder="0.00" onchange="updateRow(${ri},'round_up',this.value);recalcRow(this,${ri})"></td>
+    <td><input class="cs-input num calc" readonly tabindex="-1"
+         value="${tot_sell ? fmt(tot_sell) : ''}" placeholder="auto"></td>
+    <td style="text-align:center;color:${pct>0?'#1B5E20':pct<0?'#c0392b':'#888'};font-weight:600;">
+         ${tot_cost ? pct.toFixed(0)+'%' : ''}</td>
+    <td style="text-align:center;">
+      <button class="row-del" onclick="deleteRow(${ri})" title="Delete"><i class="fas fa-times"></i></button>
+    </td>`;
+  return tr;
+}
+
+function buildTotalRow() {
+  const rows = sheets[activeSheet].rows;
+  let tot_cost = 0, tot_sell = 0;
+  rows.filter(r=>r.type==='item').forEach(r => {
+    const q = parseNum(r.qty), uc = parseNum(r.unit_cost), ru = parseNum(r.round_up);
+    if (q && uc) tot_cost += q * uc;
+    if (q && ru) tot_sell += q * ru;
+  });
+  const pct = tot_cost ? (((tot_sell / tot_cost) - 1) * 100).toFixed(3) : 0;
+  const shName = sheets[activeSheet].name;
+  const tr = document.createElement('tr');
+  tr.className = 'total-row';
+  tr.innerHTML = `
+    <td colspan="3" style="text-align:center;">Total ${shName} System</td>
+    <td colspan="2" style="text-align:center;">TOTAL EXCLUDING VAT</td>
+    <td class="val">${fmt(tot_cost)}</td>
+    <td style="text-align:center;">Total</td>
+    <td style="text-align:center;">Total</td>
+    <td class="val">${fmt(tot_sell)}</td>
+    <td></td>
+    <td style="text-align:center;">${pct}%</td>
+    <td></td>`;
+  return tr;
+}
+
+// ── Row operations ────────────────────────────────────────────────────
+function addRow(type) {
+  saveCurrentRows();
+  const newRow = type === 'section'
+    ? { type: 'section', desc: '' }
+    : { type: 'item', item_code: '', desc: '', uom: '', qty: '', unit_cost: '',
+        unit_price: '', round_up: '' };
+  sheets[activeSheet].rows.push(newRow);
+  renderTable();
+  // Focus last input of the new row
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#csTbody tr:not(.total-row)');
+    if (rows.length) {
+      const lastRow = rows[rows.length - 1];
+      const firstInput = lastRow.querySelector('input:not([readonly])');
+      if (firstInput) firstInput.focus();
+    }
+  }, 50);
+}
+
+function deleteRow(ri) {
+  sheets[activeSheet].rows.splice(ri, 1);
+  renderTable();
+}
+
+function updateRow(ri, field, value) {
+  if (sheets[activeSheet].rows[ri]) {
+    sheets[activeSheet].rows[ri][field] = value;
+  }
+}
+
+function recalcRow(inputEl, ri) {
+  updateRow(ri, inputEl.closest('tr').dataset.ri || ri, inputEl.value);
+  // Re-render just the total row
+  const tbody = document.getElementById('csTbody');
+  const lastRow = tbody.querySelector('.total-row');
+  if (lastRow) tbody.replaceChild(buildTotalRow(), lastRow);
+
+  // Update calc cells in the row
+  const tr = inputEl.closest('tr');
+  if (!tr) return;
+  const row = sheets[activeSheet].rows[ri];
+  const qty = parseNum(row.qty), uc = parseNum(row.unit_cost), ru = parseNum(row.round_up);
+  const tot_cost = qty && uc ? +(qty * uc).toFixed(2) : 0;
+  const tot_sell = qty && ru ? +(qty * ru).toFixed(2) : 0;
+  const pct = tot_cost ? +(((tot_sell / tot_cost) - 1) * 100).toFixed(0) : 0;
+  const calcs = tr.querySelectorAll('.calc');
+  if (calcs[0]) calcs[0].value = tot_cost ? fmt(tot_cost) : '';
+  if (calcs[1]) calcs[1].value = tot_sell ? fmt(tot_sell) : '';
+  const pctCell = tr.cells[10];
+  if (pctCell) {
+    pctCell.textContent = tot_cost ? pct + '%' : '';
+    pctCell.style.color = pct > 0 ? '#1B5E20' : pct < 0 ? '#c0392b' : '#888';
+  }
+}
+
+// Save DOM inputs → JS model before tab switch / export
+function saveCurrentRows() {
+  const tbody = document.getElementById('csTbody');
+  const trs = tbody.querySelectorAll('tr:not(.total-row)');
+  trs.forEach(tr => {
+    const ri = parseInt(tr.dataset.ri);
+    const row = sheets[activeSheet].rows[ri];
+    if (!row) return;
+    const inputs = tr.querySelectorAll('input:not([readonly])');
+    if (row.type === 'section') {
+      if (inputs[0]) row.desc = inputs[0].value;
+    } else {
+      const fields = ['item_code','desc','uom','qty','unit_cost','unit_price','round_up'];
+      let ii = 0;
+      inputs.forEach(inp => {
+        if (ii < fields.length) { row[fields[ii]] = inp.value; ii++; }
+      });
+    }
+  });
+}
+
+// ── Export ────────────────────────────────────────────────────────────
+function exportExcel() {
+  saveCurrentRows();
+  // Validate: at least one sheet has items
+  const hasItems = sheets.some(s => s.rows.some(r => r.type === 'item' && r.desc));
+  if (!hasItems) {
+    alert('Please add at least one item before exporting.');
+    return;
+  }
+  document.getElementById('exportSheetsData').value = JSON.stringify(sheets);
+  document.getElementById('exportForm').submit();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+function parseNum(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function fmt(n) {
+  if (!n && n !== 0) return '';
+  return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                  .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function updateTotals() { renderTable(); }
+
+// ── Keyboard shortcut: Tab in last cell adds new item ─────────────────
+document.getElementById('csTable').addEventListener('keydown', e => {
+  if (e.key === 'Tab' && !e.shiftKey) {
+    const active = document.activeElement;
+    if (!active) return;
+    const tr = active.closest('tr');
+    if (!tr || tr.classList.contains('total-row')) return;
+    const allInputs = [...tr.querySelectorAll('input:not([readonly])')];
+    if (active === allInputs[allInputs.length - 1]) {
+      e.preventDefault();
+      addRow('item');
+    }
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────
+renderTabs();
+renderTable();
+</script>
+{% endblock %}

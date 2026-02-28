@@ -6713,6 +6713,204 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     return buf
 
 
+
+# ═══════════════════════════ COST SHEET BUILDER ═══════════════════════════
+
+@app.route('/cost_sheet_builder', methods=['GET'])
+@login_required
+def cost_sheet_builder():
+    """Standalone Cost Sheet Builder page."""
+    from flask import request as _req
+    project_name = _req.args.get('project', '')
+    rfq_ref      = _req.args.get('rfq', '')
+    quoteref     = _req.args.get('quoteref', '')
+    return render_template('cost_sheet_builder.html',
+                           project_name=project_name,
+                           rfq_ref=rfq_ref,
+                           quoteref=quoteref)
+
+
+@app.route('/cost_sheet_builder/export', methods=['POST'])
+@login_required
+def cost_sheet_export():
+    """Generate and download the cost sheet as Excel (compatible with _parse_cost_sheet_boq)."""
+    import openpyxl
+    from openpyxl.styles import (Font, PatternFill, Alignment, Border, Side,
+                                 numbers as xl_numbers)
+    from openpyxl.utils import get_column_letter
+    import json
+    from flask import request as _req
+
+    try:
+        sheets_json = _req.form.get('sheets_data', '[]')
+        sheets = json.loads(sheets_json)
+        project_name = _req.form.get('project_name', '')
+        quoteref     = _req.form.get('quoteref', '')
+
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)  # remove default sheet
+
+        # ── Style helpers ──────────────────────────────────────────────
+        HEADER_FILL   = PatternFill("solid", fgColor="1F3864")   # dark blue
+        SECTION_FILL  = PatternFill("solid", fgColor="D6E4F7")   # light blue
+        TOTAL_FILL    = PatternFill("solid", fgColor="C0504D")   # red
+        TOTAL_FILL_W  = PatternFill("solid", fgColor="FFFFFF")
+        hdr_font      = Font(bold=True, color="FFFFFF", name="Calibri", size=10)
+        sec_font      = Font(bold=True, name="Calibri", size=10)
+        item_font     = Font(name="Calibri", size=10)
+        total_font    = Font(bold=True, color="FFFFFF", name="Calibri", size=10)
+        center        = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        left          = Alignment(horizontal="left",   vertical="center", wrap_text=True)
+        right         = Alignment(horizontal="right",  vertical="center")
+        thin_side     = Side(style="thin", color="BBBBBB")
+        thin_border   = Border(left=thin_side, right=thin_side,
+                               top=thin_side, bottom=thin_side)
+
+        COLS = ["S.#", "Item Code", "Item Description", "UOM", "Qty",
+                "Unit Cost", "Total", "Unit Price", "Round up", "Total", "%"]
+        COL_WIDTHS = [5, 12, 55, 7, 7, 11, 12, 11, 11, 12, 7]
+
+        for sh_data in sheets:
+            ws = wb.create_sheet(title=sh_data.get('name', 'Sheet')[:31])
+
+            # ── Header row (row 1) ─────────────────────────────────────
+            for ci, (col, w) in enumerate(zip(COLS, COL_WIDTHS), start=1):
+                cell = ws.cell(row=1, column=ci, value=col)
+                cell.fill = HEADER_FILL; cell.font = hdr_font
+                cell.alignment = center; cell.border = thin_border
+                ws.column_dimensions[get_column_letter(ci)].width = w
+            ws.row_dimensions[1].height = 28
+
+            row_idx = 2
+            section_total_cost = 0.0
+            section_total_sell = 0.0
+            item_counter = 0
+
+            for row in sh_data.get('rows', []):
+                rtype = row.get('type', 'item')
+                if rtype == 'section':
+                    ws.cell(row=row_idx, column=1, value='*').font = sec_font
+                    ws.cell(row=row_idx, column=1).alignment = center
+                    sec_cell = ws.cell(row=row_idx, column=2,
+                                       value=row.get('desc', ''))
+                    sec_cell.font = Font(bold=True, name="Calibri", size=10)
+                    sec_cell.fill = SECTION_FILL
+                    for ci in range(1, 12):
+                        ws.cell(row=row_idx, column=ci).fill = SECTION_FILL
+                        ws.cell(row=row_idx, column=ci).border = thin_border
+                    ws.row_dimensions[row_idx].height = 18
+                else:
+                    # Item row
+                    item_counter += 1
+                    try: qty  = float(row.get('qty')  or 0)
+                    except: qty = 0
+                    try: uc   = float(row.get('unit_cost')   or 0)
+                    except: uc = 0
+                    try: up   = float(row.get('unit_price')  or 0)
+                    except: up = 0
+                    try: ru   = float(row.get('round_up')    or 0)
+                    except: ru = 0
+
+                    tot_cost = round(qty * uc, 2) if qty and uc else 0
+                    tot_sell = round(qty * ru, 2)  if qty and ru else 0
+                    margin   = round((tot_sell / tot_cost - 1) * 100, 1) if tot_cost else 0
+                    section_total_cost += tot_cost
+                    section_total_sell += tot_sell
+
+                    vals = [item_counter,
+                            row.get('item_code', ''),
+                            row.get('desc', ''),
+                            row.get('uom', ''),
+                            qty, uc, tot_cost, up, ru, tot_sell,
+                            f"{margin:.0f}%"]
+                    for ci, v in enumerate(vals, start=1):
+                        cell = ws.cell(row=row_idx, column=ci, value=v)
+                        cell.font = item_font
+                        cell.border = thin_border
+                        if ci in (5, 6, 7, 8, 9, 10):
+                            cell.alignment = right
+                            if isinstance(v, (int, float)):
+                                cell.number_format = '#,##0.00'
+                        elif ci == 11:
+                            cell.alignment = center
+                        elif ci == 3:
+                            cell.alignment = left
+                        else:
+                            cell.alignment = center
+                    ws.row_dimensions[row_idx].height = 32
+
+                row_idx += 1
+
+            # ── Total row ──────────────────────────────────────────────
+            margin_total = round((section_total_sell / section_total_cost - 1) * 100, 3)                            if section_total_cost else 0
+            sh_name = sh_data.get('name', 'System')
+            total_vals = [f"Total {sh_name}",
+                          "TOTAL EXCLUDING VAT", '',
+                          section_total_cost, "Total", "Total",
+                          section_total_sell, f"{margin_total:.3f}%"]
+            # Merge first 3 cols for label
+            ws.merge_cells(start_row=row_idx, start_column=1,
+                           end_row=row_idx, end_column=3)
+            ws.cell(row=row_idx, column=1,
+                    value=f"Total {sh_name} System").font = total_font
+            ws.cell(row=row_idx, column=1).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=1).alignment = center
+
+            ws.merge_cells(start_row=row_idx, start_column=4,
+                           end_row=row_idx, end_column=5)
+            ws.cell(row=row_idx, column=4,
+                    value="TOTAL EXCLUDING VAT").font = total_font
+            ws.cell(row=row_idx, column=4).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=4).alignment = center
+
+            ws.cell(row=row_idx, column=6, value=section_total_cost)
+            ws.cell(row=row_idx, column=6).font = total_font
+            ws.cell(row=row_idx, column=6).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=6).number_format = '#,##0.00'
+            ws.cell(row=row_idx, column=6).alignment = right
+
+            ws.cell(row=row_idx, column=7, value="Total")
+            ws.cell(row=row_idx, column=7).font = total_font
+            ws.cell(row=row_idx, column=7).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=7).alignment = center
+
+            ws.cell(row=row_idx, column=8, value="Total")
+            ws.cell(row=row_idx, column=8).font = total_font
+            ws.cell(row=row_idx, column=8).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=8).alignment = center
+
+            ws.cell(row=row_idx, column=9, value=section_total_sell)
+            ws.cell(row=row_idx, column=9).font = total_font
+            ws.cell(row=row_idx, column=9).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=9).number_format = '#,##0.00'
+            ws.cell(row=row_idx, column=9).alignment = right
+
+            ws.cell(row=row_idx, column=10, value='')
+            ws.cell(row=row_idx, column=10).fill = TOTAL_FILL
+
+            ws.cell(row=row_idx, column=11, value=f"{margin_total:.3f}%")
+            ws.cell(row=row_idx, column=11).font = total_font
+            ws.cell(row=row_idx, column=11).fill = TOTAL_FILL
+            ws.cell(row=row_idx, column=11).alignment = center
+
+            ws.row_dimensions[row_idx].height = 22
+            ws.freeze_panes = "A2"
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        safe = (quoteref or project_name or 'CostSheet').replace('/', '-').replace(' ', '_')
+        return send_file(buf, as_attachment=True,
+                         download_name=f'{safe}_Cost_Sheet.xlsx',
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    except Exception as e:
+        import traceback
+        app.logger.error(f"cost_sheet_export error: {e}\n{traceback.format_exc()}")
+        flash(f'Export failed: {str(e)}', 'danger')
+        return redirect(url_for('cost_sheet_builder'))
+
+
 def _parse_cost_sheet_boq(wb):
     """Parse EJTech cost-sheet workbook → boq_sheets list.
     Uses 'Round up' column as unit price; Total = Round_up * Qty.
