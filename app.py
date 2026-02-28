@@ -6465,184 +6465,195 @@ def proposal_rfqs_for_project():
 def proposal_ai_executive_summary():
     """AJAX: generate an AI executive summary from cost sheet systems for the proposal."""
     from flask import request as _req, jsonify
-    import json as _json, os as _os
-    data = _req.get_json(force=True) or {}
-    rfq_ref   = data.get('rfq_ref', '').strip()
-    quote_ref = data.get('quote_ref', '').strip()
-    project   = data.get('project', '').strip()
-    to_co     = data.get('to', '').strip()
+    import json as _json, os as _os, traceback as _tb
     try:
-        import openai as _openai
-    except ImportError:
-        return jsonify({'ok': False, 'error': 'openai package not installed — run: pip install openai'}), 500
+        data      = _req.get_json(force=True) or {}
+        rfq_ref   = data.get('rfq_ref', '').strip()
+        quote_ref = data.get('quote_ref', '').strip()
+        project   = data.get('project', '').strip()
+        to_co     = data.get('to', '').strip()
 
-    # Load systems from cost sheet
-    systems_text = ''
-    grand_total  = 0.0
-    if rfq_ref:
         try:
-            conn = sqlite3.connect('ProjectStatus.db')
-            row = conn.execute(
-                "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
-                (rfq_ref, quote_ref)
-            ).fetchone()
-            conn.close()
-            if row and row[0]:
-                sheets = _json.loads(row[0])
-                lines = []
-                for sh in sheets:
-                    sname = sh.get('name', 'System')
-                    scope = (sh.get('scope') or '').strip()
-                    total = sum(
-                        float(r.get('qty') or 0) * float(r.get('unit_price') or 0)
-                        for r in sh.get('rows', [])
-                        if r.get('type') == 'item'
-                    )
-                    grand_total += total
-                    lines.append(f"- System: {sname} | Scope: {scope or 'Supply, Installation, Testing and Commissioning'} | Value: SAR {total:,.2f}")
-                systems_text = '\n'.join(lines)
+            import openai as _openai
+            _openai_ok = True
+        except ImportError:
+            _openai_ok = False
+
+        if not _openai_ok:
+            return jsonify({'ok': False, 'error': 'openai package not installed — run: pip install openai'})
+
+        # Load systems from cost sheet
+        systems_text = ''
+        grand_total  = 0.0
+        if rfq_ref:
+            try:
+                conn = sqlite3.connect('ProjectStatus.db')
+                row = conn.execute(
+                    "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                    (rfq_ref, quote_ref)
+                ).fetchone()
+                conn.close()
+                if row and row[0]:
+                    sheets = _json.loads(row[0])
+                    lines = []
+                    for sh in sheets:
+                        sname = sh.get('name', 'System')
+                        scope = (sh.get('scope') or '').strip()
+                        total = sum(
+                            float(r.get('qty') or 0) * float(r.get('unit_price') or 0)
+                            for r in sh.get('rows', [])
+                            if r.get('type') == 'item'
+                        )
+                        grand_total += total
+                        lines.append(f"- System: {sname} | Scope: {scope or 'Supply, Installation, Testing and Commissioning'} | Value: SAR {total:,.2f}")
+                    systems_text = '\n'.join(lines)
+            except Exception as e:
+                app.logger.warning(f"AI summary load error: {e}")
+
+        total_str    = f"SAR {grand_total:,.2f}" if grand_total else 'Not specified'
+        systems_text = systems_text or '- Systems not specified'
+
+        _prompt = (
+            "You are a senior presales engineer at EJTech, a professional ICT solutions company.\n"
+            "Write a professional Executive Summary paragraph (3-5 sentences) for a commercial quotation proposal.\n"
+            "The summary should be client-facing, persuasive, and professional.\n\n"
+            f"Project: {project or 'Client Project'}\n"
+            f"Client Company: {to_co or 'Valued Client'}\n"
+            f"Systems & Scope:\n{systems_text}\n"
+            f"Total Proposal Value: {total_str}\n\n"
+            "Rules:\n"
+            "- Write flowing prose paragraphs, NOT bullet points.\n"
+            "- Keep it concise: 3-5 sentences max, under 120 words.\n"
+            "- Do not use the word 'I' or first-person singular.\n"
+            "- Maintain formal, professional B2B tone.\n"
+            "- Output ONLY the summary text, nothing else."
+        )
+
+        try:
+            _ai_key  = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
+            _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+            if not _ai_key:
+                raise RuntimeError("No OpenAI API key configured — set OPENAI_API_KEY in your environment")
+            _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
+            resp    = _client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=[{'role': 'user', 'content': _prompt}],
+                max_tokens=200,
+                temperature=0.70,
+            )
+            summary = resp.choices[0].message.content.strip()
+            return jsonify({'ok': True, 'summary': summary})
         except Exception as e:
-            app.logger.warning(f"AI summary load error: {e}")
+            app.logger.error(f"AI executive summary error: {e}")
+            fallback = (
+                f"EJTech is pleased to submit this commercial proposal for the supply, installation, and commissioning "
+                f"of integrated ICT systems for {to_co or 'your esteemed organization'}. "
+                f"This proposal encompasses {len([l for l in systems_text.split(chr(10)) if l.strip()])} specialized system(s) "
+                f"with a total investment of {total_str}, designed and engineered to meet your project's specific requirements. "
+                f"Our team of certified engineers ensures seamless project delivery, backed by full manufacturer warranties and dedicated after-sales support. "
+                f"We are confident this proposal represents the best value-for-quality solution for your needs."
+            )
+            return jsonify({'ok': True, 'summary': fallback})
 
-    total_str = f"SAR {grand_total:,.2f}" if grand_total else 'Not specified'
-    systems_text = systems_text or '- Systems not specified'
-
-    _prompt = f"""You are a senior presales engineer at EJTech, a professional ICT solutions company.
-Write a professional Executive Summary paragraph (3-5 sentences) for a commercial quotation proposal.
-The summary should be client-facing, persuasive, and professional. Cover: what is being offered, the systems/technologies involved, the value proposition, and a closing confidence statement.
-
-Project: {project or 'Client Project'}
-Client Company: {to_co or 'Valued Client'}
-Systems & Scope:
-{systems_text}
-Total Proposal Value: {total_str}
-
-Rules:
-- Write flowing prose paragraphs, NOT bullet points.
-- Keep it concise: 3-5 sentences max, under 120 words.
-- Do not use the word "I" or first-person singular.
-- Maintain formal, professional B2B tone.
-- Do not include greetings or sign-offs.
-- Output ONLY the summary text, nothing else."""
-
-    try:
-        _ai_key = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
-        _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
-        if not _ai_key:
-            raise RuntimeError("No OpenAI API key configured")
-        _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
-        resp = _client.chat.completions.create(
-            model='gpt-4o-mini',
-            messages=[{'role': 'user', 'content': _prompt}],
-            max_tokens=200,
-            temperature=0.70,
-        )
-        summary = resp.choices[0].message.content.strip()
-        return jsonify({'ok': True, 'summary': summary})
-    except Exception as e:
-        app.logger.error(f"AI executive summary error: {e}")
-        fallback = (
-            f"EJTech is pleased to submit this commercial proposal for the supply, installation, and commissioning "
-            f"of integrated ICT systems for {to_co or 'your esteemed organization'}. "
-            f"This proposal encompasses {len([l for l in systems_text.split(chr(10)) if l.strip()])} specialized system(s) "
-            f"with a total investment of {total_str}, designed and engineered to meet your project's specific requirements. "
-            f"Our team of certified engineers ensures seamless project delivery, backed by full manufacturer warranties and dedicated after-sales support. "
-            f"We are confident this proposal represents the best value-for-quality solution for your needs."
-        )
-        return jsonify({'ok': True, 'summary': fallback})
-
+    except Exception as _fatal:
+        app.logger.error(f"AI exec summary fatal: {_tb.format_exc()}")
+        return jsonify({'ok': False, 'error': f'Server error ({type(_fatal).__name__}): {_fatal}'}), 500
 
 @app.route('/proposal_generator/ai_cta', methods=['POST'])
 @login_required
 def proposal_ai_cta():
     """AJAX: generate an AI-written Call to Action closing for the proposal cover page."""
     from flask import request as _req, jsonify
-    import json as _json, os as _os
-    data = _req.get_json(force=True) or {}
-    rfq_ref   = data.get('rfq_ref', '').strip()
-    quote_ref = data.get('quote_ref', '').strip()
-    project   = data.get('project', '').strip()
-    to_co     = data.get('to', '').strip()
-    cta_email = data.get('cta_email', '').strip()
-    cta_phone = data.get('cta_phone', '').strip()
+    import json as _json, os as _os, re as _re, traceback as _tb
     try:
-        import openai as _openai
-    except ImportError:
-        return jsonify({'ok': False, 'error': 'openai package not installed — run: pip install openai'}), 500
+        data      = _req.get_json(force=True) or {}
+        rfq_ref   = data.get('rfq_ref', '').strip()
+        quote_ref = data.get('quote_ref', '').strip()
+        project   = data.get('project', '').strip()
+        to_co     = data.get('to', '').strip()
+        cta_email = data.get('cta_email', '').strip()
+        cta_phone = data.get('cta_phone', '').strip()
 
-    # Gather systems context
-    systems_text = ''
-    if rfq_ref and quote_ref:
         try:
-            conn = sqlite3.connect('ProjectStatus.db')
-            row = conn.execute(
-                "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
-                (rfq_ref, quote_ref)
-            ).fetchone()
-            conn.close()
-            if row and row[0]:
-                sheets = _json.loads(row[0])
-                systems_text = ', '.join(
-                    sh.get('name', '') for sh in sheets if sh.get('name')
-                )
-        except Exception:
-            pass
+            import openai as _openai
+            _openai_ok = True
+        except ImportError:
+            _openai_ok = False
 
-    contact_info = ''
-    if cta_email and cta_phone:
-        contact_info = f'{cta_email} or by phone at {cta_phone}'
-    elif cta_email:
-        contact_info = cta_email
-    elif cta_phone:
-        contact_info = cta_phone
+        if not _openai_ok:
+            return jsonify({'ok': False, 'error': 'openai package not installed — run: pip install openai'})
 
-    # Strip Arabic characters from names sent to AI to avoid Arabic in English output
-    import re as _re
-    def _strip_arabic(s):
-        return _re.sub(r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+', '', s or '').strip() or None
-    _project_safe = _strip_arabic(project) or 'the project'
-    _client_safe  = _strip_arabic(to_co)   or 'the client'
+        # Gather systems context
+        systems_text = ''
+        if rfq_ref and quote_ref:
+            try:
+                conn = sqlite3.connect('ProjectStatus.db')
+                row = conn.execute(
+                    "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                    (rfq_ref, quote_ref)
+                ).fetchone()
+                conn.close()
+                if row and row[0]:
+                    sheets = _json.loads(row[0])
+                    systems_text = ', '.join(sh.get('name', '') for sh in sheets if sh.get('name'))
+            except Exception:
+                pass
 
-    _prompt = f"""You are a professional presales engineer at EJTech writing a closing "Call to Action" paragraph for a commercial proposal.
-Write a concise, warm, and professional 3-sentence closing paragraph (no bullet points) that:
-1. Invites the client to reach out for questions or to discuss the commercials{(' via ' + contact_info) if contact_info else ''}
-2. Expresses gratitude for their trust/support and enthusiasm for the partnership
-3. Ends with a forward-looking statement about doing business together
+        contact_info = ''
+        if cta_email and cta_phone:
+            contact_info = f'{cta_email} or by phone at {cta_phone}'
+        elif cta_email:
+            contact_info = cta_email
+        elif cta_phone:
+            contact_info = cta_phone
 
-Project: {_project_safe}
-Client: {_client_safe}
-Systems: {systems_text or 'ICT Systems'}
+        def _strip_arabic(s):
+            return _re.sub(r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+', '', s or '').strip() or None
+        _project_safe = _strip_arabic(project) or 'the project'
+        _client_safe  = _strip_arabic(to_co)   or 'the client'
 
-Rules:
-- Output ONLY the paragraph text — no heading, no "With best regards", no sign-off
-- Maximum 60 words
-- Professional B2B tone, warm but not casual
-- Do not include the specific email/phone in the output (they are shown separately)"""
-
-    try:
-        _ai_key = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
-        _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
-        if not _ai_key:
-            raise RuntimeError("No OpenAI API key configured")
-        _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
-        resp = _client.chat.completions.create(
-            model='gpt-4o-mini',
-            messages=[{'role': 'user', 'content': _prompt}],
-            max_tokens=120,
-            temperature=0.72,
+        _prompt = (
+            "You are a professional presales engineer at EJTech writing a closing Call to Action paragraph for a commercial proposal.\n"
+            "Write a concise, warm, and professional 3-sentence closing paragraph (no bullet points) that:\n"
+            f"1. Invites the client to reach out{(' via ' + contact_info) if contact_info else ''}\n"
+            "2. Expresses gratitude for their trust and enthusiasm for the partnership\n"
+            "3. Ends with a forward-looking statement about doing business together\n\n"
+            f"Project: {_project_safe}\n"
+            f"Client: {_client_safe}\n"
+            f"Systems: {systems_text or 'ICT Systems'}\n\n"
+            "Rules:\n"
+            "- Output ONLY the paragraph text — no heading, no sign-off\n"
+            "- Maximum 60 words\n"
+            "- Professional B2B tone, warm but not casual"
         )
-        body = resp.choices[0].message.content.strip()
-        return jsonify({'ok': True, 'body': body})
-    except Exception as e:
-        app.logger.error(f"AI CTA error: {e}")
-        fallback = (
-            f"Should you have any questions or wish to discuss the details of this proposal further, "
-            f"please do not hesitate to contact the undersigned. "
-            f"We thank you for your continued trust in EJTech and look forward to the opportunity "
-            f"of delivering this solution for {to_co or 'your esteemed organisation'}."
-        )
-        return jsonify({'ok': True, 'body': fallback})
 
+        try:
+            _ai_key  = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
+            _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+            if not _ai_key:
+                raise RuntimeError("No OpenAI API key configured — set OPENAI_API_KEY in your environment")
+            _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
+            resp    = _client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=[{'role': 'user', 'content': _prompt}],
+                max_tokens=120,
+                temperature=0.72,
+            )
+            body = resp.choices[0].message.content.strip()
+            return jsonify({'ok': True, 'body': body})
+        except Exception as e:
+            app.logger.error(f"AI CTA error: {e}")
+            fallback = (
+                f"Should you have any questions or wish to discuss the details of this proposal further, "
+                f"please do not hesitate to contact the undersigned. "
+                f"We thank you for your continued trust in EJTech and look forward to the opportunity "
+                f"of delivering this solution for {to_co or 'your esteemed organisation'}."
+            )
+            return jsonify({'ok': True, 'body': fallback})
+
+    except Exception as _fatal:
+        app.logger.error(f"AI CTA fatal: {_tb.format_exc()}")
+        return jsonify({'ok': False, 'error': f'Server error ({type(_fatal).__name__}): {_fatal}'}), 500
 
 @app.route('/proposal_generator/save_form', methods=['POST'])
 @login_required

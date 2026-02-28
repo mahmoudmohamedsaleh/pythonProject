@@ -692,7 +692,11 @@ async function generateAICta() {
         cta_phone: document.getElementById('ctaPhone')?.value || '',
       }),
     });
-    const data = await resp.json();
+    let data;
+    try { data = await resp.json(); } catch(_) {
+      alert('AI generation failed: Server returned an unexpected response (HTTP ' + resp.status + '). Check server logs for details.');
+      return;
+    }
     if (data.ok) {
       ta.value = data.body;
       ta.style.borderColor = '#1B7B4B';
@@ -757,7 +761,11 @@ async function generateAISummary() {
         to:        document.querySelector('[name="to"]')?.value || '',
       }),
     });
-    const data = await resp.json();
+    let data;
+    try { data = await resp.json(); } catch(_) {
+      alert('AI generation failed: Server returned an unexpected response (HTTP ' + resp.status + '). Check server logs for details.');
+      return;
+    }
     if (data.ok) {
       ta.value = data.summary;
       ta.style.borderColor = '#4B2D8F';
