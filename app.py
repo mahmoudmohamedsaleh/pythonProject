@@ -6423,14 +6423,15 @@ def proposal_generator_main():
     quoteref     = _req.args.get('quoteref','')
 
     # Defaults
-    eng_ref      = ''
-    frm          = 'EJ TECH'
-    contact      = ''
-    se_email     = ''
-    subject      = ''
-    presale_name = ''
-    to_company   = ''
-    attention    = ''
+    eng_ref          = ''
+    frm              = 'EJ TECH'
+    contact          = ''
+    se_email         = ''
+    subject          = ''
+    presale_name     = ''
+    presale_username = ''
+    to_company       = ''
+    attention        = ''
 
     if project_name:
         conn = sqlite3.connect('ProjectStatus.db')
@@ -6562,6 +6563,7 @@ def proposal_generator_main():
                            quoteref=quoteref,
                            eng_ref=eng_ref, frm=frm, contact=contact,
                            subject=subject, presale_name=presale_name,
+                           presale_username=presale_username,
                            sales_name='',
                            to_company=to_company, attention=attention,
                            preset_systems=preset_systems,
