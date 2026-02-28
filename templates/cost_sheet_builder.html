@@ -904,12 +904,19 @@ function importExcel(input) {
         alert('No data found in the Excel file.');
         return;
       }
-      // Merge only into the currently active sheet — other systems untouched
+      // First imported sheet → replace current active tab's rows
       sheets[activeSheet].rows = data.sheets[0].rows;
+
+      // Additional imported sheets → create new system tabs
+      for (let i = 1; i < data.sheets.length; i++) {
+        sheets.push({ name: data.sheets[i].name, rows: data.sheets[i].rows });
+      }
+
       renderTabs();
       renderTable();
       renderSummary();
-      showToast('✓ Imported into "' + currentName + '"', 'success');
+      const extra = data.sheets.length > 1 ? ' (+' + (data.sheets.length - 1) + ' new system(s))' : '';
+      showToast('✓ Imported into "' + currentName + '"' + extra, 'success');
     })
     .catch(err => {
       document.getElementById('importOverlay').classList.remove('active');
