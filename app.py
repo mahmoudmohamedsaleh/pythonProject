@@ -5113,6 +5113,41 @@ def quotation_presentation(quote_ref):
     status_val  = q['status'] or '—'
     selling_price = q['quotation_selling_price'] or 0
 
+    # ── Load proposal_form_data and cost_sheets for this quote ─────────
+    _rfq_ref_for_proposal = q['rfq_reference'] if q['rfq_reference'] else ''
+    try:
+        _prop_conn = sqlite3.connect('ProjectStatus.db')
+        _prop_conn.row_factory = sqlite3.Row
+        _pf_row = _prop_conn.execute(
+            'SELECT form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?',
+            (_rfq_ref_for_proposal, quote_ref)
+        ).fetchone()
+        _prop_form = json.loads(_pf_row['form_json']) if _pf_row and _pf_row['form_json'] else {}
+        _cs_row = _prop_conn.execute(
+            'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?',
+            (_rfq_ref_for_proposal, quote_ref)
+        ).fetchone()
+        _prop_sheets = json.loads(_cs_row['sheets_json']) if _cs_row and _cs_row['sheets_json'] else []
+        _prop_conn.close()
+    except Exception:
+        _prop_form   = {}
+        _prop_sheets = []
+
+    prop_client      = _prop_form.get('to', '')
+    prop_attn        = _prop_form.get('attn', '')
+    prop_subject     = _prop_form.get('sub', '')
+    prop_exec_summary = _prop_form.get('exec_summary', '')
+    _raw_terms        = _prop_form.get('terms', {})
+    if isinstance(_raw_terms, list):
+        _raw_terms = {item.get('key',''):item.get('value','') for item in _raw_terms if item.get('key')}
+    prop_terms       = _raw_terms
+    prop_cta_email   = _prop_form.get('cta_email', '') or company_email
+    prop_cta_phone   = _prop_form.get('cta_phone', '') or company_phone
+    prop_prep_name   = _prop_form.get('prep_by_name', '') or presale_eng
+    prop_prep_title  = _prop_form.get('prep_by_title', 'Presales Engineer')
+    prop_mgr_name    = _prop_form.get('mgr_name', '')
+    prop_mgr_title   = _prop_form.get('mgr_title', '')
+
     # ── Parse Excel BOQ items — supports multi-sheet workbooks ──────────
     boq_sections = []  # list of {sheet_name, items, grand_total}
     boq_items    = []  # flat combined list (used for tech specs)
@@ -5253,6 +5288,44 @@ def quotation_presentation(quote_ref):
         except Exception as ex:
             excel_error = str(ex)
 
+    # ── Fallback: build BOQ from saved cost_sheets if no Excel data ────
+    if not has_excel and _prop_sheets:
+        sn_counter = [0]
+        for _sh in _prop_sheets:
+            _items = []
+            for _r in _sh.get('rows', []):
+                if _r.get('type') == 'section':
+                    _items.append({'sn': '', 'code': '', 'desc': _r.get('desc', ''),
+                                   'uom': '', 'qty': None, 'unit_price': None,
+                                   'total': None, 'is_section': True})
+                elif _r.get('type') == 'item':
+                    try:
+                        _qty = float(_r.get('qty') or 0)
+                        _up  = float(_r.get('unit_price') or _r.get('unit_cost') or 0)
+                        _tot = round(_qty * _up, 2)
+                    except Exception:
+                        _qty = _up = _tot = 0
+                    sn_counter[0] += 1
+                    _items.append({'sn': str(sn_counter[0]),
+                                   'code':       str(_r.get('item_code') or '').strip(),
+                                   'desc':       str(_r.get('desc') or '').strip(),
+                                   'uom':        str(_r.get('uom') or '').strip(),
+                                   'qty':        _qty or None,
+                                   'unit_price': _up  or None,
+                                   'total':      _tot or None,
+                                   'is_section': False})
+            _priced = [i for i in _items if i.get('total') and i['total'] > 0]
+            if not _priced:
+                continue
+            _gt = sum(i['total'] for i in _items if i.get('total') and not i.get('is_section'))
+            boq_sections.append({'sheet_name': _sh.get('name', 'System'), 'items': _items, 'grand_total': _gt})
+            boq_items.extend(_items)
+        if boq_sections:
+            has_excel = True
+        # Update selling price from cost sheet totals if not set
+        if not selling_price and boq_sections:
+            selling_price = sum(s['grand_total'] for s in boq_sections if s.get('grand_total'))
+
     # ── Helpers ───────────────────────────────────────────────────────
     def set_cell_bg(tc, rgb):
         """Set table cell background color via XML."""
@@ -5337,14 +5410,22 @@ def quotation_presentation(quote_ref):
 
     # Main title (center of purple area)
     txt_box(slide, 'COMMERCIAL QUOTATION', 0, 1.6, SLIDE_W, 1.0, size=40, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
-    txt_box(slide, proj_name, 0, 2.62, SLIDE_W, 0.6, size=20, bold=False, color=C_GOLD, align=PP_ALIGN.CENTER)
+    _cover_title = prop_subject if prop_subject else proj_name
+    txt_box(slide, _cover_title, 0, 2.62, SLIDE_W, 0.6, size=20, bold=False, color=C_GOLD, align=PP_ALIGN.CENTER)
     txt_box(slide, system_val, 0, 3.18, SLIDE_W, 0.45, size=14, bold=False, color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER)
+    if prop_client:
+        _to_line = f'Prepared for: {prop_client}' + (f'  |  Attn: {prop_attn}' if prop_attn else '')
+        txt_box(slide, _to_line, 0, 3.7, SLIDE_W, 0.38, size=12, bold=False, color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER)
 
     # Bottom white area: quote ref | date | prepared by
     txt_box(slide, quote_ref, 0.5, 4.75, 5.0, 0.4, size=13, bold=True, color=C_PURPLE)
     txt_box(slide, f'Date: {reg_date}', 5.5, 4.75, 4.0, 0.4, size=12, bold=False, color=C_GREY_TXT)
-    txt_box(slide, company_email, 0.5, 5.2, 5.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
-    txt_box(slide, company_phone, 5.5, 5.2, 4.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
+    _cover_email = prop_cta_email or company_email
+    _cover_phone = prop_cta_phone or company_phone
+    txt_box(slide, _cover_email, 0.5, 5.2, 5.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
+    txt_box(slide, _cover_phone, 5.5, 5.2, 4.0, 0.35, size=11, italic=True, color=C_GREY_TXT)
+    if prop_prep_name:
+        txt_box(slide, f'Prepared by: {prop_prep_name}  |  {prop_prep_title}', 0.5, 5.6, 12.0, 0.35, size=10, italic=True, color=C_GREY_TXT)
 
     # ═══════════════════════════════════════════════════════════════
     # SLIDE 2 — QUOTATION DETAILS
@@ -5363,15 +5444,18 @@ def quotation_presentation(quote_ref):
     txt_box(slide, quote_ref, 10.2, 0.25, 2.9, 0.65, size=10, bold=False, color=C_GOLD, align=PP_ALIGN.RIGHT)
 
     # Info grid (2 columns of label+value pairs)
+    _client_label = prop_client or proj_name
+    _attn_label   = prop_attn or '—'
+    _subj_label   = prop_subject or system_val
     info_pairs = [
-        ('QUOTATION REFERENCE', quote_ref),
+        ('CLIENT / COMPANY',   _client_label),
+        ('ATTENTION',          _attn_label),
+        ('SUBJECT',            _subj_label),
         ('DATE',               reg_date),
-        ('PROJECT NAME',       proj_name),
+        ('QUOTATION REFERENCE', quote_ref),
         ('SYSTEM',             system_val),
         ('PRESALE ENGINEER',   presale_eng),
         ('SALES ENGINEER',     sales_eng),
-        ('QUARTER',            quarter),
-        ('STATUS',             status_val),
     ]
     col1 = info_pairs[:4]
     col2 = info_pairs[4:]
@@ -5420,7 +5504,7 @@ def quotation_presentation(quote_ref):
         txt_box(slide, f'SAR  {selling_price:,.2f}', 0.7, 6.08, 12.0, 0.8, size=28, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
 
     # ═══════════════════════════════════════════════════════════════
-    # SLIDE 3 — EXECUTIVE SUMMARY (AI-Generated)
+    # SLIDE 3 — EXECUTIVE SUMMARY (Proposal-saved or AI-Generated)
     # ═══════════════════════════════════════════════════════════════
     try:
         import os as _os
@@ -5482,6 +5566,10 @@ Rules:
             f"• Turnkey Delivery: EJTech provides end-to-end project execution from design through commissioning and handover.\n"
             f"• Quality Assurance: All supplied equipment carries full manufacturer warranty with local technical support."
         )
+
+    # Override with saved proposal exec summary if available
+    if prop_exec_summary and prop_exec_summary.strip():
+        _exec_summary_raw = prop_exec_summary.strip()
 
     # Parse bullet points from the AI response
     _bullets = [b.strip() for b in _exec_summary_raw.split('\n') if b.strip().startswith('•')]
