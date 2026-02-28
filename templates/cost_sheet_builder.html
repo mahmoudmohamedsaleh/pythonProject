@@ -429,45 +429,52 @@ function findTr(ri) {
   return document.querySelector(`#csTbody tr[data-ri="${ri}"]`);
 }
 
-function recalcRow(ri) {
+// Core recalc: updates Total Cost, Total Sell, and optionally the Margin input
+// skipMarginUpdate=true when called from onMarginChange (user typed margin — don't overwrite)
+function recalcRow(ri, skipMarginUpdate) {
   const row = sheets[activeSheet].rows[ri];
   const tr  = findTr(ri);
   if (!tr || !row) return;
-  const qty = parseNum(row.qty), uc = parseNum(row.unit_cost), up = parseNum(row.unit_price);
-  const tot_cost = qty && uc ? +(qty * uc).toFixed(2) : 0;
-  const tot_sell = qty && up ? +(qty * up).toFixed(2) : 0;
-  const margin   = uc && up  ? +((1 - uc / up) * 100).toFixed(2) : parseNum(row.margin);
 
-  const calcs = tr.querySelectorAll('.calc');
+  const qty = parseNum(row.qty);
+  const uc  = parseNum(row.unit_cost);
+  const up  = parseNum(row.unit_price);
+
+  const tot_cost = (qty && uc) ? +(qty * uc).toFixed(2) : 0;
+  const tot_sell = (qty && up) ? +(qty * up).toFixed(2) : 0;
+
+  // Update the two auto-calc (readonly) columns
+  const calcs = tr.querySelectorAll('input.calc');
   if (calcs[0]) calcs[0].value = tot_cost ? fmt(tot_cost) : '';
   if (calcs[1]) calcs[1].value = tot_sell ? fmt(tot_sell) : '';
 
-  // Update margin input colour
-  const marginInput = tr.querySelector('input[type="number"]:not(.calc):last-of-type');
-  if (marginInput && uc && up) {
-    marginInput.value = margin || '';
-    marginInput.style.color = margin > 0 ? '#1B5E20' : margin < 0 ? '#c0392b' : '#888';
-    row.margin = margin;
+  // Update Margin input (use .margin-input class — safe, unambiguous)
+  if (!skipMarginUpdate) {
+    const marginInput = tr.querySelector('input.margin-input');
+    if (marginInput && uc && up) {
+      const margin = +((1 - uc / up) * 100).toFixed(2);
+      row.margin = margin;
+      marginInput.value = margin;
+      marginInput.style.color = margin > 0 ? '#1B5E20' : margin < 0 ? '#c0392b' : '#888';
+    }
   }
 
-  // Refresh grand total row
+  // Refresh the grand total footer row
   const tbody = document.getElementById('csTbody');
   const lastRow = tbody.querySelector('.total-row');
   if (lastRow) tbody.replaceChild(buildTotalRow(), lastRow);
 }
 
-// Unit Price changed → recalc margin and totals
+// Unit Price changed → derive margin, update totals (Qty untouched)
 function onUpChange(ri) {
   const row = sheets[activeSheet].rows[ri];
   const uc  = parseNum(row.unit_cost);
   const up  = parseNum(row.unit_price);
-  if (uc && up) {
-    row.margin = +((1 - uc / up) * 100).toFixed(2);
-  }
-  recalcRow(ri);
+  if (uc && up) row.margin = +((1 - uc / up) * 100).toFixed(2);
+  recalcRow(ri);          // will also update margin input
 }
 
-// Margin changed → back-calc Unit Price, then recalc totals
+// Margin changed → back-calc Unit Price, update totals (Qty untouched)
 function onMarginChange(ri) {
   const row    = sheets[activeSheet].rows[ri];
   const uc     = parseNum(row.unit_cost);
@@ -475,26 +482,24 @@ function onMarginChange(ri) {
   if (uc && margin < 100) {
     const newUp = +(uc / (1 - margin / 100)).toFixed(4);
     row.unit_price = newUp;
-    // Update the Unit Price input in the same row
+    // Write new Unit Price into the input (index 2 among non-calc number inputs)
     const tr = findTr(ri);
     if (tr) {
-      const upInputs = tr.querySelectorAll('input[type="number"]:not(.calc)');
-      // upInputs order: qty(0), unit_cost(1), unit_price(2), margin(3)
-      if (upInputs[2]) upInputs[2].value = newUp;
+      const numInputs = tr.querySelectorAll('input[type="number"]:not(.calc)');
+      // order: qty[0], unit_cost[1], unit_price[2], margin[3]
+      if (numInputs[2]) numInputs[2].value = newUp;
     }
   }
-  recalcRow(ri);
+  recalcRow(ri, true);    // skipMarginUpdate=true: don't overwrite what user just typed
 }
 
-// Unit Cost changed → re-derive margin from existing unit_price, recalc totals
+// Unit Cost changed → re-derive margin from existing Unit Price, update totals (Qty untouched)
 function onUcChange(ri) {
   const row = sheets[activeSheet].rows[ri];
   const uc  = parseNum(row.unit_cost);
   const up  = parseNum(row.unit_price);
-  if (uc && up) {
-    row.margin = +((1 - uc / up) * 100).toFixed(2);
-  }
-  recalcRow(ri);
+  if (uc && up) row.margin = +((1 - uc / up) * 100).toFixed(2);
+  recalcRow(ri);          // will also update margin input
 }
 
 // Save DOM inputs → JS model before tab switch / export
