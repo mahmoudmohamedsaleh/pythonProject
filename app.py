@@ -6730,6 +6730,146 @@ def cost_sheet_builder():
                            quoteref=quoteref)
 
 
+
+@app.route('/cost_sheet_builder/import', methods=['POST'])
+@login_required
+def cost_sheet_import():
+    """AJAX: Parse an uploaded cost-sheet Excel and return builder-compatible JSON."""
+    import openpyxl
+    from flask import request as _req, jsonify
+    f = _req.files.get('excel_file')
+    if not f:
+        return jsonify({'error': 'No file uploaded'}), 400
+    try:
+        wb = openpyxl.load_workbook(BytesIO(f.read()), data_only=True)
+        SKIP_NAMES = {'SUMMARY'}
+        result_sheets = []
+
+        for sname in wb.sheetnames:
+            if sname.upper().strip() in SKIP_NAMES:
+                continue
+            ws = wb[sname]
+
+            # Detect header row (rows 1-6, look for QTY/QUANTITY column)
+            hdr_row_idx = None
+            col_map = {}
+            for row in ws.iter_rows(min_row=1, max_row=6):
+                row_vals = {}
+                for cell in row:
+                    v = str(cell.value).strip() if cell.value is not None else ''
+                    row_vals[cell.column] = v
+                flat = ' '.join(row_vals.values()).upper()
+                if 'QTY' not in flat and 'QUANTITY' not in flat:
+                    continue
+                for ci, hv in row_vals.items():
+                    hu = hv.upper().strip()
+                    if hu in ('S.#','S/#','S.NO','S/N','NO','#','NO.') and 'sn' not in col_map:
+                        col_map['sn'] = ci
+                    elif ('CODE' in hu or 'PART' in hu) and 'code' not in col_map:
+                        col_map['code'] = ci
+                    elif 'DESC' in hu and 'desc' not in col_map:
+                        col_map['desc'] = ci
+                    elif hu in ('UOM','UNIT','U/M','U.O.M') and 'uom' not in col_map:
+                        col_map['uom'] = ci
+                    elif hu in ('QTY','QUANTITY') and 'qty' not in col_map:
+                        col_map['qty'] = ci
+                    elif 'UNIT COST' in hu and 'unit_cost' not in col_map:
+                        col_map['unit_cost'] = ci
+                    elif 'UNIT PRICE' in hu and 'unit_price' not in col_map:
+                        col_map['unit_price'] = ci
+                    elif 'ROUND' in hu and 'round' not in col_map:
+                        col_map['round'] = ci
+                    elif hu in ('%','MARGIN') and 'pct' not in col_map:
+                        col_map['pct'] = ci
+                if col_map.get('desc') or col_map.get('qty'):
+                    hdr_row_idx = row[0].row
+                    break
+
+            if hdr_row_idx is None:
+                continue
+
+            def _cv(row_cells, ci):
+                cell = next((c for c in row_cells if c.column == ci), None)
+                return cell.value if cell else None
+
+            def _fv(v):
+                if v is None: return ''
+                try: f = float(v); return f if f != int(f) else int(f)
+                except: return str(v).strip() if str(v).strip() not in ('None','') else ''
+
+            rows_out = []
+            for row in ws.iter_rows(min_row=hdr_row_idx + 1):
+                sn_val   = _cv(row, col_map.get('sn',   0))
+                code_val = _cv(row, col_map.get('code',  0))
+                desc_val = _cv(row, col_map.get('desc',  0))
+                qty_val  = _cv(row, col_map.get('qty',   0))
+
+                sn_str   = str(sn_val).strip()   if sn_val   is not None else ''
+                code_str = str(code_val).strip()  if code_val is not None else ''
+                desc_str = str(desc_val).strip()  if desc_val is not None else ''
+
+                # Skip totally empty rows
+                if not sn_str and not desc_str and not code_str:
+                    continue
+
+                # Skip the grand total row
+                desc_up = desc_str.upper()
+                sn_up   = sn_str.upper()
+                if any(k in desc_up for k in ('GRAND TOTAL','TOTAL EXCL','EXCLUDING VAT',
+                                               'VALUE ADDED','TOTAL INCL')):
+                    continue
+                if 'TOTAL' in sn_up:
+                    continue
+                # Detect sheet-level total row (red footer) — stop here
+                if (not sn_str or sn_str in ('', '-')) and code_str.upper() in ('', 'TOTAL EXCLUDING VAT')                         and 'TOTAL EXCLUDING VAT' in desc_up:
+                    continue
+                if code_str.upper() == 'TOTAL EXCLUDING VAT':
+                    continue
+
+                # `*` in S.# or empty S.# with no qty = section header
+                if sn_str == '*':
+                    sec_label = code_str or desc_str
+                    if sec_label:
+                        rows_out.append({'type': 'section', 'desc': sec_label})
+                    continue
+
+                # Empty S.# with a description but no numeric qty = subsection header
+                if not sn_str:
+                    if desc_str and not qty_val:
+                        rows_out.append({'type': 'section', 'desc': desc_str or code_str})
+                    continue
+
+                # Item row
+                uc_val  = _fv(_cv(row, col_map.get('unit_cost',  0)))
+                up_val  = _fv(_cv(row, col_map.get('unit_price', 0)))
+                ru_val  = _fv(_cv(row, col_map.get('round',      0)))
+
+                rows_out.append({
+                    'type':       'item',
+                    'item_code':  code_str,
+                    'desc':       desc_str,
+                    'uom':        str(_cv(row, col_map.get('uom', 0)) or '').strip(),
+                    'qty':        _fv(qty_val),
+                    'unit_cost':  uc_val,
+                    'unit_price': up_val,
+                    'round_up':   ru_val,
+                })
+
+            if rows_out:
+                result_sheets.append({'name': sname, 'rows': rows_out})
+
+        if not result_sheets:
+            return jsonify({'error': 'No recognisable cost-sheet data found in this file. '
+                                     'Make sure the file has Qty/UOM column headers.'}), 400
+
+        return jsonify({'sheets': result_sheets})
+
+    except Exception as e:
+        import traceback
+        app.logger.error(f"cost_sheet_import error: {e}\n{traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/cost_sheet_builder/export', methods=['POST'])
 @login_required
 def cost_sheet_export():

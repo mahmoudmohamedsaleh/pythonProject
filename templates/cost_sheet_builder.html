@@ -116,6 +116,22 @@
 .col-num  { width: 95px; }
 .col-pct  { width: 58px; }
 .col-act  { width: 30px; }
+.btn-import {
+  background: linear-gradient(135deg, #1565C0, #1976D2);
+  color: #fff; border: none; padding: 10px 20px; font-weight: 700;
+  font-size: .88rem; border-radius: 8px; cursor: pointer; transition: .2s;
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 4px;
+  white-space: nowrap;
+}
+.btn-import:hover { opacity: .9; transform: translateY(-1px); }
+/* Import overlay */
+.import-overlay {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+  z-index:9999; align-items:center; justify-content:center;
+}
+.import-overlay.active { display:flex; }
+.import-box { background:#fff; border-radius:12px; padding:32px 44px; text-align:center; min-width:300px; }
+.import-box .spinner-border { width:2.5rem; height:2.5rem; border-width:.25em; color:#1565C0; }
 </style>
 
 <div class="container-fluid py-3" style="max-width:1400px;">
@@ -143,6 +159,11 @@
           <i class="fas fa-arrow-left"></i> Proposal Generator
         </a>
         {% endif %}
+        <label class="btn-import" title="Upload existing cost sheet Excel to edit">
+          <i class="fas fa-file-upload mr-2"></i> Import Excel
+          <input type="file" id="importFileInput" accept=".xlsx,.xls"
+                 style="display:none;" onchange="importExcel(this)">
+        </label>
         <button class="btn-export" onclick="exportExcel()">
           <i class="fas fa-file-excel mr-2"></i> Export to Excel
         </button>
@@ -197,6 +218,14 @@
       </thead>
       <tbody id="csTbody"></tbody>
     </table>
+  </div>
+
+  <!-- Import overlay -->
+  <div class="import-overlay" id="importOverlay">
+    <div class="import-box">
+      <div class="spinner-border mb-3" role="status"></div>
+      <p class="mb-0 font-weight-bold text-muted">Parsing Excel file…</p>
+    </div>
   </div>
 
   <!-- Hidden export form -->
@@ -475,6 +504,52 @@ document.getElementById('csTable').addEventListener('keydown', e => {
     }
   }
 });
+
+// ── Import Excel ─────────────────────────────────────────────────────
+function importExcel(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  input.value = '';  // reset so same file can be re-imported
+
+  if (!confirm('Importing "' + file.name + '" will REPLACE the current data. Continue?')) return;
+
+  document.getElementById('importOverlay').classList.add('active');
+
+  const fd = new FormData();
+  fd.append('excel_file', file);
+
+  fetch("{{ url_for('cost_sheet_import') }}", { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('importOverlay').classList.remove('active');
+      if (data.error) {
+        alert('Import failed: ' + data.error);
+        return;
+      }
+      // Replace sheets with imported data
+      sheets = data.sheets;
+      activeSheet = 0;
+      renderTabs();
+      renderTable();
+      // Show success toast
+      showToast('✓ Imported ' + sheets.length + ' sheet(s) from Excel', 'success');
+    })
+    .catch(err => {
+      document.getElementById('importOverlay').classList.remove('active');
+      alert('Import error: ' + err);
+    });
+}
+
+function showToast(msg, type) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `position:fixed;top:80px;right:24px;z-index:9999;
+    background:${type==='success'?'#1B7B4B':'#dc3545'};color:#fff;
+    padding:12px 20px;border-radius:8px;font-weight:600;font-size:.88rem;
+    box-shadow:0 4px 16px rgba(0,0,0,.25);transition:opacity .4s;`;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity='0'; setTimeout(()=>toast.remove(), 400); }, 3000);
+}
 
 // ── Init ──────────────────────────────────────────────────────────────
 renderTabs();
