@@ -6536,164 +6536,280 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
                                   ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('PADDING',(0,0),(-1,-1),5)])))
         return rows
 
-    # ── Cover page header ────────────────────────────────────────────────
+    # ── COVER PAGE ─────────────────────────────────────────────────────────
+    # Logo
     try:
         logo_img = RLImage(os.path.join(os.path.dirname(__file__), 'static', 'ejt.png'),
-                           width=3.6*cm, height=1.25*cm)
+                           width=3.8*cm, height=1.3*cm)
     except Exception:
-        logo_img = _p('<b>EJ TECH</b>', _ps('lg', fontName='Helvetica-Bold', fontSize=14, textColor=C_PURPLE))
+        logo_img = _p('<b>EJTech</b>', _ps('lg', fontName='Helvetica-Bold', fontSize=16, textColor=C_WHITE))
 
-    doc_info_rows = [
-        [_p(f"<b>Date:</b> {cover.get('date','')}", _ps('di1', fontSize=9, textColor=C_DARK))],
-        [_p(f"<b>Quote Ref:</b> {cover.get('quoteref','')}", _ps('di2', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE))],
-    ]
-    if cover.get('engref'):
-        doc_info_rows.append([_p(f"<b>Eng. Ref:</b> {cover.get('engref','')}", _ps('di3', fontSize=9, textColor=C_DARK))])
-    doc_info_inner = Table(doc_info_rows, colWidths=[BW-5.5*cm])
-    doc_info_inner.setStyle(TableStyle([('PADDING',(0,0),(-1,-1),3),('LEFTPADDING',(0,0),(-1,-1),8)]))
-    doc_info_box = Table([[doc_info_inner]], colWidths=[BW-5.5*cm])
-    doc_info_box.setStyle(TableStyle([
-        ('BOX',(0,0),(-1,-1),1,C_PURPLE),
-        ('BACKGROUND',(0,0),(-1,-1),C_GREY_HDR),
-        ('PADDING',(0,0),(-1,-1),0),
-    ]))
-    hdr_tbl = Table([[logo_img, _p(''), doc_info_box]], colWidths=[3.8*cm, 1.2*cm, BW-5*cm])
-    hdr_tbl.setStyle(TableStyle([
+    # ── 1. Full-width purple header banner ──────────────────────────────
+    C_GOLD_DK = colors.HexColor('#E65100')
+    banner_logo_cell = Table([[logo_img]], colWidths=[4.2*cm])
+    banner_logo_cell.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),6)]))
+    banner_title = Table([[
+        _p('COMMERCIAL QUOTATION', _ps('bt', fontName='Helvetica-Bold', fontSize=14, textColor=C_WHITE, alignment=TA_RIGHT)),
+        ],[
+        _p('Proposal &amp; Pricing Submission', _ps('bs', fontSize=9, textColor=colors.HexColor('#D0C8E8'), alignment=TA_RIGHT)),
+    ]], colWidths=[BW-4.2*cm])
+    banner_title.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('RIGHTPADDING',(0,0),(-1,-1),10),('TOPPADDING',(0,0),(-1,-1),2)]))
+    banner = Table([[banner_logo_cell, banner_title]], colWidths=[4.2*cm, BW-4.2*cm])
+    banner.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-        ('LINEBELOW',(0,0),(-1,0),2,C_PURPLE),
-        ('LINEBELOW',(0,0),(-1,0),0.5,C_GOLD),
-        ('BOTTOMPADDING',(0,0),(-1,0),6),('TOPPADDING',(0,0),(-1,0),3),
+        ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
+        ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
     ]))
-    story.append(hdr_tbl)
-    story.append(Spacer(1, 0.28*cm))
+    story.append(banner)
+    # Gold accent line
+    gold_line = Table([['']], colWidths=[BW])
+    gold_line.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),C_GOLD),
+                                    ('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+    story.append(gold_line)
+    story.append(Spacer(1, 0.35*cm))
 
-    # Client info grid
-    S_LBL = _ps('lbl', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE)
-    ci = Table([
-        [_p('To:', S_LBL), _p(cover.get('to',''), S_BODY),
-         _p('Attn.:', S_LBL), _p(cover.get('attn',''), S_BODY)],
-        [_p('From:', S_LBL), _p(cover.get('frm',''), S_BODY),
-         _p('Contact:', S_LBL), _p(cover.get('cont',''), S_BODY)],
-    ], colWidths=[1.8*cm, 6*cm, 1.9*cm, BW-9.7*cm])
+    # ── 2. Document reference strip (3 equal columns) ───────────────────
+    C_REF_BG = colors.HexColor('#F3F0FA')
+    def _ref_cell(label, value, bold_val=False):
+        val_style = _ps('rv', fontName='Helvetica-Bold' if bold_val else 'Helvetica',
+                        fontSize=9, textColor=C_PURPLE if bold_val else C_DARK)
+        return Table([
+            [_p(label, _ps('rl', fontName='Helvetica-Bold', fontSize=7.5, textColor=C_PURPLE2))],
+            [_p(value, val_style)],
+        ], colWidths=[(BW-0.6*cm)/3])
+
+    ref_cols = [
+        _ref_cell('DATE', cover.get('date', '')),
+        _ref_cell('QUOTE REFERENCE', cover.get('quoteref', ''), bold_val=True),
+        _ref_cell('ENG. REFERENCE', cover.get('engref', '')),
+    ]
+    ref_strip = Table([ref_cols], colWidths=[(BW-0.6*cm)/3]*3,
+                      spaceBefore=0, spaceAfter=0)
+    ref_strip.setStyle(TableStyle([
+        ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
+        ('INNERGRID',(0,0),(-1,-1),0.5,C_PURPLE2),
+        ('BACKGROUND',(0,0),(-1,-1),C_REF_BG),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
+        ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
+    ]))
+    story.append(ref_strip)
+    story.append(Spacer(1, 0.3*cm))
+
+    # ── 3. "SUBMITTED TO" block ──────────────────────────────────────────
+    S_LBL_PU = _ps('lppu', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE)
+    S_VAL_DK  = _ps('vdk', fontSize=9, textColor=C_DARK, leading=12)
+    S_LBL_MINI = _ps('mini', fontName='Helvetica-Bold', fontSize=7.5, textColor=C_PURPLE2)
+
+    sub_hdr = Table([[_p('SUBMITTED TO', _ps('sh', fontName='Helvetica-Bold', fontSize=8.5,
+                                              textColor=C_WHITE, alignment=TA_LEFT))]],
+                    colWidths=[BW])
+    sub_hdr.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE2),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),8),
+        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+    ]))
+    story.append(sub_hdr)
+
+    col_a = BW * 0.36
+    col_b = BW * 0.14
+    col_c = BW * 0.36
+    col_d = BW - col_a - col_b - col_c
+
+    def _ci_lbl(t): return _p(t, S_LBL_PU)
+    def _ci_val(t): return _p(t or '—', S_VAL_DK)
+
+    ci_rows = [
+        [_ci_lbl('COMPANY'), _ci_val(cover.get('to','')),
+         _ci_lbl('ATTENTION'), _ci_val(cover.get('attn',''))],
+        [_ci_lbl('FROM'), _ci_val(cover.get('frm','')),
+         _ci_lbl('CONTACT / MOBILE'), _ci_val(cover.get('cont',''))],
+    ]
+    ci = Table(ci_rows, colWidths=[col_b, col_a, col_b, col_c + col_d - col_b])
     ci.setStyle(TableStyle([
         ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
-        ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#CCCCCC')),
+        ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#CCCCCC')),
         ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
         ('BACKGROUND',(2,0),(2,-1),C_PURPLE),
-        ('PADDING',(0,0),(-1,-1),5),('FONTSIZE',(0,0),(-1,-1),9),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-        ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, C_GREY_ROW]),
+        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+        ('LEFTPADDING',(0,0),(-1,-1),7),('RIGHTPADDING',(0,0),(-1,-1),7),
+        ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, colors.HexColor('#F5F3FC')]),
+        ('FONTSIZE',(0,0),(-1,-1),9),
     ]))
     story.append(ci)
     story.append(Spacer(1, 0.22*cm))
-    story.extend(_sub_scope_block())
-    story.append(Spacer(1, 0.28*cm))
 
-    story.append(_p('Dear Sir,', S_BOLD))
+    # ── 4. Subject / Scope strip ─────────────────────────────────────────
+    sub  = cover.get('sub', '')
+    scop = cover.get('scope', '')
+    if sub or scop:
+        sc_rows = []
+        if sub:
+            sc_rows.append([
+                _p('SUBJECT', S_LBL_PU),
+                _p(sub, _ps('subv', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE, leading=12)),
+            ])
+        if scop:
+            sc_rows.append([
+                _p('SCOPE', S_LBL_PU),
+                _p(scop, _ps('scpv', fontSize=9, textColor=C_DARK, leading=12)),
+            ])
+        sc_tbl = Table(sc_rows, colWidths=[2.2*cm, BW-2.2*cm])
+        sc_tbl.setStyle(TableStyle([
+            ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
+            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#CCCCCC')),
+            ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+            ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
+        ]))
+        story.append(sc_tbl)
+        story.append(Spacer(1, 0.22*cm))
+
+    # ── 5. Opening paragraph ─────────────────────────────────────────────
+    story.append(_p('Dear Sir,', _ps('dear', fontName='Helvetica-Bold', fontSize=9, textColor=C_DARK)))
     story.append(Spacer(1, 0.12*cm))
-    story.append(_p('We thank you for your subject enquiry and have pleasure in putting together a comprehensive '
-                    'proposal for the same. We hope this is in line with your requirements and that you will '
-                    'favour us with your order.', S_BODY))
-    story.append(Spacer(1, 0.28*cm))
+    story.append(_p(
+        'We thank you for your subject enquiry and have pleasure in putting together a comprehensive '
+        'proposal for the same. We hope this is in line with your requirements and that you will '
+        'favour us with your order.',
+        _ps('body2', fontSize=9, textColor=C_DARK, leading=13)))
+    story.append(Spacer(1, 0.3*cm))
 
-    # Summary table
-    story.append(_header_band('SUMMARY'))
-    story.append(Spacer(1, 0.08*cm))
-    sum_hdr = [_p('No.', S_CODHD), _p('System', S_CODHD),
-               _p('Total Price (SAR)', _ps('sph', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE, alignment=TA_RIGHT))]
-    sum_data = [sum_hdr]
-    systems = cover.get('systems', [])
+    # ── 6. Commercial Summary table ──────────────────────────────────────
+    cs_hdr_tbl = Table([[
+        _p('COMMERCIAL SUMMARY', _ps('csh', fontName='Helvetica-Bold', fontSize=9.5, textColor=C_WHITE)),
+        _p('(Prices in SAR, Excluding VAT)', _ps('csn', fontSize=8, textColor=colors.HexColor('#D0C8E8'), alignment=TA_RIGHT)),
+    ]], colWidths=[BW*0.55, BW*0.45])
+    cs_hdr_tbl.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE),
+        ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
+        ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ]))
+    story.append(cs_hdr_tbl)
+
+    sum_col_no   = 1.3*cm
+    sum_col_sys  = BW - 7.5*cm
+    sum_col_tot  = 6.2*cm
+    sum_hdr_row  = [
+        _p('No.', _ps('snh', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE, alignment=TA_CENTER)),
+        _p('System / Line Item', _ps('ssh', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE)),
+        _p('Total Price (SAR)', _ps('sth', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE, alignment=TA_RIGHT)),
+    ]
+    sum_data = [sum_hdr_row]
+    systems  = cover.get('systems', [])
     for sys in systems:
         if sys.get('is_summary'):
             nm = sys['name']
             is_grand = (nm == 'Grand Total')
-            fst = _ps('sf', fontName='Helvetica-Bold', fontSize=10 if is_grand else 9, textColor=C_WHITE, alignment=TA_RIGHT)
-            nst = _ps('sn2', fontName='Helvetica-Bold', fontSize=10 if is_grand else 9, textColor=C_WHITE)
+            bg = colors.HexColor('#1B5E20') if is_grand else C_PURPLE2
+            fst = _ps(f'sf{nm}', fontName='Helvetica-Bold', fontSize=10 if is_grand else 9,
+                      textColor=C_WHITE, alignment=TA_RIGHT)
+            nst = _ps(f'sn{nm}', fontName='Helvetica-Bold', fontSize=10 if is_grand else 9, textColor=C_WHITE)
             sum_data.append([_p('', S_BODY), _p(nm, nst), _p(_fmt(sys['total']), fst)])
         else:
             sum_data.append([
-                _p(str(sys.get('idx','')), _ps('si', fontSize=9, alignment=TA_CENTER)),
-                _p(str(sys.get('name','')), S_ITEM),
-                _p(_fmt(sys.get('total',0)), _ps('sv', fontSize=9, alignment=TA_RIGHT)),
+                _p(str(sys.get('idx', '')), _ps('si', fontSize=9, alignment=TA_CENTER, textColor=C_PURPLE2)),
+                _p(str(sys.get('name', '')), _ps('snm', fontSize=9, textColor=C_DARK)),
+                _p(_fmt(sys.get('total', 0)), _ps('sv', fontSize=9, alignment=TA_RIGHT, textColor=C_DARK)),
             ])
+
     sum_ts = TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),C_PURPLE),
-        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,0),9),
-        ('TEXTCOLOR',(0,0),(-1,0),C_WHITE),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#EDE7F6')),
+        ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
+        ('LINEBELOW',(0,0),(-1,0),1.2,C_PURPLE),
+        ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#CCCCCC')),
         ('ALIGN',(0,1),(0,-1),'CENTER'),('ALIGN',(2,0),(2,-1),'RIGHT'),
-        ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),
-        ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
-        ('PADDING',(0,0),(-1,-1),5),('FONTSIZE',(0,1),(-1,-1),9),
-        ('ROWBACKGROUNDS',(0,2),(-1,-1),[C_GREY_ROW, C_WHITE]),
+        ('PADDING',(0,0),(-1,-1),6),('FONTSIZE',(0,1),(-1,-1),9),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[C_WHITE, colors.HexColor('#F5F3FC')]),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
     ])
     for i, sys in enumerate(systems, start=1):
         if sys.get('is_summary'):
             nm = sys['name']
-            bg = C_TEAL if nm=='Grand Total' else C_PURPLE2
+            bg = colors.HexColor('#1B5E20') if nm == 'Grand Total' else C_PURPLE2
             sum_ts.add('BACKGROUND',(0,i),(-1,i),bg)
             sum_ts.add('TEXTCOLOR',(0,i),(-1,i),C_WHITE)
             sum_ts.add('FONTNAME',(0,i),(-1,i),'Helvetica-Bold')
-    sum_tbl = Table(sum_data, colWidths=[1.5*cm, BW-7*cm, 5.5*cm])
+            sum_ts.add('LINEABOVE',(0,i),(-1,i),0.75,C_WHITE)
+    sum_tbl = Table(sum_data, colWidths=[sum_col_no, sum_col_sys, sum_col_tot])
     sum_tbl.setStyle(sum_ts)
     story.append(sum_tbl)
-    story.append(Spacer(1, 0.2*cm))
+    story.append(Spacer(1, 0.25*cm))
 
-    # Terms & Conditions
+    # ── 7. Terms & Conditions ─────────────────────────────────────────────
     terms = cover.get('terms', {})
     if not terms:
         terms = {
-            'Price': 'All prices are in Saudi Riyals. Any change in quantity will require a requote.',
-            'Payment Terms': '70% Advance, and 30% Before Delivery.',
-            'Offer Validity': '2 Weeks',
-            'Delivery Terms': '8-12 Weeks on receipt of confirmed PO and confirmation of payment terms.',
-            'Warranty': '24 months from the date of supply against manufacturing defects.',
-            'Notes:': 'Quotation based on the BOQ, any variation from the BOQ will be charged extra.',
+            'Price':           'SAR, Excluding VAT',
+            'Payment Terms':   '30 days from invoice date',
+            'Offer Validity':  '30 days',
+            'Warranty':        '1 Year',
+            'Delivery Terms':  '4-6 Weeks ARO',
         }
-    story.append(_header_band('TERMS & CONDITIONS'))
-    story.append(Spacer(1, 0.08*cm))
-    t_rows = [[_p(k, _ps('tk', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE)),
-               _p(v, _ps('tv', fontSize=8.5, leading=11))] for k,v in terms.items()]
-    terms_tbl = Table(t_rows, colWidths=[3.2*cm, BW-3.2*cm])
+    tc_hdr = Table([[
+        _p('TERMS &amp; CONDITIONS', _ps('tch', fontName='Helvetica-Bold', fontSize=9.5, textColor=C_WHITE)),
+    ]], colWidths=[BW])
+    tc_hdr.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE),
+        ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
+        ('LEFTPADDING',(0,0),(-1,-1),10),
+    ]))
+    story.append(tc_hdr)
+    t_rows = [[
+        _p(k, _ps(f'tk{i}', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE)),
+        _p(v, _ps(f'tv{i}', fontSize=8.5, textColor=C_DARK, leading=12)),
+    ] for i, (k, v) in enumerate(terms.items())]
+    terms_tbl = Table(t_rows, colWidths=[3.5*cm, BW-3.5*cm])
     terms_tbl.setStyle(TableStyle([
-        ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DDDDDD')),
-        ('BACKGROUND',(0,0),(0,-1),C_PURPLE),('TEXTCOLOR',(0,0),(0,-1),C_WHITE),
-        ('VALIGN',(0,0),(-1,-1),'TOP'),('PADDING',(0,0),(-1,-1),4),
-        ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_GREY_ROW, C_WHITE]),
+        ('BOX',(0,0),(-1,-1),0.75,C_PURPLE),
+        ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#CCCCCC')),
+        ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+        ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
+        ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, colors.HexColor('#F5F3FC')]),
     ]))
     story.append(terms_tbl)
-    story.append(Spacer(1, 0.18*cm))
+    story.append(Spacer(1, 0.22*cm))
 
-    # Closing & signatures
-    prep_name  = cover.get('prep_by_name','')
-    prep_title = cover.get('prep_by_title','') or 'Pre-Sales Engineer'
-    mgr_name   = cover.get('mgr_name','')
-    mgr_title  = cover.get('mgr_title','') or 'Sales Engineer'
+    # ── 8. Closing text & signatures ─────────────────────────────────────
+    prep_name  = cover.get('prep_by_name', '')
+    prep_title = cover.get('prep_by_title', '') or 'Pre-Sales Engineer'
+    mgr_name   = cover.get('mgr_name', '')
+    mgr_title  = cover.get('mgr_title', '') or 'Sales Engineer'
 
     def _sig_col(label, name, title):
-        return Table([
-            [_p(label, _ps('slbl', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE2))],
-            [Spacer(1, 0.35*cm)],
-            [_p(name, _ps('sn3', fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE))],
-            [_p(title, _ps('st', fontSize=8.5, textColor=colors.HexColor('#555555')))],
-        ], colWidths=[BW/2-1*cm])
+        inner = Table([
+            [_p(label, _ps(f'slbl{label}', fontName='Helvetica-Bold', fontSize=8, textColor=C_PURPLE2))],
+            [Spacer(1, 0.5*cm)],
+            [_p(name,  _ps(f'sn4{label}',  fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE))],
+            [_p(title, _ps(f'st2{label}',  fontSize=8.5, textColor=colors.HexColor('#555555')))],
+        ], colWidths=[BW/2 - 1.2*cm])
+        inner.setStyle(TableStyle([
+            ('LINEABOVE',(0,0),(-1,0),1.5,C_PURPLE),
+            ('TOPPADDING',(0,0),(-1,-1),5),
+        ]))
+        return inner
 
     sig_tbl = Table([[_sig_col('Prepared By:', prep_name, prep_title),
-                      _sig_col('Managed by:', mgr_name, mgr_title)]],
+                      _sig_col('Approved By:', mgr_name, mgr_title)]],
                     colWidths=[BW/2, BW/2])
-    sig_tbl.setStyle(TableStyle([
-        ('VALIGN',(0,0),(-1,-1),'TOP'),
-        ('LINEABOVE',(0,0),(0,0),1.5,C_PURPLE),
-        ('LINEABOVE',(1,0),(1,0),1.5,C_PURPLE),
-        ('TOPPADDING',(0,0),(-1,-1),5),
-    ]))
+    sig_tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP')]))
+
     closing_block = KeepTogether([
         _p('In the meantime, should you have any questions or need to discuss the commercials in greater detail, '
-           'please do not hesitate to contact the undersigned.', S_BODY),
+           'please do not hesitate to contact the undersigned.',
+           _ps('cl1', fontSize=9, textColor=C_DARK, leading=13)),
         Spacer(1, 0.1*cm),
-        _p('We thank you for your support to EJ TECH and look forward to the pleasure of doing business.', S_BODY),
-        Spacer(1, 0.1*cm),
-        _p('With best regards,', S_BODY),
-        Spacer(1, 0.4*cm),
+        _p('We thank you for your support to EJ TECH and look forward to the pleasure of doing business.',
+           _ps('cl2', fontSize=9, textColor=C_DARK, leading=13)),
+        Spacer(1, 0.08*cm),
+        _p('With best regards,', _ps('cl3', fontSize=9, textColor=C_DARK)),
+        Spacer(1, 0.5*cm),
         sig_tbl,
     ])
     story.append(closing_block)
