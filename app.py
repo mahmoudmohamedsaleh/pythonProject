@@ -6330,14 +6330,21 @@ def proposal_ai_cta():
     elif cta_phone:
         contact_info = cta_phone
 
+    # Strip Arabic characters from names sent to AI to avoid Arabic in English output
+    import re as _re
+    def _strip_arabic(s):
+        return _re.sub(r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+', '', s or '').strip() or None
+    _project_safe = _strip_arabic(project) or 'the project'
+    _client_safe  = _strip_arabic(to_co)   or 'the client'
+
     _prompt = f"""You are a professional presales engineer at EJTech writing a closing "Call to Action" paragraph for a commercial proposal.
 Write a concise, warm, and professional 3-sentence closing paragraph (no bullet points) that:
 1. Invites the client to reach out for questions or to discuss the commercials{(' via ' + contact_info) if contact_info else ''}
 2. Expresses gratitude for their trust/support and enthusiasm for the partnership
 3. Ends with a forward-looking statement about doing business together
 
-Project: {project or 'Client Project'}
-Client: {to_co or 'Valued Client'}
+Project: {_project_safe}
+Client: {_client_safe}
 Systems: {systems_text or 'ICT Systems'}
 
 Rules:
@@ -7188,19 +7195,27 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
 
     # Paragraphs 2-3 — use AI/custom body if provided, else defaults
     _cta_body = (cover.get('cta_body') or '').strip()
+    def _cta_par(text):
+        """Render CTA paragraph — Arabic-safe."""
+        if _has_arabic(str(text)) and _arabic_ok:
+            _ar_st = ParagraphStyle(
+                'cta_ar', fontName=_AMIRI_FONT, fontSize=10,
+                textColor=C_DARK, alignment=TA_RIGHT, leading=15, rightIndent=4,
+            )
+            return Paragraph(_fix_arabic(str(text)), _ar_st)
+        return _p(str(text), _cta_ps)
+
     if _cta_body:
         for _cb_line in [ln.strip() for ln in _cta_body.split('\n') if ln.strip()]:
-            story.append(_p(_cb_line, _cta_ps))
+            story.append(_cta_par(_cb_line))
             story.append(Spacer(1, 0.08*cm))
     else:
-        story.append(_p(
+        story.append(_cta_par(
             'In the meantime, should you have any questions or need to discuss the commercials in '
-            'greater detail, please do not hesitate to contact the undersigned.',
-            _cta_ps))
+            'greater detail, please do not hesitate to contact the undersigned.'))
         story.append(Spacer(1, 0.10*cm))
-        story.append(_p(
-            'We thank you for your support to EJ TECH and look forward to the pleasure of doing business.',
-            _cta_ps))
+        story.append(_cta_par(
+            'We thank you for your support to EJ TECH and look forward to the pleasure of doing business.'))
         story.append(Spacer(1, 0.10*cm))
 
     # Sign-off
