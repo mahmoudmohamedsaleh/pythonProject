@@ -6195,6 +6195,40 @@ def proposal_rfqs_for_project():
     return jsonify(rfqs)
 
 
+@app.route('/proposal_generator/save_form', methods=['POST'])
+@login_required
+def proposal_save_form():
+    """Save proposal form fields (subject/scope, terms, signatures, client info) to DB."""
+    from flask import request as _req, jsonify
+    import json as _json
+    data = _req.get_json(force=True) or {}
+    rfq_ref   = data.get('rfq_ref', '').strip()
+    quote_ref = data.get('quote_ref', '').strip()
+    if not rfq_ref or not quote_ref:
+        return jsonify({'ok': False, 'error': 'Missing rfq_ref or quote_ref'}), 400
+    form_json = _json.dumps(data.get('form', {}), ensure_ascii=False)
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
+            rfq_ref   TEXT NOT NULL,
+            quote_ref TEXT NOT NULL,
+            form_json TEXT,
+            saved_at  TEXT,
+            PRIMARY KEY (rfq_ref, quote_ref)
+        )""")
+        conn.execute("""INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at)
+                        VALUES (?, ?, ?, datetime('now'))
+                        ON CONFLICT(rfq_ref, quote_ref) DO UPDATE SET
+                            form_json = excluded.form_json,
+                            saved_at  = excluded.saved_at""",
+                     (rfq_ref, quote_ref, form_json))
+        conn.commit()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/proposal_generator/create', methods=['GET'])
 @login_required
 def proposal_generator_main():
@@ -6299,6 +6333,34 @@ def proposal_generator_main():
         except Exception as _e:
             app.logger.warning(f"preset_systems load error: {_e}")
 
+    # ── Load saved proposal form data ────────────────────────────────────
+    saved_form = {}
+    if rfq_ref and quoteref:
+        try:
+            _pf_conn = sqlite3.connect('ProjectStatus.db')
+            _pf_conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
+                rfq_ref TEXT NOT NULL, quote_ref TEXT NOT NULL,
+                form_json TEXT, saved_at TEXT, PRIMARY KEY (rfq_ref, quote_ref))""")
+            _pf_row = _pf_conn.execute(
+                "SELECT form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+                (rfq_ref, quoteref)
+            ).fetchone()
+            _pf_conn.close()
+            if _pf_row and _pf_row[0]:
+                import json as _json2
+                saved_form = _json2.loads(_pf_row[0])
+        except Exception as _pf_e:
+            app.logger.warning(f"Could not load proposal form data: {_pf_e}")
+
+    # Merge saved values over defaults (saved data wins)
+    if saved_form:
+        to_company   = saved_form.get('to',           to_company)
+        attention    = saved_form.get('attn',          attention)
+        frm          = saved_form.get('frm',           frm)
+        contact      = saved_form.get('cont',          contact)
+        subject      = saved_form.get('sub',           subject)
+        presale_name = saved_form.get('prep_by_name',  presale_name)
+
     resp = make_response(render_template('proposal_generator.html', today=today,
                            project_name=project_name, rfq_ref=rfq_ref,
                            quoteref=quoteref,
@@ -6306,7 +6368,8 @@ def proposal_generator_main():
                            subject=subject, presale_name=presale_name,
                            sales_name='',
                            to_company=to_company, attention=attention,
-                           preset_systems=preset_systems))
+                           preset_systems=preset_systems,
+                           saved_form=saved_form))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'
     return resp

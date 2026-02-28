@@ -198,12 +198,13 @@
               <div class="form-group">
                 <label class="small font-weight-bold text-muted mb-1">SUB. (Subject)</label>
                 <input type="text" class="form-control form-control-sm" name="sub"
-                       placeholder="PROPOSAL OF … SYSTEM For …">
+                       placeholder="PROPOSAL OF … SYSTEM For …"
+                       value="{{ saved_form.get('sub', '') if saved_form else '' }}">
               </div>
               <div class="form-group mb-0">
                 <label class="small font-weight-bold text-muted mb-1">Scope of Supply</label>
                 <input type="text" class="form-control form-control-sm" name="scope"
-                       value="Supply, Installation, Testing and Commissioning">
+                       value="{{ saved_form.get('scope', 'Supply, Installation, Testing and Commissioning') if saved_form else 'Supply, Installation, Testing and Commissioning' }}">
               </div>
             </div>
           </div>
@@ -212,33 +213,7 @@
           <div class="card mb-3 shadow-sm">
             <div class="card-header-pg"><i class="fas fa-list-ul mr-1"></i> Terms &amp; Conditions</div>
             <div class="card-body py-3">
-              <div id="termsContainer">
-                <div class="term-row">
-                  <input type="text" class="form-control form-control-sm" name="term_key[]"   placeholder="Label (e.g. Payment Terms)" value="Price">
-                  <input type="text" class="form-control form-control-sm" name="term_value[]" placeholder="Value" value="SAR, Excluding VAT">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="term-row">
-                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Payment Terms">
-                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="30 days from invoice date">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="term-row">
-                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Offer Validity">
-                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="30 days">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="term-row">
-                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Warranty">
-                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="1 Year">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="term-row">
-                  <input type="text" class="form-control form-control-sm" name="term_key[]"   value="Delivery Terms">
-                  <input type="text" class="form-control form-control-sm" name="term_value[]" value="4-6 Weeks ARO">
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>
-                </div>
-              </div>
+              <div id="termsContainer"></div>
               <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addTerm()">
                 <i class="fas fa-plus mr-1"></i> Add Term
               </button>
@@ -253,20 +228,23 @@
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Prepared By (Name)</label>
                   <input type="text" class="form-control form-control-sm" name="prep_by_name"
-                         value="{{ presale_name }}">
+                         value="{{ saved_form.get('prep_by_name', presale_name) if saved_form else presale_name }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Prepared By (Title)</label>
-                  <input type="text" class="form-control form-control-sm" name="prep_by_title" value="Pre-Sales Engineer">
+                  <input type="text" class="form-control form-control-sm" name="prep_by_title"
+                         value="{{ saved_form.get('prep_by_title', 'Pre-Sales Engineer') if saved_form else 'Pre-Sales Engineer' }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Reviewed By (Name)</label>
                   <input type="text" class="form-control form-control-sm" name="mgr_name"
-                         value="{{ sales_name }}">
+                         value="{{ saved_form.get('mgr_name', sales_name) if saved_form else sales_name }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Reviewed By (Title)</label>
-                  <input type="text" class="form-control form-control-sm" name="mgr_title" placeholder="e.g. Sales Manager">
+                  <input type="text" class="form-control form-control-sm" name="mgr_title"
+                         placeholder="e.g. Sales Manager"
+                         value="{{ saved_form.get('mgr_title', '') if saved_form else '' }}">
                 </div>
               </div>
             </div>
@@ -302,6 +280,11 @@
               <button type="button" class="btn-generate" onclick="generatePdf()">
                 <i class="fas fa-file-pdf mr-2"></i> Generate &amp; View PDF Quotation
               </button>
+              <button type="button" class="btn btn-success btn-block mt-2" onclick="saveDraft()" id="saveDraftBtn"
+                      style="font-weight:600; font-size:.88rem;">
+                <i class="fas fa-save mr-1"></i> Save Draft
+              </button>
+              <div id="saveStatus" style="font-size:.78rem; margin-top:5px; display:none;"></div>
             </div>
           </div>
 
@@ -508,7 +491,93 @@ function fmt(n) {
   return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// ── Terms initialization ───────────────────────────────────────────────
+const _DEFAULT_TERMS = [
+  {k:'Price',          v:'SAR, Excluding VAT'},
+  {k:'Payment Terms',  v:'30 days from invoice date'},
+  {k:'Offer Validity', v:'30 days'},
+  {k:'Warranty',       v:'1 Year'},
+  {k:'Delivery Terms', v:'4-6 Weeks ARO'},
+];
+const _SAVED_FORM = {{ saved_form | tojson | safe }};
+const _INIT_TERMS = (_SAVED_FORM && _SAVED_FORM.terms && _SAVED_FORM.terms.length)
+                    ? _SAVED_FORM.terms : _DEFAULT_TERMS;
+
+function _buildTermRow(k, v) {
+  const div = document.createElement('div');
+  div.className = 'term-row';
+  div.innerHTML = `
+    <input type="text" class="form-control form-control-sm" name="term_key[]"   value="${escHtml(k)}" placeholder="Label">
+    <input type="text" class="form-control form-control-sm" name="term_value[]" value="${escHtml(v)}" placeholder="Value">
+    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTerm(this)"><i class="fas fa-times"></i></button>`;
+  return div;
+}
+
+function initTerms() {
+  const c = document.getElementById('termsContainer');
+  c.innerHTML = '';
+  _INIT_TERMS.forEach(t => c.appendChild(_buildTermRow(t.k || t.key || '', t.v || t.value || '')));
+}
+
+// ── Save Draft ─────────────────────────────────────────────────────────
+async function saveDraft() {
+  const rfqRef   = '{{ rfq_ref }}';
+  const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
+  if (!rfqRef || !quoteRef) {
+    alert('Please fill in the Quote Reference before saving.');
+    return;
+  }
+  const terms = [];
+  document.querySelectorAll('#termsContainer .term-row').forEach(row => {
+    const k = row.querySelector('[name="term_key[]"]')?.value || '';
+    const v = row.querySelector('[name="term_value[]"]')?.value || '';
+    if (k) terms.push({k, v});
+  });
+  const form = {
+    to:            document.querySelector('[name="to"]')?.value || '',
+    attn:          document.querySelector('[name="attn"]')?.value || '',
+    frm:           document.querySelector('[name="frm"]')?.value || '',
+    cont:          document.querySelector('[name="cont"]')?.value || '',
+    sub:           document.querySelector('[name="sub"]')?.value || '',
+    scope:         document.querySelector('[name="scope"]')?.value || '',
+    prep_by_name:  document.querySelector('[name="prep_by_name"]')?.value || '',
+    prep_by_title: document.querySelector('[name="prep_by_title"]')?.value || '',
+    mgr_name:      document.querySelector('[name="mgr_name"]')?.value || '',
+    mgr_title:     document.querySelector('[name="mgr_title"]')?.value || '',
+    terms,
+  };
+  const btn = document.getElementById('saveDraftBtn');
+  const st  = document.getElementById('saveStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving…';
+  try {
+    const resp = await fetch('{{ url_for("proposal_save_form") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({rfq_ref: rfqRef, quote_ref: quoteRef, form}),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      st.style.display = 'block';
+      st.style.color   = '#1B7B4B';
+      st.innerHTML     = '<i class="fas fa-check-circle mr-1"></i> Saved successfully';
+      setTimeout(() => { st.style.display = 'none'; }, 3000);
+    } else {
+      st.style.display = 'block';
+      st.style.color   = '#dc3545';
+      st.innerHTML     = '<i class="fas fa-exclamation-circle mr-1"></i> ' + (data.error || 'Save failed');
+    }
+  } catch(e) {
+    st.style.display = 'block'; st.style.color = '#dc3545';
+    st.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Network error';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Draft';
+  }
+}
+
 // ── Init with a blank systems table ───────────────────────────────────
+initTerms();
 recalcSummaryRows();
 renderSysTable();
 </script>
