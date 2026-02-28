@@ -203,8 +203,32 @@
               </div>
               <div class="form-group mb-0">
                 <label class="small font-weight-bold text-muted mb-1">Scope of Supply</label>
-                <input type="text" class="form-control form-control-sm" name="scope"
-                       value="{{ saved_form.get('scope') or cs_scope or 'Supply, Installation, Testing and Commissioning' }}">
+                {% if cs_system_scopes %}
+                  <input type="hidden" name="scope" id="scopeHidden"
+                         value="{{ saved_form.get('scope') or cs_scope }}">
+                  <div style="border:1px solid #cce0ff; border-radius:5px; background:#f0f7ff; padding:6px 10px;">
+                    {% for sys in cs_system_scopes %}
+                    <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:{{ '0' if loop.last else '6px' }};">
+                      <span style="min-width:fit-content; font-size:.75rem; font-weight:700; color:#fff;
+                                   background:#4B2D8F; border-radius:4px; padding:1px 7px; white-space:nowrap;">
+                        {{ sys.name }}
+                      </span>
+                      <input type="text" class="form-control form-control-sm sys-scope-inp"
+                             data-sys="{{ sys.name }}"
+                             style="border:1px solid #b3d4f5; font-size:.82rem; background:#fff;"
+                             placeholder="Scope for {{ sys.name }}"
+                             value="{{ sys.scope }}"
+                             oninput="rebuildScope()">
+                    </div>
+                    {% endfor %}
+                  </div>
+                  <p class="text-muted mt-1 mb-0" style="font-size:.72rem;">
+                    <i class="fas fa-info-circle mr-1"></i>Pulled from Cost Sheet — edit here if needed. Saved with draft.
+                  </p>
+                {% else %}
+                  <input type="text" class="form-control form-control-sm" name="scope" id="scopeHidden"
+                         value="{{ saved_form.get('scope') or 'Supply, Installation, Testing and Commissioning' }}">
+                {% endif %}
               </div>
             </div>
           </div>
@@ -491,6 +515,19 @@ function fmt(n) {
   return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// ── Rebuild hidden scope field from per-system inputs ─────────────────
+function rebuildScope() {
+  const hidden = document.getElementById('scopeHidden');
+  if (!hidden) return;
+  const parts = [];
+  document.querySelectorAll('.sys-scope-inp').forEach(inp => {
+    const sys = inp.dataset.sys || '';
+    const sc  = inp.value.trim();
+    if (sc) parts.push(sys + ': ' + sc);
+  });
+  hidden.value = parts.join(' | ');
+}
+
 // ── Terms initialization ───────────────────────────────────────────────
 const _DEFAULT_TERMS = [
   {k:'Price',          v:'SAR, Excluding VAT'},
@@ -521,6 +558,7 @@ function initTerms() {
 
 // ── Save Draft ─────────────────────────────────────────────────────────
 async function saveDraft() {
+  rebuildScope();
   const rfqRef   = '{{ rfq_ref }}';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
   if (!rfqRef || !quoteRef) {
@@ -578,6 +616,7 @@ async function saveDraft() {
 
 // ── Init with a blank systems table ───────────────────────────────────
 initTerms();
+rebuildScope();
 recalcSummaryRows();
 renderSysTable();
 </script>
