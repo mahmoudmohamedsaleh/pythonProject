@@ -6637,27 +6637,33 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     story.append(Spacer(1, 0.4*cm))
 
     # ── 2. DOCUMENT REFERENCE CARDS ──────────────────────────────────────
-    def _ref_card(label, value, highlight=False):
-        val_col = C_NAVY if highlight else C_DARK
+    # Reference card column widths: DATE 20%, QUOTE REFERENCE 50%, ENG. REFERENCE 30%
+    _REF_TOTAL = BW_eff - 0.4*cm
+    _REF_COLS  = [_REF_TOTAL * 0.20, _REF_TOTAL * 0.50, _REF_TOTAL * 0.30]
+
+    def _ref_card(label, value, col_w, highlight=False):
+        val_col  = C_NAVY if highlight else C_DARK
         val_font = 'Helvetica-Bold' if highlight else 'Helvetica'
         val_text = value or '—'
+        # Shrink font slightly for long values so they don't wrap awkwardly
+        val_fs   = 8.5 if len(val_text) > 20 else 9.5
         if _has_arabic(val_text) and _arabic_ok:
             val_cell = _p_ar(val_text)
         else:
-            val_cell = _p(val_text, _ps(f'rv{label}', fontName=val_font, fontSize=9.5,
-                                        textColor=val_col, leading=12))
+            val_cell = _p(val_text, _ps(f'rv{label}', fontName=val_font, fontSize=val_fs,
+                                        textColor=val_col, leading=11))
         return Table([
-            [_p(label, _ps(f'rl{label}', fontName='Helvetica-Bold', fontSize=7,
-                           textColor=C_PURPLE, leading=9, spaceAfter=1))],
+            [_p(label, _ps(f'rl{label}', fontName='Helvetica-Bold', fontSize=6.5,
+                           textColor=C_PURPLE, leading=8, spaceAfter=1))],
             [val_cell],
-        ], colWidths=[(BW_eff - 0.4*cm) / 3])
+        ], colWidths=[col_w])
 
     ref_row = [
-        _ref_card('DATE', cover.get('date', '')),
-        _ref_card('QUOTE REFERENCE', cover.get('quoteref', ''), highlight=True),
-        _ref_card('ENG. REFERENCE', cover.get('engref', '')),
+        _ref_card('DATE',            cover.get('date', ''),    _REF_COLS[0]),
+        _ref_card('QUOTE REFERENCE', cover.get('quoteref', ''), _REF_COLS[1], highlight=True),
+        _ref_card('ENG. REFERENCE',  cover.get('engref', ''),   _REF_COLS[2]),
     ]
-    ref_tbl = Table([ref_row], colWidths=[(BW_eff - 0.4*cm) / 3] * 3)
+    ref_tbl = Table([ref_row], colWidths=_REF_COLS)
     ref_tbl.setStyle(TableStyle([
         ('BOX',(0,0),(-1,-1),0.5,C_PURPLE3),
         ('LINEAFTER',(0,0),(1,-1),0.5,C_PURPLE3),
