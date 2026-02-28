@@ -647,6 +647,9 @@ function recalcRow(ri, skipMarginUpdate) {
   const tbody = document.getElementById('csTbody');
   const lastRow = tbody.querySelector('.total-row');
   if (lastRow) tbody.replaceChild(buildTotalRow(), lastRow);
+
+  // Keep cost summary in sync
+  renderSummary();
 }
 
 // Unit Price changed → derive margin, update totals (Qty untouched)
