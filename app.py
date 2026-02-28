@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, make_response
 from collections import defaultdict
 import re
 import pandas as pd
@@ -6272,13 +6272,16 @@ def proposal_generator_main():
 
         conn.close()
 
-    return render_template('proposal_generator.html', today=today,
+    resp = make_response(render_template('proposal_generator.html', today=today,
                            project_name=project_name, rfq_ref=rfq_ref,
                            quoteref=quoteref,
                            eng_ref=eng_ref, frm=frm, contact=contact,
                            subject=subject, presale_name=presale_name,
                            sales_name='',
-                           to_company=to_company, attention=attention)
+                           to_company=to_company, attention=attention))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    return resp
 
 
 @app.route('/proposal_generator/parse_costsheet', methods=['POST'])
