@@ -6335,6 +6335,7 @@ def proposal_generator_main():
     eng_ref      = ''
     frm          = 'EJ TECH'
     contact      = ''
+    se_email     = ''
     subject      = ''
     presale_name = ''
     to_company   = ''
@@ -6366,10 +6367,15 @@ def proposal_generator_main():
                       (proj['sales_eng'],))
             se_row = c.fetchone()
 
+        se_email = ''
         if se_row:
             eng_ref = se_row['username'] or ''
             frm     = ('Eng. ' + se_row['name']) if se_row['name'] else (se_row['username'] or '')
             contact = se_row['phone'] or ''
+            # Fetch email from users table
+            _eu = conn.execute("SELECT email FROM users WHERE username=? LIMIT 1",
+                               (se_row['username'],)).fetchone()
+            if _eu: se_email = (_eu['email'] or '').strip()
 
         # Prepared By = presale engineer full name
         if presale_username:
@@ -6470,6 +6476,7 @@ def proposal_generator_main():
                            preset_systems=preset_systems,
                            cs_scope=cs_scope,
                            cs_system_scopes=cs_system_scopes,
+                           se_email=se_email,
                            saved_form=saved_form))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'
