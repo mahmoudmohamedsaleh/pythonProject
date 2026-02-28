@@ -1,0 +1,10 @@
+flask
+werkzeug
+pandas
+openpyxl
+xlsxwriter
+reportlab
+python-pptx
+openai
+requests
+resend

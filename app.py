@@ -6474,7 +6474,7 @@ def proposal_ai_executive_summary():
     try:
         import openai as _openai
     except ImportError:
-        return jsonify({'ok': False, 'error': 'OpenAI not available'}), 500
+        return jsonify({'ok': False, 'error': 'openai package not installed — run: pip install openai'}), 500
 
     # Load systems from cost sheet
     systems_text = ''
@@ -6568,7 +6568,7 @@ def proposal_ai_cta():
     try:
         import openai as _openai
     except ImportError:
-        return jsonify({'ok': False, 'error': 'OpenAI not available'}), 500
+        return jsonify({'ok': False, 'error': 'openai package not installed — run: pip install openai'}), 500
 
     # Gather systems context
     systems_text = ''
