@@ -5576,89 +5576,163 @@ Rules:
     if not _bullets:
         _bullets = [b.strip() for b in _exec_summary_raw.split('\n') if b.strip()]
 
-    # ── Draw the Executive Summary slide ────────────────────────────
+    # ── Draw the Executive Summary slide (redesigned) ──────────────
     slide = prs.slides.add_slide(blank_layout)
 
-    # Header bar
-    rect(slide, 0, 0, SLIDE_W, 1.0, C_PURPLE)
-    r_es = slide.shapes.add_shape(1, 0, Inches(1.0), Inches(SLIDE_W), Inches(0.06))
-    r_es.fill.solid(); r_es.fill.fore_color.rgb = C_GOLD; r_es.line.width = 0
+    _C_SIDEBAR  = RGBColor(0x2E, 0x1A, 0x6E)   # deeper purple for sidebar
+    _C_ACCENT   = RGBColor(0xF5, 0xF0, 0xFF)    # very light lavender card bg
+    _C_STRIPE   = RGBColor(0xED, 0xE7, 0xF6)    # alternating row
+
+    # ── Full purple header 1.1" ──────────────────────────────────────
+    rect(slide, 0, 0, SLIDE_W, 1.1, C_PURPLE)
+    _gold_bar = slide.shapes.add_shape(1, 0, Inches(1.1), Inches(SLIDE_W), Inches(0.055))
+    _gold_bar.fill.solid(); _gold_bar.fill.fore_color.rgb = C_GOLD; _gold_bar.line.width = 0
     try:
-        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.1), width=Inches(1.3))
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.3), Inches(0.12), width=Inches(1.45))
     except Exception:
         pass
-    txt_box(slide, 'EXECUTIVE SUMMARY', 1.9, 0.18, 9.5, 0.65, size=22, bold=True, color=C_WHITE)
-    txt_box(slide, proj_name, 11.3, 0.22, 1.8, 0.6, size=9, color=C_GOLD, align=PP_ALIGN.RIGHT)
+    txt_box(slide, 'EXECUTIVE SUMMARY', 2.0, 0.2, 8.5, 0.72, size=24, bold=True, color=C_WHITE)
+    _badge_label = 'From Proposal' if (prop_exec_summary and prop_exec_summary.strip()) else 'AI Generated'
+    _badge_bg    = C_TEAL if _badge_label == 'From Proposal' else C_GOLD
+    _badge_txt   = C_WHITE if _badge_label == 'From Proposal' else C_PURPLE
+    _bg_b = slide.shapes.add_shape(1, Inches(11.5), Inches(0.36), Inches(1.6), Inches(0.38))
+    _bg_b.fill.solid(); _bg_b.fill.fore_color.rgb = _badge_bg; _bg_b.line.width = 0
+    _tb_b = slide.shapes.add_textbox(Inches(11.52), Inches(0.38), Inches(1.55), Inches(0.33))
+    _tb_b.text_frame.text = ''; _pb = _tb_b.text_frame.paragraphs[0]; _pb.alignment = PP_ALIGN.CENTER
+    _rb = _pb.add_run(); _rb.text = _badge_label; _rb.font.size = Pt(8); _rb.font.bold = True
+    _rb.font.color.rgb = _badge_txt; _rb.font.name = 'Calibri'
 
-    # AI badge
-    badge = slide.shapes.add_shape(1, Inches(11.9), Inches(0.22), Inches(1.2), Inches(0.38))
-    badge.fill.solid(); badge.fill.fore_color.rgb = C_GOLD; badge.line.width = 0
-    tb_badge = slide.shapes.add_textbox(Inches(11.92), Inches(0.24), Inches(1.15), Inches(0.35))
-    tb_badge.text_frame.text = ''
-    p_b = tb_badge.text_frame.paragraphs[0]
-    p_b.alignment = PP_ALIGN.CENTER
-    run_b = p_b.add_run()
-    run_b.text = 'AI Generated'
-    run_b.font.size = Pt(8)
-    run_b.font.bold = True
-    run_b.font.color.rgb = C_PURPLE
-    run_b.font.name = 'Calibri'
+    # ── Left sidebar 3.4" wide — project info panel ──────────────────
+    _SB_W = 3.4
+    rect(slide, 0, 1.155, _SB_W, SLIDE_H - 1.155, _C_SIDEBAR)
+    # decorative circle ornament
+    _circ = slide.shapes.add_shape(9, Inches(0.6), Inches(1.5), Inches(2.2), Inches(2.2))  # 9=oval
+    _circ.fill.solid(); _circ.fill.fore_color.rgb = RGBColor(0x3D, 0x23, 0x85)
+    _circ.line.fill.background(); _circ.line.width = 0
+    txt_box(slide, '📋', 1.35, 1.9, 0.75, 0.75, size=28, color=C_GOLD, align=PP_ALIGN.CENTER)
 
-    # Bullet points
-    y_pos = 1.22
-    bullet_colors = [C_PURPLE, C_TEAL, C_PURPLE, C_TEAL, C_PURPLE, C_TEAL]
-    for bi, bullet in enumerate(_bullets[:6]):
-        bullet_clean = bullet.lstrip('•').strip()
+    # Side info blocks
+    _side_items = [
+        ('PROJECT',    proj_name[:40] if proj_name else '—'),
+        ('CLIENT',     prop_client[:35] if prop_client else '—'),
+        ('QUOTE REF',  quote_ref),
+        ('DATE',       reg_date),
+        ('ENGINEER',   presale_eng),
+    ]
+    if selling_price and selling_price > 0:
+        _side_items.append(('TOTAL VALUE', f'SAR {selling_price:,.0f}'))
 
-        # Color accent strip left of each bullet
-        strip = slide.shapes.add_shape(1, Inches(0.3), Inches(y_pos + 0.06), Inches(0.08), Inches(0.72))
-        strip.fill.solid()
-        strip.fill.fore_color.rgb = bullet_colors[bi % len(bullet_colors)]
-        strip.line.width = 0
+    _sy = 3.85
+    for _slbl, _sval in _side_items:
+        txt_box(slide, _slbl, 0.2, _sy, _SB_W - 0.3, 0.28, size=7.5, bold=True,
+                color=C_GOLD, align=PP_ALIGN.LEFT)
+        txt_box(slide, _sval, 0.2, _sy + 0.24, _SB_W - 0.3, 0.3, size=9.5, bold=False,
+                color=C_WHITE, align=PP_ALIGN.LEFT)
+        _sy += 0.62
 
-        # Light background card
-        card = slide.shapes.add_shape(1, Inches(0.45), Inches(y_pos), Inches(12.65), Inches(0.82))
-        card.fill.solid()
-        card.fill.fore_color.rgb = C_GREY_BG if bi % 2 == 0 else C_WHITE
-        card.line.fill.background()
-        card.line.width = 0
+    # ── Right content area ───────────────────────────────────────────
+    _RX = _SB_W + 0.08          # right panel x-start (inches)
+    _RW = SLIDE_W - _RX - 0.15  # right panel width
+    rect(slide, _RX, 1.155, _RW, SLIDE_H - 1.155, C_WHITE)
 
-        # Parse bold keyword vs rest of text
-        if ':' in bullet_clean:
-            parts = bullet_clean.split(':', 1)
-            keyword = parts[0].strip().lstrip('*').rstrip('*')
-            rest    = parts[1].strip()
-        else:
-            keyword = ''
-            rest    = bullet_clean
+    # Intro label
+    txt_box(slide, 'Overview', _RX + 0.25, 1.25, _RW - 0.4, 0.32, size=10, bold=True,
+            color=C_PURPLE, align=PP_ALIGN.LEFT)
+    _ln = slide.shapes.add_shape(1, Inches(_RX + 0.25), Inches(1.55), Inches(_RW - 0.5), Inches(0.025))
+    _ln.fill.solid(); _ln.fill.fore_color.rgb = RGBColor(0xD1, 0xC4, 0xE9); _ln.line.width = 0
 
-        tb = slide.shapes.add_textbox(Inches(0.6), Inches(y_pos + 0.08), Inches(12.4), Inches(0.7))
-        tf = tb.text_frame
-        tf.word_wrap = True
-        tf.text = ''
-        p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.LEFT
+    if _bullets:
+        # ── Bullet-point layout ──────────────────────────────────────
+        _BY = 1.65
+        _bullet_accent = [C_PURPLE, C_TEAL, RGBColor(0x1A, 0x23, 0x7E), C_TEAL, C_PURPLE, C_TEAL]
+        _n_bullets = min(len(_bullets), 6)
+        _card_h = min(0.88, (SLIDE_H - _BY - 0.15) / _n_bullets)
 
-        if keyword:
-            run_kw = p.add_run()
-            run_kw.text = keyword + ':  '
-            run_kw.font.size = Pt(12)
-            run_kw.font.bold = True
-            run_kw.font.color.rgb = bullet_colors[bi % len(bullet_colors)]
-            run_kw.font.name = 'Calibri'
+        for _bi, _bullet in enumerate(_bullets[:6]):
+            _bc = _bullet.lstrip('•').strip()
+            if ':' in _bc:
+                _kw, _rest = _bc.split(':', 1)
+                _kw   = _kw.strip().lstrip('*').rstrip('*')
+                _rest = _rest.strip()
+            else:
+                _kw   = ''
+                _rest = _bc
 
-        run_txt = p.add_run()
-        run_txt.text = rest
-        run_txt.font.size = Pt(11.5)
-        run_txt.font.bold = False
-        run_txt.font.color.rgb = C_DARK
-        run_txt.font.name = 'Calibri'
+            # Card background
+            _cbg = _C_ACCENT if _bi % 2 == 0 else C_WHITE
+            _card = slide.shapes.add_shape(1,
+                Inches(_RX + 0.18), Inches(_BY), Inches(_RW - 0.28), Inches(_card_h - 0.06))
+            _card.fill.solid(); _card.fill.fore_color.rgb = _cbg
+            _card.line.fill.background(); _card.line.width = 0
 
-        y_pos += 0.91
+            # Left accent strip
+            _strip = slide.shapes.add_shape(1,
+                Inches(_RX + 0.18), Inches(_BY + 0.04), Inches(0.07), Inches(_card_h - 0.14))
+            _strip.fill.solid()
+            _strip.fill.fore_color.rgb = _bullet_accent[_bi % len(_bullet_accent)]
+            _strip.line.width = 0
 
-    # Footer note
-    txt_box(slide, f'Prepared by {company_name}  |  {quote_ref}', 0.3, 7.2, 12.7, 0.28,
-            size=8, color=C_GREY_TXT, align=PP_ALIGN.CENTER, italic=True)
+            # Number circle
+            _num_bg = slide.shapes.add_shape(9,
+                Inches(_RX + 0.32), Inches(_BY + (_card_h - 0.38) / 2),
+                Inches(0.38), Inches(0.38))
+            _num_bg.fill.solid(); _num_bg.fill.fore_color.rgb = _bullet_accent[_bi % len(_bullet_accent)]
+            _num_bg.line.width = 0
+            _num_tb = slide.shapes.add_textbox(
+                Inches(_RX + 0.32), Inches(_BY + (_card_h - 0.38) / 2),
+                Inches(0.38), Inches(0.38))
+            _num_tb.text_frame.text = ''
+            _np = _num_tb.text_frame.paragraphs[0]; _np.alignment = PP_ALIGN.CENTER
+            _nr = _np.add_run(); _nr.text = str(_bi + 1)
+            _nr.font.size = Pt(9); _nr.font.bold = True; _nr.font.color.rgb = C_WHITE
+            _nr.font.name = 'Calibri'
+
+            # Text
+            _txt_tb = slide.shapes.add_textbox(
+                Inches(_RX + 0.78), Inches(_BY + 0.05), Inches(_RW - 1.02), Inches(_card_h - 0.1))
+            _txt_tf = _txt_tb.text_frame; _txt_tf.word_wrap = True; _txt_tf.text = ''
+            _tp = _txt_tf.paragraphs[0]; _tp.alignment = PP_ALIGN.LEFT
+            if _kw:
+                _kr = _tp.add_run(); _kr.text = _kw + ':  '
+                _kr.font.size = Pt(10.5); _kr.font.bold = True
+                _kr.font.color.rgb = _bullet_accent[_bi % len(_bullet_accent)]
+                _kr.font.name = 'Calibri'
+            _tr = _tp.add_run(); _tr.text = _rest
+            _tr.font.size = Pt(10); _tr.font.bold = False; _tr.font.color.rgb = C_DARK
+            _tr.font.name = 'Calibri'
+            _BY += _card_h
+    else:
+        # ── Paragraph layout (plain text) ────────────────────────────
+        import textwrap as _tw
+        _para_lines = [l.strip() for l in _exec_summary_raw.split('\n') if l.strip()]
+        _full_text  = ' '.join(_para_lines)
+        # Chunk into ~150-char segments for card layout
+        _chunks = _tw.wrap(_full_text, width=160)
+        _BY = 1.65
+        _card_h = min(1.0, (SLIDE_H - _BY - 0.15) / max(len(_chunks), 1))
+        _chunk_colors = [C_PURPLE, C_TEAL, RGBColor(0x1A,0x23,0x7E), C_TEAL, C_PURPLE, C_TEAL]
+        for _ci, _chunk in enumerate(_chunks[:5]):
+            _cbg = _C_ACCENT if _ci % 2 == 0 else C_WHITE
+            _card = slide.shapes.add_shape(1,
+                Inches(_RX + 0.18), Inches(_BY), Inches(_RW - 0.28), Inches(_card_h - 0.06))
+            _card.fill.solid(); _card.fill.fore_color.rgb = _cbg
+            _card.line.fill.background(); _card.line.width = 0
+            _strip = slide.shapes.add_shape(1,
+                Inches(_RX + 0.18), Inches(_BY + 0.04), Inches(0.07), Inches(_card_h - 0.14))
+            _strip.fill.solid(); _strip.fill.fore_color.rgb = _chunk_colors[_ci % len(_chunk_colors)]
+            _strip.line.width = 0
+            _txt_tb = slide.shapes.add_textbox(
+                Inches(_RX + 0.38), Inches(_BY + 0.07), Inches(_RW - 0.6), Inches(_card_h - 0.12))
+            _txt_tf = _txt_tb.text_frame; _txt_tf.word_wrap = True; _txt_tf.text = ''
+            _tp = _txt_tf.paragraphs[0]; _tp.alignment = PP_ALIGN.LEFT
+            _tr = _tp.add_run(); _tr.text = _chunk
+            _tr.font.size = Pt(10.5); _tr.font.color.rgb = C_DARK; _tr.font.name = 'Calibri'
+            _BY += _card_h
+
+    # Bottom footer strip on right panel
+    rect(slide, _RX, SLIDE_H - 0.32, _RW, 0.32, C_GREY_HDR)
+    txt_box(slide, f'{company_name}   |   {quote_ref}', _RX + 0.2, SLIDE_H - 0.30, _RW - 0.3, 0.28,
+            size=7.5, color=C_GREY_TXT, italic=True, align=PP_ALIGN.LEFT)
 
     # ═══════════════════════════════════════════════════════════════
     # SLIDES 4+N — BOQ TABLE (paginated)
@@ -6212,6 +6286,112 @@ Rules:
     if company_email: thank_parts.append(company_email)
     if company_phone: thank_parts.append(company_phone)
     txt_box(slide, '   |   '.join(thank_parts), 0, 6.87, SLIDE_W, 0.5, size=10, bold=False, color=C_WHITE, align=PP_ALIGN.CENTER)
+
+    # ═══════════════════════════════════════════════════════════════
+    # SLIDE — CALL TO ACTION (last slide)
+    # ═══════════════════════════════════════════════════════════════
+    slide = prs.slides.add_slide(blank_layout)
+
+    _C_CTA_DARK = RGBColor(0x1A, 0x0A, 0x45)   # near-black purple
+
+    # Full dark background
+    rect(slide, 0, 0, SLIDE_W, SLIDE_H, _C_CTA_DARK)
+
+    # Gold accent top bar
+    _ga = slide.shapes.add_shape(1, 0, Inches(0), Inches(SLIDE_W), Inches(0.09))
+    _ga.fill.solid(); _ga.fill.fore_color.rgb = C_GOLD; _ga.line.width = 0
+
+    # Decorative large circle (top-right)
+    _dc = slide.shapes.add_shape(9, Inches(9.5), Inches(-1.2), Inches(5.5), Inches(5.5))
+    _dc.fill.solid(); _dc.fill.fore_color.rgb = RGBColor(0x2E, 0x1A, 0x6E)
+    _dc.line.width = 0
+
+    # Logo top-left
+    try:
+        slide.shapes.add_picture(LOGO_PATH, Inches(0.45), Inches(0.22), width=Inches(1.6))
+    except Exception:
+        pass
+
+    # ── Main heading ─────────────────────────────────────────────────
+    txt_box(slide, "LET'S GET STARTED", 0, 1.1, SLIDE_W, 1.05,
+            size=42, bold=True, color=C_WHITE, align=PP_ALIGN.CENTER)
+    txt_box(slide, 'We are ready to partner with you and deliver excellence', 0, 2.1, SLIDE_W, 0.5,
+            size=15, bold=False, color=RGBColor(0xD1, 0xC4, 0xE9), align=PP_ALIGN.CENTER)
+
+    # Gold divider
+    _gd = slide.shapes.add_shape(1, Inches(3.5), Inches(2.72), Inches(6.33), Inches(0.06))
+    _gd.fill.solid(); _gd.fill.fore_color.rgb = C_GOLD; _gd.line.width = 0
+
+    # ── CTA body text (from proposal or default) ─────────────────────
+    _cta_body = _prop_form.get('cta_body', '') if _prop_form else ''
+    if not _cta_body:
+        _cta_body = 'We would be happy to discuss this proposal further and answer any technical or commercial questions. Please do not hesitate to reach out to our team.'
+    txt_box(slide, _cta_body, 1.5, 2.88, 10.33, 0.7, size=11,
+            color=RGBColor(0xD1, 0xC4, 0xE9), align=PP_ALIGN.CENTER, italic=True)
+
+    # ── Contact cards row ────────────────────────────────────────────
+    _cta_email_val = prop_cta_email or company_email
+    _cta_phone_val = prop_cta_phone or company_phone
+    _cta_cards = []
+    if _cta_email_val:
+        _cta_cards.append(('✉  Email', _cta_email_val))
+    if _cta_phone_val:
+        _cta_cards.append(('📞  Phone', _cta_phone_val))
+    _cta_cards.append(('🏢  Company', company_name))
+
+    _card_count = len(_cta_cards)
+    _card_w     = 3.9 if _card_count <= 3 else 2.9
+    _card_gap   = (SLIDE_W - _card_w * _card_count) / (_card_count + 1)
+    _cx = _card_gap
+    for _ci_label, _ci_val in _cta_cards:
+        # Card
+        _cc = slide.shapes.add_shape(1, Inches(_cx), Inches(3.75), Inches(_card_w), Inches(0.9))
+        _cc.fill.solid(); _cc.fill.fore_color.rgb = RGBColor(0x2E, 0x1A, 0x6E)
+        _cc.line.fill.background(); _cc.line.width = 0
+        # Left accent
+        _ca = slide.shapes.add_shape(1, Inches(_cx), Inches(3.75), Inches(0.07), Inches(0.9))
+        _ca.fill.solid(); _ca.fill.fore_color.rgb = C_GOLD; _ca.line.width = 0
+        txt_box(slide, _ci_label, _cx + 0.14, 3.80, _card_w - 0.18, 0.3,
+                size=8, bold=True, color=C_GOLD, align=PP_ALIGN.LEFT)
+        txt_box(slide, _ci_val, _cx + 0.14, 4.08, _card_w - 0.18, 0.52,
+                size=9.5, bold=False, color=C_WHITE, align=PP_ALIGN.LEFT)
+        _cx += _card_w + _card_gap
+
+    # ── Prepared by / Approved by row ────────────────────────────────
+    _has_prep = prop_prep_name or presale_eng
+    _has_mgr  = prop_mgr_name
+
+    if _has_prep or _has_mgr:
+        rect(slide, 0.4, 4.88, 12.53, 1.4, RGBColor(0x2E, 0x1A, 0x6E))
+        txt_box(slide, 'YOUR CONTACTS', 0, 4.92, SLIDE_W, 0.32,
+                size=9, bold=True, color=C_GOLD, align=PP_ALIGN.CENTER)
+        _ln2 = slide.shapes.add_shape(1, Inches(3.5), Inches(5.21), Inches(6.33), Inches(0.025))
+        _ln2.fill.solid(); _ln2.fill.fore_color.rgb = RGBColor(0x4B, 0x2D, 0x8F); _ln2.line.width = 0
+
+        _sig_items = []
+        if _has_prep:
+            _sig_items.append((prop_prep_name or presale_eng, prop_prep_title or 'Presales Engineer'))
+        if _has_mgr:
+            _sig_items.append((prop_mgr_name, prop_mgr_title or 'Manager'))
+
+        _sw = 5.5 if len(_sig_items) == 2 else 8.0
+        _sx = (SLIDE_W - _sw * len(_sig_items)) / 2
+        for _sname, _stitle in _sig_items:
+            txt_box(slide, _sname,  _sx, 5.28, _sw, 0.40, size=14, bold=True,
+                    color=C_WHITE, align=PP_ALIGN.CENTER)
+            txt_box(slide, _stitle, _sx, 5.68, _sw, 0.30, size=9.5, bold=False,
+                    color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER)
+            _sx += _sw
+
+    # ── Bottom footer band ───────────────────────────────────────────
+    rect(slide, 0, 6.65, SLIDE_W, 0.85, C_PURPLE)
+    _footer_parts = [company_name]
+    if company_email: _footer_parts.append(company_email)
+    if company_phone: _footer_parts.append(company_phone)
+    txt_box(slide, '   |   '.join(_footer_parts), 0, 6.72, SLIDE_W, 0.5,
+            size=10, bold=False, color=C_WHITE, align=PP_ALIGN.CENTER)
+    txt_box(slide, quote_ref, 0, 7.1, SLIDE_W, 0.3,
+            size=8, color=RGBColor(0xD1,0xC4,0xE9), align=PP_ALIGN.CENTER, italic=True)
 
     # ── Save and send ─────────────────────────────────────────────────
     out = BytesIO()
