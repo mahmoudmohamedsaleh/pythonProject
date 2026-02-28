@@ -794,7 +794,6 @@ function renderSummary() {
     sheet.rows.forEach(row => {
       if (row.type === 'section') {
         isSRV = row.desc && row.desc.toUpperCase().includes('SRV');
-        if (isSRV) srvLabel = row.desc || srvLabel;
       } else if (row.type === 'item') {
         const tc = parseNum(row.qty) * parseNum(row.unit_cost);
         const ts = parseNum(row.qty) * parseNum(row.unit_price);
