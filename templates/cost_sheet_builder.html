@@ -786,8 +786,6 @@ function getDiscountValues() {
 }
 
 function renderSummary() {
-  saveCurrentRows();
-
   const sysRows = [];
   sheets.forEach(sheet => {
     let isSRV = false;
@@ -869,6 +867,11 @@ function renderSummary() {
 // ── Discount inputs: set up once, never re-created ────────────────────
 document.getElementById('smDiscCost').addEventListener('change', renderSummary);
 document.getElementById('smDiscSell').addEventListener('change', renderSummary);
+
+// ── Any cell change → keep summary live ──────────────────────────────
+document.getElementById('csTable').addEventListener('change', () => {
+  renderSummary();
+});
 
 // ── Keyboard shortcut: Tab in last cell adds new item ─────────────────
 document.getElementById('csTable').addEventListener('keydown', e => {
