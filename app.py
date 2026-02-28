@@ -5547,10 +5547,11 @@ Rules:
 - Use professional B2B sales language.
 - Do not mention the quotation reference number in the bullets."""
 
-        _client = _openai.OpenAI(
-            api_key=_os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-            base_url=_os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
-        )
+        _ai_key = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
+        _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        if not _ai_key:
+            raise RuntimeError("No OpenAI API key configured")
+        _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
         _ai_resp = _client.chat.completions.create(
             model='gpt-4o-mini',
             messages=[{'role': 'user', 'content': _prompt}],
@@ -5971,10 +5972,11 @@ Rules:
             try:
                 if _toai is None:
                     raise RuntimeError("openai not available")
-                _cl = _toai.OpenAI(
-                    api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-                    base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
-                )
+                _ai_key = _tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _tos.environ.get('OPENAI_API_KEY')
+                _ai_base = _tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+                if not _ai_key:
+                    raise RuntimeError("No OpenAI API key")
+                _cl = _toai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
                 _max_tok = max(2000, min(len(batch) * 220 + 400, 8000))
                 _resp = _cl.chat.completions.create(
                     model='gpt-4o-mini',
@@ -6001,10 +6003,11 @@ Rules:
                     try:
                         if _toai is None:
                             raise RuntimeError("no client")
-                        _cl2 = _toai.OpenAI(
-                            api_key=_tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-                            base_url=_tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
-                        )
+                        _ai_key2 = _tos.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _tos.environ.get('OPENAI_API_KEY')
+                        _ai_base2 = _tos.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+                        if not _ai_key2:
+                            raise RuntimeError("No OpenAI API key")
+                        _cl2 = _toai.OpenAI(api_key=_ai_key2, **({'base_url': _ai_base2} if _ai_base2 else {}))
                         _pr2 = (
                             f"Technical specs for: {_uc} — {_ud[:120]}\n"
                             'Return ONLY JSON: {"product_specs":["Name: val",...x6],"required_specs":["Req: det",...x5]}'
@@ -6523,10 +6526,11 @@ Rules:
 - Output ONLY the summary text, nothing else."""
 
     try:
-        _client = _openai.OpenAI(
-            api_key=_os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-            base_url=_os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
-        )
+        _ai_key = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
+        _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        if not _ai_key:
+            raise RuntimeError("No OpenAI API key configured")
+        _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
         resp = _client.chat.completions.create(
             model='gpt-4o-mini',
             messages=[{'role': 'user', 'content': _prompt}],
@@ -6616,10 +6620,11 @@ Rules:
 - Do not include the specific email/phone in the output (they are shown separately)"""
 
     try:
-        _client = _openai.OpenAI(
-            api_key=_os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY'),
-            base_url=_os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL'),
-        )
+        _ai_key = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
+        _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+        if not _ai_key:
+            raise RuntimeError("No OpenAI API key configured")
+        _client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
         resp = _client.chat.completions.create(
             model='gpt-4o-mini',
             messages=[{'role': 'user', 'content': _prompt}],
