@@ -6972,7 +6972,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         story.append(sys_banner)
         if sys_scope:
             S_SCOPTXT = _ps('scoptxt', fontName='Helvetica', fontSize=8.5,
-                            textColor=HexColor('#1A0000'), leading=12, alignment=TA_LEFT)
+                            textColor=colors.HexColor('#1A0000'), leading=12, alignment=TA_LEFT)
             scope_tbl = Table([[_p(f'<b>SCOPE:</b> {sys_scope}', S_SCOPTXT)]],
                 colWidths=[BW],
                 style=TableStyle([
