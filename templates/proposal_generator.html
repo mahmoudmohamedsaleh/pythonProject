@@ -393,7 +393,7 @@ function addTerm() {
 function removeTerm(btn) { btn.closest('.term-row').remove(); }
 
 // ── Systems table ─────────────────────────────────────────────────────
-let sysRows = [];
+let sysRows = {{ preset_systems | tojson | safe }};
 
 function renderSysTable() {
   const tbody = document.getElementById('sysTbody');

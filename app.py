@@ -6272,13 +6272,41 @@ def proposal_generator_main():
 
         conn.close()
 
+    # Auto-load cost sheet system totals from saved cost sheet
+    import json as _json
+    preset_systems = []
+    if rfq_ref:
+        try:
+            _cs_conn = sqlite3.connect('ProjectStatus.db')
+            _cs_row = _cs_conn.execute(
+                "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                (rfq_ref, quoteref or '')
+            ).fetchone()
+            _cs_conn.close()
+            if _cs_row:
+                _sheets = _json.loads(_cs_row[0])
+                _sys_idx = 1
+                for _sh in _sheets:
+                    _sh_name = _sh.get('name', 'System')
+                    _sh_total = sum(
+                        (float(r.get('qty') or 0) * float(r.get('unit_price') or 0))
+                        for r in _sh.get('rows', [])
+                        if r.get('type') == 'item'
+                    )
+                    preset_systems.append({'idx': str(_sys_idx), 'name': _sh_name,
+                                           'total': round(_sh_total, 2), 'is_summary': False})
+                    _sys_idx += 1
+        except Exception as _e:
+            app.logger.warning(f"preset_systems load error: {_e}")
+
     resp = make_response(render_template('proposal_generator.html', today=today,
                            project_name=project_name, rfq_ref=rfq_ref,
                            quoteref=quoteref,
                            eng_ref=eng_ref, frm=frm, contact=contact,
                            subject=subject, presale_name=presale_name,
                            sales_name='',
-                           to_company=to_company, attention=attention))
+                           to_company=to_company, attention=attention,
+                           preset_systems=preset_systems))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'
     return resp
