@@ -265,9 +265,14 @@ select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
         <button class="btn-export" onclick="exportExcel()">
           <i class="fas fa-file-excel mr-2"></i> Export to Excel
         </button>
-        <a href="{{ url_for('quotation_price_checker') }}" target="_blank" class="btn-price-check" title="Compare cost sheet item prices against supplier quotation database">
+        <button type="button" class="btn-price-check" onclick="launchPriceChecker()"
+                title="Compare cost sheet item prices against supplier quotation database">
           <i class="fas fa-search-dollar"></i> Check Price
-        </a>
+        </button>
+        <form id="priceCheckerForm" action="{{ url_for('price_checker_from_cost_sheet') }}"
+              method="POST" target="_blank" style="display:none;">
+          <input type="hidden" id="priceCheckerItems" name="items_json" value="">
+        </form>
       </div>
     </div>
   </div>
@@ -1197,6 +1202,36 @@ document.getElementById('csTable').addEventListener('keydown', e => {
     }
   }
 });
+
+// ── Price Checker ─────────────────────────────────────────────────────
+function launchPriceChecker() {
+  // Collect all item rows from every sheet with their sheet name
+  const items = [];
+  sheets.forEach(sh => {
+    (sh.rows || []).forEach(row => {
+      if (row.type === 'item') {
+        items.push({
+          type:       'item',
+          item_code:  row.item_code  || '',
+          desc:       row.desc       || '',
+          uom:        row.uom        || '',
+          qty:        row.qty        || '',
+          unit_cost:  row.unit_cost  || '',
+          sheet_name: sh.name       || '',
+        });
+      }
+    });
+  });
+
+  const itemsWithCode = items.filter(i => i.item_code.trim() !== '');
+  if (itemsWithCode.length === 0) {
+    alert('No items with Item Codes found in the cost sheet. Add item codes first.');
+    return;
+  }
+
+  document.getElementById('priceCheckerItems').value = JSON.stringify(itemsWithCode);
+  document.getElementById('priceCheckerForm').submit();
+}
 
 // ── Import Excel ─────────────────────────────────────────────────────
 function importExcel(input) {

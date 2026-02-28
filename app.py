@@ -36384,6 +36384,149 @@ def quotation_price_checker():
                            price_column=price_column)
 
 
+
+@app.route('/quotation_price_checker/from_cost_sheet', methods=['POST'])
+@login_required
+@permission_required('view_products')
+def price_checker_from_cost_sheet():
+    """Run price check using cost sheet items posted as JSON — no Excel upload needed."""
+    import json as _json
+    raw = request.form.get('items_json', '[]')
+    try:
+        cs_items = _json.loads(raw)
+    except Exception:
+        cs_items = []
+
+    PN_CANDIDATES    = ['item code', 'part number', 'part no', 'p/n', 'pn', 'item no',
+                        'part#', 'part #', 'model', 'sku', 'material code', 'product code']
+    PRICE_CANDIDATES = ['unit cost', 'unit price', 'price', 'cost', 'rate',
+                        'net price', 'net', 'sale price', 'list price']
+
+    def to_float(val):
+        if val is None:
+            return None
+        try:
+            return float(str(val).replace(',', '').strip())
+        except Exception:
+            return None
+
+    excel_rows = []
+    sn = 0
+    for item in cs_items:
+        if item.get('type') != 'item':
+            continue
+        pn = str(item.get('item_code') or '').strip()
+        if not pn or pn.lower() in ('nan', 'none', ''):
+            continue
+        sn += 1
+        qty_val  = to_float(item.get('qty'))
+        cost_val = to_float(item.get('unit_cost'))
+        total_val = round(qty_val * cost_val, 2) if (qty_val is not None and cost_val is not None) else None
+        excel_rows.append({
+            'sn':          str(sn),
+            'part_number': pn,
+            'description': str(item.get('desc') or '').strip(),
+            'uom':         str(item.get('uom') or '').strip(),
+            'qty':         qty_val,
+            'unit_cost':   cost_val,
+            'total':       total_val,
+            'sheet_name':  str(item.get('sheet_name') or '').strip(),
+        })
+
+    db_map = {}
+    if excel_rows:
+        part_numbers = list({r['part_number'] for r in excel_rows})
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        placeholders = ','.join(['?' for _ in part_numbers])
+        c.execute(f"""
+            SELECT
+                TRIM(part_number) as pn,
+                description,
+                unit_price,
+                supplier_name,
+                supplier_type,
+                COALESCE(quote_ref, '') as quote_ref,
+                COALESCE(po_number, '') as po_number,
+                system,
+                COALESCE(d.name, qp.supplier_name, '') as distributor_name
+            FROM quotation_products qp
+            LEFT JOIN distributors d ON qp.distributor_id = d.id
+            WHERE TRIM(LOWER(part_number)) IN ({placeholders})
+            ORDER BY qp.added_at DESC
+        """, [p.lower() for p in part_numbers])
+        seen = set()
+        for row in c.fetchall():
+            key = row['pn'].strip().lower()
+            if key not in seen:
+                db_map[key] = dict(row)
+                seen.add(key)
+        conn.close()
+
+    results = []
+    for er in excel_rows:
+        key = er['part_number'].strip().lower()
+        db  = db_map.get(key)
+        new_price = er['unit_cost']
+        old_price = float(db['unit_price']) if db and db['unit_price'] is not None else None
+        diff = round(new_price - old_price, 4) if (new_price is not None and old_price is not None) else None
+        diff_pct = round((diff / old_price) * 100, 2) if (diff is not None and old_price and old_price != 0) else None
+        if db:
+            if diff_pct is not None:
+                status = 'same' if abs(diff_pct) < 0.5 else ('cheaper' if diff < 0 else 'higher')
+            else:
+                status = 'no_price'
+        else:
+            status = 'not_found'
+        results.append({
+            'sn':          er['sn'],
+            'part_number': er['part_number'],
+            'description': er['description'] or (db['description'] if db else ''),
+            'uom':         er['uom'],
+            'qty':         er['qty'],
+            'unit_cost':   new_price,
+            'total':       er['total'],
+            'old_price':   old_price,
+            'source':      db['quote_ref']        if db else '',
+            'po_number':   db['po_number']        if db else '',
+            'distributor': db['distributor_name'] if db else '',
+            'db_supplier': db['supplier_name']    if db else '',
+            'diff':        diff,
+            'diff_pct':    diff_pct,
+            'status':      status,
+            'sheet_name':  er.get('sheet_name', ''),
+        })
+
+    matched   = sum(1 for r in results if r['status'] != 'not_found')
+    not_found = sum(1 for r in results if r['status'] == 'not_found')
+    cheaper   = sum(1 for r in results if r['status'] == 'cheaper')
+    same      = sum(1 for r in results if r['status'] == 'same')
+    higher    = sum(1 for r in results if r['status'] == 'higher')
+    diffs     = [r['diff_pct'] for r in results if r['diff_pct'] is not None]
+    avg_diff  = round(sum(diffs) / len(diffs), 2) if diffs else 0
+
+    stats = {
+        'total_excel': len(results),
+        'matched':  matched,  'not_found': not_found,
+        'cheaper':  cheaper,  'same':      same,
+        'higher':   higher,   'avg_diff_pct': avg_diff,
+    }
+
+    column_info = {
+        'pn_col': 'Item Code', 'price_col': 'Unit Cost',
+        'qty_col': 'Qty', 'desc_col': 'Item Description',
+        'uom_col': 'UOM', 'total_col': 'Total',
+        'sn_col': 'S.#', 'header_row': 1,
+        'filename': 'Cost Sheet (auto)', 'all_cols': []
+    }
+
+    return render_template('quotation_price_checker.html',
+                           results=results, stats=stats,
+                           results_json=_json.dumps(results),
+                           column_info=column_info,
+                           header_row=1, pn_column='', price_column='')
+
 @app.route('/quotation_price_checker/export', methods=['POST'])
 @login_required
 @permission_required('view_products')
