@@ -6864,29 +6864,69 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     mgr_name   = cover.get('mgr_name', '')
     mgr_title  = cover.get('mgr_title', '') or 'Sales Engineer'
 
-    def _sig_card(role_label, name, title):
-        return Table([
-            [_p(role_label, _ps(f'rl{role_label}', fontName='Helvetica-Bold',
-                                fontSize=7.5, textColor=C_WHITE))],
-            [Spacer(1, 0.45*cm)],
-            [_p(name,  _ps(f'sn5{role_label}', fontName='Helvetica-Bold',
-                           fontSize=10, textColor=C_NAVY))],
-            [_p(title, _ps(f'st3{role_label}', fontSize=8.5,
-                           textColor=C_PURPLE2))],
-        ], colWidths=[BW_eff / 2 - 0.6*cm])
+    # Stamp image
+    _stamp_path = os.path.join(os.path.dirname(__file__), 'static', 'ejt_stamp.png')
+    try:
+        stamp_img = RLImage(_stamp_path, width=3.2*cm, height=3.2*cm)
+    except Exception:
+        stamp_img = Spacer(1, 3.2*cm)
 
-    sig_tbl = Table([[_sig_card('Prepared By:', prep_name, prep_title),
-                      _sig_card('Approved By:', mgr_name, mgr_title)]],
-                    colWidths=[BW_eff / 2, BW_eff / 2])
-    sig_tbl.setStyle(TableStyle([
+    COL_L = BW_eff * 0.46
+    COL_R = BW_eff * 0.54
+
+    # ── Left: Prepared By ────────────────────────────────────────────────
+    prep_inner = Table([
+        [_p('Prepared By:', _ps('pb_lbl', fontName='Helvetica-Bold', fontSize=8,
+                                textColor=C_PURPLE))],
+        [Spacer(1, 1.6*cm)],
+        [Table([['']], colWidths=[COL_L - 1.2*cm],
+               style=TableStyle([('LINEABOVE',(0,0),(-1,-1),1,C_DARK),
+                                  ('TOPPADDING',(0,0),(-1,-1),0),
+                                  ('BOTTOMPADDING',(0,0),(-1,-1),0)]))],
+        [_p(prep_name, _ps('pb_name', fontName='Helvetica-Bold', fontSize=10,
+                           textColor=C_NAVY, leading=13))],
+        [_p(prep_title, _ps('pb_ttl', fontSize=8.5, textColor=C_PURPLE2, leading=11))],
+    ], colWidths=[COL_L - 0.8*cm])
+    prep_inner.setStyle(TableStyle([
+        ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+    ]))
+
+    # ── Right: Authorized Stamp + Approved By ────────────────────────────
+    appr_inner = Table([
+        [_p('Approved By:', _ps('ab_lbl', fontName='Helvetica-Bold', fontSize=8,
+                                textColor=C_PURPLE))],
+        [Table([[stamp_img, _p('')]],
+               colWidths=[3.4*cm, COL_R - 4.2*cm],
+               style=TableStyle([
+                   ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+                   ('LEFTPADDING',(0,0),(-1,-1),0),
+                   ('BOTTOMPADDING',(0,0),(-1,-1),0),
+               ]))],
+        [Table([['']], colWidths=[COL_R - 1.2*cm],
+               style=TableStyle([('LINEABOVE',(0,0),(-1,-1),1,C_DARK),
+                                  ('TOPPADDING',(0,0),(-1,-1),0),
+                                  ('BOTTOMPADDING',(0,0),(-1,-1),0)]))],
+        [_p(mgr_name, _ps('ab_name', fontName='Helvetica-Bold', fontSize=10,
+                          textColor=C_NAVY, leading=13))],
+        [_p(mgr_title, _ps('ab_ttl', fontSize=8.5, textColor=C_PURPLE2, leading=11))],
+    ], colWidths=[COL_R - 0.8*cm])
+    appr_inner.setStyle(TableStyle([
+        ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),2),
+        ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0),
+    ]))
+
+    # Outer signature wrapper — white card, red top border
+    sig_outer = Table([[prep_inner, appr_inner]], colWidths=[COL_L, COL_R])
+    sig_outer.setStyle(TableStyle([
         ('VALIGN',(0,0),(-1,-1),'TOP'),
-        ('LINEABOVE',(0,0),(0,0),2,C_NAVY),
-        ('LINEABOVE',(1,0),(1,0),2,C_PURPLE2),
-        ('TOPPADDING',(0,0),(-1,-1),5),
-        ('BACKGROUND',(0,0),(0,0),C_NAVY),
-        ('BACKGROUND',(1,0),(1,0),C_PURPLE2),
-        ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
-        ('TOPPADDING',(0,0),(0,0),3),('BOTTOMPADDING',(0,0),(0,0),3),
+        ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#DDDDDD')),
+        ('LINEBEFORE',(1,0),(1,-1),0.5,colors.HexColor('#DDDDDD')),
+        ('BACKGROUND',(0,0),(-1,-1),C_WHITE),
+        ('LINEABOVE',(0,0),(0,0),3,C_PURPLE),
+        ('LINEABOVE',(1,0),(1,0),3,C_NAVY),
+        ('LEFTPADDING',(0,0),(-1,-1),12),('RIGHTPADDING',(0,0),(-1,-1),12),
+        ('TOPPADDING',(0,0),(-1,-1),10),('BOTTOMPADDING',(0,0),(-1,-1),10),
     ]))
 
     closing_block = KeepTogether([
@@ -6898,8 +6938,8 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
            _ps('cl2b', fontSize=9, textColor=C_DARK, leading=13)),
         Spacer(1, 0.08*cm),
         _p('With best regards,', _ps('cl3b', fontSize=9, textColor=C_DARK)),
-        Spacer(1, 0.55*cm),
-        sig_tbl,
+        Spacer(1, 0.4*cm),
+        sig_outer,
     ])
     story.append(closing_block)
 
