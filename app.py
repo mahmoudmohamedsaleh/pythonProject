@@ -6309,6 +6309,7 @@ def proposal_generator_main():
     # Auto-load cost sheet system totals from saved cost sheet
     import json as _json
     preset_systems = []
+    cs_scope = ''
     if rfq_ref:
         try:
             _cs_conn = sqlite3.connect('ProjectStatus.db')
@@ -6320,6 +6321,7 @@ def proposal_generator_main():
             if _cs_row:
                 _sheets = _json.loads(_cs_row[0])
                 _sys_idx = 1
+                _seen_scopes = []
                 for _sh in _sheets:
                     _sh_name = _sh.get('name', 'System')
                     _sh_total = sum(
@@ -6330,6 +6332,11 @@ def proposal_generator_main():
                     preset_systems.append({'idx': str(_sys_idx), 'name': _sh_name,
                                            'total': round(_sh_total, 2), 'is_summary': False})
                     _sys_idx += 1
+                    _sc = (_sh.get('scope') or '').strip()
+                    if _sc and _sc not in _seen_scopes:
+                        _seen_scopes.append(_sc)
+                # Build combined scope from all system scopes
+                cs_scope = ' / '.join(_seen_scopes) if _seen_scopes else ''
         except Exception as _e:
             app.logger.warning(f"preset_systems load error: {_e}")
 
@@ -6369,6 +6376,7 @@ def proposal_generator_main():
                            sales_name='',
                            to_company=to_company, attention=attention,
                            preset_systems=preset_systems,
+                           cs_scope=cs_scope,
                            saved_form=saved_form))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'

@@ -204,7 +204,7 @@
               <div class="form-group mb-0">
                 <label class="small font-weight-bold text-muted mb-1">Scope of Supply</label>
                 <input type="text" class="form-control form-control-sm" name="scope"
-                       value="{{ saved_form.get('scope', 'Supply, Installation, Testing and Commissioning') if saved_form else 'Supply, Installation, Testing and Commissioning' }}">
+                       value="{{ saved_form.get('scope') or cs_scope or 'Supply, Installation, Testing and Commissioning' }}">
               </div>
             </div>
           </div>
