@@ -576,13 +576,21 @@ function updateCtaPreview() {
   const phone = document.getElementById('ctaPhone')?.value.trim() || '';
   const prev  = document.getElementById('ctaPreview');
   if (!prev) return;
-  if (!email && !phone) { prev.innerHTML = '<span style="color:#999;font-style:italic;">Fill in email and/or phone to preview.</span>'; return; }
-  let contact = '';
-  if (email && phone) contact = `<a href="mailto:${email}" style="color:#1155CC;">${email}</a> or call us at <b>${phone}</b>`;
-  else if (email)     contact = `<a href="mailto:${email}" style="color:#1155CC;">${email}</a>`;
-  else                contact = `<b>${phone}</b>`;
-  prev.innerHTML = `<span style="color:#1B7B4B;font-weight:700;font-size:.8rem;">Call to Action</span><br>
-    To proceed with this proposal or for any further discussion, please contact our sales team at ${contact}. We look forward to partnering with you.`;
+  let p1 = '';
+  if (email || phone) {
+    let contact = '';
+    if (email && phone) contact = `<a href="mailto:${email}" style="color:#1155CC;text-decoration:underline;">${email}</a> or call us at <b>${phone}</b>`;
+    else if (email)     contact = `<a href="mailto:${email}" style="color:#1155CC;text-decoration:underline;">${email}</a>`;
+    else                contact = `<b>${phone}</b>`;
+    p1 = `<p style="margin:0 0 6px 0;">To proceed with this proposal or for any further discussion, please contact our sales team at ${contact}. We look forward to partnering with you.</p>`;
+  }
+  prev.innerHTML = `
+    <span style="color:#1B7B4B;font-weight:700;font-size:.8rem;letter-spacing:.5px;">CALL TO ACTION</span>
+    <hr style="border:none;border-top:2px solid #F59E0B;margin:4px 0 8px 0;">
+    ${p1}
+    <p style="margin:0 0 6px 0;">In the meantime, should you have any questions or need to discuss the commercials in greater detail, please do not hesitate to contact the undersigned.</p>
+    <p style="margin:0 0 6px 0;">We thank you for your support to EJ TECH and look forward to the pleasure of doing business.</p>
+    <p style="margin:0;font-style:italic;">With best regards,</p>`;
 }
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ctaEmail')?.addEventListener('input', updateCtaPreview);

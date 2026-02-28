@@ -7064,38 +7064,61 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     story.append(terms_tbl)
     story.append(Spacer(1, 0.25*cm))
 
-    # ── 6b. CALL TO ACTION ────────────────────────────────────────────────
+    # ── 6b. CALL TO ACTION (unified professional closing) ────────────────
     _cta_email = (cover.get('cta_email') or '').strip()
     _cta_phone = (cover.get('cta_phone') or '').strip()
+
+    _cta_ps = _ps('ctab', fontName='Helvetica', fontSize=9, textColor=C_DARK, leading=13.5,
+                  leftIndent=4, rightIndent=4)
+
+    _cta_hdr = Table([[
+        _p('CALL TO ACTION', _pw('ctah', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white)),
+    ]], colWidths=[BW_eff])
+    _cta_hdr.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#1B7B4B')),
+        ('LINEBELOW',     (0,0),(-1,-1), 2, colors.HexColor('#F59E0B')),
+        ('TOPPADDING',    (0,0),(-1,-1), 5),
+        ('BOTTOMPADDING', (0,0),(-1,-1), 5),
+        ('LEFTPADDING',   (0,0),(-1,-1), 10),
+    ]))
+    story.append(_cta_hdr)
+    story.append(Spacer(1, 0.12*cm))
+
+    # Paragraph 1 — contact details (only if email/phone exist)
     if _cta_email or _cta_phone:
-        # Build contact phrase
         if _cta_email and _cta_phone:
-            _cta_contact = f'{_cta_email} or call us at {_cta_phone}'
+            _cta_contact_part = (
+                f'<font color="#1155CC"><u>{_cta_email}</u></font> or call us at '
+                f'<b>{_cta_phone}</b>'
+            )
         elif _cta_email:
-            _cta_contact = _cta_email
+            _cta_contact_part = f'<font color="#1155CC"><u>{_cta_email}</u></font>'
         else:
-            _cta_contact = _cta_phone
-        _cta_text = (
+            _cta_contact_part = f'<b>{_cta_phone}</b>'
+        story.append(_p(
             f'To proceed with this proposal or for any further discussion, please contact our '
-            f'sales team at <font color="#1155CC"><u>{_cta_contact}</u></font>. '
-            f'We look forward to partnering with you.'
-        )
-        _cta_hdr = Table([[
-            _p('CALL TO ACTION', _pw('ctah', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white)),
-        ]], colWidths=[BW_eff])
-        _cta_hdr.setStyle(TableStyle([
-            ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#1B7B4B')),
-            ('LINEBELOW',  (0,0),(-1,-1), 2, colors.HexColor('#F59E0B')),
-            ('TOPPADDING', (0,0),(-1,-1), 5),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 5),
-            ('LEFTPADDING', (0,0),(-1,-1), 10),
-        ]))
-        story.append(_cta_hdr)
+            f'sales team at {_cta_contact_part}. We look forward to partnering with you.',
+            _cta_ps))
         story.append(Spacer(1, 0.10*cm))
-        story.append(_p(_cta_text,
-            _ps('ctab', fontName='Helvetica', fontSize=8.8, textColor=C_DARK, leading=13.5,
-                leftIndent=4, rightIndent=4)))
-        story.append(Spacer(1, 0.22*cm))
+
+    # Paragraph 2 — invite further discussion
+    story.append(_p(
+        'In the meantime, should you have any questions or need to discuss the commercials in '
+        'greater detail, please do not hesitate to contact the undersigned.',
+        _cta_ps))
+    story.append(Spacer(1, 0.10*cm))
+
+    # Paragraph 3 — gratitude
+    story.append(_p(
+        'We thank you for your support to EJ TECH and look forward to the pleasure of doing business.',
+        _cta_ps))
+    story.append(Spacer(1, 0.10*cm))
+
+    # Paragraph 4 — sign-off
+    story.append(_p('With best regards,',
+        _ps('ctabr', fontName='Helvetica-Oblique', fontSize=9, textColor=C_DARK, leading=13,
+            leftIndent=4)))
+    story.append(Spacer(1, 0.22*cm))
 
     # ── 7. CLOSING & SIGNATURES ───────────────────────────────────────────
     prep_name  = cover.get('prep_by_name', '')
@@ -7154,18 +7177,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12),
     ]))
 
-    closing_block = KeepTogether([
-        _p('In the meantime, should you have any questions or need to discuss the commercials in greater '
-           'detail, please do not hesitate to contact the undersigned.',
-           _ps('cl1b', fontSize=9, textColor=C_DARK, leading=13)),
-        Spacer(1, 0.08*cm),
-        _p('We thank you for your support to EJ TECH and look forward to the pleasure of doing business.',
-           _ps('cl2b', fontSize=9, textColor=C_DARK, leading=13)),
-        Spacer(1, 0.08*cm),
-        _p('With best regards,', _ps('cl3b', fontSize=9, textColor=C_DARK)),
-        Spacer(1, 0.45*cm),
-        sig_outer,
-    ])
+    closing_block = KeepTogether([sig_outer])
     story.append(closing_block)
 
     # ── BOQ pages ────────────────────────────────────────────────────────
