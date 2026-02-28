@@ -129,7 +129,9 @@
   <div class="tab-pane active" id="tab-commercial">
 
     <form method="POST" action="{{ url_for('proposal_generate_pdf') }}"
-          enctype="multipart/form-data" id="commForm">
+          enctype="multipart/form-data" id="commForm" target="_blank">
+
+      <input type="hidden" name="rfq_ref" value="{{ rfq_ref }}">
 
       <div class="row">
 
@@ -295,10 +297,10 @@
             <div class="card-body py-3 text-center">
               <p class="small text-muted mb-2">
                 <i class="fas fa-info-circle text-primary mr-1"></i>
-                Edit fields on the left, then generate your PDF.
+                BOQ with Unit Prices is pulled automatically from the saved Cost Sheet. Fill in the fields on the left, then generate.
               </p>
               <button type="submit" class="btn-generate" onclick="showLoader()">
-                <i class="fas fa-file-pdf mr-2"></i> Generate &amp; Download PDF
+                <i class="fas fa-file-pdf mr-2"></i> Generate &amp; View PDF Quotation
               </button>
             </div>
           </div>

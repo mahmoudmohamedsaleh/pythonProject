@@ -6348,8 +6348,7 @@ def proposal_parse_costsheet():
 @login_required
 def proposal_generate_pdf():
     """Generate a quotation PDF from the Proposal Generator form data.
-    The uploaded cost-sheet (if any) drives the BOQ; form fields drive the cover page."""
-    import openpyxl
+    BOQ is loaded from the saved cost sheet in the DB; form fields drive the cover page."""
     from flask import request as _req
     try:
         # ── Build cover dict from form ─────────────────────────────────
@@ -6385,24 +6384,81 @@ def proposal_generate_pdf():
         for k, v in zip(_req.form.getlist('term_key[]'), _req.form.getlist('term_value[]')):
             if k.strip(): cover['terms'][k.strip()] = v.strip()
 
-        # ── Parse BOQ from uploaded cost-sheet (or empty) ─────────────
+        # ── Load BOQ from saved cost sheet in DB ──────────────────────
         boq_sheets = []
-        cs_file = _req.files.get('cost_sheet_file')
-        if cs_file and cs_file.filename:
-            wb = openpyxl.load_workbook(BytesIO(cs_file.read()), data_only=True)
-            boq_sheets = _parse_cost_sheet_boq(wb)
+        rfq_ref   = _req.form.get('rfq_ref', '').strip()
+        quote_ref = cover.get('quoteref', '').strip() or 'Proposal'
+        if rfq_ref and quote_ref and quote_ref != 'Proposal':
+            try:
+                conn = sqlite3.connect('ProjectStatus.db')
+                row = conn.execute(
+                    "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                    (rfq_ref, quote_ref)
+                ).fetchone()
+                conn.close()
+                if row and row[0]:
+                    sheets = json.loads(row[0])
+                    boq_sheets = _cost_sheet_json_to_boq(sheets)
+            except Exception as db_err:
+                app.logger.warning(f"Could not load cost sheet from DB: {db_err}")
 
-        quote_ref = cover.get('quoteref') or 'Proposal'
         buf = _build_quotation_pdf(cover, boq_sheets, quote_ref)
         safe = quote_ref.replace('/', '-').replace('\\', '-').replace(' ', '_')
-        return send_file(buf, as_attachment=True,
-                         download_name=f'{safe}_Commercial_Proposal.pdf',
-                         mimetype='application/pdf')
+        response = send_file(buf, as_attachment=False,
+                             download_name=f'{safe}_Commercial_Proposal.pdf',
+                             mimetype='application/pdf')
+        response.headers['Content-Disposition'] = f'inline; filename="{safe}_Commercial_Proposal.pdf"'
+        return response
     except Exception as e:
         import traceback
         app.logger.error(f"proposal_generate_pdf error: {e}\n{traceback.format_exc()}")
         flash(f'PDF generation failed: {str(e)}', 'danger')
         return redirect(url_for('proposal_generator'))
+
+
+def _cost_sheet_json_to_boq(sheets):
+    """Convert cost sheet builder JSON (from DB) to boq_sheets list for _build_quotation_pdf."""
+    boq_sheets = []
+    for sheet in sheets:
+        sname = sheet.get('name', 'System')
+        rows  = sheet.get('rows', [])
+        items = []
+        sn_ctr = 0
+        for row in rows:
+            rtype = row.get('type', 'item')
+            if rtype == 'header':
+                desc = str(row.get('desc', '')).strip()
+                if desc:
+                    items.append({'sn': '', 'code': '', 'desc': desc, 'uom': '',
+                                  'qty': None, 'unit_price': None, 'total': None,
+                                  'is_section': True})
+            else:
+                try: qty = float(row.get('qty') or 0)
+                except: qty = 0.0
+                try: up = float(row.get('unit_price') or 0)
+                except: up = 0.0
+                if qty <= 0 and up <= 0:
+                    continue
+                tot = round(qty * up, 2)
+                sn_ctr += 1
+                items.append({
+                    'sn':         str(sn_ctr),
+                    'code':       str(row.get('item_code', '') or '').strip(),
+                    'desc':       str(row.get('desc', '') or '').strip(),
+                    'uom':        str(row.get('uom', '') or '').strip(),
+                    'qty':        qty,
+                    'unit_price': up,
+                    'total':      tot,
+                    'is_section': False,
+                })
+        priced = [it for it in items if not it.get('is_section') and it.get('total')]
+        if priced:
+            boq_sheets.append({
+                'name':        sname,
+                'items':       items,
+                'grand_total': sum(it['total'] for it in priced),
+            })
+    return boq_sheets
 
 
 def _build_quotation_pdf(cover, boq_sheets, quote_ref):
