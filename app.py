@@ -6474,18 +6474,18 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     from io import BytesIO
 
     W, H = A4
-    C_NAVY     = colors.HexColor('#0D1B2A')   # deep navy blue
-    C_PURPLE   = colors.HexColor('#1A56DB')   # modern steel blue (replaces purple)
-    C_PURPLE2  = colors.HexColor('#3B82F6')   # lighter blue
-    C_PURPLE3  = colors.HexColor('#BFDBFE')   # very light blue tint
+    C_NAVY     = colors.HexColor('#1A0000')   # deep dark red
+    C_PURPLE   = colors.HexColor('#C30010')   # brand red
+    C_PURPLE2  = colors.HexColor('#E8354A')   # lighter red
+    C_PURPLE3  = colors.HexColor('#FECDD3')   # very light red tint
     C_GOLD     = colors.HexColor('#F59E0B')   # amber gold accent
     C_GOLD_DK  = colors.HexColor('#D97706')   # deeper amber
-    C_TEAL     = colors.HexColor('#0369A1')   # deep sky blue for totals
+    C_TEAL     = colors.HexColor('#9B0012')   # dark red for totals
     C_GREEN_DK = colors.HexColor('#065F46')   # grand total deep green
-    C_DARK     = colors.HexColor('#0F172A')   # near-black slate
-    C_GREY_HDR = colors.HexColor('#EFF6FF')   # light blue tint header
-    C_GREY_ROW = colors.HexColor('#F8FAFF')   # very light blue row
-    C_SEC_BG   = colors.HexColor('#DBEAFE')   # section bg light blue
+    C_DARK     = colors.HexColor('#1A0000')   # near-black red tone
+    C_GREY_HDR = colors.HexColor('#FFF1F2')   # light red tint header
+    C_GREY_ROW = colors.HexColor('#FFF8F8')   # very light red row
+    C_SEC_BG   = colors.HexColor('#FFE4E6')   # section bg light red
     C_WHITE    = colors.white
 
     def _ps(name, **kw):
@@ -6649,7 +6649,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     ], colWidths=[LW_A, VW_A, LW_A, BW_eff - LW_A*2 - VW_A])
     ci.setStyle(TableStyle([
         ('BOX',(0,0),(-1,-1),0.5,C_PURPLE3),
-        ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#DBEAFE')),
+        ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#FFE4E6')),
         ('BACKGROUND',(0,0),(0,-1),C_PURPLE),    # left label col
         ('BACKGROUND',(2,0),(2,-1),C_GOLD),      # right label col gold
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
@@ -6675,7 +6675,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         sc_tbl = Table(sc_rows, colWidths=[LW_A, BW_eff - LW_A])
         sc_tbl.setStyle(TableStyle([
             ('BOX',(0,0),(-1,-1),0.5,C_PURPLE3),
-            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#DBEAFE')),
+            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#FFE4E6')),
             ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
             ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
             ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
@@ -6741,7 +6741,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         ('BACKGROUND',(0,0),(-1,0),C_GREY_ROW),
         ('LINEBELOW',(0,0),(-1,0),1,C_PURPLE),
         ('BOX',(0,0),(-1,-1),0.5,C_PURPLE3),
-        ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DBEAFE')),
+        ('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#FFE4E6')),
         ('ALIGN',(0,0),(0,-1),'CENTER'),('ALIGN',(2,0),(2,-1),'RIGHT'),
         ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
         ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
@@ -6802,7 +6802,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     terms_tbl = Table(t_rows, colWidths=[TK_W, BW_eff - TK_W])
     terms_tbl.setStyle(TableStyle([
         ('BOX',(0,0),(-1,-1),0.5,C_PURPLE3),
-        ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#DBEAFE')),
+        ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#FFE4E6')),
         ('BACKGROUND',(0,0),(0,-1),C_PURPLE),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
@@ -6864,7 +6864,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         ('FONTSIZE',(0,0),(-1,0),8),('TEXTCOLOR',(0,0),(-1,0),C_WHITE),
         ('ALIGN',(0,0),(0,-1),'CENTER'),('ALIGN',(3,0),(3,-1),'CENTER'),
         ('ALIGN',(4,0),(4,-1),'RIGHT'),('ALIGN',(5,0),(5,-1),'RIGHT'),('ALIGN',(6,0),(6,-1),'RIGHT'),
-        ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#DBEAFE')),
+        ('BOX',(0,0),(-1,-1),0.5,C_PURPLE),('INNERGRID',(0,0),(-1,-1),0.25,colors.HexColor('#FFE4E6')),
         ('FONTSIZE',(0,1),(-1,-1),8.5),('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
         ('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),4),
@@ -6943,7 +6943,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
     def on_page(canv, doc):
         canv.saveState()
         # Page background
-        canv.setFillColor(colors.HexColor('#F0F5FF'))
+        canv.setFillColor(colors.HexColor('#FFF8F8'))
         canv.rect(0, 0, W, H, fill=1, stroke=0)
         # Left navy accent stripe (3mm)
         canv.setFillColor(C_NAVY)
@@ -6955,7 +6955,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref):
         canv.setFillColor(C_NAVY)
         canv.rect(0, 0, W, 1.4*cm, fill=1, stroke=0)
         canv.setFont('Helvetica', 7.5)
-        canv.setFillColor(colors.HexColor('#93C5FD'))
+        canv.setFillColor(colors.HexColor('#FECDD3'))
         canv.drawString(MARGINS, 0.55*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
         canv.setFillColor(C_GOLD)
         canv.setFont('Helvetica-Bold', 7.5)
