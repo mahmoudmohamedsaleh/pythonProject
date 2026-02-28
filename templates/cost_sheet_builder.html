@@ -875,11 +875,11 @@ function renderSummary() {
   // Re-attach discount listeners (inputs were just re-created)
   const dcInp = document.getElementById('smDiscCost');
   const dsInp = document.getElementById('smDiscSell');
-  if (dcInp) dcInp.addEventListener('input', () => {
+  if (dcInp) dcInp.addEventListener('change', () => {
     summaryDiscountCost = parseFloat(dcInp.value) || 0;
     renderSummary();
   });
-  if (dsInp) dsInp.addEventListener('input', () => {
+  if (dsInp) dsInp.addEventListener('change', () => {
     summaryDiscountSell = parseFloat(dsInp.value) || 0;
     renderSummary();
   });
