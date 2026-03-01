@@ -8054,24 +8054,26 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     # Diagonal gold stripe decorative element (simulated via nested table)
     deco = Table([['', '']], colWidths=[0.5*cm, 0.15*cm])
     deco.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(0,0),C_GOLD),
-        ('BACKGROUND',(1,0),(1,0),colors.HexColor('#AAAAAA')),
+        ('BACKGROUND',(0,0),(0,0),C_PURPLE),
+        ('BACKGROUND',(1,0),(1,0),colors.HexColor('#E0E0E0')),
         ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0),
     ]))
 
     title_inner = Table([
-        [_p('COMMERCIAL QUOTATION', _pw('bt', fontName='Helvetica-Bold', fontSize=15, textColor=C_WHITE, alignment=TA_RIGHT))],
-        [_p('Proposal &amp; Pricing Submission', _pw('bs', fontSize=8.5, textColor=colors.HexColor('#CCCCCC'), alignment=TA_RIGHT))],
+        [_p('COMMERCIAL QUOTATION', _pw('bt', fontName='Helvetica-Bold', fontSize=15, textColor=C_PURPLE, alignment=TA_RIGHT))],
+        [_p('Proposal &amp; Pricing Submission', _pw('bs', fontSize=8.5, textColor=colors.HexColor('#888888'), alignment=TA_RIGHT))],
     ], colWidths=[BW_eff - 5.5*cm])
     title_inner.setStyle(TableStyle([('TOPPADDING',(0,0),(-1,-1),2)]))
 
     banner = Table([[logo_img, deco, title_inner]],
                    colWidths=[4.2*cm, 0.7*cm, BW_eff - 4.9*cm])
     banner.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,-1),C_NAVY),
+        ('BACKGROUND',(0,0),(-1,-1),C_WHITE),
         ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ('LEFTPADDING',(0,0),(0,-1),10),('RIGHTPADDING',(0,0),(-1,-1),12),
         ('TOPPADDING',(0,0),(-1,-1),14),('BOTTOMPADDING',(0,0),(-1,-1),14),
+        ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#E0E0E0')),
+        ('LINEBELOW',(0,0),(-1,-1),3,C_PURPLE),
     ]))
     story.append(banner)
 
