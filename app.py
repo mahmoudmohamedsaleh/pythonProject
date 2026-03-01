@@ -7969,15 +7969,15 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         return Paragraph(t, style or S_BODY)
 
     W, H = A4
-    C_NAVY     = colors.HexColor('#2B2B2B')   # charcoal dark
+    C_NAVY     = colors.HexColor('#555555')   # dark gray
     C_PURPLE   = colors.HexColor('#CC0000')   # brand red
     C_PURPLE2  = colors.HexColor('#D94040')   # medium red
     C_PURPLE3  = colors.HexColor('#E5E5E5')   # light gray
     C_GOLD     = colors.HexColor('#8B8B8B')   # medium gray
     C_GOLD_DK  = colors.HexColor('#666666')   # dark gray
     C_TEAL     = colors.HexColor('#9B0012')   # dark red totals
-    C_GREEN_DK = colors.HexColor('#2B2B2B')  # grand total charcoal
-    C_DARK     = colors.HexColor('#2B2B2B')   # charcoal
+    C_GREEN_DK = colors.HexColor('#7B0000')  # grand total dark red
+    C_DARK     = colors.HexColor('#333333')   # dark text
     C_GREY_HDR = colors.HexColor('#F5F5F5')   # light gray header
     C_GREY_ROW = colors.HexColor('#FAFAFA')   # near-white row
     C_SEC_BG   = colors.HexColor('#EEEEEE')   # section bg gray
@@ -8354,7 +8354,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         _p('CALL TO ACTION', _pw('ctah', fontName='Helvetica-Bold', fontSize=9, textColor=colors.white)),
     ]], colWidths=[BW_eff])
     _cta_hdr.setStyle(TableStyle([
-        ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#2B2B2B')),
+        ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#555555')),
         ('LINEBELOW',     (0,0),(-1,-1), 2, colors.HexColor('#888888')),
         ('TOPPADDING',    (0,0),(-1,-1), 5),
         ('BOTTOMPADDING', (0,0),(-1,-1), 5),
