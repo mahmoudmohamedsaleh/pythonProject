@@ -7025,13 +7025,22 @@ def proposal_generate_pdf():
         boq_sheets = []
         rfq_ref   = _req.form.get('rfq_ref', '').strip()
         quote_ref = cover.get('quoteref', '').strip() or 'Proposal'
-        if rfq_ref and quote_ref and quote_ref != 'Proposal':
+        if rfq_ref:
             try:
                 conn = sqlite3.connect('ProjectStatus.db')
-                row = conn.execute(
-                    "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
-                    (rfq_ref, quote_ref)
-                ).fetchone()
+                # Try exact match (rfq_ref + quote_ref) first
+                row = None
+                if quote_ref and quote_ref != 'Proposal':
+                    row = conn.execute(
+                        "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                        (rfq_ref, quote_ref)
+                    ).fetchone()
+                # Fallback: any saved sheet for this RFQ (most recently updated)
+                if not row:
+                    row = conn.execute(
+                        "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? ORDER BY updated_at DESC LIMIT 1",
+                        (rfq_ref,)
+                    ).fetchone()
                 conn.close()
                 if row and row[0]:
                     sheets = json.loads(row[0])

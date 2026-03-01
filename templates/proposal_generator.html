@@ -372,9 +372,11 @@
                 <i class="fas fa-info-circle text-success mr-1"></i>
                 Open the Cost Sheet Builder to create or edit your cost sheet for this quotation.
               </p>
-              <a href="{{ url_for('cost_sheet_builder') }}?project={{ project_name|urlencode }}&rfq={{ rfq_ref|urlencode }}&quoteref={{ quoteref }}"
+              <a id="costSheetBtn"
+                 href="{{ url_for('cost_sheet_builder') }}?project={{ project_name|urlencode }}&rfq={{ rfq_ref|urlencode }}&quoteref={{ quoteref }}"
                  class="btn btn-block font-weight-bold"
-                 style="background:linear-gradient(135deg,#1B7B4B,#27ae60);color:#fff;padding:11px 0;border-radius:8px;font-size:.95rem;">
+                 style="background:linear-gradient(135deg,#1B7B4B,#27ae60);color:#fff;padding:11px 0;border-radius:8px;font-size:.95rem;"
+                 onclick="var qr=document.querySelector('[name=quoteref]');if(qr&&qr.value.trim()){var u=new URL(this.href);u.searchParams.set('quoteref',qr.value.trim());this.href=u.toString();}">
                 <i class="fas fa-table mr-2"></i> Create Cost Sheet
               </a>
             </div>
