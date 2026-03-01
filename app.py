@@ -6460,6 +6460,52 @@ def proposal_rfqs_for_project():
     return jsonify(rfqs)
 
 
+@app.route('/proposal_generator/quotes_for_rfq', methods=['GET'])
+@login_required
+def proposal_quotes_for_rfq():
+    """AJAX: return quotation references linked to an RFQ (from quotations + cost_sheets)."""
+    from flask import request as _req, jsonify
+    rfq = _req.args.get('rfq', '').strip()
+    if not rfq:
+        return jsonify([])
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    results = []
+    # Get project_name from rfq_requests
+    c.execute("SELECT project_name FROM rfq_requests WHERE rfq_reference=? LIMIT 1", (rfq,))
+    row = c.fetchone()
+    project_name = (row['project_name'] or '').strip() if row else ''
+    # Quotations linked via project_name
+    if project_name:
+        c.execute("""SELECT quote_ref, created_date, total_value FROM quotations
+                     WHERE TRIM(project_name)=?
+                     AND quote_ref IS NOT NULL AND quote_ref != ''
+                     ORDER BY created_date DESC""", (project_name,))
+        for r in c.fetchall():
+            results.append({
+                'quote_ref':    r['quote_ref'],
+                'created_date': r['created_date'] or '',
+                'total_value':  r['total_value']  or 0,
+                'source':       'quotation',
+            })
+    # Also cost_sheets saved directly against this rfq_ref (catches any not in quotations)
+    existing_refs = {x['quote_ref'] for x in results}
+    c.execute("""SELECT quote_ref, updated_at FROM cost_sheets
+                 WHERE rfq_ref=? AND quote_ref IS NOT NULL AND quote_ref != ''
+                 ORDER BY updated_at DESC""", (rfq,))
+    for r in c.fetchall():
+        if r['quote_ref'] not in existing_refs:
+            results.append({
+                'quote_ref':    r['quote_ref'],
+                'created_date': r['updated_at'] or '',
+                'total_value':  0,
+                'source':       'cost_sheet',
+            })
+    conn.close()
+    return jsonify(results)
+
+
 @app.route('/proposal_generator/ai_executive_summary', methods=['POST'])
 @login_required
 def proposal_ai_executive_summary():
