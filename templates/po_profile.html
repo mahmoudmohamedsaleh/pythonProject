@@ -1017,7 +1017,15 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({tone: tone})
         })
-        .then(function(r){ return r.json(); })
+        .then(function(r){
+            var ct = r.headers.get('content-type') || '';
+            if (!ct.includes('application/json')) {
+                return r.text().then(function(txt){
+                    throw new Error('Server error (non-JSON response). Status: ' + r.status);
+                });
+            }
+            return r.json();
+        })
         .then(function(d){
             document.getElementById('aiEmailSpinner').style.display   = 'none';
             document.getElementById('btnGenerateEmail').disabled       = false;
@@ -1038,7 +1046,7 @@
             document.getElementById('aiEmailSpinner').style.display   = 'none';
             document.getElementById('aiEmailEmpty').style.display     = '';
             document.getElementById('btnGenerateEmail').disabled      = false;
-            alert('Request failed: ' + e);
+            alert('Failed: ' + e.message);
         });
     };
 
