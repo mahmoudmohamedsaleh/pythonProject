@@ -8733,6 +8733,46 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         boq_tbl.setStyle(TableStyle(style_cmds))
         story.append(boq_tbl)
 
+        # ── Per-system notes (below BOQ table) ───────────────────────
+        _sys_notes = [str(n).strip() for n in (bs.get('notes') or []) if str(n).strip()]
+        if _sys_notes:
+            story.append(Spacer(1, 0.2*cm))
+            _sn_hdr = Table([[_p('NOTES', _pw('snh2', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_WHITE))]],
+                            colWidths=[BW_eff])
+            _sn_hdr.setStyle(TableStyle([
+                ('BACKGROUND', (0,0),(-1,-1), colors.HexColor('#555555')),
+                ('LINEBELOW',  (0,0),(-1,-1), 2, C_PURPLE),
+                ('TOPPADDING', (0,0),(-1,-1), 4),('BOTTOMPADDING',(0,0),(-1,-1), 4),
+                ('LEFTPADDING',(0,0),(-1,-1), 10),
+            ]))
+            story.append(_sn_hdr)
+            _sn_rows = []
+            for _ni, _ntxt in enumerate(_sys_notes, 1):
+                _nbadge = Table([[_p(str(_ni), _ps(f'snb{_ni}', fontName='Helvetica-Bold',
+                    fontSize=8, textColor=C_WHITE, alignment=TA_CENTER))]],
+                    colWidths=[0.75*cm])
+                _nbadge.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,-1), C_PURPLE),
+                    ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
+                    ('LEFTPADDING',(0,0),(-1,-1),2),('RIGHTPADDING',(0,0),(-1,-1),2),
+                ]))
+                _sn_rows.append([_nbadge,
+                    _p_ar(_ntxt, _ps(f'snt{_ni}', fontSize=8.5, textColor=C_DARK, leading=12))])
+            _sn_tbl = Table(_sn_rows, colWidths=[0.9*cm, BW_eff - 0.9*cm])
+            _sn_cmds = [
+                ('BOX',(0,0),(-1,-1),0.5, C_PURPLE3),
+                ('INNERGRID',(0,0),(-1,-1),0.25, colors.HexColor('#E5E5E5')),
+                ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+                ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4),
+                ('LEFTPADDING',(0,0),(-1,-1),4),('RIGHTPADDING',(0,0),(-1,-1),8),
+            ]
+            for _ni in range(len(_sn_rows)):
+                _sn_cmds.append(('BACKGROUND',(0,_ni),(0,_ni), C_PURPLE))
+                _sn_cmds.append(('BACKGROUND',(1,_ni),(1,_ni),
+                    C_WHITE if _ni % 2 == 0 else C_GREY_ROW))
+            _sn_tbl.setStyle(TableStyle(_sn_cmds))
+            story.append(_sn_tbl)
+
     # Append Notes/Exclusions + Terms/CTA/Sig after all BOQ pages
     story.extend(_post_boq)
 

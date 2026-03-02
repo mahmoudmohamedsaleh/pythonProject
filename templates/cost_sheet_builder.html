@@ -336,6 +336,18 @@ select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
       oninput="saveScope()"></textarea>
   </div>
 
+  <!-- Notes for this system -->
+  <div style="margin-bottom:10px; background:#fff8f0; border:1px solid #ffd0a0; border-radius:6px; padding:8px 12px;">
+    <label style="font-size:.78rem; font-weight:700; color:#C35A00; margin-bottom:4px; display:block;">
+      <i class="fas fa-sticky-note mr-1"></i> System Notes <span style="font-weight:400; color:#6c757d;">(numbered notes shown in PDF after this system's BOQ)</span>
+    </label>
+    <div id="sysNotesContainer"></div>
+    <button type="button" onclick="addSysNote()"
+      style="margin-top:6px; font-size:.78rem; padding:3px 10px; border:1px solid #ffa040; border-radius:4px; background:#fff; color:#C35A00; cursor:pointer;">
+      <i class="fas fa-plus mr-1"></i> Add Note
+    </button>
+  </div>
+
   <!-- Set Margin Modal -->
   <div id="setMarginOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9990; align-items:center; justify-content:center;">
     <div style="background:#fff; border-radius:12px; padding:28px 32px; width:340px; box-shadow:0 8px 32px rgba(0,0,0,.22);">
@@ -615,6 +627,7 @@ function renderTable() {
   tbody.appendChild(buildTotalRow());
   const ta = document.getElementById('systemScopeInput');
   if (ta) ta.value = sheets[activeSheet].scope || '';
+  _renderSysNotes(sheets[activeSheet].notes || []);
 }
 
 function buildSectionRow(row, ri) {
@@ -914,6 +927,7 @@ function saveCurrentRows() {
     }
   });
   saveScope();
+  saveSysNotes();
 }
 
 function saveScope() {
@@ -921,6 +935,40 @@ function saveScope() {
   if (ta && sheets[activeSheet]) {
     sheets[activeSheet].scope = ta.value;
   }
+}
+
+// ── Per-system notes ─────────────────────────────────────────────────
+function _renderSysNotes(arr) {
+  const c = document.getElementById('sysNotesContainer');
+  if (!c) return;
+  c.innerHTML = '';
+  (arr || []).forEach((v, i) => c.appendChild(_buildSysNoteRow(i + 1, v)));
+}
+function _buildSysNoteRow(num, val) {
+  const d = document.createElement('div');
+  d.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:5px;';
+  d.innerHTML = `
+    <span style="min-width:22px;height:22px;border-radius:50%;background:#CC0000;color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${num}</span>
+    <input style="flex:1;border:1px solid #ffd0a0;border-radius:4px;padding:4px 7px;font-size:.81rem;" placeholder="Note text…" value="${(val||'').replace(/"/g,'&quot;')}" oninput="saveSysNotes()">
+    <button onclick="this.closest('div').remove();_renumSysNotes();saveSysNotes();"
+      style="border:none;background:none;color:#cc0000;cursor:pointer;font-size:.85rem;padding:0 3px;">
+      <i class="fas fa-times"></i></button>`;
+  return d;
+}
+function _renumSysNotes() {
+  document.querySelectorAll('#sysNotesContainer > div > span').forEach((s, i) => s.textContent = i + 1);
+}
+function addSysNote() {
+  const c = document.getElementById('sysNotesContainer');
+  if (!c) return;
+  const num = c.children.length + 1;
+  c.appendChild(_buildSysNoteRow(num, ''));
+}
+function saveSysNotes() {
+  const c = document.getElementById('sysNotesContainer');
+  if (!c || !sheets[activeSheet]) return;
+  sheets[activeSheet].notes = Array.from(c.querySelectorAll('input'))
+    .map(i => i.value.trim()).filter(v => v);
 }
 
 // ── Save to server ────────────────────────────────────────────────────
