@@ -28327,7 +28327,7 @@ def po_ai_email(po_number):
             pending_lines.append("  - " + str(pn) + " | " + str(desc) + " (Remaining: " + str(rem) + " units)")
         pending_text = chr(10).join(pending_lines) if pending_lines else '  All items fully delivered.'
 
-        sender_name  = getattr(current_user, 'username', 'Procurement Team')
+        sender_name  = session.get('username', 'Procurement Team')
         dist_contact = po['distributor_engineer'] or 'Sir/Madam'
         dist_company = po['distributor'] or 'your company'
         dist_email   = po['distributor_email'] or ''
