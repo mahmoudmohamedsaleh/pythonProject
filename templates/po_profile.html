@@ -616,10 +616,34 @@
                             {% endfor %}
                         </tbody>
                         <tfoot>
-                            {%- set ns = namespace(grand_total=0) %}
+                            {%- set ns = namespace(grand_total=0, delivered_total=0) %}
                             {%- for item in po_items %}
                                 {%- set ns.grand_total = ns.grand_total + (item.total_price or 0) %}
+                                {%- set ns.delivered_total = ns.delivered_total + ((item.quantity_delivered or 0) * (item.unit_price or 0)) %}
                             {%- endfor %}
+                            <!-- Delivered Total Row -->
+                            <tr style="background:linear-gradient(135deg,#0d2b1a 0%,#1a3d28 100%);">
+                                <td colspan="5" class="text-right pr-3" style="font-size:.85rem;font-weight:700;color:#6fcf97;letter-spacing:.05em;vertical-align:middle;">
+                                    <i class="fas fa-check-circle mr-1" style="color:#28a745;"></i>TOTAL DELIVERED VALUE
+                                </td>
+                                <td style="text-align:right;padding:10px 14px;vertical-align:middle;">
+                                    <span style="font-size:1.05rem;font-weight:800;color:#6fcf97;white-space:nowrap;letter-spacing:.02em;">
+                                        {{ "{:,.2f}".format(ns.delivered_total) }}
+                                    </span>
+                                    <span style="font-size:.75rem;font-weight:600;color:#4caf72;margin-left:4px;">SAR</span>
+                                </td>
+                                <td colspan="4" style="vertical-align:middle;padding:10px 14px;">
+                                    {%- set vat_pct = po.vat_percentage or 15 %}
+                                    {%- set del_vat = ns.delivered_total * vat_pct / 100 %}
+                                    <span style="font-size:.75rem;color:#6fcf97;">
+                                        VAT {{ vat_pct }}%&nbsp;
+                                        <span style="color:#ffc107;font-weight:700;">{{ "{:,.2f}".format(del_vat) }}</span>
+                                        &nbsp;|&nbsp;Delivered incl. VAT&nbsp;
+                                        <span style="color:#28a745;font-weight:700;">{{ "{:,.2f}".format(ns.delivered_total + del_vat) }} SAR</span>
+                                    </span>
+                                </td>
+                            </tr>
+                            <!-- Grand Total Row -->
                             <tr style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);">
                                 <td colspan="5" class="text-right pr-3" style="font-size:.9rem;font-weight:700;color:#a8b4d8;letter-spacing:.05em;vertical-align:middle;">
                                     <i class="fas fa-sigma mr-1" style="color:#667eea;"></i>GRAND TOTAL ({{ po_items|length }} items)
@@ -631,10 +655,10 @@
                                     <span style="font-size:.75rem;font-weight:600;color:#a8b4d8;margin-left:4px;">SAR</span>
                                 </td>
                                 <td colspan="4" style="vertical-align:middle;padding:12px 14px;">
-                                    {%- set vat_pct = po.vat_percentage or 15 %}
-                                    {%- set vat_val = ns.grand_total * vat_pct / 100 %}
+                                    {%- set vat_pct2 = po.vat_percentage or 15 %}
+                                    {%- set vat_val = ns.grand_total * vat_pct2 / 100 %}
                                     <span style="font-size:.75rem;color:#a8b4d8;">
-                                        VAT {{ vat_pct }}%&nbsp;
+                                        VAT {{ vat_pct2 }}%&nbsp;
                                         <span style="color:#ffc107;font-weight:700;">{{ "{:,.2f}".format(vat_val) }}</span>
                                         &nbsp;|&nbsp;Total incl. VAT&nbsp;
                                         <span style="color:#28a745;font-weight:700;">{{ "{:,.2f}".format(ns.grand_total + vat_val) }} SAR</span>
