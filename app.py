@@ -8304,6 +8304,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     story.append(sum_tbl)
     story.append(Spacer(1, 0.28*cm))
 
+    _fin = []  # collect all final-page elements
     # ── 6. TERMS & CONDITIONS ─────────────────────────────────────────────
     terms = cover.get('terms', {})
     if not terms:
@@ -8323,7 +8324,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
         ('LEFTPADDING',(0,0),(-1,-1),12),
     ]))
-    story.append(tc_hdr)
+    _fin.append(tc_hdr)
 
     TK_W = 3.8*cm
     t_rows = []
@@ -8342,8 +8343,8 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         ('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
         ('ROWBACKGROUNDS',(1,0),(-1,-1),[C_WHITE, C_GREY_ROW]),
     ]))
-    story.append(terms_tbl)
-    story.append(Spacer(1, 0.25*cm))
+    _fin.append(terms_tbl)
+    _fin.append(Spacer(1, 0.25*cm))
 
     # ── 6b. CALL TO ACTION (unified professional closing) ────────────────
     _cta_email = (cover.get('cta_email') or '').strip()
@@ -8362,8 +8363,8 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         ('BOTTOMPADDING', (0,0),(-1,-1), 5),
         ('LEFTPADDING',   (0,0),(-1,-1), 10),
     ]))
-    story.append(_cta_hdr)
-    story.append(Spacer(1, 0.12*cm))
+    _fin.append(_cta_hdr)
+    _fin.append(Spacer(1, 0.12*cm))
 
     # Paragraph 1 — contact details (only if email/phone exist)
     if _cta_email or _cta_phone:
@@ -8376,11 +8377,11 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
             _cta_contact_part = f'<font color="#CC0000"><u>{_cta_email}</u></font>'
         else:
             _cta_contact_part = f'<b>{_cta_phone}</b>'
-        story.append(_p(
+        _fin.append(_p(
             f'To proceed with this proposal or for any further discussion, please contact our '
             f'sales team at {_cta_contact_part}. We look forward to partnering with you.',
             _cta_ps))
-        story.append(Spacer(1, 0.10*cm))
+        _fin.append(Spacer(1, 0.10*cm))
 
     # Paragraphs 2-3 — use AI/custom body if provided, else defaults
     _cta_body = (cover.get('cta_body') or '').strip()
@@ -8396,22 +8397,22 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
 
     if _cta_body:
         for _cb_line in [ln.strip() for ln in _cta_body.split('\n') if ln.strip()]:
-            story.append(_cta_par(_cb_line))
-            story.append(Spacer(1, 0.08*cm))
+            _fin.append(_cta_par(_cb_line))
+            _fin.append(Spacer(1, 0.08*cm))
     else:
-        story.append(_cta_par(
+        _fin.append(_cta_par(
             'In the meantime, should you have any questions or need to discuss the commercials in '
             'greater detail, please do not hesitate to contact the undersigned.'))
-        story.append(Spacer(1, 0.10*cm))
-        story.append(_cta_par(
+        _fin.append(Spacer(1, 0.10*cm))
+        _fin.append(_cta_par(
             'We thank you for your support to EJ TECH and look forward to the pleasure of doing business.'))
-        story.append(Spacer(1, 0.10*cm))
+        _fin.append(Spacer(1, 0.10*cm))
 
     # Sign-off
-    story.append(_p('With best regards,',
+    _fin.append(_p('With best regards,',
         _ps('ctabr', fontName='Helvetica-Oblique', fontSize=9, textColor=C_DARK, leading=13,
             leftIndent=4)))
-    story.append(Spacer(1, 0.22*cm))
+    _fin.append(Spacer(1, 0.22*cm))
 
     # ── 7. CLOSING & SIGNATURES ───────────────────────────────────────────
     prep_name  = cover.get('prep_by_name', '')
@@ -8470,8 +8471,11 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),12),
     ]))
 
-    closing_block = KeepTogether([sig_outer])
-    story.append(closing_block)
+    _fin.append(sig_outer)
+
+    # Force all three sections onto one final page
+    story.append(PageBreak())
+    story.append(KeepTogether(_fin))
 
     # ── BOQ pages ────────────────────────────────────────────────────────
     # ── BOQ column visibility (from boq_opts) ─────────────────────────────
