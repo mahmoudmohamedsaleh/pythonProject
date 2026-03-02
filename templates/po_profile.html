@@ -410,15 +410,15 @@
                     <table class="table mb-0 items-table">
                         <thead>
                             <tr>
-                                <th class="ctr-col" style="width:40px">#</th>
-                                <th style="width:130px">Part Number</th>
+                                <th class="ctr-col" style="width:36px">#</th>
+                                <th style="width:115px">Part Number</th>
                                 <th>Description</th>
-                                <th class="num-col" style="width:70px">Qty</th>
-                                <th class="num-col" style="width:110px">Unit Price</th>
-                                <th class="num-col" style="width:120px">Total (SAR)</th>
-                                <th class="ctr-col" style="width:110px">Delivered</th>
-                                <th class="ctr-col" style="width:115px">Status</th>
-                                <th class="ctr-col" style="width:80px">Actions</th>
+                                <th class="num-col" style="width:60px">Qty</th>
+                                <th class="num-col" style="width:100px">Unit Price</th>
+                                <th class="num-col" style="width:115px">Total (SAR)</th>
+                                <th class="ctr-col" style="width:105px">Delivered</th>
+                                <th class="ctr-col" style="width:105px">Status</th>
+                                <th class="ctr-col" style="width:85px">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -467,7 +467,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="ctr-col" style="white-space:nowrap;">
-                                    <button class="btn btn-sm btn-warning action-btn" 
+                                    <button class="btn btn-sm btn-warning action-btn edit-item-btn" 
                                             data-item-id="{{ item.id }}"
                                             data-part-number="{{ item.part_number or '' }}"
                                             data-description="{{ item.description }}"
