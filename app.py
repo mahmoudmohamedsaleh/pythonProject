@@ -8550,11 +8550,12 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
             if _excl_tbl:
                 _ne_elements.append(_excl_tbl)
 
-        story.extend(_ne_elements)
+        _post_boq = list(_ne_elements)
+    else:
+        _post_boq = []
 
-    # Force all three sections onto one final page
-    story.append(PageBreak())
-    story.append(KeepTogether(_fin))
+    # Final pages (Notes+Exclusions then Terms/CTA/Sig) added AFTER BOQ loop
+    _post_boq.extend([PageBreak(), KeepTogether(_fin)])
 
     # ── BOQ pages ────────────────────────────────────────────────────────
     # ── BOQ column visibility (from boq_opts) ─────────────────────────────
@@ -8731,6 +8732,9 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
         boq_tbl = Table(tbl_data, colWidths=COL_W, repeatRows=repeat_rows)
         boq_tbl.setStyle(TableStyle(style_cmds))
         story.append(boq_tbl)
+
+    # Append Notes/Exclusions + Terms/CTA/Sig after all BOQ pages
+    story.extend(_post_boq)
 
     def on_page(canv, doc):
         canv.saveState()
