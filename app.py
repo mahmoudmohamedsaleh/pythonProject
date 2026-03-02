@@ -28391,7 +28391,21 @@ def po_ai_email(po_number):
     except Exception as _e:
         import traceback
         traceback.print_exc()
-        return jsonify({'ok': False, 'error': str(_e)}), 500
+        _msg = str(_e)
+        # Friendly messages for common OpenAI errors
+        if '429' in _msg or 'insufficient_quota' in _msg or 'exceeded your current quota' in _msg:
+            _friendly = ('OpenAI quota exceeded. The API key has run out of credits. '
+                         'Please top up your OpenAI account or update the OPENAI_API_KEY '
+                         'in your environment variables with an active key.')
+        elif '401' in _msg or 'Unauthorized' in _msg or 'invalid_api_key' in _msg:
+            _friendly = 'Invalid or missing OpenAI API key. Please check the OPENAI_API_KEY environment variable.'
+        elif '503' in _msg or '502' in _msg or 'ServiceUnavailable' in _msg:
+            _friendly = 'OpenAI service is temporarily unavailable. Please try again in a few moments.'
+        elif 'connect' in _msg.lower() or 'timeout' in _msg.lower():
+            _friendly = 'Could not connect to OpenAI. Please check your internet connection and try again.'
+        else:
+            _friendly = _msg
+        return jsonify({'ok': False, 'error': _friendly}), 500
 
 
 @app.route('/add_po_item/<po_number>', methods=['POST'])

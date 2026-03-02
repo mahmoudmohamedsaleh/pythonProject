@@ -1038,15 +1038,23 @@
                     document.getElementById('aiDistEmail').value = _distEmail;
                 }
             } else {
+                var errMsg = d.error || 'Unknown error';
+                document.getElementById('aiEmailEmpty').innerHTML =
+                    '<div class="alert alert-danger mb-0" style="border-radius:8px;">'
+                    + '<i class="fas fa-exclamation-triangle mr-2"></i>'
+                    + '<strong>Generation failed:</strong> ' + errMsg + '</div>';
                 document.getElementById('aiEmailEmpty').style.display = '';
-                alert('Error: ' + (d.error || 'Unknown error'));
             }
         })
         .catch(function(e){
             document.getElementById('aiEmailSpinner').style.display   = 'none';
             document.getElementById('aiEmailEmpty').style.display     = '';
             document.getElementById('btnGenerateEmail').disabled      = false;
-            alert('Failed: ' + e.message);
+            document.getElementById('aiEmailEmpty').innerHTML =
+                '<div class="alert alert-warning mb-0" style="border-radius:8px;">'
+                + '<i class="fas fa-wifi mr-2"></i>'
+                + '<strong>Request failed:</strong> ' + e.message + '</div>';
+            document.getElementById('aiEmailEmpty').style.display = '';
         });
     };
 
