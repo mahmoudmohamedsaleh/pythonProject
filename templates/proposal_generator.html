@@ -41,6 +41,9 @@
   /* Terms */
   .term-row { display: flex; gap: 8px; margin-bottom: 8px; }
   .term-row input { flex: 1; }
+  .note-row, .excl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .note-row .num-badge, .excl-row .num-badge { min-width: 26px; height: 26px; border-radius: 50%; background: #CC0000; color: #fff; font-size: .8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .note-row input, .excl-row input { flex: 1; }
 
   /* Generate button */
   .boq-col-toggle {
@@ -330,6 +333,30 @@
             </div>
           </div>
 
+          <!-- Notes -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-sticky-note mr-1"></i> Notes</div>
+            <div class="card-body py-3">
+              <p class="small text-muted mb-2">Numbered notes that will appear in the PDF before the last page.</p>
+              <div id="notesContainer"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addNote()">
+                <i class="fas fa-plus mr-1"></i> Add Note
+              </button>
+            </div>
+          </div>
+
+          <!-- Exclusions -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-ban mr-1"></i> Exclusions</div>
+            <div class="card-body py-3">
+              <p class="small text-muted mb-2">Numbered exclusions that will appear in the PDF alongside Notes.</p>
+              <div id="exclusionsContainer"></div>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addExclusion()">
+                <i class="fas fa-plus mr-1"></i> Add Exclusion
+              </button>
+            </div>
+          </div>
+
           <!-- Signatures -->
           <div class="card mb-3 shadow-sm">
             <div class="card-header-pg"><i class="fas fa-signature mr-1"></i> Signatures</div>
@@ -584,6 +611,38 @@ function addTerm() {
   document.getElementById('termsContainer').appendChild(div);
 }
 function removeTerm(btn) { btn.closest('.term-row').remove(); }
+
+// ── Notes & Exclusions ────────────────────────────────────────────────
+function _noteNum(container) {
+  return container.querySelectorAll('.note-row, .excl-row').length + 1;
+}
+function _buildNoteRow(num, val, containerClass, inputName, removeFn) {
+  const div = document.createElement('div');
+  div.className = containerClass;
+  div.innerHTML = `<span class="num-badge">${num}</span>
+    <input type="text" class="form-control form-control-sm" name="${inputName}" value="${escHtml(val)}" placeholder="Enter item…">
+    <button type="button" class="btn btn-sm btn-outline-danger" onclick="${removeFn}(this)"><i class="fas fa-times"></i></button>`;
+  return div;
+}
+function _renumberContainer(containerId, cls) {
+  document.querySelectorAll(`#${containerId} .${cls} .num-badge`).forEach((b, i) => b.textContent = i + 1);
+}
+function addNote() {
+  const c = document.getElementById('notesContainer');
+  c.appendChild(_buildNoteRow(_noteNum(c), '', 'note-row', 'note_item[]', 'removeNote'));
+}
+function removeNote(btn) { btn.closest('.note-row').remove(); _renumberContainer('notesContainer','note-row'); }
+function addExclusion() {
+  const c = document.getElementById('exclusionsContainer');
+  c.appendChild(_buildNoteRow(_noteNum(c), '', 'excl-row', 'exclusion_item[]', 'removeExclusion'));
+}
+function removeExclusion(btn) { btn.closest('.excl-row').remove(); _renumberContainer('exclusionsContainer','excl-row'); }
+function _initNotes(arr, containerId, cls, inputName, removeFn) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.innerHTML = '';
+  (arr || []).forEach((v, i) => c.appendChild(_buildNoteRow(i+1, v, cls, inputName, removeFn)));
+}
 
 // ── Systems table ─────────────────────────────────────────────────────
 let sysRows = {{ preset_systems | tojson | safe }};
@@ -854,6 +913,8 @@ async function saveDraft() {
     mgr_name:      document.querySelector('[name="mgr_name"]')?.value || '',
     mgr_title:     document.querySelector('[name="mgr_title"]')?.value || '',
     terms,
+    notes:      Array.from(document.querySelectorAll('#notesContainer input[name="note_item[]"]')).map(i => i.value).filter(v => v.trim()),
+    exclusions: Array.from(document.querySelectorAll('#exclusionsContainer input[name="exclusion_item[]"]')).map(i => i.value).filter(v => v.trim()),
   };
   const btn = document.getElementById('saveDraftBtn');
   const st  = document.getElementById('saveStatus');

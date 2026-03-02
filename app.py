@@ -7005,6 +7005,8 @@ def proposal_quick_pdf():
             'mgr_title':     saved_form.get('mgr_title', ''),
             'systems':       systems_list,
             'terms':         terms,
+            'notes':         saved_form.get('notes', []),
+            'exclusions':    saved_form.get('exclusions', []),
         }
 
         boq_sheets = _cost_sheet_json_to_boq(sheets) if sheets else []
@@ -7066,6 +7068,9 @@ def proposal_generate_pdf():
         # Terms
         for k, v in zip(_req.form.getlist('term_key[]'), _req.form.getlist('term_value[]')):
             if k.strip(): cover['terms'][k.strip()] = v.strip()
+        # Notes & Exclusions
+        cover['notes']      = [n.strip() for n in _req.form.getlist('note_item[]')      if n.strip()]
+        cover['exclusions'] = [e.strip() for e in _req.form.getlist('exclusion_item[]') if e.strip()]
 
         # ── Load BOQ from saved cost sheet in DB ──────────────────────
         boq_sheets = []
@@ -7214,6 +7219,8 @@ def proposal_quick_submit():
         'scope':         saved_form.get('scope', ''),
         'exec_summary':  saved_form.get('exec_summary', ''),
         'terms':         saved_form.get('terms', {}),
+        'notes':         saved_form.get('notes', []),
+        'exclusions':    saved_form.get('exclusions', []),
         'cta_email':     saved_form.get('cta_email', ''),
         'cta_phone':     saved_form.get('cta_phone', ''),
         'cta_body':      saved_form.get('cta_body', ''),
@@ -7410,6 +7417,8 @@ def proposal_generate_excel():
                                          'is_summary': (i < len(sys_sum) and sys_sum[i] == '1')})
         for k, v in zip(_req.form.getlist('term_key[]'), _req.form.getlist('term_value[]')):
             if k.strip(): cover['terms'][k.strip()] = v.strip()
+        cover['notes']      = [n.strip() for n in _req.form.getlist('note_item[]')      if n.strip()]
+        cover['exclusions'] = [e.strip() for e in _req.form.getlist('exclusion_item[]') if e.strip()]
 
         boq_sheets = []
         rfq_ref   = _req.form.get('rfq_ref', '').strip()
@@ -8472,6 +8481,76 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     ]))
 
     _fin.append(sig_outer)
+
+    # ── Notes & Exclusions page (before final Terms/CTA/Sig page) ────────
+    _notes_list      = [str(n) for n in (cover.get('notes')      or []) if str(n).strip()]
+    _excl_list       = [str(e) for e in (cover.get('exclusions') or []) if str(e).strip()]
+    if _notes_list or _excl_list:
+        _ne_elements = [PageBreak()]
+
+        def _ne_section_hdr(title, icon_char=''):
+            t = Table([[_p(title, _pw('neh', fontName='Helvetica-Bold', fontSize=10, textColor=C_WHITE))]],
+                      colWidths=[BW_eff])
+            t.setStyle(TableStyle([
+                ('BACKGROUND',(0,0),(-1,-1), C_NAVY),
+                ('LINEBELOW', (0,0),(-1,-1), 3, C_PURPLE),
+                ('TOPPADDING',(0,0),(-1,-1), 7),
+                ('BOTTOMPADDING',(0,0),(-1,-1), 7),
+                ('LEFTPADDING',(0,0),(-1,-1), 12),
+            ]))
+            return t
+
+        def _ne_numbered_table(items):
+            if not items:
+                return None
+            rows = []
+            for idx, txt in enumerate(items, 1):
+                num_cell = _p(str(idx), _ps(f'ni{idx}', fontName='Helvetica-Bold',
+                               fontSize=9, textColor=C_WHITE, alignment=TA_CENTER))
+                num_bg = Table([[num_cell]], colWidths=[0.75*cm])
+                num_bg.setStyle(TableStyle([
+                    ('BACKGROUND',(0,0),(-1,-1), C_PURPLE),
+                    ('TOPPADDING',(0,0),(-1,-1), 4),
+                    ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+                    ('LEFTPADDING',(0,0),(-1,-1), 2),
+                    ('RIGHTPADDING',(0,0),(-1,-1), 2),
+                    ('ROUNDEDCORNERS',[3]),
+                ]))
+                txt_cell = _p_ar(txt, _ps(f'nt{idx}', fontSize=9, textColor=C_DARK, leading=13))
+                row_bg = C_WHITE if idx % 2 == 1 else C_GREY_ROW
+                rows.append([num_bg, txt_cell])
+
+            tbl = Table(rows, colWidths=[0.9*cm, BW_eff - 0.9*cm])
+            cmds = [
+                ('BOX',  (0,0),(-1,-1), 0.5, C_PURPLE3),
+                ('INNERGRID',(0,0),(-1,-1), 0.25, colors.HexColor('#E5E5E5')),
+                ('VALIGN',(0,0),(-1,-1), 'TOP'),
+                ('TOPPADDING',(0,0),(-1,-1), 5),
+                ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+                ('LEFTPADDING',(0,0),(-1,-1), 4),
+                ('RIGHTPADDING',(0,0),(-1,-1), 8),
+            ]
+            for idx in range(len(rows)):
+                bg = C_WHITE if idx % 2 == 0 else C_GREY_ROW
+                cmds.append(('BACKGROUND',(1,idx),(1,idx), bg))
+                cmds.append(('BACKGROUND',(0,idx),(0,idx), C_PURPLE))
+            tbl.setStyle(TableStyle(cmds))
+            return tbl
+
+        if _notes_list:
+            _ne_elements.append(_ne_section_hdr('NOTES'))
+            _notes_tbl = _ne_numbered_table(_notes_list)
+            if _notes_tbl:
+                _ne_elements.append(_notes_tbl)
+            _ne_elements.append(Spacer(1, 0.3*cm))
+
+        if _excl_list:
+            _ne_elements.append(_ne_section_hdr('EXCLUSIONS'))
+            _excl_tbl = _ne_numbered_table(_excl_list)
+            if _excl_tbl:
+                _ne_elements.append(_excl_tbl)
+
+        story.extend(_ne_elements)
 
     # Force all three sections onto one final page
     story.append(PageBreak())
