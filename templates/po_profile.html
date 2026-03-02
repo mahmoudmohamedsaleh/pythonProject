@@ -55,33 +55,128 @@
         font-weight: 700;
         color: #212529;
     }
+    /* ── PO Items Table ─────────────────────────── */
+    .items-table {
+        font-size: .85rem;
+        border-collapse: separate;
+        border-spacing: 0;
+        width: 100%;
+    }
     .items-table thead th {
-        background-color: #667eea;
-        color: white;
+        background: linear-gradient(135deg, #4a5fc1 0%, #667eea 100%);
+        color: #fff;
         border: none;
         font-weight: 600;
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        padding: 10px 12px;
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+    .items-table thead th.num-col { text-align: right; }
+    .items-table thead th.ctr-col { text-align: center; }
+    .items-table tbody tr {
+        transition: background-color 0.15s;
+        border-bottom: 1px solid #eef0f4;
+    }
+    .items-table tbody tr:nth-child(even) { background: #fafbff; }
+    .items-table tbody tr:hover { background: #eef0fb !important; }
+    .items-table tbody td {
+        padding: 9px 12px;
+        vertical-align: middle;
+        border: none;
+    }
+    /* Part number pill */
+    .pn-badge {
+        display: inline-block;
+        font-family: 'Courier New', monospace;
+        font-size: .78rem;
+        font-weight: 700;
+        color: #4a5fc1;
+        background: #eef0fb;
+        border: 1px solid #c9cff5;
+        border-radius: 4px;
+        padding: 2px 7px;
         white-space: nowrap;
     }
-    .items-table tbody tr {
-        transition: background-color 0.2s;
+    /* Description cell: clamp to 2 lines */
+    .desc-cell {
+        max-width: 280px;
     }
-    .items-table tbody tr:hover {
-        background-color: #f8f9fa;
+    .desc-text {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.4;
+        color: #495057;
+        cursor: default;
     }
+    /* Numeric columns */
+    .num-col { text-align: right; }
+    .ctr-col { text-align: center; }
+    /* Total column highlight */
+    .total-cell {
+        font-weight: 700;
+        color: #1a3c6e;
+        background: #f0f4ff;
+        border-radius: 4px;
+        padding: 3px 8px;
+        white-space: nowrap;
+    }
+    /* Delivery progress */
+    .delivery-wrap { min-width: 90px; }
+    .delivery-ratio {
+        font-size: .78rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 3px;
+    }
+    .delivery-bar-bg {
+        height: 5px;
+        background: #dee2e6;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .delivery-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+    }
+    /* Status badges */
     .delivery-status-delivered {
-        background-color: #28a745;
-        color: white;
+        background: linear-gradient(135deg,#1e7e34,#28a745);
+        color: #fff;
+        font-size: .73rem;
+        padding: 3px 9px;
+        border-radius: 20px;
+        white-space: nowrap;
     }
     .delivery-status-partial {
-        background-color: #ffc107;
+        background: linear-gradient(135deg,#d39e00,#ffc107);
         color: #212529;
+        font-size: .73rem;
+        padding: 3px 9px;
+        border-radius: 20px;
+        white-space: nowrap;
     }
     .delivery-status-not-delivered {
-        background-color: #dc3545;
-        color: white;
+        background: linear-gradient(135deg,#b21f2d,#dc3545);
+        color: #fff;
+        font-size: .73rem;
+        padding: 3px 9px;
+        border-radius: 20px;
+        white-space: nowrap;
     }
-    .action-btn {
-        margin: 2px;
+    .action-btn { margin: 1px; padding: 3px 7px; }
+    /* Row number */
+    .row-num {
+        color: #adb5bd;
+        font-weight: 600;
+        font-size: .8rem;
     }
     .timeline-item {
         border-left: 3px solid #667eea;
@@ -312,40 +407,66 @@
             <div class="card-body p-0">
                 {% if po_items %}
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0 items-table">
+                    <table class="table mb-0 items-table">
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Part Number</th>
+                                <th class="ctr-col" style="width:40px">#</th>
+                                <th style="width:130px">Part Number</th>
                                 <th>Description</th>
-                                <th>Qty</th>
-                                <th>Unit Price</th>
-                                <th>Total</th>
-                                <th>Delivered</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th class="num-col" style="width:70px">Qty</th>
+                                <th class="num-col" style="width:110px">Unit Price</th>
+                                <th class="num-col" style="width:120px">Total (SAR)</th>
+                                <th class="ctr-col" style="width:110px">Delivered</th>
+                                <th class="ctr-col" style="width:115px">Status</th>
+                                <th class="ctr-col" style="width:80px">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in po_items %}
+                            {%- set qty     = item.quantity or 0 %}
+                            {%- set deliv   = item.quantity_delivered or 0 %}
+                            {%- set pct     = ((deliv / qty * 100) | round(0) | int) if qty > 0 else 0 %}
+                            {%- set bar_color = '#28a745' if item.delivery_status == 'Delivered' else ('#ffc107' if item.delivery_status == 'Partial' else '#dc3545') %}
                             <tr>
-                                <td>{{ item.item_number }}</td>
-                                <td><strong>{{ item.part_number or 'N/A' }}</strong></td>
-                                <td>{{ item.description }}</td>
-                                <td>{{ item.quantity }}</td>
-                                <td>{{ "{:,.2f}".format(item.unit_price or 0) }}</td>
-                                <td><strong>{{ "{:,.2f}".format(item.total_price or 0) }}</strong></td>
-                                <td>{{ item.quantity_delivered or 0 }}</td>
+                                <td class="ctr-col row-num">{{ loop.index }}</td>
                                 <td>
-                                    {% if item.delivery_status == 'Delivered' %}
-                                        <span class="badge delivery-status-delivered">{{ item.delivery_status }}</span>
-                                    {% elif item.delivery_status == 'Partial' %}
-                                        <span class="badge delivery-status-partial">{{ item.delivery_status }}</span>
+                                    {% if item.part_number and item.part_number != 'N/A' %}
+                                    <span class="pn-badge">{{ item.part_number }}</span>
                                     {% else %}
-                                        <span class="badge delivery-status-not-delivered">{{ item.delivery_status }}</span>
+                                    <span class="text-muted" style="font-size:.78rem;">—</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="desc-cell">
+                                    <span class="desc-text" title="{{ item.description }}">{{ item.description }}</span>
+                                </td>
+                                <td class="num-col" style="font-weight:600;">
+                                    {% if qty == qty | int %}{{ qty | int }}{% else %}{{ "{:,.2f}".format(qty) }}{% endif %}
+                                </td>
+                                <td class="num-col" style="color:#495057;">{{ "{:,.2f}".format(item.unit_price or 0) }}</td>
+                                <td class="num-col">
+                                    <span class="total-cell">{{ "{:,.2f}".format(item.total_price or 0) }}</span>
+                                </td>
+                                <td class="ctr-col">
+                                    <div class="delivery-wrap mx-auto" style="max-width:100px;">
+                                        <div class="delivery-ratio text-center">
+                                            {% if deliv == deliv | int %}{{ deliv | int }}{% else %}{{ deliv }}{% endif %}
+                                            / {% if qty == qty | int %}{{ qty | int }}{% else %}{{ qty }}{% endif %}
+                                        </div>
+                                        <div class="delivery-bar-bg">
+                                            <div class="delivery-bar-fill" style="width:{{ pct }}%; background:{{ bar_color }};"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="ctr-col">
+                                    {% if item.delivery_status == 'Delivered' %}
+                                        <span class="badge delivery-status-delivered"><i class="fas fa-check-circle mr-1"></i>Delivered</span>
+                                    {% elif item.delivery_status == 'Partial' %}
+                                        <span class="badge delivery-status-partial"><i class="fas fa-adjust mr-1"></i>Partial</span>
+                                    {% else %}
+                                        <span class="badge delivery-status-not-delivered"><i class="fas fa-clock mr-1"></i>Pending</span>
+                                    {% endif %}
+                                </td>
+                                <td class="ctr-col" style="white-space:nowrap;">
                                     <button class="btn btn-sm btn-warning action-btn" 
                                             data-item-id="{{ item.id }}"
                                             data-part-number="{{ item.part_number or '' }}"
@@ -355,11 +476,11 @@
                                             data-quantity-delivered="{{ item.quantity_delivered or 0 }}"
                                             data-delivery-status="{{ item.delivery_status }}"
                                             data-notes="{{ item.notes or '' }}"
-                                            title="Edit">
+                                            title="Edit item">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <form method="POST" action="{{ url_for('delete_po_item', item_id=item.id) }}" style="display: inline;" onsubmit="return confirm('Delete this item?');">
-                                        <button type="submit" class="btn btn-sm btn-danger action-btn" title="Delete">
+                                    <form method="POST" action="{{ url_for('delete_po_item', item_id=item.id) }}" style="display:inline;" onsubmit="return confirm('Delete this item?');">
+                                        <button type="submit" class="btn btn-sm btn-danger action-btn" title="Delete item">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
