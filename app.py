@@ -28622,53 +28622,76 @@ def import_po_items_excel(po_request_number):
         items_updated = 0
         errors = []
         price_changes = []  # Track price changes during import
-        
+
+        # ── Pre-merge duplicate part numbers: sum quantities ────────────────
+        # Key: (lower part_number or lower description) → merged row dict
+        merged_rows = {}   # ordered dict of merged items
+        raw_parse_errors = []
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+            if not row or all(cell is None or str(cell).strip() == '' for cell in row):
+                continue
+            part_number = str(row[0]).strip() if row[0] else ''
+            description = str(row[1]).strip() if row[1] else ''
+            if not description:
+                raw_parse_errors.append(f"Row {row_idx}: Description is required")
+                continue
             try:
-                if not row or all(cell is None or str(cell).strip() == '' for cell in row):
+                quantity = float(row[2]) if row[2] else 0
+                if quantity <= 0:
+                    raw_parse_errors.append(f"Row {row_idx}: Quantity must be greater than zero")
                     continue
-                
-                part_number = str(row[0]).strip() if row[0] else ''
-                description = str(row[1]).strip() if row[1] else ''
-                
-                if not description:
-                    errors.append(f"Row {row_idx}: Description is required")
+            except (ValueError, TypeError):
+                raw_parse_errors.append(f"Row {row_idx}: Invalid quantity value")
+                continue
+            try:
+                unit_price = float(row[3]) if row[3] else 0
+                if unit_price < 0:
+                    raw_parse_errors.append(f"Row {row_idx}: Unit price cannot be negative")
                     continue
-                
-                try:
-                    quantity = float(row[2]) if row[2] else 0
-                    if quantity <= 0:
-                        errors.append(f"Row {row_idx}: Quantity must be greater than zero")
-                        continue
-                except (ValueError, TypeError):
-                    errors.append(f"Row {row_idx}: Invalid quantity value")
-                    continue
-                
-                try:
-                    unit_price = float(row[3]) if row[3] else 0
-                    if unit_price < 0:
-                        errors.append(f"Row {row_idx}: Unit price cannot be negative")
-                        continue
-                except (ValueError, TypeError):
-                    errors.append(f"Row {row_idx}: Invalid unit price value")
-                    continue
-                
-                # Always calculate total as Qty * Unit Price (ignore Excel value)
+            except (ValueError, TypeError):
+                raw_parse_errors.append(f"Row {row_idx}: Invalid unit price value")
+                continue
+            quantity_delivered = 0
+            quantity_delivered_provided = False
+            try:
+                if len(row) > 5 and row[5] is not None and str(row[5]).strip() != '':
+                    quantity_delivered = float(row[5])
+                    if quantity_delivered < 0:
+                        quantity_delivered = 0
+                    else:
+                        quantity_delivered_provided = True
+            except (ValueError, TypeError, IndexError):
+                pass
+            # Merge key: prefer part_number, fall back to lower description
+            merge_key = part_number.lower() if part_number else description.lower()
+            if merge_key in merged_rows:
+                # Sum quantities; keep first-seen part_number, description, unit_price
+                merged_rows[merge_key]['quantity'] += quantity
+                merged_rows[merge_key]['quantity_delivered'] += quantity_delivered
+                if quantity_delivered_provided:
+                    merged_rows[merge_key]['quantity_delivered_provided'] = True
+            else:
+                merged_rows[merge_key] = {
+                    'part_number': part_number,
+                    'description': description,
+                    'quantity': quantity,
+                    'unit_price': unit_price,
+                    'quantity_delivered': quantity_delivered,
+                    'quantity_delivered_provided': quantity_delivered_provided,
+                }
+        errors.extend(raw_parse_errors)
+        # ── Now process the merged rows ──────────────────────────────────────
+        for merge_key, merged in merged_rows.items():
+            try:
+                part_number  = merged['part_number']
+                description  = merged['description']
+                quantity     = merged['quantity']
+                unit_price   = merged['unit_price']
+                quantity_delivered          = merged['quantity_delivered']
+                quantity_delivered_provided = merged['quantity_delivered_provided']
+                # Always calculate total as Qty * Unit Price (ignore Excel column)
                 total_price = quantity * unit_price
-                
-                quantity_delivered_provided = False
-                quantity_delivered = 0
-                
-                try:
-                    if len(row) > 5 and row[5] is not None and str(row[5]).strip() != '':
-                        quantity_delivered = float(row[5])
-                        if quantity_delivered < 0:
-                            quantity_delivered = 0
-                        else:
-                            quantity_delivered_provided = True
-                except (ValueError, TypeError, IndexError):
-                    pass
-                
+
                 existing_item = None
                 
                 if part_number:
