@@ -8736,46 +8736,54 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     # Append Notes/Exclusions + Terms/CTA/Sig after all BOQ pages
     story.extend(_post_boq)
 
-    # ── NumberedCanvas: allows "Page X / Y" total-page footer ─────────────
+    # ── NumberedCanvas: adds "Page X / Y" after all pages are known ────────
     from reportlab.pdfgen import canvas as _rl_canvas
 
     class _NumberedCanvas(_rl_canvas.Canvas):
+        """Defers page number drawing so total page count is available."""
         def __init__(self, *args, **kwargs):
             _rl_canvas.Canvas.__init__(self, *args, **kwargs)
             self._saved_page_states = []
 
         def showPage(self):
+            # Snapshot current canvas state (includes drawn content) then start fresh
             self._saved_page_states.append(dict(self.__dict__))
             self._startPage()
 
         def save(self):
             total = len(self._saved_page_states)
             for i, state in enumerate(self._saved_page_states, 1):
-                self.__dict__.update(state)
-                # Background
-                self.setFillColor(colors.HexColor('#FAFAFA'))
-                self.rect(0, 0, W, H, fill=1, stroke=0)
-                # Left accent stripe
-                self.setFillColor(C_NAVY)
-                self.rect(0, 0, 0.28*cm, H, fill=1, stroke=0)
-                # Top border
-                self.setFillColor(colors.HexColor('#888888'))
-                self.rect(0, H - 0.22*cm, W, 0.22*cm, fill=1, stroke=0)
-                # Footer bar
-                self.setFillColor(C_NAVY)
-                self.rect(0, 0, W, 1.4*cm, fill=1, stroke=0)
-                # Footer left — company info
-                self.setFont('Helvetica', 7.5)
-                self.setFillColor(colors.HexColor('#CCCCCC'))
-                self.drawString(MARGINS, 0.55*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
-                # Footer right — Page X / Y (single unified style)
-                self.setFillColor(C_PURPLE)
+                self.__dict__.update(state)          # restore page content
+                # Add ONLY the page number — decorations drawn by on_page already
                 self.setFont('Helvetica-Bold', 8)
+                self.setFillColor(C_PURPLE)
                 self.drawRightString(W - MARGINS, 0.55*cm, f"Page {i} / {total}")
-                _rl_canvas.Canvas.showPage(self)
-            _rl_canvas.Canvas.save(self)
+                _rl_canvas.Canvas.showPage(self)     # finalise this page
+            _rl_canvas.Canvas.save(self)             # write PDF to buffer
 
-    doc.build(story, canvasmaker=_NumberedCanvas)
+    def on_page(canv, doc):
+        canv.saveState()
+        # Page background
+        canv.setFillColor(colors.HexColor('#FAFAFA'))
+        canv.rect(0, 0, W, H, fill=1, stroke=0)
+        # Left accent stripe (3 mm)
+        canv.setFillColor(C_NAVY)
+        canv.rect(0, 0, 0.28*cm, H, fill=1, stroke=0)
+        # Top border
+        canv.setFillColor(colors.HexColor('#888888'))
+        canv.rect(0, H - 0.22*cm, W, 0.22*cm, fill=1, stroke=0)
+        # Footer bar
+        canv.setFillColor(C_NAVY)
+        canv.rect(0, 0, W, 1.4*cm, fill=1, stroke=0)
+        # Footer left — company / ref info
+        canv.setFont('Helvetica', 7.5)
+        canv.setFillColor(colors.HexColor('#CCCCCC'))
+        canv.drawString(MARGINS, 0.55*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
+        # (page number drawn by _NumberedCanvas.save — not here)
+        canv.restoreState()
+
+    doc.build(story, onFirstPage=on_page, onLaterPages=on_page,
+              canvasmaker=_NumberedCanvas)
     buf.seek(0)
     return buf
 
