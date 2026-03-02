@@ -338,6 +338,8 @@
             <div class="card-header-pg"><i class="fas fa-sticky-note mr-1"></i> Notes</div>
             <div class="card-body py-3">
               <p class="small text-muted mb-2">Numbered notes that will appear in the PDF before the last page.</p>
+              <!-- Server-rendered saved notes/exclusions (read by JS on init) -->
+              <textarea id="savedNotesData" style="display:none;">{{ (saved_form.notes or []) | tojson | safe }}</textarea>
               <div id="notesContainer"></div>
               <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addNote()">
                 <i class="fas fa-plus mr-1"></i> Add Note
@@ -350,6 +352,7 @@
             <div class="card-header-pg"><i class="fas fa-ban mr-1"></i> Exclusions</div>
             <div class="card-body py-3">
               <p class="small text-muted mb-2">Numbered exclusions that will appear in the PDF alongside Notes.</p>
+              <textarea id="savedExclusionsData" style="display:none;">{{ (saved_form.exclusions or []) | tojson | safe }}</textarea>
               <div id="exclusionsContainer"></div>
               <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="addExclusion()">
                 <i class="fas fa-plus mr-1"></i> Add Exclusion
@@ -948,8 +951,16 @@ async function saveDraft() {
 
 // ── Init with a blank systems table ───────────────────────────────────
 initTerms();
-_initNotes(_SAVED_FORM?.notes       || [], 'notesContainer',      'note-row',  'note_item[]',      'removeNote');
-_initNotes(_SAVED_FORM?.exclusions  || [], 'exclusionsContainer', 'excl-row',  'exclusion_item[]', 'removeExclusion');
+// Read saved notes/exclusions from server-rendered hidden fields (most reliable)
+try {
+  const _sn = JSON.parse(document.getElementById('savedNotesData')?.textContent || '[]');
+  const _se = JSON.parse(document.getElementById('savedExclusionsData')?.textContent || '[]');
+  _initNotes(_sn, 'notesContainer',      'note-row',  'note_item[]',      'removeNote');
+  _initNotes(_se, 'exclusionsContainer', 'excl-row',  'exclusion_item[]', 'removeExclusion');
+} catch(_nie) {
+  _initNotes(_SAVED_FORM?.notes      || [], 'notesContainer',      'note-row',  'note_item[]',      'removeNote');
+  _initNotes(_SAVED_FORM?.exclusions || [], 'exclusionsContainer', 'excl-row',  'exclusion_item[]', 'removeExclusion');
+}
 rebuildScope();
 
 // ── Auto-save: fire-and-forget save on page exit ───────────────────────
