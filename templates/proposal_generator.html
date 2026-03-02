@@ -948,6 +948,8 @@ async function saveDraft() {
 
 // ── Init with a blank systems table ───────────────────────────────────
 initTerms();
+_initNotes(_SAVED_FORM?.notes       || [], 'notesContainer',      'note-row',  'note_item[]',      'removeNote');
+_initNotes(_SAVED_FORM?.exclusions  || [], 'exclusionsContainer', 'excl-row',  'exclusion_item[]', 'removeExclusion');
 rebuildScope();
 recalcSummaryRows();
 renderSysTable();
