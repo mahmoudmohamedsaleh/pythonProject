@@ -325,6 +325,47 @@
     </div>
 </div>
 
+<!-- ── QTY Stats Strip ──────────────────────────────────────────── -->
+<div class="row mb-3">
+    <div class="col-12">
+        {%- set qns = namespace(total_qty=0, delivered_qty=0) %}
+        {%- for item in po_items %}
+            {%- set qns.total_qty     = qns.total_qty     + (item.quantity or 0) %}
+            {%- set qns.delivered_qty = qns.delivered_qty + (item.quantity_delivered or 0) %}
+        {%- endfor %}
+        {%- set remaining_qty = qns.total_qty - qns.delivered_qty %}
+        <div class="po-stats-strip">
+            <div class="po-stat-pill" style="border-top-color:#6c5ce7;">
+                <div class="psp-label">Total QTY</div>
+                <div class="psp-value" style="color:#6c5ce7;">{{ "{:,}".format(qns.total_qty) }}</div>
+                <div class="psp-sub">units ordered</div>
+            </div>
+            <div class="po-stat-pill" style="border-top-color:#00b894;">
+                <div class="psp-label">Delivered QTY</div>
+                <div class="psp-value" style="color:#00b894;">{{ "{:,}".format(qns.delivered_qty) }}</div>
+                <div class="psp-sub">units received</div>
+            </div>
+            <div class="po-stat-pill" style="border-top-color:#e17055;">
+                <div class="psp-label">Remaining QTY</div>
+                <div class="psp-value" style="color:#e17055;">{{ "{:,}".format(remaining_qty) }}</div>
+                <div class="psp-sub">units pending</div>
+            </div>
+            <div class="po-stat-pill" style="border-top-color:#00cec9; flex:2; min-width:200px;">
+                <div class="psp-label">QTY Progress</div>
+                {% if qns.total_qty > 0 %}
+                {%- set qpct = (qns.delivered_qty / qns.total_qty * 100)|round(1) %}
+                <div class="psp-value" style="color:#00cec9;">{{ qpct }}%</div>
+                <div class="progress mt-2" style="height:8px;border-radius:4px;">
+                    <div class="progress-bar" style="width:{{ qpct }}%;background:linear-gradient(90deg,#00cec9,#81ecec);"></div>
+                </div>
+                {% else %}
+                <div class="psp-value" style="color:#adb5bd;">—</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── PO Details + Contact ──────────────────────────────────────── -->
 <div class="row mb-3">
     <div class="col-md-8">
