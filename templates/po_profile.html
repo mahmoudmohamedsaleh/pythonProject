@@ -245,6 +245,7 @@
 
 <div class="row">
     <!-- Left Column -->
+<div class="row">
     <div class="col-md-8">
         <!-- PO Details Card -->
         <div class="card info-card">
@@ -392,7 +393,64 @@
             </div>
         </div>
 
-        <!-- PO Items Card -->
+    <!-- Right Column -->
+    <div class="col-md-4">
+        <!-- Quick Stats -->
+        <div class="card info-card">
+            <div class="card-header">
+                <i class="fas fa-chart-bar mr-2"></i>Delivery Summary
+            </div>
+            <div class="card-body">
+                <div class="stat-box">
+                    <div class="stat-label">Total Items</div>
+                    <div class="stat-value">{{ po_items|length }}</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #28a745;">
+                    <div class="stat-label">Delivered</div>
+                    <div class="stat-value">{{ delivered_count }}</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #ffc107;">
+                    <div class="stat-label">Partial</div>
+                    <div class="stat-value">{{ partial_count }}</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #dc3545;">
+                    <div class="stat-label">Not Delivered</div>
+                    <div class="stat-value">{{ not_delivered_count }}</div>
+                </div>
+                {% if po_items|length > 0 %}
+                <div class="progress mt-3" style="height: 25px;">
+                    <div class="progress-bar bg-success" style="width: {{ (delivered_count / po_items|length * 100)|round(1) }}%">
+                        {{ (delivered_count / po_items|length * 100)|round(1) }}%
+                    </div>
+                </div>
+                <p class="text-center mt-2 mb-0 text-muted small">Delivery Progress</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="card info-card">
+            <div class="card-header">
+                <i class="fas fa-address-book mr-2"></i>Distributor Contact
+            </div>
+            <div class="card-body">
+                {% if po.distributor_engineer %}
+                <p><strong>Contact Person:</strong><br>{{ po.distributor_engineer }}</p>
+                {% endif %}
+                {% if po.distributor_contact %}
+                <p><strong>Phone:</strong><br>{{ po.distributor_contact }}</p>
+                {% endif %}
+                {% if po.distributor_email %}
+                <p><strong>Email:</strong><br><a href="mailto:{{ po.distributor_email }}">{{ po.distributor_email }}</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+<!-- PO Items Card -->
         <div class="card info-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-boxes mr-2"></i>Purchase Order Items</span>
@@ -518,8 +576,12 @@
                 {% endif %}
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Delivery Notes History -->
+<div class="row">
+    <div class="col-12">
+<!-- Delivery Notes History -->
         <div class="card info-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-truck mr-2"></i>Delivery Notes History</span>
@@ -709,61 +771,10 @@
             </div>
         </div>
     </div>
-
-    <!-- Right Column -->
-    <div class="col-md-4">
-        <!-- Quick Stats -->
-        <div class="card info-card">
-            <div class="card-header">
-                <i class="fas fa-chart-bar mr-2"></i>Delivery Summary
-            </div>
-            <div class="card-body">
-                <div class="stat-box">
-                    <div class="stat-label">Total Items</div>
-                    <div class="stat-value">{{ po_items|length }}</div>
-                </div>
-                <div class="stat-box" style="border-left-color: #28a745;">
-                    <div class="stat-label">Delivered</div>
-                    <div class="stat-value">{{ delivered_count }}</div>
-                </div>
-                <div class="stat-box" style="border-left-color: #ffc107;">
-                    <div class="stat-label">Partial</div>
-                    <div class="stat-value">{{ partial_count }}</div>
-                </div>
-                <div class="stat-box" style="border-left-color: #dc3545;">
-                    <div class="stat-label">Not Delivered</div>
-                    <div class="stat-value">{{ not_delivered_count }}</div>
-                </div>
-                {% if po_items|length > 0 %}
-                <div class="progress mt-3" style="height: 25px;">
-                    <div class="progress-bar bg-success" style="width: {{ (delivered_count / po_items|length * 100)|round(1) }}%">
-                        {{ (delivered_count / po_items|length * 100)|round(1) }}%
-                    </div>
-                </div>
-                <p class="text-center mt-2 mb-0 text-muted small">Delivery Progress</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Contact Information -->
-        <div class="card info-card">
-            <div class="card-header">
-                <i class="fas fa-address-book mr-2"></i>Distributor Contact
-            </div>
-            <div class="card-body">
-                {% if po.distributor_engineer %}
-                <p><strong>Contact Person:</strong><br>{{ po.distributor_engineer }}</p>
-                {% endif %}
-                {% if po.distributor_contact %}
-                <p><strong>Phone:</strong><br>{{ po.distributor_contact }}</p>
-                {% endif %}
-                {% if po.distributor_email %}
-                <p><strong>Email:</strong><br><a href="mailto:{{ po.distributor_email }}">{{ po.distributor_email }}</a></p>
-                {% endif %}
-            </div>
-        </div>
     </div>
 </div>
+
+
 
 <!-- Edit Item Modal -->
 <div class="modal fade" id="editItemModal" tabindex="-1" role="dialog">
