@@ -1020,9 +1020,10 @@
         .then(function(r){
             var ct = r.headers.get('content-type') || '';
             if (!ct.includes('application/json')) {
-                return r.text().then(function(txt){
-                    throw new Error('Server error (non-JSON response). Status: ' + r.status);
-                });
+                if (r.status === 401 || r.url.indexOf('/login') !== -1) {
+                    throw new Error('Session expired. Please refresh the page and log in again.');
+                }
+                throw new Error('Unexpected server response (status ' + r.status + '). Please try again.');
             }
             return r.json();
         })

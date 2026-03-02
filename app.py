@@ -28281,7 +28281,6 @@ def po_profile(po_request_number):
 
 
 @app.route('/api/po_ai_email/<po_number>', methods=['POST'])
-@login_required
 def po_ai_email(po_number):
     """Generate AI follow-up email to distributor about delivery status"""
     import os as _os
@@ -28289,6 +28288,10 @@ def po_ai_email(po_number):
         import openai as _openai
     except ImportError:
         return jsonify({'ok': False, 'error': 'OpenAI library not available'}), 500
+
+    # Manual auth check — returns JSON instead of redirecting to HTML login page
+    if 'user_id' not in session:
+        return jsonify({'ok': False, 'error': 'Session expired. Please refresh the page and log in again.'}), 401
 
     try:
         data = request.get_json(silent=True) or {}
