@@ -8736,29 +8736,46 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     # Append Notes/Exclusions + Terms/CTA/Sig after all BOQ pages
     story.extend(_post_boq)
 
-    def on_page(canv, doc):
-        canv.saveState()
-        # Page background
-        canv.setFillColor(colors.HexColor('#FAFAFA'))
-        canv.rect(0, 0, W, H, fill=1, stroke=0)
-        # Left navy accent stripe (3mm)
-        canv.setFillColor(C_NAVY)
-        canv.rect(0, 0, 0.28*cm, H, fill=1, stroke=0)
-        # Gold top border
-        canv.setFillColor(colors.HexColor('#888888'))
-        canv.rect(0, H - 0.22*cm, W, 0.22*cm, fill=1, stroke=0)
-        # Footer bar
-        canv.setFillColor(C_NAVY)
-        canv.rect(0, 0, W, 1.4*cm, fill=1, stroke=0)
-        canv.setFont('Helvetica', 7.5)
-        canv.setFillColor(colors.HexColor('#CCCCCC'))
-        canv.drawString(MARGINS, 0.55*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
-        canv.setFillColor(C_PURPLE)
-        canv.setFont('Helvetica-Bold', 7.5)
-        canv.drawRightString(W - MARGINS, 0.55*cm, f"Page {doc.page}")
-        canv.restoreState()
+    # ── NumberedCanvas: allows "Page X / Y" total-page footer ─────────────
+    from reportlab.pdfgen import canvas as _rl_canvas
 
-    doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
+    class _NumberedCanvas(_rl_canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            _rl_canvas.Canvas.__init__(self, *args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total = len(self._saved_page_states)
+            for i, state in enumerate(self._saved_page_states, 1):
+                self.__dict__.update(state)
+                # Background
+                self.setFillColor(colors.HexColor('#FAFAFA'))
+                self.rect(0, 0, W, H, fill=1, stroke=0)
+                # Left accent stripe
+                self.setFillColor(C_NAVY)
+                self.rect(0, 0, 0.28*cm, H, fill=1, stroke=0)
+                # Top border
+                self.setFillColor(colors.HexColor('#888888'))
+                self.rect(0, H - 0.22*cm, W, 0.22*cm, fill=1, stroke=0)
+                # Footer bar
+                self.setFillColor(C_NAVY)
+                self.rect(0, 0, W, 1.4*cm, fill=1, stroke=0)
+                # Footer left — company info
+                self.setFont('Helvetica', 7.5)
+                self.setFillColor(colors.HexColor('#CCCCCC'))
+                self.drawString(MARGINS, 0.55*cm, f"EJ TECH  |  {quote_ref}  |  Confidential")
+                # Footer right — Page X / Y (single unified style)
+                self.setFillColor(C_PURPLE)
+                self.setFont('Helvetica-Bold', 8)
+                self.drawRightString(W - MARGINS, 0.55*cm, f"Page {i} / {total}")
+                _rl_canvas.Canvas.showPage(self)
+            _rl_canvas.Canvas.save(self)
+
+    doc.build(story, canvasmaker=_NumberedCanvas)
     buf.seek(0)
     return buf
 
