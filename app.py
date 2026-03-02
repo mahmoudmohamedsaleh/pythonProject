@@ -28284,7 +28284,12 @@ def po_profile(po_request_number):
 def add_po_item(po_number):
     """Add new item to PO with comprehensive validation"""
     conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    # Resolve po_request_number for redirect
+    _req_row = cursor.execute("SELECT po_request_number FROM purchase_orders WHERE po_number=?", (po_number,)).fetchone()
+    po_request_number = _req_row['po_request_number'] if _req_row else po_number
+    conn.row_factory = None
     
     try:
         part_number = request.form.get('part_number', '').strip()
@@ -28293,24 +28298,24 @@ def add_po_item(po_number):
         if not description:
             flash('Description is required!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         quantity_str = request.form.get('quantity', '').strip()
         if not quantity_str:
             flash('Quantity is required!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         try:
             quantity = float(quantity_str)
             if quantity <= 0:
                 flash('Quantity must be greater than zero!', 'danger')
                 conn.close()
-                return redirect(url_for('po_profile', po_number=po_number))
+                return redirect(url_for('po_profile', po_request_number=po_request_number))
         except (ValueError, TypeError):
             flash('Invalid quantity value!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         unit_price_str = request.form.get('unit_price', '0').strip()
         try:
@@ -28318,11 +28323,11 @@ def add_po_item(po_number):
             if unit_price < 0:
                 flash('Unit price cannot be negative!', 'danger')
                 conn.close()
-                return redirect(url_for('po_profile', po_number=po_number))
+                return redirect(url_for('po_profile', po_request_number=po_request_number))
         except (ValueError, TypeError):
             flash('Invalid unit price value!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         total_price_str = request.form.get('total_price', '0').strip()
         try:
@@ -28330,11 +28335,11 @@ def add_po_item(po_number):
             if total_price < 0:
                 flash('Total price cannot be negative!', 'danger')
                 conn.close()
-                return redirect(url_for('po_profile', po_number=po_number))
+                return redirect(url_for('po_profile', po_request_number=po_request_number))
         except (ValueError, TypeError):
             flash('Invalid total price value!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         if total_price == 0 and unit_price > 0:
             total_price = quantity * unit_price
@@ -28366,7 +28371,7 @@ def add_po_item(po_number):
     finally:
         conn.close()
     
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
 @app.route('/edit_po_item/<int:item_id>', methods=['POST'])
@@ -28386,6 +28391,9 @@ def edit_po_item(item_id):
         return redirect(url_for('view_po_status'))
     
     po_number = result['po_number']
+    # Resolve po_request_number for redirect
+    _req_row2 = cursor.execute("SELECT po_request_number FROM purchase_orders WHERE po_number=?", (po_number,)).fetchone()
+    po_request_number = _req_row2['po_request_number'] if _req_row2 else po_number
     
     try:
         part_number = request.form.get('part_number', '').strip()
@@ -28394,24 +28402,24 @@ def edit_po_item(item_id):
         if not description:
             flash('Description is required!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         quantity_str = request.form.get('quantity', '').strip()
         if not quantity_str:
             flash('Quantity is required!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         try:
             quantity = float(quantity_str)
             if quantity <= 0:
                 flash('Quantity must be greater than zero!', 'danger')
                 conn.close()
-                return redirect(url_for('po_profile', po_number=po_number))
+                return redirect(url_for('po_profile', po_request_number=po_request_number))
         except (ValueError, TypeError):
             flash('Invalid quantity value!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         unit_price_str = request.form.get('unit_price', '0').strip()
         try:
@@ -28419,11 +28427,11 @@ def edit_po_item(item_id):
             if unit_price < 0:
                 flash('Unit price cannot be negative!', 'danger')
                 conn.close()
-                return redirect(url_for('po_profile', po_number=po_number))
+                return redirect(url_for('po_profile', po_request_number=po_request_number))
         except (ValueError, TypeError):
             flash('Invalid unit price value!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         quantity_delivered_str = request.form.get('quantity_delivered', '0').strip()
         try:
@@ -28431,17 +28439,17 @@ def edit_po_item(item_id):
             if quantity_delivered < 0:
                 flash('Quantity delivered cannot be negative!', 'danger')
                 conn.close()
-                return redirect(url_for('po_profile', po_number=po_number))
+                return redirect(url_for('po_profile', po_request_number=po_request_number))
         except (ValueError, TypeError):
             flash('Invalid quantity delivered value!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         delivery_status = request.form.get('delivery_status', 'Not Delivered')
         if delivery_status not in ['Not Delivered', 'Partial', 'Delivered']:
             flash('Invalid delivery status!', 'danger')
             conn.close()
-            return redirect(url_for('po_profile', po_number=po_number))
+            return redirect(url_for('po_profile', po_request_number=po_request_number))
         
         delivery_date = request.form.get('delivery_date', '').strip()
         notes = request.form.get('notes', '').strip()
@@ -28481,7 +28489,7 @@ def edit_po_item(item_id):
     finally:
         conn.close()
     
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
 @app.route('/delete_po_item/<int:item_id>', methods=['POST'])
@@ -28507,8 +28515,11 @@ def delete_po_item(item_id):
     conn.commit()
     conn.close()
     
+    # Resolve po_request_number for redirect
+    _req_row3 = cursor.execute("SELECT po_request_number FROM purchase_orders WHERE po_number=?", (po_number,)).fetchone()
+    _po_req_num = _req_row3['po_request_number'] if _req_row3 else po_number
     flash('Item deleted successfully!', 'success')
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=_po_req_num))
 
 
 @app.route('/update_po_vat/<po_number>', methods=['POST'])
@@ -28545,7 +28556,7 @@ def update_po_vat(po_number):
     conn.close()
     
     flash('VAT updated successfully!', 'success')
-    return redirect(url_for('po_profile', po_number=po_number))
+    return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
 @app.route('/import_po_items_excel/<po_request_number>', methods=['POST'])
@@ -28979,7 +28990,7 @@ def export_po_items_excel(po_number):
         
     except Exception as e:
         flash(f'Error exporting to Excel: {str(e)}', 'danger')
-        return redirect(url_for('po_profile', po_number=po_number))
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
 
 
 ###################################
