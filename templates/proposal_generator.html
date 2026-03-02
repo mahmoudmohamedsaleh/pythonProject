@@ -403,7 +403,7 @@
                  href="{{ url_for('cost_sheet_builder') }}?project={{ project_name|urlencode }}&rfq={{ rfq_ref|urlencode }}&quoteref={{ quoteref }}"
                  class="btn btn-block font-weight-bold"
                  style="background:linear-gradient(135deg,#1B7B4B,#27ae60);color:#fff;padding:11px 0;border-radius:8px;font-size:.95rem;"
-                 onclick="var qr=document.querySelector('[name=quoteref]');if(qr&&qr.value.trim()){var u=new URL(this.href);u.searchParams.set('quoteref',qr.value.trim());this.href=u.toString();}">
+                 onclick="var qr=document.querySelector('[name=quoteref]');if(qr&&qr.value.trim()){try{var u=new URL(this.href,window.location.origin);u.searchParams.set('quoteref',qr.value.trim());this.href=u.toString();}catch(e){}}">
                 <i class="fas fa-table mr-2"></i> Create Cost Sheet
               </a>
             </div>
@@ -951,6 +951,45 @@ initTerms();
 _initNotes(_SAVED_FORM?.notes       || [], 'notesContainer',      'note-row',  'note_item[]',      'removeNote');
 _initNotes(_SAVED_FORM?.exclusions  || [], 'exclusionsContainer', 'excl-row',  'exclusion_item[]', 'removeExclusion');
 rebuildScope();
+
+// ── Auto-save: fire-and-forget save on page exit ───────────────────────
+function _gatherAndBeacon() {
+  const rfqRef   = '{{ rfq_ref }}';
+  const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
+  if (!rfqRef || !quoteRef) return;
+  rebuildScope();
+  const terms = [];
+  document.querySelectorAll('#termsContainer .term-row').forEach(row => {
+    const k = row.querySelector('[name="term_key[]"]')?.value || '';
+    const v = row.querySelector('[name="term_value[]"]')?.value || '';
+    if (k) terms.push({k, v});
+  });
+  const form = {
+    to:            document.querySelector('[name="to"]')?.value || '',
+    attn:          document.querySelector('[name="attn"]')?.value || '',
+    frm:           document.querySelector('[name="frm"]')?.value || '',
+    cont:          document.querySelector('[name="cont"]')?.value || '',
+    sub:           document.querySelector('[name="sub"]')?.value || '',
+    scope:         document.querySelector('[name="scope"]')?.value || '',
+    exec_summary:  document.getElementById('execSummaryTA')?.value || '',
+    cta_email:     document.getElementById('ctaEmail')?.value || '',
+    cta_phone:     document.getElementById('ctaPhone')?.value || '',
+    cta_body:      document.getElementById('ctaBodyTA')?.value || '',
+    prep_by_name:  document.querySelector('[name="prep_by_name"]')?.value || '',
+    prep_by_title: document.querySelector('[name="prep_by_title"]')?.value || '',
+    mgr_name:      document.querySelector('[name="mgr_name"]')?.value || '',
+    mgr_title:     document.querySelector('[name="mgr_title"]')?.value || '',
+    terms,
+    notes:      Array.from(document.querySelectorAll('#notesContainer input[name="note_item[]"]')).map(i => i.value).filter(v => v.trim()),
+    exclusions: Array.from(document.querySelectorAll('#exclusionsContainer input[name="exclusion_item[]"]')).map(i => i.value).filter(v => v.trim()),
+  };
+  const payload = new Blob([JSON.stringify({rfq_ref: rfqRef, quote_ref: quoteRef, form})],
+                            {type: 'application/json'});
+  navigator.sendBeacon('{{ url_for("proposal_save_form") }}', payload);
+}
+
+// Auto-save on page hide (navigation, tab close, refresh)
+window.addEventListener('pagehide', _gatherAndBeacon);
 recalcSummaryRows();
 renderSysTable();
 </script>
