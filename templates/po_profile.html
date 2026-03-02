@@ -920,6 +920,159 @@
     </div>
 </div>
 
+<!-- ── AI Email Generator ─────────────────────────────────────── -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card info-card">
+            <div class="card-header d-flex justify-content-between align-items-center"
+                 style="background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);color:#fff;border-radius:12px 12px 0 0;">
+                <span style="font-size:1rem;font-weight:700;">
+                    <i class="fas fa-robot mr-2"></i>AI Email Generator — Distributor Follow-up
+                </span>
+                <span style="font-size:.8rem;opacity:.85;">Powered by GPT-4o-mini</span>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-end mb-3">
+                    <div class="col-md-3">
+                        <label class="font-weight-bold" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">Email Tone</label>
+                        <select id="aiEmailTone" class="form-control form-control-sm">
+                            <option value="Professional">Professional</option>
+                            <option value="Formal">Formal</option>
+                            <option value="Friendly">Friendly</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="font-weight-bold" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">Distributor Email</label>
+                        <input type="text" id="aiDistEmail" class="form-control form-control-sm"
+                               value="{{ po.distributor_email or '' }}" placeholder="distributor@example.com">
+                    </div>
+                    <div class="col-md-3 mt-2 mt-md-0">
+                        <button id="btnGenerateEmail" class="btn btn-sm w-100"
+                                onclick="generatePoAiEmail()"
+                                style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:#fff;font-weight:700;padding:8px 0;">
+                            <i class="fas fa-magic mr-1"></i>Generate Email
+                        </button>
+                    </div>
+                    <div class="col-md-3 mt-2 mt-md-0">
+                        <button id="btnCopyEmail" class="btn btn-outline-secondary btn-sm w-100" onclick="copyAiEmail()" style="display:none;padding:8px 0;">
+                            <i class="fas fa-copy mr-1"></i>Copy to Clipboard
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Spinner -->
+                <div id="aiEmailSpinner" style="display:none;" class="text-center py-4">
+                    <div class="spinner-border" style="color:#6c5ce7;width:2rem;height:2rem;" role="status"></div>
+                    <p class="mt-2 mb-0 text-muted" style="font-size:.85rem;">Generating email draft…</p>
+                </div>
+
+                <!-- Output -->
+                <div id="aiEmailOutput" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6c757d;">
+                            <i class="fas fa-envelope-open-text mr-1" style="color:#6c5ce7;"></i>Generated Email Draft
+                        </span>
+                        <div>
+                            <button class="btn btn-xs btn-outline-primary mr-1" onclick="openMailto()" title="Open in email client">
+                                <i class="fas fa-external-link-alt mr-1"></i>Open in Mail
+                            </button>
+                            <button class="btn btn-xs btn-outline-secondary" onclick="regeneratePoAiEmail()" title="Regenerate">
+                                <i class="fas fa-redo mr-1"></i>Regenerate
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="aiEmailText" class="form-control" rows="14"
+                              style="font-family:monospace;font-size:.85rem;border:2px solid #a29bfe;border-radius:8px;resize:vertical;"></textarea>
+                </div>
+
+                <!-- Empty state -->
+                <div id="aiEmailEmpty" class="text-center py-4">
+                    <i class="fas fa-envelope" style="font-size:2.5rem;color:#d3d3ff;"></i>
+                    <p class="mt-2 mb-0 text-muted" style="font-size:.85rem;">
+                        Click <strong>Generate Email</strong> to create a personalized follow-up email<br>
+                        based on this PO's delivery status and pending items.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    var _poNum = {{ po_number|tojson }};
+    var _distEmail = '';
+
+    window.generatePoAiEmail = function() {
+        var tone  = document.getElementById('aiEmailTone').value;
+        _distEmail = document.getElementById('aiDistEmail').value.trim();
+        document.getElementById('aiEmailSpinner').style.display = '';
+        document.getElementById('aiEmailOutput').style.display  = 'none';
+        document.getElementById('aiEmailEmpty').style.display   = 'none';
+        document.getElementById('btnGenerateEmail').disabled    = true;
+
+        fetch('/api/po_ai_email/' + encodeURIComponent(_poNum), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tone: tone})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+            document.getElementById('aiEmailSpinner').style.display   = 'none';
+            document.getElementById('btnGenerateEmail').disabled       = false;
+            if (d.ok) {
+                document.getElementById('aiEmailText').value           = d.email;
+                document.getElementById('aiEmailOutput').style.display = '';
+                document.getElementById('btnCopyEmail').style.display  = '';
+                if (!_distEmail && d.distributor_email) {
+                    _distEmail = d.distributor_email;
+                    document.getElementById('aiDistEmail').value = _distEmail;
+                }
+            } else {
+                document.getElementById('aiEmailEmpty').style.display = '';
+                alert('Error: ' + (d.error || 'Unknown error'));
+            }
+        })
+        .catch(function(e){
+            document.getElementById('aiEmailSpinner').style.display   = 'none';
+            document.getElementById('aiEmailEmpty').style.display     = '';
+            document.getElementById('btnGenerateEmail').disabled      = false;
+            alert('Request failed: ' + e);
+        });
+    };
+
+    window.regeneratePoAiEmail = function() {
+        document.getElementById('aiEmailOutput').style.display  = 'none';
+        window.generatePoAiEmail();
+    };
+
+    window.copyAiEmail = function() {
+        var ta = document.getElementById('aiEmailText');
+        ta.select();
+        document.execCommand('copy');
+        var btn = document.getElementById('btnCopyEmail');
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Copied!';
+        setTimeout(function(){ btn.innerHTML = '<i class="fas fa-copy mr-1"></i>Copy to Clipboard'; }, 2000);
+    };
+
+    window.openMailto = function() {
+        var text = document.getElementById('aiEmailText').value;
+        var lines = text.split('\n');
+        var subject = '';
+        var body = text;
+        if (lines[0].toLowerCase().startsWith('subject:')) {
+            subject = lines[0].replace(/^subject:\s*/i, '').trim();
+            body = lines.slice(2).join('\n').trim();
+        }
+        var to = document.getElementById('aiDistEmail').value.trim();
+        var mailto = 'mailto:' + encodeURIComponent(to)
+                   + '?subject=' + encodeURIComponent(subject)
+                   + '&body='    + encodeURIComponent(body);
+        window.open(mailto, '_blank');
+    };
+})();
+</script>
 
 <!-- Edit Item Modal -->
 <div class="modal fade" id="editItemModal" tabindex="-1" role="dialog">

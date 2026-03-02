@@ -28279,6 +28279,123 @@ def po_profile(po_request_number):
                            not_delivered_count=not_delivered_count)
 
 
+
+@app.route('/api/po_ai_email/<po_number>', methods=['POST'])
+@login_required
+def po_ai_email(po_number):
+    """Generate AI follow-up email to distributor about delivery status"""
+    import os as _os
+    try:
+        import openai as _openai
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'OpenAI library not available'}), 500
+
+    data = request.get_json(silent=True) or {}
+    tone = data.get('tone', 'Professional')
+
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    po = cursor.execute("""
+        SELECT po.*, u1.full_name AS presale_engineer_name, u2.full_name AS project_manager_name,
+               d.name AS distributor_name, d.email AS distributor_email, d.contact_person AS distributor_engineer,
+               v.name AS vendor_name
+        FROM purchase_orders po
+        LEFT JOIN users u1 ON po.presale_engineer = u1.id
+        LEFT JOIN users u2 ON po.project_manager = u2.id
+        LEFT JOIN distributors d ON po.distributor_id = d.id
+        LEFT JOIN vendors v ON po.vendor_id = v.id
+        WHERE po.po_number = ?
+    """, (po_number,)).fetchone()
+
+    if not po:
+        conn.close()
+        return jsonify({'ok': False, 'error': 'PO not found'}), 404
+
+    items = cursor.execute(
+        "SELECT * FROM po_items WHERE po_number=? ORDER BY id", (po_number,)
+    ).fetchall()
+    conn.close()
+
+    total_qty      = sum(r['quantity'] or 0 for r in items)
+    delivered_qty  = sum(r['quantity_delivered'] or 0 for r in items)
+    remaining_qty  = total_qty - delivered_qty
+    grand_total    = sum(r['total_price'] or 0 for r in items)
+    delivered_val  = sum((r['quantity_delivered'] or 0) * (r['unit_price'] or 0) for r in items)
+    delivered_pct  = round(delivered_qty / total_qty * 100, 1) if total_qty > 0 else 0
+
+    not_delivered = [r for r in items if r['delivery_status'] != 'Delivered']
+    pending_lines = []
+    for r in not_delivered[:15]:
+        pn   = r['part_number'] or '—'
+        desc = (r['description'] or '')[:60]
+        rem  = (r['quantity'] or 0) - (r['quantity_delivered'] or 0)
+        pending_lines.append(f"  • {pn} | {desc} — Remaining: {rem} units")
+    pending_text = chr(10).join(pending_lines) if pending_lines else '  All items fully delivered.'
+
+    sender_name   = current_user.full_name if hasattr(current_user, 'full_name') else current_user.username
+    dist_contact  = po['distributor_engineer'] or 'Sir/Madam'
+    dist_company  = po['distributor_name'] or 'your company'
+    dist_email    = po['distributor_email'] or ''
+    po_num        = po_number
+    system_name   = po['system'] or 'N/A'
+    vendor_name   = po['vendor_name'] or 'N/A'
+    vat_pct       = po['vat_percentage'] or 15
+    total_with_vat = grand_total * (1 + vat_pct / 100)
+
+    prompt = f"""You are {sender_name}, a procurement professional at EJTech. Write a {tone} follow-up email to the distributor regarding the delivery status of a purchase order.
+
+PURCHASE ORDER DETAILS:
+- PO Number: {po_num}
+- System / Category: {system_name}
+- Vendor / Brand: {vendor_name}
+- Grand Total: SAR {grand_total:,.2f} (incl. VAT: SAR {total_with_vat:,.2f})
+- Total Units Ordered: {total_qty:,}
+- Delivered: {delivered_qty:,} units ({delivered_pct}%)
+- Remaining: {remaining_qty:,} units
+- Delivered Value: SAR {delivered_val:,.2f}
+
+PENDING / PARTIALLY DELIVERED ITEMS:
+{pending_text}
+
+DISTRIBUTOR CONTACT: {dist_contact} at {dist_company}
+
+INSTRUCTIONS:
+- Write a complete, ready-to-send professional email (Subject + Body).
+- Start with: Subject: ...
+- Then a blank line, then the email body.
+- Greet the contact by name.
+- Reference the PO number clearly.
+- Summarize delivery progress concisely.
+- List 2-3 specific pending items if applicable (part number + remaining qty).
+- Request a firm delivery schedule / ETA for outstanding items.
+- Keep it under 250 words.
+- End with a professional sign-off from {sender_name}, EJTech Procurement Team.
+- Tone: {tone}."""
+
+    _ai_key  = _os.environ.get('AI_INTEGRATIONS_OPENAI_API_KEY') or _os.environ.get('OPENAI_API_KEY')
+    _ai_base = _os.environ.get('AI_INTEGRATIONS_OPENAI_BASE_URL')
+    if not _ai_key:
+        return jsonify({'ok': False, 'error': 'OpenAI API key not configured'}), 500
+
+    client = _openai.OpenAI(api_key=_ai_key, **({'base_url': _ai_base} if _ai_base else {}))
+    resp = client.chat.completions.create(
+        model='gpt-4o-mini',
+        messages=[{'role': 'user', 'content': prompt}],
+        max_tokens=500,
+        temperature=0.7,
+    )
+    email_text = resp.choices[0].message.content.strip()
+
+    return jsonify({
+        'ok': True,
+        'email': email_text,
+        'distributor_email': dist_email,
+        'distributor_name':  dist_contact,
+    })
+
+
 @app.route('/add_po_item/<po_number>', methods=['POST'])
 @login_required
 def add_po_item(po_number):
