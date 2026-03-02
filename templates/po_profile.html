@@ -418,6 +418,7 @@
                                 <th class="num-col" style="width:115px">Total (SAR)</th>
                                 <th class="ctr-col" style="width:105px">Delivered</th>
                                 <th class="ctr-col" style="width:105px">Status</th>
+                                <th class="num-col" style="width:90px">Remaining</th>
                                 <th class="ctr-col" style="width:85px">Actions</th>
                             </tr>
                         </thead>
@@ -465,6 +466,22 @@
                                     {% else %}
                                         <span class="badge delivery-status-not-delivered"><i class="fas fa-clock mr-1"></i>Pending</span>
                                     {% endif %}
+                                </td>
+                                <td class="num-col">
+                                    {%- set remaining = qty - deliv %}
+                                    {%- if remaining <= 0 %}
+                                    <span style="color:#28a745;font-weight:700;">
+                                        <i class="fas fa-check-circle mr-1"></i>0
+                                    </span>
+                                    {%- elif item.delivery_status == 'Partial' %}
+                                    <span style="color:#d39e00;font-weight:700;">
+                                        {% if remaining == remaining|int %}{{ remaining|int }}{% else %}{{ "{:,.2f}".format(remaining) }}{% endif %}
+                                    </span>
+                                    {%- else %}
+                                    <span style="color:#dc3545;font-weight:700;">
+                                        {% if remaining == remaining|int %}{{ remaining|int }}{% else %}{{ "{:,.2f}".format(remaining) }}{% endif %}
+                                    </span>
+                                    {%- endif %}
                                 </td>
                                 <td class="ctr-col" style="white-space:nowrap;">
                                     <button class="btn btn-sm btn-warning action-btn edit-item-btn" 
