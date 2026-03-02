@@ -292,11 +292,13 @@ select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
   <!-- Toolbar -->
   {% if saved_at %}
   <div id="savedInfo" style="font-size:.78rem;color:#1B7B4B;margin:-6px 0 6px 0;">
-    <i class="fas fa-check-circle"></i> Last saved: <span id="savedAt">{{ saved_at }}</span>
+    <i class="fas fa-check-circle"></i> Last saved:
+    {% if saved_by %}<strong><i class="fas fa-user-edit mr-1"></i>{{ saved_by }}</strong> &mdash; {% endif %}
+    <span id="savedAt">{{ saved_at }}</span>
   </div>
   {% else %}
   <div id="savedInfo" style="font-size:.78rem;color:#6c757d;margin:-6px 0 6px 0;display:none;">
-    <i class="fas fa-check-circle"></i> Saved: <span id="savedAt"></span>
+    <i class="fas fa-check-circle"></i> Saved by <strong id="savedBy"></strong>: <span id="savedAt"></span>
   </div>
   {% endif %}
   <div class="cs-toolbar">
@@ -997,7 +999,9 @@ function saveSheet(silent) {
     }
     const info = document.getElementById('savedInfo');
     const ts   = document.getElementById('savedAt');
+    const sb   = document.getElementById('savedBy');
     if (info && ts) { ts.textContent = data.updated_at || new Date().toLocaleString(); info.style.display = ''; }
+    if (sb && data.saved_by) sb.textContent = data.saved_by;
     if (!silent) showToast('✓ Cost sheet saved successfully', 'success');
   })
   .catch(err => {

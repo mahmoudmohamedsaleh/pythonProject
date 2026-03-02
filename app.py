@@ -6720,17 +6720,30 @@ def proposal_save_form():
             quote_ref TEXT NOT NULL,
             form_json TEXT,
             saved_at  TEXT,
+            saved_by  TEXT,
             PRIMARY KEY (rfq_ref, quote_ref)
         )""")
-        conn.execute("""INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at)
-                        VALUES (?, ?, ?, datetime('now'))
+        try:
+            conn.execute("ALTER TABLE proposal_form_data ADD COLUMN saved_by TEXT")
+        except Exception:
+            pass
+        from flask import session as _sess
+        _saved_by = _sess.get('username', 'Unknown')
+        conn.execute("""INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
+                        VALUES (?, ?, ?, datetime('now'), ?)
                         ON CONFLICT(rfq_ref, quote_ref) DO UPDATE SET
                             form_json = excluded.form_json,
-                            saved_at  = excluded.saved_at""",
-                     (rfq_ref, quote_ref, form_json))
+                            saved_at  = excluded.saved_at,
+                            saved_by  = excluded.saved_by""",
+                     (rfq_ref, quote_ref, form_json, _saved_by))
         conn.commit()
+        # Fetch saved_at for response
+        row = conn.execute(
+            "SELECT saved_at FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+            (rfq_ref, quote_ref)
+        ).fetchone()
         conn.close()
-        return jsonify({'ok': True})
+        return jsonify({'ok': True, 'saved_by': _saved_by, 'saved_at': row[0] if row else ''})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -6862,14 +6875,27 @@ def proposal_generator_main():
             _pf_conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
                 rfq_ref TEXT NOT NULL, quote_ref TEXT NOT NULL,
                 form_json TEXT, saved_at TEXT, PRIMARY KEY (rfq_ref, quote_ref))""")
+            _pf_conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
+                rfq_ref TEXT NOT NULL, quote_ref TEXT NOT NULL,
+                form_json TEXT, saved_at TEXT, saved_by TEXT,
+                PRIMARY KEY (rfq_ref, quote_ref))""")
+            try:
+                _pf_conn.execute("ALTER TABLE proposal_form_data ADD COLUMN saved_by TEXT")
+                _pf_conn.commit()
+            except Exception:
+                pass
             _pf_row = _pf_conn.execute(
-                "SELECT form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+                "SELECT form_json, saved_at, saved_by FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
                 (rfq_ref, quoteref)
             ).fetchone()
             _pf_conn.close()
             if _pf_row and _pf_row[0]:
                 import json as _json2
                 saved_form = _json2.loads(_pf_row[0])
+                if len(_pf_row) > 1 and _pf_row[1]:
+                    saved_form['_saved_at'] = _pf_row[1]
+                if len(_pf_row) > 2 and _pf_row[2]:
+                    saved_form['_saved_by'] = _pf_row[2]
         except Exception as _pf_e:
             app.logger.warning(f"Could not load proposal form data: {_pf_e}")
 
@@ -8842,17 +8868,19 @@ def cost_sheet_builder():
     quoteref     = _req.args.get('quoteref', '')
     saved_sheets_json = None
     saved_at = None
+    saved_by = None
     if rfq_ref:
         try:
             conn = sqlite3.connect('ProjectStatus.db')
             row = conn.execute(
-                "SELECT sheets_json, updated_at FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                "SELECT sheets_json, updated_at, saved_by FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                 (rfq_ref, quoteref or '')
             ).fetchone()
             conn.close()
             if row:
                 saved_sheets_json = row[0]
                 saved_at = row[1]
+                saved_by = row[2]
         except Exception as e:
             app.logger.warning(f"cost_sheet load error: {e}")
     return render_template('cost_sheet_builder.html',
@@ -8860,7 +8888,8 @@ def cost_sheet_builder():
                            rfq_ref=rfq_ref,
                            quoteref=quoteref,
                            saved_sheets_json=saved_sheets_json,
-                           saved_at=saved_at)
+                           saved_at=saved_at,
+                           saved_by=saved_by)
 
 
 
@@ -8896,7 +8925,7 @@ def cost_sheet_save():
             (rfq_ref, quote_ref)
         ).fetchone()
         conn.close()
-        return jsonify({'ok': True, 'updated_at': row[0] if row else ''})
+        return jsonify({'ok': True, 'updated_at': row[0] if row else '', 'saved_by': saved_by})
     except Exception as e:
         import traceback
         app.logger.error(f'cost_sheet_save error: {e}')

@@ -460,6 +460,17 @@
                 <i class="fas fa-save mr-1"></i> Save Draft
               </button>
               <div id="saveStatus" style="font-size:.78rem; margin-top:5px; display:none;"></div>
+              {%- if saved_form and saved_form.get('_saved_by') or saved_form and saved_form.get('_saved_at') %}
+              <div id="pgLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;">
+                <i class="fas fa-user-edit mr-1"></i>
+                {%- if saved_form.get('_saved_by') %}<strong>{{ saved_form['_saved_by'] }}</strong>{% endif %}
+                {%- if saved_form.get('_saved_at') %}<span style="color:#6c757d;"> &mdash; {{ saved_form['_saved_at'] }}</span>{% endif %}
+              </div>
+              {%- else %}
+              <div id="pgLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;display:none;">
+                <i class="fas fa-user-edit mr-1"></i> <strong id="pgSavedBy"></strong><span id="pgSavedAt" style="color:#6c757d;"></span>
+              </div>
+              {%- endif %}
               <button type="button" class="btn btn-block mt-2" onclick="openSubmitModal()"
                       style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;font-weight:600;font-size:.88rem;border-radius:6px;">
                 <i class="fas fa-paper-plane mr-1"></i> Submit to Quotation
@@ -935,6 +946,13 @@ async function saveDraft() {
       st.style.color   = '#1B7B4B';
       st.innerHTML     = '<i class="fas fa-check-circle mr-1"></i> Saved successfully';
       setTimeout(() => { st.style.display = 'none'; }, 3000);
+      // Update last-saved user indicator
+      const _pgls = document.getElementById('pgLastSaved');
+      const _pgby = document.getElementById('pgSavedBy');
+      const _pgat = document.getElementById('pgSavedAt');
+      if (_pgls) _pgls.style.display = 'block';
+      if (_pgby && data.saved_by) _pgby.textContent = data.saved_by;
+      if (_pgat && data.saved_at) _pgat.textContent = ' — ' + data.saved_at;
     } else {
       st.style.display = 'block';
       st.style.color   = '#dc3545';
