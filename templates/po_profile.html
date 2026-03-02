@@ -57,10 +57,11 @@
     }
     /* ── PO Items Table ─────────────────────────── */
     .items-table {
-        font-size: .85rem;
+        font-size: .80rem;
         border-collapse: separate;
         border-spacing: 0;
         width: 100%;
+        min-width: 860px;
     }
     .items-table thead th {
         background: linear-gradient(135deg, #4a5fc1 0%, #667eea 100%);
@@ -70,7 +71,7 @@
         font-size: .78rem;
         text-transform: uppercase;
         letter-spacing: .04em;
-        padding: 10px 12px;
+        padding: 8px 10px;
         white-space: nowrap;
         position: sticky;
         top: 0;
@@ -85,7 +86,7 @@
     .items-table tbody tr:nth-child(even) { background: #fafbff; }
     .items-table tbody tr:hover { background: #eef0fb !important; }
     .items-table tbody td {
-        padding: 9px 12px;
+        padding: 7px 9px;
         vertical-align: middle;
         border: none;
     }
@@ -104,7 +105,7 @@
     }
     /* Description cell: clamp to 2 lines */
     .desc-cell {
-        max-width: 280px;
+        max-width: 200px;
     }
     .desc-text {
         display: -webkit-box;
@@ -406,20 +407,20 @@
             </div>
             <div class="card-body p-0">
                 {% if po_items %}
-                <div class="table-responsive">
+                <div class="table-responsive" style="overflow-x:auto;">
                     <table class="table mb-0 items-table">
                         <thead>
                             <tr>
-                                <th class="ctr-col" style="width:36px">#</th>
-                                <th style="width:115px">Part Number</th>
-                                <th>Description</th>
-                                <th class="num-col" style="width:60px">Qty</th>
-                                <th class="num-col" style="width:100px">Unit Price</th>
-                                <th class="num-col" style="width:115px">Total (SAR)</th>
-                                <th class="ctr-col" style="width:105px">Delivered</th>
-                                <th class="ctr-col" style="width:105px">Status</th>
-                                <th class="num-col" style="width:90px">Remaining</th>
-                                <th class="ctr-col" style="width:85px">Actions</th>
+                                <th class="ctr-col" style="width:32px">#</th>
+                                <th style="width:105px">Part No.</th>
+                                <th style="min-width:150px">Description</th>
+                                <th class="num-col" style="width:52px">Qty</th>
+                                <th class="num-col" style="width:88px">Unit Price</th>
+                                <th class="num-col" style="width:105px">Total (SAR)</th>
+                                <th class="ctr-col" style="width:95px">Delivered</th>
+                                <th class="ctr-col" style="width:90px">Status</th>
+                                <th class="num-col" style="width:80px">Remaining</th>
+                                <th class="ctr-col" style="width:75px">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
