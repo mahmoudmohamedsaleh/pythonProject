@@ -7685,14 +7685,16 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
             return ''
         try:
             logo_buf.seek(0)
-            img = ReportLabImage(logo_buf)
+            img = RLImage(logo_buf)
             iw, ih = img.imageWidth, img.imageHeight
-            max_w, max_h = LOG_W - 8, row_h * 2.2
+            max_w = LOG_W - 12
+            max_h = 1.4 * cm
             ratio = min(max_w / iw, max_h / ih)
             img.drawWidth  = iw * ratio
             img.drawHeight = ih * ratio
             return img
-        except Exception:
+        except Exception as _le:
+            import traceback; traceback.print_exc()
             return ''
 
     def _info_row3(label, value, logo_buf=None, label_color=None, val_bold=False, val_fs=10, lbl_fs=9):
