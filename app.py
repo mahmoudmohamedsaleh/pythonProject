@@ -7653,84 +7653,115 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         story.append(_p(location, _ps('loc', fontSize=11, textColor=C_MGREY, alignment=TA_CENTER, leading=14)))
         story.append(Spacer(1, 1.0*cm))
 
-    # -- Contractor / Consultant block
+    # ── Info block: clean card with left red accent ──────────────────────
+    C_RED_LIGHT = colors.HexColor('#FFF0F0')
+    C_BORDER    = colors.HexColor('#EEEEEE')
+
+    def _info_row(label, value, label_color=None, val_bold=False, val_fs=10, lbl_fs=9):
+        lc = label_color or C_PURPLE
+        vf = 'Helvetica-Bold' if val_bold else 'Helvetica'
+        return [
+            _p(label, _ps(f'lbl_{label}', fontName='Helvetica-Bold', fontSize=lbl_fs,
+                          textColor=lc, alignment=TA_RIGHT)),
+            _p(value or '—', _ps(f'val_{label}', fontName=vf, fontSize=val_fs, textColor=C_DARK)),
+        ]
+
     info_rows = []
     if contractor:
-        info_rows.append([
-            _p('Contractor:', _ps('il', fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE, alignment=TA_RIGHT)),
-            _p(contractor,    _ps('iv', fontName='Helvetica-Bold', fontSize=10, textColor=C_DARK)),
-        ])
+        info_rows.append(_info_row('Contractor:', contractor, val_bold=True, val_fs=10))
     if consultant:
-        info_rows.append([
-            _p('Consultant:', _ps('cl', fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE, alignment=TA_RIGHT)),
-            _p(consultant,    _ps('cv', fontName='Helvetica-Bold', fontSize=10, textColor=C_DARK)),
-        ])
+        info_rows.append(_info_row('Consultant:', consultant, val_bold=True, val_fs=10))
     if rfq_ref:
-        info_rows.append([
-            _p('RFQ Ref.:', _ps('rl', fontName='Helvetica-Bold', fontSize=9, textColor=C_MGREY, alignment=TA_RIGHT)),
-            _p(rfq_ref,    _ps('rv', fontSize=9, textColor=C_MGREY)),
-        ])
+        info_rows.append(_info_row('RFQ Ref.:', rfq_ref, label_color=C_MGREY, val_fs=9))
     if date_str:
-        info_rows.append([
-            _p('Date:', _ps('dl', fontName='Helvetica-Bold', fontSize=9, textColor=C_MGREY, alignment=TA_RIGHT)),
-            _p(date_str, _ps('dv', fontSize=9, textColor=C_MGREY)),
-        ])
+        info_rows.append(_info_row('Date:', date_str, label_color=C_MGREY, val_fs=9))
+
     if info_rows:
-        info_tbl = Table(info_rows, colWidths=[BW*0.35, BW*0.65])
-        info_tbl.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),C_GREY),
-            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#DDDDDD')),
-            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#EEEEEE')),
-            ('PADDING',(0,0),(-1,-1),8),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-        ]))
-        # Centre the info table in the page
-        outer = Table([[info_tbl]], colWidths=[BW])
-        outer.setStyle(TableStyle([
-            ('TOPPADDING',(0,0),(-1,-1),0),
-            ('BOTTOMPADDING',(0,0),(-1,-1),0),
-            ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ]))
-        story.append(outer)
-
-    # -- Prepared By / Approved By footer section
-    story.append(Spacer(1, 0.6*cm))
-
-    def _sig_cell(label, name, title, bg):
-        rows = [
-            [_p(label, _ps(f'sl{label}', fontName='Helvetica-Bold', fontSize=7.5,
-                           textColor=colors.HexColor('#CCCCCC'), alignment=TA_CENTER))],
-            [_p(name or '—', _ps(f'sn{label}', fontName='Helvetica-Bold', fontSize=10,
-                                  textColor=C_WHITE, alignment=TA_CENTER, leading=13))],
+        info_tbl = Table(info_rows, colWidths=[BW*0.32, BW*0.68])
+        style_cmds = [
+            ('BACKGROUND', (0,0), (-1,-1), colors.white),
+            ('LEFTPADDING',  (0,0), (0,-1), 10),
+            ('RIGHTPADDING', (0,0), (0,-1), 8),
+            ('LEFTPADDING',  (1,0), (1,-1), 10),
+            ('TOPPADDING',   (0,0), (-1,-1), 7),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 7),
+            ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+            ('BOX',          (0,0), (-1,-1), 0.5, C_BORDER),
+            # Red left accent bar
+            ('LINEBEFORE',   (0,0), (0,-1), 3, C_PURPLE),
         ]
-        if title:
-            rows.append([_p(title, _ps(f'st{label}', fontSize=8, textColor=colors.HexColor('#FFBBBB'),
-                                        alignment=TA_CENTER))])
-        rows.append([Spacer(1, 0.4*cm)])
-        rows.append([Table([['']], colWidths=[(BW/2 - 0.4*cm)],
-                     style=TableStyle([('LINEABOVE',(0,0),(-1,-1),1,colors.HexColor('#FF8888')),
-                                       ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)]))])
-        rows.append([_p('Signature', _ps(f'ssig{label}', fontSize=7, textColor=colors.HexColor('#CCCCCC'),
-                                          alignment=TA_CENTER))])
-        tbl = Table(rows, colWidths=[BW/2 - 0.4*cm])
-        tbl.setStyle(TableStyle([
-            ('BACKGROUND',(0,0),(-1,-1),bg),
-            ('PADDING',(0,0),(-1,-1),10),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        # Subtle row separators
+        for i in range(len(info_rows)-1):
+            style_cmds.append(('LINEBELOW', (0,i), (-1,i), 0.4, C_BORDER))
+        # Highlight top rows (contractor/consultant) with very faint red bg
+        if contractor:
+            style_cmds.append(('BACKGROUND', (0,0), (-1,0), C_RED_LIGHT))
+        if contractor and consultant:
+            style_cmds.append(('BACKGROUND', (0,1), (-1,1), C_RED_LIGHT))
+        info_tbl.setStyle(TableStyle(style_cmds))
+        story.append(info_tbl)
+
+    # ── Prepared By / Approved By — professional signature cards ─────────
+    story.append(Spacer(1, 0.7*cm))
+
+    GAP   = 0.35*cm
+    CW    = (BW - GAP) / 2
+
+    def _sig_card(label, name, title):
+        card_rows = [
+            # Red header band
+            [Table([[_p(label.upper(),
+                        _ps(f'sh_{label}', fontName='Helvetica-Bold', fontSize=8.5,
+                            textColor=C_WHITE, alignment=TA_CENTER, letterSpacing=1.2))]],
+                   colWidths=[CW - 2],
+                   style=TableStyle([
+                       ('BACKGROUND', (0,0), (-1,-1), C_PURPLE),
+                       ('TOPPADDING', (0,0), (-1,-1), 7),
+                       ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+                   ]))],
+            # Name
+            [_p(name or '—', _ps(f'nm_{label}', fontName='Helvetica-Bold', fontSize=13,
+                                  textColor=C_DARK, alignment=TA_CENTER, leading=16,
+                                  spaceBefore=8))],
+            # Title
+            [_p(title or '', _ps(f'ti_{label}', fontSize=9, textColor=C_MGREY,
+                                   alignment=TA_CENTER, spaceAfter=6))],
+            # Spacer + signature line + label
+            [Spacer(1, 0.55*cm)],
+            [Table([['']], colWidths=[CW * 0.65],
+                   style=TableStyle([
+                       ('ALIGN',       (0,0), (-1,-1), 'CENTER'),
+                       ('LINEABOVE',   (0,0), (-1,-1), 1, colors.HexColor('#BBBBBB')),
+                       ('TOPPADDING',  (0,0), (-1,-1), 0),
+                       ('BOTTOMPADDING',(0,0),(-1,-1), 0),
+                   ]))],
+            [_p('Signature', _ps(f'sg_{label}', fontSize=7.5, textColor=C_MGREY,
+                                   alignment=TA_CENTER, spaceBefore=3, spaceAfter=8))],
+        ]
+        card = Table(card_rows, colWidths=[CW])
+        card.setStyle(TableStyle([
+            ('BOX',          (0,0), (-1,-1), 0.8, colors.HexColor('#DDDDDD')),
+            ('BACKGROUND',   (0,1), (-1,-1), colors.white),
+            ('TOPPADDING',   (0,0), (-1,-1), 0),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 0),
+            ('LEFTPADDING',  (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ('ALIGN',        (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
         ]))
-        return tbl
+        return card
 
-    prep_cell = _sig_cell('Prepared By', prep_name or 'EJTech', prep_title, C_PURPLE2)
-    appr_cell = _sig_cell('Approved By',  appr_name,             appr_title,  colors.HexColor('#7A0000'))
+    prep_card = _sig_card('Prepared By', prep_name or 'EJTech', prep_title)
+    appr_card = _sig_card('Approved By', appr_name, appr_title)
 
-    sig_row = Table([[prep_cell, Spacer(0.4*cm, 1), appr_cell]],
-                    colWidths=[BW/2 - 0.2*cm, 0.4*cm, BW/2 - 0.2*cm])
+    sig_row = Table([[prep_card, Spacer(GAP, 1), appr_card]],
+                    colWidths=[CW, GAP, CW])
     sig_row.setStyle(TableStyle([
-        ('VALIGN',(0,0),(-1,-1),'TOP'),
-        ('TOPPADDING',(0,0),(-1,-1),0),
-        ('BOTTOMPADDING',(0,0),(-1,-1),0),
-        ('LEFTPADDING',(0,0),(-1,-1),0),
-        ('RIGHTPADDING',(0,0),(-1,-1),0),
+        ('VALIGN',       (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING',   (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 0),
+        ('LEFTPADDING',  (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
     ]))
     story.append(sig_row)
     story.append(PageBreak())
