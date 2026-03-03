@@ -7489,8 +7489,9 @@ def proposal_generate_technical_pdf():
     contractor  = form.get('tech_contractor', '').strip()
     consultant  = form.get('tech_consultant', '').strip()
     vendor      = form.get('tech_vendor', '').strip()
-    date_str    = form.get('tech_date', '').strip()
-    prep_name   = form.get('tech_prep_name', '').strip()
+    date_str       = form.get('tech_date', '').strip()
+    submittal_ref  = form.get('tech_submittal_ref', '').strip()
+    prep_name      = form.get('tech_prep_name', '').strip()
     prep_title  = form.get('tech_prep_title', '').strip()
     appr_name   = form.get('tech_appr_name', '').strip()
     appr_title  = form.get('tech_appr_title', '').strip()
@@ -7516,6 +7517,7 @@ def proposal_generate_technical_pdf():
             quote_ref=quote_ref,
             rfq_ref=rfq_ref,
             sections=sections,
+            submittal_ref=submittal_ref,
             prep_name=prep_name,
             prep_title=prep_title,
             appr_name=appr_name,
@@ -7534,7 +7536,7 @@ def proposal_generate_technical_pdf():
 
 def _build_technical_submittal_pdf(tech_title, project_name, location, contractor,
                                     consultant, vendor, date_str, quote_ref, rfq_ref, sections,
-                                    prep_name='', prep_title='', appr_name='', appr_title=''):
+                                    submittal_ref='', prep_name='', prep_title='', appr_name='', appr_title=''):
     """Build a Technical Submittal PDF: Cover + Index + Separator per section."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -7671,8 +7673,8 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         info_rows.append(_info_row('Contractor:', contractor, val_bold=True, val_fs=10))
     if consultant:
         info_rows.append(_info_row('Consultant:', consultant, val_bold=True, val_fs=10))
-    if rfq_ref:
-        info_rows.append(_info_row('RFQ Ref.:', rfq_ref, label_color=C_MGREY, val_fs=9))
+    if submittal_ref:
+        info_rows.append(_info_row('Submittal Ref.:', submittal_ref, label_color=C_MGREY, val_fs=9))
     if date_str:
         info_rows.append(_info_row('Date:', date_str, label_color=C_MGREY, val_fs=9))
 
