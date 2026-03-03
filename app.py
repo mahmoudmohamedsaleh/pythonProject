@@ -7710,46 +7710,52 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
     CW    = (BW - GAP) / 2
 
     def _sig_card(label, name, title):
-        card_rows = [
-            # Red header band
-            [Table([[_p(label.upper(),
-                        _ps(f'sh_{label}', fontName='Helvetica-Bold', fontSize=8.5,
-                            textColor=C_WHITE, alignment=TA_CENTER, letterSpacing=1.2))]],
-                   colWidths=[CW - 2],
-                   style=TableStyle([
-                       ('BACKGROUND', (0,0), (-1,-1), C_PURPLE),
-                       ('TOPPADDING', (0,0), (-1,-1), 7),
-                       ('BOTTOMPADDING', (0,0), (-1,-1), 7),
-                   ]))],
-            # Name
+        # Red header band (row 0)
+        hdr = Table([[_p(label.upper(),
+                         _ps(f'sh_{label}', fontName='Helvetica-Bold', fontSize=9,
+                             textColor=C_WHITE, alignment=TA_CENTER, letterSpacing=1.5))]],
+                    colWidths=[CW],
+                    style=TableStyle([
+                        ('BACKGROUND',    (0,0), (-1,-1), C_PURPLE),
+                        ('TOPPADDING',    (0,0), (-1,-1), 8),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+                        ('LEFTPADDING',   (0,0), (-1,-1), 0),
+                        ('RIGHTPADDING',  (0,0), (-1,-1), 0),
+                    ]))
+
+        # Body: name + title centered on white
+        body_rows = [
             [_p(name or '—', _ps(f'nm_{label}', fontName='Helvetica-Bold', fontSize=13,
-                                  textColor=C_DARK, alignment=TA_CENTER, leading=16,
-                                  spaceBefore=8))],
-            # Title
-            [_p(title or '', _ps(f'ti_{label}', fontSize=9, textColor=C_MGREY,
-                                   alignment=TA_CENTER, spaceAfter=6))],
-            # Spacer + signature line + label
-            [Spacer(1, 0.55*cm)],
-            [Table([['']], colWidths=[CW * 0.65],
-                   style=TableStyle([
-                       ('ALIGN',       (0,0), (-1,-1), 'CENTER'),
-                       ('LINEABOVE',   (0,0), (-1,-1), 1, colors.HexColor('#BBBBBB')),
-                       ('TOPPADDING',  (0,0), (-1,-1), 0),
-                       ('BOTTOMPADDING',(0,0),(-1,-1), 0),
-                   ]))],
-            [_p('Signature', _ps(f'sg_{label}', fontSize=7.5, textColor=C_MGREY,
-                                   alignment=TA_CENTER, spaceBefore=3, spaceAfter=8))],
+                                  textColor=C_DARK, alignment=TA_CENTER, leading=17,
+                                  spaceBefore=12))],
         ]
-        card = Table(card_rows, colWidths=[CW])
+        if title:
+            body_rows.append(
+                [_p(title, _ps(f'ti_{label}', fontSize=9, textColor=C_MGREY,
+                                alignment=TA_CENTER, spaceAfter=12))]
+            )
+        else:
+            body_rows.append([Spacer(1, 0.35*cm)])
+
+        body = Table(body_rows, colWidths=[CW])
+        body.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0), (-1,-1), colors.white),
+            ('TOPPADDING',    (0,0), (-1,-1), 0),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+            ('LEFTPADDING',   (0,0), (-1,-1), 10),
+            ('RIGHTPADDING',  (0,0), (-1,-1), 10),
+            ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+        ]))
+
+        # Wrap in outer card with border
+        card = Table([[hdr], [body]], colWidths=[CW])
         card.setStyle(TableStyle([
-            ('BOX',          (0,0), (-1,-1), 0.8, colors.HexColor('#DDDDDD')),
-            ('BACKGROUND',   (0,1), (-1,-1), colors.white),
+            ('BOX',          (0,0), (-1,-1), 0.8, colors.HexColor('#CCCCCC')),
             ('TOPPADDING',   (0,0), (-1,-1), 0),
             ('BOTTOMPADDING',(0,0), (-1,-1), 0),
             ('LEFTPADDING',  (0,0), (-1,-1), 0),
             ('RIGHTPADDING', (0,0), (-1,-1), 0),
-            ('ALIGN',        (0,0), (-1,-1), 'CENTER'),
-            ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
         ]))
         return card
 
