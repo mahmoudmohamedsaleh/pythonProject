@@ -654,6 +654,24 @@
             </div>
           </div>
 
+          <!-- Vendors Section -->
+          <div class="card mb-3 shadow-sm" style="border:1px solid #CC000033;">
+            <div class="card-header-pg d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#8B0000,#CC0000);">
+              <span><i class="fas fa-industry mr-1"></i> Vendors / Manufacturers</span>
+              <button type="button" class="btn btn-sm btn-light" onclick="addVendorRow()" style="font-size:0.78rem;color:#CC0000;font-weight:600;">
+                <i class="fas fa-plus mr-1"></i> Add Vendor
+              </button>
+            </div>
+            <div class="card-body py-3">
+              <div id="vendorsContainer">
+                <!-- Vendor rows injected by JS -->
+              </div>
+              <input type="hidden" id="vendorCount" name="vendor_count" value="0">
+              <p class="text-muted small mt-2 mb-0"><i class="fas fa-info-circle mr-1"></i>
+                Vendor names are saved with the draft. Logos must be re-uploaded each time you generate the PDF.</p>
+            </div>
+          </div>
+
           <!-- Index Editor -->
           <div class="card mb-3 shadow-sm">
             <div class="card-header-pg d-flex justify-content-between align-items-center">
@@ -1221,6 +1239,11 @@ let _techSections = [];
 
 function _techInit() {
   const saved = {{ (tech_saved_form.get('sections') | tojson) if tech_saved_form.get('sections') else 'null' }};
+  // Restore saved vendor names (logos can't be saved, re-upload needed)
+  const savedVendorNames = {{ (tech_saved_form.get('vendor_names') | tojson) if tech_saved_form.get('vendor_names') else '[]' }};
+  if (savedVendorNames && savedVendorNames.length) {
+    savedVendorNames.forEach(n => addVendorRow(n));
+  }
   _techSections = saved && saved.length ? JSON.parse(JSON.stringify(saved)) : JSON.parse(JSON.stringify(_TECH_DEFAULT_SECTIONS));
   _renderTechIndex();
   refreshVendorLabels();
@@ -1326,6 +1349,57 @@ function _renderTechPreview() {
   prev.innerHTML = html;
 }
 
+// ── Vendor row management ─────────────────────────────────────────────
+let _vendorIdx = 0;
+
+function _getVendorNames() {
+  const names = [];
+  document.querySelectorAll('[data-vendor-name]').forEach(el => names.push(el.value));
+  return names;
+}
+
+function addVendorRow(name) {
+  const i = _vendorIdx++;
+  const row = document.createElement('div');
+  row.className = 'form-row align-items-center mb-2';
+  row.setAttribute('data-vendor-row', i);
+  row.innerHTML = `
+    <div class="form-group col-md-1 mb-0 text-center">
+      <span class="badge" style="background:#CC0000;color:#fff;font-size:.8rem;padding:6px 8px;">${document.querySelectorAll('[data-vendor-row]').length + 1}</span>
+    </div>
+    <div class="form-group col-md-5 mb-0">
+      <input type="text" class="form-control form-control-sm" name="vendor_name_${i}"
+             data-vendor-name="${i}" placeholder="Vendor / Manufacturer name"
+             value="${name || ''}">
+    </div>
+    <div class="form-group col-md-5 mb-0">
+      <input type="file" class="form-control-file form-control-sm" name="vendor_logo_${i}"
+             accept="image/*" style="font-size:0.78rem;">
+    </div>
+    <div class="form-group col-md-1 mb-0 text-center">
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVendorRow(this)" title="Remove">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>`;
+  document.getElementById('vendorsContainer').appendChild(row);
+  document.getElementById('vendorCount').value = document.querySelectorAll('[data-vendor-row]').length;
+  _renumberVendors();
+}
+
+function removeVendorRow(btn) {
+  btn.closest('[data-vendor-row]').remove();
+  document.getElementById('vendorCount').value = document.querySelectorAll('[data-vendor-row]').length;
+  _renumberVendors();
+}
+
+function _renumberVendors() {
+  let n = 1;
+  document.querySelectorAll('[data-vendor-row]').forEach(row => {
+    const badge = row.querySelector('.badge');
+    if (badge) badge.textContent = n++;
+  });
+}
+
 // ── Generate Technical PDF ─────────────────────────────────────────────
 async function generateTechPdf() {
   _updateTechJson();
@@ -1365,6 +1439,7 @@ async function saveTechDraft() {
     tech_prep_title: document.getElementById('techPrepTitle')?.value || '',
     tech_appr_name:  document.getElementById('techApprName')?.value || '',
     tech_appr_title: document.getElementById('techApprTitle')?.value || '',
+    vendor_names:    _getVendorNames(),
     sections:        _techSections,
   };
   const btn = document.getElementById('saveTechDraftBtn');

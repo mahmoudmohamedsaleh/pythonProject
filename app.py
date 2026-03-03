@@ -7502,6 +7502,14 @@ def proposal_generate_technical_pdf():
     logo_end_user    = _read_logo('logo_end_user')
     logo_contractor  = _read_logo('logo_contractor')
     logo_consultant  = _read_logo('logo_consultant')
+    # Multi-vendor support
+    vendor_count = int(form.get('vendor_count', 0) or 0)
+    vendors = []
+    for _vi in range(vendor_count):
+        vname = form.get(f'vendor_name_{_vi}', '').strip()
+        vlogo = _read_logo(f'vendor_logo_{_vi}')
+        if vname or vlogo:
+            vendors.append({'name': vname, 'logo': vlogo})
     prep_name        = form.get('tech_prep_name', '').strip()
     prep_title  = form.get('tech_prep_title', '').strip()
     appr_name   = form.get('tech_appr_name', '').strip()
@@ -7533,6 +7541,7 @@ def proposal_generate_technical_pdf():
             logo_end_user=logo_end_user,
             logo_contractor=logo_contractor,
             logo_consultant=logo_consultant,
+            vendors=vendors,
             prep_name=prep_name,
             prep_title=prep_title,
             appr_name=appr_name,
@@ -7553,7 +7562,7 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
                                     consultant, vendor, date_str, quote_ref, rfq_ref, sections,
                                     end_user='', submittal_ref='',
                                     logo_end_user=None, logo_contractor=None, logo_consultant=None,
-                                    prep_name='', prep_title='', appr_name='', appr_title=''):
+                                    vendors=None, prep_name='', prep_title='', appr_name='', appr_title=''):
     """Build a Technical Submittal PDF: Cover + Index + Separator per section."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -7671,6 +7680,113 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
     if location:
         story.append(_p(location, _ps('loc', fontSize=11, textColor=C_MGREY, alignment=TA_CENTER, leading=14)))
         story.append(Spacer(1, 1.0*cm))
+
+    # ── Vendor Panel (shown only when vendors supplied) ──────────────────
+    if vendors:
+        # Helper: make transparent logo (reuse same logic)
+        def _v_transparent(logo_buf):
+            if not logo_buf:
+                return None
+            try:
+                import io as _io4
+                from PIL import Image as PILImage
+                logo_buf.seek(0)
+                pil = PILImage.open(logo_buf).convert('RGBA')
+                data = pil.getdata()
+                new_data = []
+                for r, g, b, a in data:
+                    dist = ((r-255)**2 + (g-255)**2 + (b-255)**2) ** 0.5
+                    new_data.append((r, g, b, 0 if dist < 35 else a))
+                pil.putdata(new_data)
+                out = _io4.BytesIO()
+                pil.save(out, format='PNG')
+                out.seek(0)
+                return out
+            except Exception:
+                logo_buf.seek(0)
+                return logo_buf
+
+        # "VENDORS / MANUFACTURERS" header strip
+        v_hdr = Table([[_p('VENDORS  /  MANUFACTURERS',
+                            _ps('vh', fontName='Helvetica-Bold', fontSize=9,
+                                textColor=C_WHITE, alignment=TA_CENTER, letterSpacing=2))]],
+                      colWidths=[BW],
+                      style=TableStyle([
+                          ('BACKGROUND',    (0,0), (-1,-1), C_PURPLE),
+                          ('TOPPADDING',    (0,0), (-1,-1), 6),
+                          ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+                          ('LEFTPADDING',   (0,0), (-1,-1), 0),
+                          ('RIGHTPADDING',  (0,0), (-1,-1), 0),
+                      ]))
+        story.append(v_hdr)
+
+        # Vendor cards grid — up to 4 per row
+        MAX_PER_ROW = min(4, len(vendors))
+        VCARD_W     = BW / MAX_PER_ROW
+        VCARD_H     = 2.0 * cm
+        C_VBG       = colors.HexColor('#FFF5F5')
+
+        def _vendor_card(v):
+            vname = v.get('name', '') or ''
+            vbuf  = v.get('logo')
+            processed = _v_transparent(vbuf) if vbuf else None
+            card_rows = []
+            if processed:
+                try:
+                    img = RLImage(processed)
+                    iw, ih = img.imageWidth, img.imageHeight
+                    mw = VCARD_W - 16
+                    mh = VCARD_H * 0.55
+                    ratio = min(mw/iw, mh/ih)
+                    img.drawWidth  = round(iw*ratio, 2)
+                    img.drawHeight = round(ih*ratio, 2)
+                    card_rows.append([img])
+                except Exception:
+                    pass
+            if vname:
+                card_rows.append([_p(vname, _ps(f'vn_{vname}', fontName='Helvetica-Bold',
+                                                  fontSize=8.5, textColor=C_DARK,
+                                                  alignment=TA_CENTER, leading=11))])
+            if not card_rows:
+                return ''
+            inner = Table(card_rows, colWidths=[VCARD_W - 8])
+            inner.setStyle(TableStyle([
+                ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+                ('TOPPADDING',    (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('LEFTPADDING',   (0,0), (-1,-1), 4),
+                ('RIGHTPADDING',  (0,0), (-1,-1), 4),
+            ]))
+            wrap = Table([[inner]], colWidths=[VCARD_W])
+            wrap.setStyle(TableStyle([
+                ('BOX',          (0,0), (-1,-1), 0.5, colors.HexColor('#DDDDDD')),
+                ('BACKGROUND',   (0,0), (-1,-1), C_VBG),
+                ('TOPPADDING',   (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING',(0,0), (-1,-1), 4),
+                ('LEFTPADDING',  (0,0), (-1,-1), 0),
+                ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ]))
+            return wrap
+
+        # Chunk vendors into rows of MAX_PER_ROW
+        for chunk_start in range(0, len(vendors), MAX_PER_ROW):
+            chunk = vendors[chunk_start:chunk_start+MAX_PER_ROW]
+            # Pad to fill row
+            while len(chunk) < MAX_PER_ROW:
+                chunk.append({'name': '', 'logo': None})
+            row_cells  = [_vendor_card(v) for v in chunk]
+            vendor_row = Table([row_cells], colWidths=[VCARD_W] * MAX_PER_ROW)
+            vendor_row.setStyle(TableStyle([
+                ('TOPPADDING',    (0,0), (-1,-1), 0),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                ('LEFTPADDING',   (0,0), (-1,-1), 0),
+                ('RIGHTPADDING',  (0,0), (-1,-1), 0),
+                ('BOX',           (0,0), (-1,-1), 0.5, colors.HexColor('#E0E0E0')),
+            ]))
+            story.append(vendor_row)
+
+        story.append(Spacer(1, 0.5*cm))
 
     # ── Info block: professional card with transparent logos ─────────────
     C_RED_LIGHT = colors.HexColor('#FFF5F5')
