@@ -6869,33 +6869,36 @@ def proposal_generator_main():
 
     # ── Load saved proposal form data ────────────────────────────────────
     saved_form = {}
-    if rfq_ref and quoteref:
+    if rfq_ref:
         try:
             _pf_conn = sqlite3.connect('ProjectStatus.db')
-            _pf_conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
-                rfq_ref TEXT NOT NULL, quote_ref TEXT NOT NULL,
-                form_json TEXT, saved_at TEXT, PRIMARY KEY (rfq_ref, quote_ref))""")
-            _pf_conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
-                rfq_ref TEXT NOT NULL, quote_ref TEXT NOT NULL,
-                form_json TEXT, saved_at TEXT, saved_by TEXT,
-                PRIMARY KEY (rfq_ref, quote_ref))""")
             try:
                 _pf_conn.execute("ALTER TABLE proposal_form_data ADD COLUMN saved_by TEXT")
                 _pf_conn.commit()
             except Exception:
                 pass
-            _pf_row = _pf_conn.execute(
-                "SELECT form_json, saved_at, saved_by FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
-                (rfq_ref, quoteref)
-            ).fetchone()
+            if quoteref:
+                # Exact match by rfq_ref + quote_ref
+                _pf_row = _pf_conn.execute(
+                    "SELECT quote_ref, form_json, saved_at, saved_by FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+                    (rfq_ref, quoteref)
+                ).fetchone()
+            else:
+                # quoteref missing in URL — auto-load most recently saved draft for this RFQ
+                _pf_row = _pf_conn.execute(
+                    "SELECT quote_ref, form_json, saved_at, saved_by FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
+                    (rfq_ref,)
+                ).fetchone()
             _pf_conn.close()
-            if _pf_row and _pf_row[0]:
+            if _pf_row and _pf_row[1]:
                 import json as _json2
-                saved_form = _json2.loads(_pf_row[0])
-                if len(_pf_row) > 1 and _pf_row[1]:
-                    saved_form['_saved_at'] = _pf_row[1]
-                if len(_pf_row) > 2 and _pf_row[2]:
-                    saved_form['_saved_by'] = _pf_row[2]
+                if not quoteref and _pf_row[0]:
+                    quoteref = _pf_row[0]
+                saved_form = _json2.loads(_pf_row[1])
+                if _pf_row[2]:
+                    saved_form['_saved_at'] = _pf_row[2]
+                if _pf_row[3]:
+                    saved_form['_saved_by'] = _pf_row[3]
         except Exception as _pf_e:
             app.logger.warning(f"Could not load proposal form data: {_pf_e}")
 
