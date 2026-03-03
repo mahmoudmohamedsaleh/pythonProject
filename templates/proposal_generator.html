@@ -461,13 +461,13 @@
               </button>
               <div id="saveStatus" style="font-size:.78rem; margin-top:5px; display:none;"></div>
               {%- if saved_form and saved_form.get('_saved_by') or saved_form and saved_form.get('_saved_at') %}
-              <div id="pgLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;">
+              <div id="pgLastSaved" style="font-size:.75rem;color:#CC0000;margin-top:6px;padding:5px 8px;background:#fff5f5;border-radius:5px;border:1px solid #ffcccc;">
                 <i class="fas fa-user-edit mr-1"></i>
                 {%- if saved_form.get('_saved_by') %}<strong>{{ saved_form['_saved_by'] }}</strong>{% endif %}
                 {%- if saved_form.get('_saved_at') %}<span style="color:#6c757d;"> &mdash; {{ saved_form['_saved_at'] }}</span>{% endif %}
               </div>
               {%- else %}
-              <div id="pgLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;display:none;">
+              <div id="pgLastSaved" style="font-size:.75rem;color:#CC0000;margin-top:6px;padding:5px 8px;background:#fff5f5;border-radius:5px;border:1px solid #ffcccc;display:none;">
                 <i class="fas fa-user-edit mr-1"></i> <strong id="pgSavedBy"></strong><span id="pgSavedAt" style="color:#6c757d;"></span>
               </div>
               {%- endif %}
@@ -612,13 +612,13 @@
 
         <!-- ── RIGHT: Actions ── -->
         <div class="col-lg-5">
-          <div class="card mb-3 shadow-sm" style="border:2px solid #6a4cbf;">
+          <div class="card mb-3 shadow-sm" style="border:2px solid #CC0000;">
             <div class="card-body py-3 text-center">
               <p class="small text-muted mb-2">
                 <i class="fas fa-info-circle text-primary mr-1"></i>
                 Generates a Technical Submittal PDF with Cover Page, Index, and Section Separators.
               </p>
-              <button type="button" class="btn-generate" onclick="generateTechPdf()" style="background:linear-gradient(135deg,#4B2D8F,#7B5ABF);">
+              <button type="button" class="btn-generate" onclick="generateTechPdf()" style="background:linear-gradient(135deg,#CC0000,#E83333);">
                 <i class="fas fa-file-pdf mr-2"></i> Generate Technical Submittal PDF
               </button>
               <button type="button" class="btn btn-success btn-block mt-2" onclick="saveTechDraft()" id="saveTechDraftBtn"
@@ -627,13 +627,13 @@
               </button>
               <div id="techSaveStatus" style="font-size:.78rem;margin-top:5px;display:none;"></div>
               {%- if tech_saved_form.get('_saved_by') or tech_saved_form.get('_saved_at') %}
-              <div id="techLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;">
+              <div id="techLastSaved" style="font-size:.75rem;color:#CC0000;margin-top:6px;padding:5px 8px;background:#fff5f5;border-radius:5px;border:1px solid #ffcccc;">
                 <i class="fas fa-user-edit mr-1"></i>
                 {%- if tech_saved_form.get('_saved_by') %}<strong>{{ tech_saved_form['_saved_by'] }}</strong>{% endif %}
                 {%- if tech_saved_form.get('_saved_at') %}<span style="color:#6c757d;"> &mdash; {{ tech_saved_form['_saved_at'] }}</span>{% endif %}
               </div>
               {%- else %}
-              <div id="techLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;display:none;">
+              <div id="techLastSaved" style="font-size:.75rem;color:#CC0000;margin-top:6px;padding:5px 8px;background:#fff5f5;border-radius:5px;border:1px solid #ffcccc;display:none;">
                 <i class="fas fa-user-edit mr-1"></i> <strong id="techSavedBy"></strong><span id="techSavedAt" style="color:#6c757d;"></span>
               </div>
               {%- endif %}
@@ -641,7 +641,7 @@
           </div>
 
           <!-- Index Preview -->
-          <div class="card shadow-sm" style="border:1px solid #d4c8f5;">
+          <div class="card shadow-sm" style="border:1px solid #DDDDDD;">
             <div class="card-header-pg"><i class="fas fa-eye mr-1"></i> Index Preview</div>
             <div class="card-body py-2" id="techIndexPreview" style="font-size:.78rem;max-height:380px;overflow-y:auto;">
               <em class="text-muted">Edit the index on the left to see a preview here.</em>
@@ -1191,9 +1191,9 @@ function _renderTechIndex() {
     card.style.cssText = isClosing ? 'border-color:#4B2D8F!important;background:#f9f6ff!important;' : '';
     card.innerHTML = `
       <div class="d-flex align-items-center mb-1">
-        <span class="badge badge-pill mr-2" style="background:${isClosing?'#4B2D8F':'#6a4cbf'};color:#fff;font-size:.7rem;min-width:22px;">${numLabel}</span>
+        <span class="badge badge-pill mr-2" style="background:${isClosing?'#A00000':'#CC0000'};color:#fff;font-size:.7rem;min-width:22px;">${numLabel}</span>
         <input type="text" class="form-control form-control-sm font-weight-bold mr-2"
-               style="border:none;border-bottom:1px solid #d4c8f5;border-radius:0;font-size:.82rem;color:#4B2D8F;background:transparent;"
+               style="border:none;border-bottom:1px solid #ffcccc;border-radius:0;font-size:.82rem;color:#CC0000;background:transparent;"
                value="${_escHtml(sec.title)}" oninput="_techSecEdit(${i},this.value)" placeholder="Section title">
         ${!isClosing ? `<button type="button" class="btn btn-sm btn-link text-muted p-0 mr-1" onclick="_techMoveUp(${i})" title="Move up"><i class="fas fa-arrow-up" style="font-size:.65rem;"></i></button>
         <button type="button" class="btn btn-sm btn-link text-muted p-0 mr-1" onclick="_techMoveDown(${i})" title="Move down"><i class="fas fa-arrow-down" style="font-size:.65rem;"></i></button>` : ''}
@@ -1249,10 +1249,10 @@ function _renderTechPreview() {
   _techSections.forEach(sec => {
     const title = _applyVendor(sec.title||'', vendor);
     if(sec.closing) {
-      html += `<li style="list-style:none;color:#4B2D8F;font-weight:600;margin-top:6px;">....... ${_escHtml(title)}</li>`;
+      html += `<li style="list-style:none;color:#CC0000;font-weight:600;margin-top:6px;">....... ${_escHtml(title)}</li>`;
     } else {
       mainNum++;
-      html += `<li style="color:#4B2D8F;font-weight:600;margin-bottom:2px;"><span style="color:#4B2D8F;">${mainNum}-  ${_escHtml(title)}</span>`;
+      html += `<li style="color:#CC0000;font-weight:600;margin-bottom:2px;"><span style="color:#CC0000;">${mainNum}-  ${_escHtml(title)}</span>`;
       if(sec.subs && sec.subs.length) {
         html += '<ul style="padding-left:14px;margin:2px 0 4px;">';
         sec.subs.forEach(sub => {

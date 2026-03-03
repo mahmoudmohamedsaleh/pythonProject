@@ -7540,14 +7540,14 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
     from io import BytesIO
 
     W, H = A4
-    C_PURPLE  = colors.HexColor('#4B2D8F')
-    C_PURPLE2 = colors.HexColor('#3a2070')
-    C_GOLD    = colors.HexColor('#C9A84C')
+    C_PURPLE  = colors.HexColor('#CC0000')   # EJTech brand red
+    C_PURPLE2 = colors.HexColor('#A00000')   # darker red
+    C_GOLD    = colors.HexColor('#888888')   # medium gray accent
     C_WHITE   = colors.white
-    C_DARK    = colors.HexColor('#1A1A2E')
-    C_GREY    = colors.HexColor('#F5F5F5')
-    C_LGREY   = colors.HexColor('#E8E0F5')
-    C_MGREY   = colors.HexColor('#6c757d')
+    C_DARK    = colors.HexColor('#333333')   # dark gray text
+    C_GREY    = colors.HexColor('#F5F5F5')   # light gray bg
+    C_LGREY   = colors.HexColor('#EEEEEE')   # light gray
+    C_MGREY   = colors.HexColor('#777777')   # medium gray
 
     buf = BytesIO()
     LMARGIN = 1.8*cm
@@ -7670,8 +7670,8 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         info_tbl = Table(info_rows, colWidths=[BW*0.35, BW*0.65])
         info_tbl.setStyle(TableStyle([
             ('BACKGROUND',(0,0),(-1,-1),C_GREY),
-            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#D0C4F0')),
-            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#E0D8F5')),
+            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#DDDDDD')),
+            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#EEEEEE')),
             ('PADDING',(0,0),(-1,-1),8),
             ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
         ]))
@@ -7687,7 +7687,7 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
     # -- Prepared by footer band
     story.append(Spacer(1, 0.8*cm))
     footer_data = [[
-        _p('Prepared by:', _ps('fbl', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#CCC0F0'), alignment=TA_CENTER)),
+        _p('Prepared by:', _ps('fbl', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#CCCCCC'), alignment=TA_CENTER)),
         _p('EJTech', _ps('fbv', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_CENTER)),
     ]]
     footer_tbl = Table(footer_data, colWidths=[BW*0.35, BW*0.65])
@@ -7792,7 +7792,7 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         num_cell = Table([[
             _p(str(sec_num),
                _ps(f'sn{sec_num}', fontName='Helvetica-Bold', fontSize=72,
-                   textColor=colors.HexColor('#7B5FBF'), alignment=TA_CENTER, leading=80))
+                   textColor=colors.HexColor('#FF8888'), alignment=TA_CENTER, leading=80))
         ]], colWidths=[BW*0.28])
         num_cell.setStyle(TableStyle([
             ('BACKGROUND',(0,0),(-1,-1),C_PURPLE2),
@@ -7837,7 +7837,7 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
             ('BOTTOMPADDING',(0,0),(-1,-1),0),
             ('LEFTPADDING',(0,0),(-1,-1),0),
             ('RIGHTPADDING',(0,0),(-1,-1),0),
-            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#D0C4F0')),
+            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#DDDDDD')),
         ]))
         story.append(sep_tbl)
         story.append(PageBreak())
