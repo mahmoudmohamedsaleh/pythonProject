@@ -528,15 +528,128 @@
   <!-- END COMMERCIAL TAB -->
 
   <!-- ══════════════ TECHNICAL TAB ══════════════ -->
+  <!-- ══════════════ TECHNICAL TAB ══════════════ -->
   <div class="tab-pane" id="tab-technical">
-    <div class="tech-placeholder">
-      <div><i class="fas fa-drafting-compass d-block mb-3" style="font-size:3rem;color:#b39ddb;"></i></div>
-      <h5>Technical Proposal — Coming Soon</h5>
-      <p class="text-muted" style="max-width:400px;margin:auto;">
-        This section will allow you to generate structured Technical Proposal documents
-        including architecture diagrams, system descriptions, and compliance statements.
-      </p>
-    </div>
+    <form id="techForm" onsubmit="return false;">
+      <input type="hidden" name="rfq_ref"  value="{{ rfq_ref }}">
+      <input type="hidden" name="quoteref" value="{{ quoteref }}">
+      <input type="hidden" name="tech_sections_json" id="techSectionsJson" value="[]">
+
+      <div class="row">
+        <!-- ── LEFT: Cover Page Fields ── -->
+        <div class="col-lg-7">
+
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg"><i class="fas fa-file-alt mr-1"></i> Cover Page Details</div>
+            <div class="card-body py-3">
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">System Title</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_title"
+                         id="techTitle" placeholder='e.g. Data "Passive" or CCTV System'
+                         value="{{ tech_saved_form.get('tech_title', '') }}">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Vendor Name</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_vendor"
+                         id="techVendor" placeholder="e.g. Datwyler"
+                         value="{{ tech_saved_form.get('tech_vendor', '') }}"
+                         oninput="refreshVendorLabels()">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Project Name</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_project"
+                         id="techProject" placeholder="Project name"
+                         value="{{ tech_saved_form.get('tech_project', project_name) }}">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Location</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_location"
+                         id="techLocation" placeholder="City, Country"
+                         value="{{ tech_saved_form.get('tech_location', 'RIYADH, SAUDI ARABIA') }}">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Contractor</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_contractor"
+                         id="techContractor" placeholder="Contractor company"
+                         value="{{ tech_saved_form.get('tech_contractor', '') }}">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Consultant</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_consultant"
+                         id="techConsultant" placeholder="Consultant company"
+                         value="{{ tech_saved_form.get('tech_consultant', '') }}">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-4">
+                  <label class="small font-weight-bold text-muted mb-1">Date</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_date"
+                         id="techDate" value="{{ tech_saved_form.get('tech_date', today) }}">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Index Editor -->
+          <div class="card mb-3 shadow-sm">
+            <div class="card-header-pg d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-list-ol mr-1"></i> Index / Table of Contents</span>
+              <button type="button" class="btn btn-sm btn-outline-light" onclick="addTechSection()">
+                <i class="fas fa-plus mr-1"></i> Add Section
+              </button>
+            </div>
+            <div class="card-body py-2" id="techIndexContainer" style="max-height:520px;overflow-y:auto;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+        </div><!-- /col-lg-7 -->
+
+        <!-- ── RIGHT: Actions ── -->
+        <div class="col-lg-5">
+          <div class="card mb-3 shadow-sm" style="border:2px solid #6a4cbf;">
+            <div class="card-body py-3 text-center">
+              <p class="small text-muted mb-2">
+                <i class="fas fa-info-circle text-primary mr-1"></i>
+                Generates a Technical Submittal PDF with Cover Page, Index, and Section Separators.
+              </p>
+              <button type="button" class="btn-generate" onclick="generateTechPdf()" style="background:linear-gradient(135deg,#4B2D8F,#7B5ABF);">
+                <i class="fas fa-file-pdf mr-2"></i> Generate Technical Submittal PDF
+              </button>
+              <button type="button" class="btn btn-success btn-block mt-2" onclick="saveTechDraft()" id="saveTechDraftBtn"
+                      style="font-weight:600;font-size:.88rem;">
+                <i class="fas fa-save mr-1"></i> Save Draft
+              </button>
+              <div id="techSaveStatus" style="font-size:.78rem;margin-top:5px;display:none;"></div>
+              {%- if tech_saved_form.get('_saved_by') or tech_saved_form.get('_saved_at') %}
+              <div id="techLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;">
+                <i class="fas fa-user-edit mr-1"></i>
+                {%- if tech_saved_form.get('_saved_by') %}<strong>{{ tech_saved_form['_saved_by'] }}</strong>{% endif %}
+                {%- if tech_saved_form.get('_saved_at') %}<span style="color:#6c757d;"> &mdash; {{ tech_saved_form['_saved_at'] }}</span>{% endif %}
+              </div>
+              {%- else %}
+              <div id="techLastSaved" style="font-size:.75rem;color:#4B2D8F;margin-top:6px;padding:5px 8px;background:#f3efff;border-radius:5px;border:1px solid #d4c8f5;display:none;">
+                <i class="fas fa-user-edit mr-1"></i> <strong id="techSavedBy"></strong><span id="techSavedAt" style="color:#6c757d;"></span>
+              </div>
+              {%- endif %}
+            </div>
+          </div>
+
+          <!-- Index Preview -->
+          <div class="card shadow-sm" style="border:1px solid #d4c8f5;">
+            <div class="card-header-pg"><i class="fas fa-eye mr-1"></i> Index Preview</div>
+            <div class="card-body py-2" id="techIndexPreview" style="font-size:.78rem;max-height:380px;overflow-y:auto;">
+              <em class="text-muted">Edit the index on the left to see a preview here.</em>
+            </div>
+          </div>
+        </div><!-- /col-lg-5 -->
+      </div><!-- /row -->
+    </form>
   </div>
 
 </div><!-- /container -->
@@ -1021,6 +1134,210 @@ function _gatherAndBeacon() {
 window.addEventListener('pagehide', _gatherAndBeacon);
 recalcSummaryRows();
 renderSysTable();
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── TECHNICAL PROPOSAL ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+const _TECH_DEFAULT_SECTIONS = [
+  { title: 'COMPANY PROFILE', subs: ['About Us','Our Vision','Our Mission','Core Values','A Word from our CEO','Strategic Approach','Solutions We Provide','Featured Projects','Our Value Proposition','Our Footprint','Our Esteemed Partners','Our Valued Clients'], closing: false },
+  { title: 'COMPANY CERTIFICATIONS', subs: ['Commercial Registration','Classification Certificate','Chamber of Commerce','National Address','Zakat Certificate','VAT Certificate','Saudization Certificate','GOSI Certificate'], closing: false },
+  { title: 'ISO & QUALITY CERTIFICATIONS', subs: [], closing: false },
+  { title: 'ORGANISATION CHART', subs: [], closing: false },
+  { title: 'STAFF & INSTALLERS CERTIFICATIONS', subs: [], closing: false },
+  { title: 'PROJECTS REFERENCES', subs: [], closing: false },
+  { title: 'PREVIOUS APPROVALS', subs: [], closing: false },
+  { title: '{vendor} Bill Of Quantity', subs: [], closing: false },
+  { title: 'Catalogue & data sheet with selection', subs: [], closing: false },
+  { title: '{vendor} Certificates of product', subs: [], closing: false },
+  { title: '{vendor} Material Country of origin', subs: [], closing: false },
+  { title: '{vendor} Warranty', subs: [], closing: false },
+  { title: '{vendor} Authorization Letter', subs: [], closing: false },
+  { title: '{vendor} Previous Approvals', subs: [], closing: false },
+  { title: 'Comply sheet with stamp', subs: [], closing: false },
+  { title: 'Get in Touch', subs: [], closing: true },
+];
+
+let _techSections = [];
+
+function _techInit() {
+  const saved = {{ (tech_saved_form.get('sections') | tojson) if tech_saved_form.get('sections') else 'null' }};
+  _techSections = saved && saved.length ? JSON.parse(JSON.stringify(saved)) : JSON.parse(JSON.stringify(_TECH_DEFAULT_SECTIONS));
+  _renderTechIndex();
+  refreshVendorLabels();
+}
+
+function _renderTechIndex() {
+  const container = document.getElementById('techIndexContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  _techSections.forEach((sec, i) => {
+    const isClosing = !!sec.closing;
+    const subsHtml  = (sec.subs || []).map((sub, j) => `
+      <div class="d-flex align-items-center mb-1 tech-sub-row" data-si="${i}" data-sj="${j}">
+        <span class="text-muted mr-1" style="font-size:.75rem;">•</span>
+        <input type="text" class="form-control form-control-sm mr-1" style="font-size:.75rem;border-radius:4px;"
+               value="${_escHtml(sub)}" oninput="_techSubEdit(${i},${j},this.value)">
+        <button type="button" class="btn btn-sm text-danger p-0 ml-1" style="line-height:1;" onclick="_techSubDel(${i},${j})" title="Remove">
+          <i class="fas fa-times" style="font-size:.65rem;"></i>
+        </button>
+      </div>`).join('');
+
+    const vendorDisplay = _applyVendor(sec.title, document.getElementById('techVendor')?.value || '');
+    const numLabel = isClosing ? '...' : (i + 1 - _techSections.slice(0,i).filter(s=>s.closing).length);
+
+    const card = document.createElement('div');
+    card.className = 'border rounded mb-2 p-2 bg-white';
+    card.style.cssText = isClosing ? 'border-color:#4B2D8F!important;background:#f9f6ff!important;' : '';
+    card.innerHTML = `
+      <div class="d-flex align-items-center mb-1">
+        <span class="badge badge-pill mr-2" style="background:${isClosing?'#4B2D8F':'#6a4cbf'};color:#fff;font-size:.7rem;min-width:22px;">${numLabel}</span>
+        <input type="text" class="form-control form-control-sm font-weight-bold mr-2"
+               style="border:none;border-bottom:1px solid #d4c8f5;border-radius:0;font-size:.82rem;color:#4B2D8F;background:transparent;"
+               value="${_escHtml(sec.title)}" oninput="_techSecEdit(${i},this.value)" placeholder="Section title">
+        ${!isClosing ? `<button type="button" class="btn btn-sm btn-link text-muted p-0 mr-1" onclick="_techMoveUp(${i})" title="Move up"><i class="fas fa-arrow-up" style="font-size:.65rem;"></i></button>
+        <button type="button" class="btn btn-sm btn-link text-muted p-0 mr-1" onclick="_techMoveDown(${i})" title="Move down"><i class="fas fa-arrow-down" style="font-size:.65rem;"></i></button>` : ''}
+        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="_techSecDel(${i})" title="Remove"><i class="fas fa-trash" style="font-size:.65rem;"></i></button>
+      </div>
+      ${!isClosing ? `<div class="ml-3" id="techSubs_${i}">${subsHtml}</div>
+      <button type="button" class="btn btn-sm btn-link text-muted p-0 ml-3" style="font-size:.72rem;" onclick="_techSubAdd(${i})"><i class="fas fa-plus mr-1"></i>Add sub-item</button>` : ''}
+    `;
+    container.appendChild(card);
+  });
+  _updateTechJson();
+  _renderTechPreview();
+}
+
+function _escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _applyVendor(title, vendor) {
+  if (!vendor || !title) return title;
+  return title.replace(/\{vendor\}/g, vendor);
+}
+
+function _techSecEdit(i, val) { _techSections[i].title = val; _updateTechJson(); _renderTechPreview(); }
+function _techSubEdit(i, j, val) { _techSections[i].subs[j] = val; _updateTechJson(); _renderTechPreview(); }
+function _techSubDel(i, j) { _techSections[i].subs.splice(j,1); _renderTechIndex(); }
+function _techSubAdd(i) { _techSections[i].subs.push(''); _renderTechIndex(); setTimeout(()=>{ const rows=document.querySelectorAll(`[data-si="${i}"]`); if(rows.length) rows[rows.length-1].querySelector('input')?.focus(); },50); }
+function _techSecDel(i) { if(_techSections.length>1) { _techSections.splice(i,1); _renderTechIndex(); } }
+function _techMoveUp(i) { if(i>0){[_techSections[i-1],_techSections[i]]=[_techSections[i],_techSections[i-1]];_renderTechIndex();} }
+function _techMoveDown(i) { if(i<_techSections.length-1){[_techSections[i+1],_techSections[i]]=[_techSections[i],_techSections[i+1]];_renderTechIndex();} }
+
+function addTechSection() {
+  const closingIdx = _techSections.findIndex(s=>s.closing);
+  const newSec = {title:'New Section', subs:[], closing:false};
+  if(closingIdx>=0) _techSections.splice(closingIdx,0,newSec);
+  else _techSections.push(newSec);
+  _renderTechIndex();
+}
+
+function refreshVendorLabels() { _renderTechIndex(); }
+
+function _updateTechJson() {
+  const el = document.getElementById('techSectionsJson');
+  if(el) el.value = JSON.stringify(_techSections);
+}
+
+function _renderTechPreview() {
+  const prev = document.getElementById('techIndexPreview');
+  if(!prev) return;
+  const vendor = document.getElementById('techVendor')?.value || '';
+  let html = '<ol style="padding-left:18px;margin:0;">';
+  let mainNum = 0;
+  _techSections.forEach(sec => {
+    const title = _applyVendor(sec.title||'', vendor);
+    if(sec.closing) {
+      html += `<li style="list-style:none;color:#4B2D8F;font-weight:600;margin-top:6px;">....... ${_escHtml(title)}</li>`;
+    } else {
+      mainNum++;
+      html += `<li style="color:#4B2D8F;font-weight:600;margin-bottom:2px;"><span style="color:#4B2D8F;">${mainNum}-  ${_escHtml(title)}</span>`;
+      if(sec.subs && sec.subs.length) {
+        html += '<ul style="padding-left:14px;margin:2px 0 4px;">';
+        sec.subs.forEach(sub => {
+          html += `<li style="color:#333;font-weight:400;font-size:.75rem;">${_escHtml(_applyVendor(sub,vendor))}</li>`;
+        });
+        html += '</ul>';
+      }
+      html += '</li>';
+    }
+  });
+  html += '</ol>';
+  prev.innerHTML = html;
+}
+
+// ── Generate Technical PDF ─────────────────────────────────────────────
+async function generateTechPdf() {
+  _updateTechJson();
+  const form = document.getElementById('techForm');
+  const fd   = new FormData(form);
+  showLoader();
+  try {
+    const resp = await fetch('{{ url_for("proposal_generate_technical_pdf") }}', { method:'POST', body:fd });
+    if(!resp.ok) { const t=await resp.text(); throw new Error(t||'Server error '+resp.status); }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch(err) {
+    alert('PDF generation failed: ' + err.message);
+  } finally {
+    hideLoader();
+  }
+}
+
+// ── Save Tech Draft ────────────────────────────────────────────────────
+async function saveTechDraft() {
+  _updateTechJson();
+  const rfqRef   = '{{ rfq_ref }}';
+  const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
+  if(!rfqRef || !quoteRef) { alert('Please fill in the Quote Reference before saving.'); return; }
+  const form = {
+    tech_title:      document.getElementById('techTitle')?.value || '',
+    tech_vendor:     document.getElementById('techVendor')?.value || '',
+    tech_project:    document.getElementById('techProject')?.value || '',
+    tech_location:   document.getElementById('techLocation')?.value || '',
+    tech_contractor: document.getElementById('techContractor')?.value || '',
+    tech_consultant: document.getElementById('techConsultant')?.value || '',
+    tech_date:       document.getElementById('techDate')?.value || '',
+    sections:        _techSections,
+  };
+  const btn = document.getElementById('saveTechDraftBtn');
+  const st  = document.getElementById('techSaveStatus');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving…';
+  try {
+    const resp = await fetch('{{ url_for("proposal_save_tech_form") }}', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rfq_ref:rfqRef, quote_ref:quoteRef, form}),
+    });
+    const data = await resp.json();
+    if(data.ok) {
+      st.style.display='block'; st.style.color='#1B7B4B';
+      st.innerHTML='<i class="fas fa-check-circle mr-1"></i> Saved successfully';
+      setTimeout(()=>{st.style.display='none';},3000);
+      const ls=document.getElementById('techLastSaved');
+      const by=document.getElementById('techSavedBy');
+      const at=document.getElementById('techSavedAt');
+      if(ls) ls.style.display='block';
+      if(by && data.saved_by) by.textContent=data.saved_by;
+      if(at && data.saved_at) at.textContent=' — '+data.saved_at;
+    } else {
+      st.style.display='block'; st.style.color='#dc3545';
+      st.innerHTML='<i class="fas fa-exclamation-circle mr-1"></i> '+(data.error||'Save failed');
+    }
+  } catch(e) {
+    st.style.display='block'; st.style.color='#dc3545';
+    st.innerHTML='<i class="fas fa-exclamation-circle mr-1"></i> Network error';
+  } finally {
+    btn.disabled=false;
+    btn.innerHTML='<i class="fas fa-save mr-1"></i> Save Draft';
+  }
+}
+
+// Initialise on page load
+_techInit();
+
 </script>
 
 <!-- Submit to Quotation Modal -->

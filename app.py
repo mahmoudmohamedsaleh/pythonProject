@@ -6922,6 +6922,27 @@ def proposal_generator_main():
     except Exception:
         presale_engineers_list = []
 
+    # ── Load tech form data ──────────────────────────────────────────────
+    tech_saved_form = {}
+    if rfq_ref and quoteref:
+        try:
+            _tf_conn = sqlite3.connect('ProjectStatus.db')
+            try:
+                _tf_conn.execute("ALTER TABLE proposal_form_data ADD COLUMN tech_form_json TEXT")
+                _tf_conn.commit()
+            except Exception:
+                pass
+            _tf_row = _tf_conn.execute(
+                "SELECT tech_form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+                (rfq_ref, quoteref)
+            ).fetchone()
+            _tf_conn.close()
+            if _tf_row and _tf_row[0]:
+                import json as _json3
+                tech_saved_form = _json3.loads(_tf_row[0])
+        except Exception as _tf_e:
+            app.logger.warning(f"Could not load tech form data: {_tf_e}")
+
     resp = make_response(render_template('proposal_generator.html', today=today,
                            project_name=project_name, rfq_ref=rfq_ref,
                            quoteref=quoteref,
@@ -6935,6 +6956,7 @@ def proposal_generator_main():
                            cs_system_scopes=cs_system_scopes,
                            se_email=se_email,
                            saved_form=saved_form,
+                           tech_saved_form=tech_saved_form,
                            presale_engineers_list=presale_engineers_list))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'
@@ -7406,6 +7428,423 @@ def proposal_quick_submit():
         app.logger.error(f'quick_submit insert error: {_ie}')
         flash(f'Submission failed: {_ie}', 'danger')
     return redirect(url_for('proposal_generator_main', project=proj_name, rfq=rfq_ref, quoteref=quoteref))
+
+
+@app.route('/proposal_generator/save_tech_form', methods=['POST'])
+@login_required
+def proposal_save_tech_form():
+    """Save Technical Proposal form data to DB."""
+    from flask import request as _req, jsonify, session as _sess
+    import json as _json
+    data = _req.get_json(force=True) or {}
+    rfq_ref   = data.get('rfq_ref', '').strip()
+    quote_ref = data.get('quote_ref', '').strip()
+    if not rfq_ref or not quote_ref:
+        return jsonify({'ok': False, 'error': 'Missing rfq_ref or quote_ref'}), 400
+    tech_json = _json.dumps(data.get('form', {}), ensure_ascii=False)
+    _saved_by = _sess.get('username', 'Unknown')
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        try:
+            conn.execute("ALTER TABLE proposal_form_data ADD COLUMN tech_form_json TEXT")
+            conn.commit()
+        except Exception:
+            pass
+        existing = conn.execute(
+            "SELECT rfq_ref FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+            (rfq_ref, quote_ref)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE proposal_form_data SET tech_form_json=?, saved_at=datetime('now'), saved_by=? WHERE rfq_ref=? AND quote_ref=?",
+                (tech_json, _saved_by, rfq_ref, quote_ref)
+            )
+        else:
+            conn.execute(
+                "INSERT INTO proposal_form_data (rfq_ref, quote_ref, tech_form_json, saved_at, saved_by) VALUES (?,?,?,datetime('now'),?)",
+                (rfq_ref, quote_ref, tech_json, _saved_by)
+            )
+        conn.commit()
+        row = conn.execute("SELECT saved_at FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?", (rfq_ref, quote_ref)).fetchone()
+        conn.close()
+        return jsonify({'ok': True, 'saved_by': _saved_by, 'saved_at': row[0] if row else ''})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@app.route('/proposal_generator/generate_technical_pdf', methods=['POST'])
+@login_required
+def proposal_generate_technical_pdf():
+    """Generate a Technical Submittal PDF (Cover + Index + Separators)."""
+    from flask import request as _req
+    import json as _json
+    from io import BytesIO
+
+    form = _req.form
+    rfq_ref     = form.get('rfq_ref', '')
+    quote_ref   = form.get('quoteref', '')
+    tech_title  = form.get('tech_title', 'Technical System').strip()
+    project_name= form.get('tech_project', '').strip()
+    location    = form.get('tech_location', 'RIYADH, SAUDI ARABIA').strip()
+    contractor  = form.get('tech_contractor', '').strip()
+    consultant  = form.get('tech_consultant', '').strip()
+    vendor      = form.get('tech_vendor', '').strip()
+    date_str    = form.get('tech_date', '').strip()
+    sections_raw= form.get('tech_sections_json', '[]')
+    try:
+        sections = _json.loads(sections_raw)
+    except Exception:
+        sections = []
+
+    if not date_str:
+        from datetime import date as _date
+        date_str = _date.today().strftime('%d-%m-%Y')
+
+    try:
+        pdf_buf = _build_technical_submittal_pdf(
+            tech_title=tech_title,
+            project_name=project_name,
+            location=location,
+            contractor=contractor,
+            consultant=consultant,
+            vendor=vendor,
+            date_str=date_str,
+            quote_ref=quote_ref,
+            rfq_ref=rfq_ref,
+            sections=sections,
+        )
+        safe_proj = ''.join(c for c in project_name if c.isalnum() or c in ' _-')[:40].strip()
+        fname = f"Technical_Submittal_{safe_proj or 'Document'}.pdf"
+        from flask import send_file
+        pdf_buf.seek(0)
+        return send_file(pdf_buf, as_attachment=False, download_name=fname, mimetype='application/pdf')
+    except Exception as e:
+        import traceback
+        app.logger.error(f"generate_technical_pdf error: {e}\n{traceback.format_exc()}")
+        return f"PDF generation failed: {e}", 500
+
+
+def _build_technical_submittal_pdf(tech_title, project_name, location, contractor,
+                                    consultant, vendor, date_str, quote_ref, rfq_ref, sections):
+    """Build a Technical Submittal PDF: Cover + Index + Separator per section."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
+    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                    TableStyle, PageBreak, KeepTogether, HRFlowable)
+    from reportlab.platypus import Image as RLImage
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from io import BytesIO
+
+    W, H = A4
+    C_PURPLE  = colors.HexColor('#4B2D8F')
+    C_PURPLE2 = colors.HexColor('#3a2070')
+    C_GOLD    = colors.HexColor('#C9A84C')
+    C_WHITE   = colors.white
+    C_DARK    = colors.HexColor('#1A1A2E')
+    C_GREY    = colors.HexColor('#F5F5F5')
+    C_LGREY   = colors.HexColor('#E8E0F5')
+    C_MGREY   = colors.HexColor('#6c757d')
+
+    buf = BytesIO()
+    LMARGIN = 1.8*cm
+    RMARGIN = 1.8*cm
+    TMARGIN = 1.5*cm
+    BMARGIN = 1.9*cm
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=LMARGIN, rightMargin=RMARGIN,
+                            topMargin=TMARGIN, bottomMargin=BMARGIN,
+                            title=f"Technical Submittal - {project_name}")
+    BW = W - LMARGIN - RMARGIN
+    story = []
+
+    def _ps(name, **kw):
+        base = ParagraphStyle(name, fontName='Helvetica', fontSize=10, textColor=C_DARK, leading=14)
+        for k, v in kw.items(): setattr(base, k, v)
+        return base
+
+    def _p(text, style=None):
+        return Paragraph(str(text) if text else '', style or _ps('body'))
+
+    # Try to load logo
+    try:
+        LOGO_PATH = os.path.join(os.path.dirname(__file__), 'static', 'ejt.png')
+        logo_img = RLImage(LOGO_PATH, width=3.8*cm, height=1.28*cm)
+        logo_img_sm = RLImage(LOGO_PATH, width=2.5*cm, height=0.84*cm)
+    except Exception:
+        logo_img = _p('<b>EJTech</b>', _ps('lg', fontName='Helvetica-Bold', fontSize=16, textColor=C_PURPLE))
+        logo_img_sm = _p('<b>EJTech</b>', _ps('lgsm', fontName='Helvetica-Bold', fontSize=12, textColor=C_PURPLE))
+
+    # ═══════════════════════════ 1. COVER PAGE ════════════════════════════
+    # -- Header band: logo left, title right
+    hdr_title = Table([
+        [_p('TECHNICAL SUBMITTAL', _ps('ht', fontName='Helvetica-Bold', fontSize=14, textColor=C_PURPLE, alignment=TA_RIGHT))],
+        [_p('Document Submission Package', _ps('hs', fontSize=8, textColor=C_MGREY, alignment=TA_RIGHT))],
+    ], colWidths=[BW - 5.0*cm])
+    hdr_title.setStyle(TableStyle([('TOPPADDING',(0,0),(-1,-1),2),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+
+    banner = Table([[logo_img, hdr_title]], colWidths=[4.5*cm, BW - 4.5*cm])
+    banner.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_WHITE),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('LEFTPADDING',(0,0),(0,-1),8),
+        ('RIGHTPADDING',(0,0),(-1,-1),8),
+        ('TOPPADDING',(0,0),(-1,-1),14),
+        ('BOTTOMPADDING',(0,0),(-1,-1),14),
+        ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#E0E0E0')),
+        ('LINEBELOW',(0,0),(-1,-1),3,C_PURPLE),
+    ]))
+    story.append(banner)
+
+    # Accent line below header
+    acc = Table([['','']], colWidths=[BW*0.7, BW*0.3])
+    acc.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(0,0),C_GOLD),
+        ('BACKGROUND',(1,0),(1,0),C_PURPLE),
+        ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0),
+        ('LINEBELOW',(0,0),(-1,-1),3,C_GOLD),
+    ]))
+    story.append(Table([[acc]], colWidths=[BW],
+        style=TableStyle([('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0),
+                          ('LEFTPADDING',(0,0),(-1,-1),0),('RIGHTPADDING',(0,0),(-1,-1),0)])))
+    story.append(Spacer(1, 1.2*cm))
+
+    # -- System Type Title box
+    sys_title = Table([[
+        _p(f'TECHNICAL SUBMITTAL: {tech_title}',
+           _ps('syst', fontName='Helvetica-Bold', fontSize=18, textColor=C_WHITE, alignment=TA_CENTER, leading=22))
+    ]], colWidths=[BW])
+    sys_title.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE),
+        ('PADDING',(0,0),(-1,-1),18),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ('ROUNDEDCORNERS',[4]),
+    ]))
+    story.append(sys_title)
+    story.append(Spacer(1, 0.8*cm))
+
+    # -- Project Name
+    if project_name:
+        proj_tbl = Table([[
+            _p(project_name, _ps('pname', fontName='Helvetica-Bold', fontSize=22, textColor=C_DARK, alignment=TA_CENTER, leading=26))
+        ]], colWidths=[BW])
+        proj_tbl.setStyle(TableStyle([
+            ('BOTTOMPADDING',(0,0),(-1,-1),4),
+            ('LINEBELOW',(0,0),(-1,-1),1.5,C_GOLD),
+        ]))
+        story.append(proj_tbl)
+        story.append(Spacer(1, 0.3*cm))
+
+    # -- Location
+    if location:
+        story.append(_p(location, _ps('loc', fontSize=11, textColor=C_MGREY, alignment=TA_CENTER, leading=14)))
+        story.append(Spacer(1, 1.0*cm))
+
+    # -- Contractor / Consultant block
+    info_rows = []
+    if contractor:
+        info_rows.append([
+            _p('Contractor:', _ps('il', fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE, alignment=TA_RIGHT)),
+            _p(contractor,    _ps('iv', fontName='Helvetica-Bold', fontSize=10, textColor=C_DARK)),
+        ])
+    if consultant:
+        info_rows.append([
+            _p('Consultant:', _ps('cl', fontName='Helvetica-Bold', fontSize=10, textColor=C_PURPLE, alignment=TA_RIGHT)),
+            _p(consultant,    _ps('cv', fontName='Helvetica-Bold', fontSize=10, textColor=C_DARK)),
+        ])
+    if rfq_ref:
+        info_rows.append([
+            _p('RFQ Ref.:', _ps('rl', fontName='Helvetica-Bold', fontSize=9, textColor=C_MGREY, alignment=TA_RIGHT)),
+            _p(rfq_ref,    _ps('rv', fontSize=9, textColor=C_MGREY)),
+        ])
+    if date_str:
+        info_rows.append([
+            _p('Date:', _ps('dl', fontName='Helvetica-Bold', fontSize=9, textColor=C_MGREY, alignment=TA_RIGHT)),
+            _p(date_str, _ps('dv', fontSize=9, textColor=C_MGREY)),
+        ])
+    if info_rows:
+        info_tbl = Table(info_rows, colWidths=[BW*0.35, BW*0.65])
+        info_tbl.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,-1),C_GREY),
+            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#D0C4F0')),
+            ('INNERGRID',(0,0),(-1,-1),0.3,colors.HexColor('#E0D8F5')),
+            ('PADDING',(0,0),(-1,-1),8),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ]))
+        # Centre the info table in the page
+        outer = Table([[info_tbl]], colWidths=[BW])
+        outer.setStyle(TableStyle([
+            ('TOPPADDING',(0,0),(-1,-1),0),
+            ('BOTTOMPADDING',(0,0),(-1,-1),0),
+            ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ]))
+        story.append(outer)
+
+    # -- Prepared by footer band
+    story.append(Spacer(1, 0.8*cm))
+    footer_data = [[
+        _p('Prepared by:', _ps('fbl', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#CCC0F0'), alignment=TA_CENTER)),
+        _p('EJTech', _ps('fbv', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_CENTER)),
+    ]]
+    footer_tbl = Table(footer_data, colWidths=[BW*0.35, BW*0.65])
+    footer_tbl.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE2),
+        ('PADDING',(0,0),(-1,-1),10),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ]))
+    story.append(footer_tbl)
+    story.append(PageBreak())
+
+    # ═══════════════════════════ 2. INDEX PAGE ════════════════════════════
+    # Header
+    idx_hdr = Table([[
+        _p('INDEX', _ps('idxh', fontName='Helvetica-Bold', fontSize=16, textColor=C_WHITE, alignment=TA_CENTER))
+    ]], colWidths=[BW])
+    idx_hdr.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE),
+        ('PADDING',(0,0),(-1,-1),14),
+    ]))
+    story.append(idx_hdr)
+    story.append(Spacer(1, 0.4*cm))
+
+    # Two-column index layout
+    # We'll split sections into two halves
+    main_sections = [s for s in sections if not s.get('closing')]
+    closing_secs  = [s for s in sections if s.get('closing')]
+
+    # Build left and right column items
+    half = max(1, (len(main_sections) + 1) // 2)
+    left_secs  = main_sections[:half]
+    right_secs = main_sections[half:]
+
+    def _render_section_col(secs, start_num):
+        items = []
+        for i, sec in enumerate(secs):
+            num     = start_num + i
+            title   = sec.get('title', '')
+            sub_items = sec.get('subs', [])
+            # Replace {vendor} placeholder
+            if vendor:
+                title = title.replace('{vendor}', vendor)
+            # Section header row
+            items.append(_p(f'<b>{num}-  {title}</b>',
+                            _ps(f's{num}', fontName='Helvetica-Bold', fontSize=9,
+                                textColor=C_PURPLE, leading=13, spaceAfter=1)))
+            # Sub-items
+            for sub in sub_items:
+                if vendor:
+                    sub = sub.replace('{vendor}', vendor)
+                items.append(_p(f'    • {sub}',
+                                _ps(f'sub{num}', fontSize=8, textColor=C_DARK, leading=11,
+                                    leftIndent=8, spaceAfter=0)))
+            items.append(Spacer(1, 0.25*cm))
+        return items
+
+    left_items  = _render_section_col(left_secs, 1)
+    right_items = _render_section_col(right_secs, len(left_secs) + 1)
+
+    # Pad so both columns have same number of flowables
+    while len(left_items) < len(right_items):
+        left_items.append(Spacer(1, 0.1*cm))
+    while len(right_items) < len(left_items):
+        right_items.append(Spacer(1, 0.1*cm))
+
+    col_w = (BW - 0.4*cm) / 2
+    for l_item, r_item in zip(left_items, right_items):
+        row_tbl = Table([[l_item, r_item]], colWidths=[col_w, col_w])
+        row_tbl.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('LEFTPADDING',(0,0),(-1,-1),4),
+            ('RIGHTPADDING',(0,0),(-1,-1),4),
+            ('TOPPADDING',(0,0),(-1,-1),0),
+            ('BOTTOMPADDING',(0,0),(-1,-1),0),
+        ]))
+        story.append(row_tbl)
+
+    # Closing section (Get in Touch)
+    if closing_secs:
+        story.append(Spacer(1, 0.3*cm))
+        for sec in closing_secs:
+            title = sec.get('title', '')
+            if vendor:
+                title = title.replace('{vendor}', vendor)
+            story.append(_p(f'<b>....... {title}</b>',
+                            _ps('closing', fontName='Helvetica-Bold', fontSize=9,
+                                textColor=C_PURPLE, alignment=TA_CENTER)))
+    story.append(PageBreak())
+
+    # ═══════════════════════ 3. SEPARATOR PAGES ═══════════════════════════
+    # One separator per main section (not the closing one)
+    for i, sec in enumerate(main_sections):
+        sec_num   = i + 1
+        sec_title = sec.get('title', '')
+        if vendor:
+            sec_title = sec_title.replace('{vendor}', vendor)
+
+        # Full-page separator: purple left strip + white right
+        # We simulate a full-page look using a two-column table
+
+        # Left purple strip: section number
+        num_cell = Table([[
+            _p(str(sec_num),
+               _ps(f'sn{sec_num}', fontName='Helvetica-Bold', fontSize=72,
+                   textColor=colors.HexColor('#7B5FBF'), alignment=TA_CENTER, leading=80))
+        ]], colWidths=[BW*0.28])
+        num_cell.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,-1),C_PURPLE2),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('TOPPADDING',(0,0),(-1,-1),60),
+            ('BOTTOMPADDING',(0,0),(-1,-1),60),
+            ('LEFTPADDING',(0,0),(-1,-1),4),
+            ('RIGHTPADDING',(0,0),(-1,-1),4),
+        ]))
+
+        # Right white area: logo + title
+        right_inner = []
+        right_inner.append(logo_img_sm)
+        right_inner.append(Spacer(1, 0.6*cm))
+        right_inner.append(HRFlowable(width=BW*0.55, thickness=2, color=C_GOLD, spaceAfter=10))
+        right_inner.append(_p(sec_title,
+                              _ps(f'st{sec_num}', fontName='Helvetica-Bold', fontSize=22,
+                                  textColor=C_PURPLE, leading=28, alignment=TA_LEFT)))
+        right_inner.append(Spacer(1, 0.3*cm))
+        right_inner.append(HRFlowable(width=BW*0.55, thickness=1, color=C_LGREY, spaceAfter=6))
+        right_inner.append(_p('TECHNICAL SUBMITTAL',
+                              _ps(f'sub_ts{sec_num}', fontSize=8, textColor=C_MGREY, letterSpacing=1.5)))
+        if project_name:
+            right_inner.append(_p(project_name,
+                                  _ps(f'pn{sec_num}', fontSize=8, textColor=C_MGREY)))
+
+        right_cell = Table([[item] for item in right_inner], colWidths=[BW*0.66])
+        right_cell.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,-1),C_WHITE),
+            ('VALIGN',(0,0),(-1,-1),'TOP'),
+            ('TOPPADDING',(0,0),(0,0),40),
+            ('BOTTOMPADDING',(0,0),(-1,-1),6),
+            ('LEFTPADDING',(0,0),(-1,-1),20),
+            ('RIGHTPADDING',(0,0),(-1,-1),10),
+        ]))
+
+        # Combine side-by-side in a page-height table (simulated)
+        sep_tbl = Table([[num_cell, right_cell]], colWidths=[BW*0.28, BW*0.72])
+        sep_tbl.setStyle(TableStyle([
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('TOPPADDING',(0,0),(-1,-1),0),
+            ('BOTTOMPADDING',(0,0),(-1,-1),0),
+            ('LEFTPADDING',(0,0),(-1,-1),0),
+            ('RIGHTPADDING',(0,0),(-1,-1),0),
+            ('BOX',(0,0),(-1,-1),0.5,colors.HexColor('#D0C4F0')),
+        ]))
+        story.append(sep_tbl)
+        story.append(PageBreak())
+
+    doc.build(story)
+    buf.seek(0)
+    return buf
 
 
 @app.route('/proposal_generator/generate_excel', methods=['POST'])
