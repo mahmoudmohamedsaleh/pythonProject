@@ -7672,77 +7672,125 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         story.append(_p(location, _ps('loc', fontSize=11, textColor=C_MGREY, alignment=TA_CENTER, leading=14)))
         story.append(Spacer(1, 1.0*cm))
 
-    # ── Info block: clean card with left red accent + optional logos ─────
+    # ── Info block: professional card with transparent logos ─────────────
     C_RED_LIGHT = colors.HexColor('#FFF5F5')
-    C_BORDER    = colors.HexColor('#EEEEEE')
-    LBL_W = BW * 0.28   # label column
-    VAL_W = BW * 0.50   # text value column
-    LOG_W = BW * 0.22   # logo column
+    C_BORDER    = colors.HexColor('#E8E8E8')
+    LBL_W = BW * 0.26
+    VAL_W = BW * 0.44
+    LOG_W = BW * 0.30
 
-    def _logo_img(logo_buf, row_h=0.65*cm):
-        """Return an Image flowable scaled to fit the logo cell, or empty string."""
+    def _make_transparent_logo(logo_buf, bg_rgb=(255, 255, 255), threshold=30):
+        """Use Pillow to remove near-white background and return a PNG BytesIO."""
+        try:
+            import io as _io3
+            from PIL import Image as PILImage
+            logo_buf.seek(0)
+            pil = PILImage.open(logo_buf).convert('RGBA')
+            data = pil.getdata()
+            new_data = []
+            br, bg, bb = bg_rgb
+            for r, g, b, a in data:
+                dist = ((r-br)**2 + (g-bg)**2 + (b-bb)**2) ** 0.5
+                if dist < threshold:
+                    new_data.append((r, g, b, 0))
+                else:
+                    new_data.append((r, g, b, a))
+            pil.putdata(new_data)
+            out = _io3.BytesIO()
+            pil.save(out, format='PNG')
+            out.seek(0)
+            return out
+        except Exception:
+            logo_buf.seek(0)
+            return logo_buf
+
+    def _logo_cell(logo_buf):
+        """Return an RLImage scaled to fit neatly, transparent background."""
         if not logo_buf:
             return ''
         try:
-            logo_buf.seek(0)
-            img = RLImage(logo_buf)
+            processed = _make_transparent_logo(logo_buf)
+            img = RLImage(processed)
             iw, ih = img.imageWidth, img.imageHeight
-            max_w = LOG_W - 12
-            max_h = 1.4 * cm
+            max_w = LOG_W - 16
+            max_h = 1.3 * cm
             ratio = min(max_w / iw, max_h / ih)
-            img.drawWidth  = iw * ratio
-            img.drawHeight = ih * ratio
+            img.drawWidth  = round(iw * ratio, 2)
+            img.drawHeight = round(ih * ratio, 2)
             return img
-        except Exception as _le:
-            import traceback; traceback.print_exc()
+        except Exception:
             return ''
 
-    def _info_row3(label, value, logo_buf=None, label_color=None, val_bold=False, val_fs=10, lbl_fs=9):
-        lc = label_color or C_PURPLE
-        vf = 'Helvetica-Bold' if val_bold else 'Helvetica'
-        return [
-            _p(label, _ps(f'lbl3_{label}', fontName='Helvetica-Bold', fontSize=lbl_fs,
-                          textColor=lc, alignment=TA_RIGHT)),
-            _p(value or '—', _ps(f'val3_{label}', fontName=vf, fontSize=val_fs, textColor=C_DARK)),
-            _logo_img(logo_buf) if logo_buf else '',
-        ]
-
-    info_rows = []
-    hi_rows   = []   # row indices to highlight with faint red
+    # Build company rows (with logo) and meta rows (ref/date)
+    company_rows = []   # (label, text, logo_buf)
     if end_user:
-        info_rows.append(_info_row3('End User:', end_user, logo_end_user, val_bold=True, val_fs=10))
-        hi_rows.append(len(info_rows)-1)
+        company_rows.append(('End User:',    end_user,    logo_end_user))
     if contractor:
-        info_rows.append(_info_row3('Contractor:', contractor, logo_contractor, val_bold=True, val_fs=10))
-        hi_rows.append(len(info_rows)-1)
+        company_rows.append(('Contractor:',  contractor,  logo_contractor))
     if consultant:
-        info_rows.append(_info_row3('Consultant:', consultant, logo_consultant, val_bold=True, val_fs=10))
-        hi_rows.append(len(info_rows)-1)
-    if submittal_ref:
-        info_rows.append(_info_row3('Submittal Ref.:', submittal_ref, label_color=C_MGREY, val_fs=9))
-    if date_str:
-        info_rows.append(_info_row3('Date:', date_str, label_color=C_MGREY, val_fs=9))
+        company_rows.append(('Consultant:',  consultant,  logo_consultant))
 
-    if info_rows:
-        info_tbl = Table(info_rows, colWidths=[LBL_W, VAL_W, LOG_W])
+    meta_rows = []
+    if submittal_ref:
+        meta_rows.append(('Submittal Ref.:', submittal_ref))
+    if date_str:
+        meta_rows.append(('Date:',           date_str))
+
+    all_rows  = []
+    hi_rows   = []
+
+    for lbl, val, lbuf in company_rows:
+        all_rows.append([
+            _p(lbl, _ps(f'lbl_{lbl}', fontName='Helvetica-Bold', fontSize=9.5,
+                        textColor=C_PURPLE, alignment=TA_RIGHT)),
+            _p(val, _ps(f'val_{lbl}', fontName='Helvetica-Bold', fontSize=10.5,
+                        textColor=C_DARK)),
+            _logo_cell(lbuf),
+        ])
+        hi_rows.append(len(all_rows) - 1)
+
+    if company_rows and meta_rows:
+        # Thin divider row between company info and meta info
+        all_rows.append(['', '', ''])
+
+    for lbl, val in meta_rows:
+        all_rows.append([
+            _p(lbl, _ps(f'lbl_{lbl}', fontName='Helvetica-Bold', fontSize=8.5,
+                        textColor=C_MGREY, alignment=TA_RIGHT)),
+            _p(val, _ps(f'val_{lbl}', fontSize=8.5, textColor=colors.HexColor('#555555'))),
+            '',
+        ])
+
+    if all_rows:
+        info_tbl = Table(all_rows, colWidths=[LBL_W, VAL_W, LOG_W])
         style_cmds = [
-            ('BACKGROUND',   (0,0), (-1,-1), colors.white),
-            ('LEFTPADDING',  (0,0), (0,-1), 10),
-            ('RIGHTPADDING', (0,0), (0,-1), 8),
-            ('LEFTPADDING',  (1,0), (1,-1), 8),
-            ('LEFTPADDING',  (2,0), (2,-1), 6),
-            ('RIGHTPADDING', (2,0), (2,-1), 6),
-            ('TOPPADDING',   (0,0), (-1,-1), 7),
-            ('BOTTOMPADDING',(0,0), (-1,-1), 7),
-            ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
-            ('ALIGN',        (2,0), (2,-1), 'RIGHT'),
-            ('BOX',          (0,0), (-1,-1), 0.5, C_BORDER),
-            ('LINEBEFORE',   (0,0), (0,-1), 3, C_PURPLE),
+            ('BACKGROUND',    (0, 0), (-1, -1), colors.white),
+            ('LEFTPADDING',   (0, 0), (0, -1),  12),
+            ('RIGHTPADDING',  (0, 0), (0, -1),  10),
+            ('LEFTPADDING',   (1, 0), (1, -1),  10),
+            ('LEFTPADDING',   (2, 0), (2, -1),  8),
+            ('RIGHTPADDING',  (2, 0), (2, -1),  10),
+            ('TOPPADDING',    (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 9),
+            ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN',         (2, 0), (2, -1),  'RIGHT'),
+            ('BOX',           (0, 0), (-1, -1), 0.6, C_BORDER),
+            ('LINEBEFORE',    (0, 0), (0, -1),  4,   C_PURPLE),
         ]
-        for i in range(len(info_rows)-1):
-            style_cmds.append(('LINEBELOW', (0,i), (-1,i), 0.4, C_BORDER))
+        # Faint red highlight on company rows
         for i in hi_rows:
-            style_cmds.append(('BACKGROUND', (0,i), (-1,i), C_RED_LIGHT))
+            style_cmds.append(('BACKGROUND', (0, i), (-1, i), C_RED_LIGHT))
+        # Row separators
+        for i in range(len(all_rows) - 1):
+            style_cmds.append(('LINEBELOW', (0, i), (-1, i), 0.4, C_BORDER))
+        # Divider row (between company & meta) gets special treatment
+        if company_rows and meta_rows:
+            div_i = len(company_rows)
+            style_cmds += [
+                ('TOPPADDING',    (0, div_i), (-1, div_i), 0),
+                ('BOTTOMPADDING', (0, div_i), (-1, div_i), 0),
+                ('LINEABOVE',     (0, div_i), (-1, div_i), 0.8, colors.HexColor('#DDDDDD')),
+            ]
         info_tbl.setStyle(TableStyle(style_cmds))
         story.append(info_tbl)
 
