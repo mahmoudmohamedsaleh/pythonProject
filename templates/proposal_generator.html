@@ -592,6 +592,34 @@
                          id="techDate" value="{{ tech_saved_form.get('tech_date', today) }}">
                 </div>
               </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Prepared By (Name)</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_prep_name"
+                         id="techPrepName" placeholder="e.g. Eng. Mohamed Amer"
+                         value="{{ tech_saved_form.get('tech_prep_name', presale_name) }}">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Prepared By (Title)</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_prep_title"
+                         id="techPrepTitle" placeholder="e.g. Pre-Sales Engineer"
+                         value="{{ tech_saved_form.get('tech_prep_title', '') }}">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Approved By (Name)</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_appr_name"
+                         id="techApprName" placeholder="e.g. Eng. Mohammed Saleh"
+                         value="{{ tech_saved_form.get('tech_appr_name', '') }}">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Approved By (Title)</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_appr_title"
+                         id="techApprTitle" placeholder="e.g. Technical Team Leader"
+                         value="{{ tech_saved_form.get('tech_appr_title', '') }}">
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1300,6 +1328,10 @@ async function saveTechDraft() {
     tech_contractor: document.getElementById('techContractor')?.value || '',
     tech_consultant: document.getElementById('techConsultant')?.value || '',
     tech_date:       document.getElementById('techDate')?.value || '',
+    tech_prep_name:  document.getElementById('techPrepName')?.value || '',
+    tech_prep_title: document.getElementById('techPrepTitle')?.value || '',
+    tech_appr_name:  document.getElementById('techApprName')?.value || '',
+    tech_appr_title: document.getElementById('techApprTitle')?.value || '',
     sections:        _techSections,
   };
   const btn = document.getElementById('saveTechDraftBtn');

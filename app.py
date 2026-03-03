@@ -7490,6 +7490,10 @@ def proposal_generate_technical_pdf():
     consultant  = form.get('tech_consultant', '').strip()
     vendor      = form.get('tech_vendor', '').strip()
     date_str    = form.get('tech_date', '').strip()
+    prep_name   = form.get('tech_prep_name', '').strip()
+    prep_title  = form.get('tech_prep_title', '').strip()
+    appr_name   = form.get('tech_appr_name', '').strip()
+    appr_title  = form.get('tech_appr_title', '').strip()
     sections_raw= form.get('tech_sections_json', '[]')
     try:
         sections = _json.loads(sections_raw)
@@ -7512,6 +7516,10 @@ def proposal_generate_technical_pdf():
             quote_ref=quote_ref,
             rfq_ref=rfq_ref,
             sections=sections,
+            prep_name=prep_name,
+            prep_title=prep_title,
+            appr_name=appr_name,
+            appr_title=appr_title,
         )
         safe_proj = ''.join(c for c in project_name if c.isalnum() or c in ' _-')[:40].strip()
         fname = f"Technical_Submittal_{safe_proj or 'Document'}.pdf"
@@ -7525,7 +7533,8 @@ def proposal_generate_technical_pdf():
 
 
 def _build_technical_submittal_pdf(tech_title, project_name, location, contractor,
-                                    consultant, vendor, date_str, quote_ref, rfq_ref, sections):
+                                    consultant, vendor, date_str, quote_ref, rfq_ref, sections,
+                                    prep_name='', prep_title='', appr_name='', appr_title=''):
     """Build a Technical Submittal PDF: Cover + Index + Separator per section."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -7684,19 +7693,46 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         ]))
         story.append(outer)
 
-    # -- Prepared by footer band
-    story.append(Spacer(1, 0.8*cm))
-    footer_data = [[
-        _p('Prepared by:', _ps('fbl', fontName='Helvetica-Bold', fontSize=8, textColor=colors.HexColor('#CCCCCC'), alignment=TA_CENTER)),
-        _p('EJTech', _ps('fbv', fontName='Helvetica-Bold', fontSize=9, textColor=C_WHITE, alignment=TA_CENTER)),
-    ]]
-    footer_tbl = Table(footer_data, colWidths=[BW*0.35, BW*0.65])
-    footer_tbl.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,-1),C_PURPLE2),
-        ('PADDING',(0,0),(-1,-1),10),
-        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    # -- Prepared By / Approved By footer section
+    story.append(Spacer(1, 0.6*cm))
+
+    def _sig_cell(label, name, title, bg):
+        rows = [
+            [_p(label, _ps(f'sl{label}', fontName='Helvetica-Bold', fontSize=7.5,
+                           textColor=colors.HexColor('#CCCCCC'), alignment=TA_CENTER))],
+            [_p(name or '—', _ps(f'sn{label}', fontName='Helvetica-Bold', fontSize=10,
+                                  textColor=C_WHITE, alignment=TA_CENTER, leading=13))],
+        ]
+        if title:
+            rows.append([_p(title, _ps(f'st{label}', fontSize=8, textColor=colors.HexColor('#FFBBBB'),
+                                        alignment=TA_CENTER))])
+        rows.append([Spacer(1, 0.4*cm)])
+        rows.append([Table([['']], colWidths=[(BW/2 - 0.4*cm)],
+                     style=TableStyle([('LINEABOVE',(0,0),(-1,-1),1,colors.HexColor('#FF8888')),
+                                       ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)]))])
+        rows.append([_p('Signature', _ps(f'ssig{label}', fontSize=7, textColor=colors.HexColor('#CCCCCC'),
+                                          alignment=TA_CENTER))])
+        tbl = Table(rows, colWidths=[BW/2 - 0.4*cm])
+        tbl.setStyle(TableStyle([
+            ('BACKGROUND',(0,0),(-1,-1),bg),
+            ('PADDING',(0,0),(-1,-1),10),
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+        ]))
+        return tbl
+
+    prep_cell = _sig_cell('Prepared By', prep_name or 'EJTech', prep_title, C_PURPLE2)
+    appr_cell = _sig_cell('Approved By',  appr_name,             appr_title,  colors.HexColor('#7A0000'))
+
+    sig_row = Table([[prep_cell, Spacer(0.4*cm, 1), appr_cell]],
+                    colWidths=[BW/2 - 0.2*cm, 0.4*cm, BW/2 - 0.2*cm])
+    sig_row.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('TOPPADDING',(0,0),(-1,-1),0),
+        ('BOTTOMPADDING',(0,0),(-1,-1),0),
+        ('LEFTPADDING',(0,0),(-1,-1),0),
+        ('RIGHTPADDING',(0,0),(-1,-1),0),
     ]))
-    story.append(footer_tbl)
+    story.append(sig_row)
     story.append(PageBreak())
 
     # ═══════════════════════════ 2. INDEX PAGE ════════════════════════════
