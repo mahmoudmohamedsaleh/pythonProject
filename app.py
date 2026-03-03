@@ -7486,12 +7486,23 @@ def proposal_generate_technical_pdf():
     tech_title  = form.get('tech_title', 'Technical System').strip()
     project_name= form.get('tech_project', '').strip()
     location    = form.get('tech_location', 'RIYADH, SAUDI ARABIA').strip()
+    end_user    = form.get('tech_end_user', '').strip()
     contractor  = form.get('tech_contractor', '').strip()
     consultant  = form.get('tech_consultant', '').strip()
     vendor      = form.get('tech_vendor', '').strip()
     date_str       = form.get('tech_date', '').strip()
     submittal_ref  = form.get('tech_submittal_ref', '').strip()
-    prep_name      = form.get('tech_prep_name', '').strip()
+    # Logo uploads (optional)
+    def _read_logo(field):
+        f = _req.files.get(field)
+        if f and f.filename:
+            import io as _io2
+            return _io2.BytesIO(f.read())
+        return None
+    logo_end_user    = _read_logo('logo_end_user')
+    logo_contractor  = _read_logo('logo_contractor')
+    logo_consultant  = _read_logo('logo_consultant')
+    prep_name        = form.get('tech_prep_name', '').strip()
     prep_title  = form.get('tech_prep_title', '').strip()
     appr_name   = form.get('tech_appr_name', '').strip()
     appr_title  = form.get('tech_appr_title', '').strip()
@@ -7517,7 +7528,11 @@ def proposal_generate_technical_pdf():
             quote_ref=quote_ref,
             rfq_ref=rfq_ref,
             sections=sections,
+            end_user=end_user,
             submittal_ref=submittal_ref,
+            logo_end_user=logo_end_user,
+            logo_contractor=logo_contractor,
+            logo_consultant=logo_consultant,
             prep_name=prep_name,
             prep_title=prep_title,
             appr_name=appr_name,
@@ -7536,7 +7551,9 @@ def proposal_generate_technical_pdf():
 
 def _build_technical_submittal_pdf(tech_title, project_name, location, contractor,
                                     consultant, vendor, date_str, quote_ref, rfq_ref, sections,
-                                    submittal_ref='', prep_name='', prep_title='', appr_name='', appr_title=''):
+                                    end_user='', submittal_ref='',
+                                    logo_end_user=None, logo_contractor=None, logo_consultant=None,
+                                    prep_name='', prep_title='', appr_name='', appr_title=''):
     """Build a Technical Submittal PDF: Cover + Index + Separator per section."""
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import cm
@@ -7655,51 +7672,75 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
         story.append(_p(location, _ps('loc', fontSize=11, textColor=C_MGREY, alignment=TA_CENTER, leading=14)))
         story.append(Spacer(1, 1.0*cm))
 
-    # ── Info block: clean card with left red accent ──────────────────────
-    C_RED_LIGHT = colors.HexColor('#FFF0F0')
+    # ── Info block: clean card with left red accent + optional logos ─────
+    C_RED_LIGHT = colors.HexColor('#FFF5F5')
     C_BORDER    = colors.HexColor('#EEEEEE')
+    LBL_W = BW * 0.28   # label column
+    VAL_W = BW * 0.50   # text value column
+    LOG_W = BW * 0.22   # logo column
 
-    def _info_row(label, value, label_color=None, val_bold=False, val_fs=10, lbl_fs=9):
+    def _logo_img(logo_buf, row_h=0.65*cm):
+        """Return an Image flowable scaled to fit the logo cell, or empty string."""
+        if not logo_buf:
+            return ''
+        try:
+            logo_buf.seek(0)
+            img = ReportLabImage(logo_buf)
+            iw, ih = img.imageWidth, img.imageHeight
+            max_w, max_h = LOG_W - 8, row_h * 2.2
+            ratio = min(max_w / iw, max_h / ih)
+            img.drawWidth  = iw * ratio
+            img.drawHeight = ih * ratio
+            return img
+        except Exception:
+            return ''
+
+    def _info_row3(label, value, logo_buf=None, label_color=None, val_bold=False, val_fs=10, lbl_fs=9):
         lc = label_color or C_PURPLE
         vf = 'Helvetica-Bold' if val_bold else 'Helvetica'
         return [
-            _p(label, _ps(f'lbl_{label}', fontName='Helvetica-Bold', fontSize=lbl_fs,
+            _p(label, _ps(f'lbl3_{label}', fontName='Helvetica-Bold', fontSize=lbl_fs,
                           textColor=lc, alignment=TA_RIGHT)),
-            _p(value or '—', _ps(f'val_{label}', fontName=vf, fontSize=val_fs, textColor=C_DARK)),
+            _p(value or '—', _ps(f'val3_{label}', fontName=vf, fontSize=val_fs, textColor=C_DARK)),
+            _logo_img(logo_buf) if logo_buf else '',
         ]
 
     info_rows = []
+    hi_rows   = []   # row indices to highlight with faint red
+    if end_user:
+        info_rows.append(_info_row3('End User:', end_user, logo_end_user, val_bold=True, val_fs=10))
+        hi_rows.append(len(info_rows)-1)
     if contractor:
-        info_rows.append(_info_row('Contractor:', contractor, val_bold=True, val_fs=10))
+        info_rows.append(_info_row3('Contractor:', contractor, logo_contractor, val_bold=True, val_fs=10))
+        hi_rows.append(len(info_rows)-1)
     if consultant:
-        info_rows.append(_info_row('Consultant:', consultant, val_bold=True, val_fs=10))
+        info_rows.append(_info_row3('Consultant:', consultant, logo_consultant, val_bold=True, val_fs=10))
+        hi_rows.append(len(info_rows)-1)
     if submittal_ref:
-        info_rows.append(_info_row('Submittal Ref.:', submittal_ref, label_color=C_MGREY, val_fs=9))
+        info_rows.append(_info_row3('Submittal Ref.:', submittal_ref, label_color=C_MGREY, val_fs=9))
     if date_str:
-        info_rows.append(_info_row('Date:', date_str, label_color=C_MGREY, val_fs=9))
+        info_rows.append(_info_row3('Date:', date_str, label_color=C_MGREY, val_fs=9))
 
     if info_rows:
-        info_tbl = Table(info_rows, colWidths=[BW*0.32, BW*0.68])
+        info_tbl = Table(info_rows, colWidths=[LBL_W, VAL_W, LOG_W])
         style_cmds = [
-            ('BACKGROUND', (0,0), (-1,-1), colors.white),
+            ('BACKGROUND',   (0,0), (-1,-1), colors.white),
             ('LEFTPADDING',  (0,0), (0,-1), 10),
             ('RIGHTPADDING', (0,0), (0,-1), 8),
-            ('LEFTPADDING',  (1,0), (1,-1), 10),
+            ('LEFTPADDING',  (1,0), (1,-1), 8),
+            ('LEFTPADDING',  (2,0), (2,-1), 6),
+            ('RIGHTPADDING', (2,0), (2,-1), 6),
             ('TOPPADDING',   (0,0), (-1,-1), 7),
             ('BOTTOMPADDING',(0,0), (-1,-1), 7),
             ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN',        (2,0), (2,-1), 'RIGHT'),
             ('BOX',          (0,0), (-1,-1), 0.5, C_BORDER),
-            # Red left accent bar
             ('LINEBEFORE',   (0,0), (0,-1), 3, C_PURPLE),
         ]
-        # Subtle row separators
         for i in range(len(info_rows)-1):
             style_cmds.append(('LINEBELOW', (0,i), (-1,i), 0.4, C_BORDER))
-        # Highlight top rows (contractor/consultant) with very faint red bg
-        if contractor:
-            style_cmds.append(('BACKGROUND', (0,0), (-1,0), C_RED_LIGHT))
-        if contractor and consultant:
-            style_cmds.append(('BACKGROUND', (0,1), (-1,1), C_RED_LIGHT))
+        for i in hi_rows:
+            style_cmds.append(('BACKGROUND', (0,i), (-1,i), C_RED_LIGHT))
         info_tbl.setStyle(TableStyle(style_cmds))
         story.append(info_tbl)
 

@@ -572,6 +572,19 @@
                 </div>
               </div>
               <div class="form-row">
+                <div class="form-group col-md-8">
+                  <label class="small font-weight-bold text-muted mb-1">End User</label>
+                  <input type="text" class="form-control form-control-sm" name="tech_end_user"
+                         id="techEndUser" placeholder="End User / Client company"
+                         value="{{ tech_saved_form.get('tech_end_user', '') }}">
+                </div>
+                <div class="form-group col-md-4">
+                  <label class="small font-weight-bold text-muted mb-1">End User Logo</label>
+                  <input type="file" class="form-control-file form-control-sm" name="logo_end_user"
+                         id="logoEndUser" accept="image/*" style="font-size:0.78rem;">
+                </div>
+              </div>
+              <div class="form-row">
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Contractor</label>
                   <input type="text" class="form-control form-control-sm" name="tech_contractor"
@@ -579,10 +592,22 @@
                          value="{{ tech_saved_form.get('tech_contractor', '') }}">
                 </div>
                 <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Contractor Logo</label>
+                  <input type="file" class="form-control-file form-control-sm" name="logo_contractor"
+                         id="logoContractor" accept="image/*" style="font-size:0.78rem;">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Consultant</label>
                   <input type="text" class="form-control form-control-sm" name="tech_consultant"
                          id="techConsultant" placeholder="Consultant company"
                          value="{{ tech_saved_form.get('tech_consultant', '') }}">
+                </div>
+                <div class="form-group col-md-6">
+                  <label class="small font-weight-bold text-muted mb-1">Consultant Logo</label>
+                  <input type="file" class="form-control-file form-control-sm" name="logo_consultant"
+                         id="logoConsultant" accept="image/*" style="font-size:0.78rem;">
                 </div>
               </div>
               <div class="form-row">
@@ -1331,6 +1356,7 @@ async function saveTechDraft() {
     tech_vendor:     document.getElementById('techVendor')?.value || '',
     tech_project:    document.getElementById('techProject')?.value || '',
     tech_location:   document.getElementById('techLocation')?.value || '',
+    tech_end_user:   document.getElementById('techEndUser')?.value || '',
     tech_contractor: document.getElementById('techContractor')?.value || '',
     tech_consultant: document.getElementById('techConsultant')?.value || '',
     tech_date:       document.getElementById('techDate')?.value || '',
