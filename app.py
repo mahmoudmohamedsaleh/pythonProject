@@ -8,7 +8,8 @@ _STATIC_DIR = next(
      if _os_root.path.isdir(p)),
     _os_root.path.join(APP_ROOT, 'static')   # fallback
 )
-_MERGE_LAST_ERROR = None  # stores last merge/stamp error for debug endpoint
+_MERGE_LAST_ERROR  = None  # stores last merge/stamp error for debug endpoint
+_MERGE_LAST_STATUS = None  # stores last merge run details for debug endpoint
 from collections import defaultdict
 import re
 import pandas as pd
@@ -1873,6 +1874,7 @@ def debug_pdf_merge_status():
         'app_root':              APP_ROOT,
         'static_dir_detected':   _STATIC_DIR,
         'last_merge_error':      _MERGE_LAST_ERROR,
+        'last_merge_status':     _MERGE_LAST_STATUS,
         'company_docs_dir':      base,
         'company_docs_exists':   os.path.isdir(base),
         'prequalification_pdf':  os.path.exists(os.path.join(base, 'prequalification.pdf')),
@@ -8011,27 +8013,40 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
     import io as _io, os as _os, re as _re
     try:
         from pypdf import PdfReader, PdfWriter
+        global _MERGE_LAST_STATUS, _MERGE_LAST_ERROR
+        _status = {'called': True, 'rfq_ref': rfq_ref, 'vendor': vendor}
 
         # Identify sections that have separator pages (not no_separator, not closing)
         main_secs       = [s for s in sections if not s.get('closing')]
         secs_with_sep   = [s for s in main_secs if not s.get('no_separator')]
+        _status['secs_with_sep_count'] = len(secs_with_sep)
 
         if not secs_with_sep:
+            _status['result'] = 'skipped_no_secs'
+            _MERGE_LAST_STATUS = _status
             return main_buf
 
         # --- Load main PDF ---
         raw = main_buf.read() if hasattr(main_buf, 'read') else main_buf
         reader_main = PdfReader(_io.BytesIO(raw))
         n_main      = len(reader_main.pages)
+        _status['main_pdf_pages'] = n_main
 
         # --- Load pre-qual PDF (if available) ---
         local_preqal = _os.path.join(_STATIC_DIR, 'company_docs', 'prequalification.pdf')
+        _status['preqal_path'] = local_preqal
+        _status['preqal_exists'] = _os.path.exists(local_preqal)
         preqal_pages = []
         if _os.path.exists(local_preqal):
             with open(local_preqal, 'rb') as _f:
                 pb = _f.read()
+            _status['preqal_size_bytes'] = len(pb)
+            _status['preqal_is_pdf'] = pb.startswith(b'%PDF')
             if pb.startswith(b'%PDF'):
-                preqal_pages = list(PdfReader(_io.BytesIO(pb)).pages)[4:]  # skip cover/intro pages
+                _all_preqal = list(PdfReader(_io.BytesIO(pb)).pages)
+                _status['preqal_total_pages'] = len(_all_preqal)
+                preqal_pages = _all_preqal[4:]  # skip cover/intro pages
+                _status['preqal_pages_after_skip'] = len(preqal_pages)
         else:
             # Fallback: try URL from DB (short timeout)
             try:
@@ -8106,12 +8121,19 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
         out = _io.BytesIO()
         writer.write(out)
         out.seek(0)
+        _status['result'] = 'success'
+        _status['output_size_bytes'] = out.getbuffer().nbytes
+        _MERGE_LAST_STATUS = _status
+        _MERGE_LAST_ERROR = None
         return out
 
     except Exception as _e:
         import traceback as _tb
-        global _MERGE_LAST_ERROR
         _MERGE_LAST_ERROR = f"[merge_all] {_e}\n{_tb.format_exc()}"
+        try:
+            _MERGE_LAST_STATUS['result'] = 'exception'
+        except Exception:
+            pass
         print(_MERGE_LAST_ERROR)
         if hasattr(main_buf, 'seek'):
             main_buf.seek(0)
