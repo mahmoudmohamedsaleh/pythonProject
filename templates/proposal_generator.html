@@ -1236,6 +1236,67 @@ const _TECH_DEFAULT_SECTIONS = [
 ];
 
 let _techSections = [];
+let _sectionUploadStatus = {};   // slug → true if PDF is uploaded
+
+function _sectionSlug(title) {
+  const vendor = document.getElementById('techVendor')?.value || '';
+  return (title || '').replace('{vendor}', vendor).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+
+async function _loadSectionStatus() {
+  const rfqRef = '{{ rfq_ref }}';
+  if (!rfqRef) return;
+  try {
+    const resp = await fetch('/proposal_generator/section_files?rfq_ref=' + encodeURIComponent(rfqRef));
+    const data = await resp.json();
+    if (data.success) {
+      _sectionUploadStatus = {};
+      (data.slugs || []).forEach(sl => { _sectionUploadStatus[sl] = true; });
+      _renderTechIndex();
+    }
+  } catch(e) { /* ignore */ }
+}
+
+async function _uploadSectionFile(input, slug, sectionIdx) {
+  if (!input.files.length) return;
+  const file = input.files[0];
+  const rfqRef = '{{ rfq_ref }}';
+  const fd = new FormData();
+  fd.append('rfq_ref', rfqRef);
+  fd.append('section_slug', slug);
+  fd.append('section_pdf', file);
+  try {
+    const resp = await fetch('/proposal_generator/upload_section_file', { method:'POST', body:fd });
+    const data = await resp.json();
+    if (data.success) {
+      _sectionUploadStatus[slug] = true;
+      _renderTechIndex();
+    } else {
+      alert('Upload failed: ' + (data.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Upload error: ' + e.message);
+  }
+}
+
+async function _deleteSectionFile(slug, sectionIdx) {
+  if (!confirm('Remove the uploaded PDF for this section?')) return;
+  const rfqRef = '{{ rfq_ref }}';
+  try {
+    const resp = await fetch('/proposal_generator/delete_section_file', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rfq_ref: rfqRef, section_slug: slug})
+    });
+    const data = await resp.json();
+    if (data.success) {
+      delete _sectionUploadStatus[slug];
+      _renderTechIndex();
+    }
+  } catch(e) {
+    alert('Delete error: ' + e.message);
+  }
+}
 
 function _techInit() {
   const saved = {{ (tech_saved_form.get('sections') | tojson) if tech_saved_form.get('sections') else 'null' }};
@@ -1252,6 +1313,7 @@ function _techInit() {
   });
   _renderTechIndex();
   refreshVendorLabels();
+  _loadSectionStatus();  // Load upload status for each section
 }
 
 function _renderTechIndex() {
@@ -1289,6 +1351,24 @@ function _renderTechIndex() {
       </div>
       ${!isClosing ? `<div class="ml-3" id="techSubs_${i}">${subsHtml}</div>
       <button type="button" class="btn btn-sm btn-link text-muted p-0 ml-3" style="font-size:.72rem;" onclick="_techSubAdd(${i})"><i class="fas fa-plus mr-1"></i>Add sub-item</button>` : ''}
+      ${(!isClosing && !sec.no_separator) ? (() => {
+        const sl = _sectionSlug(sec.title);
+        const uploaded = _sectionUploadStatus[sl];
+        if (uploaded) {
+          return `<div class="mt-1 ml-2 d-flex align-items-center" style="font-size:.75rem;">
+            <span style="color:#28a745;"><i class="fas fa-check-circle mr-1"></i><strong>PDF uploaded</strong> — will be merged after separator</span>
+            <button type="button" class="btn btn-sm btn-link text-danger p-0 ml-2" style="font-size:.72rem;" onclick="_deleteSectionFile('${sl}',${i})" title="Remove uploaded PDF"><i class="fas fa-trash"></i></button>
+          </div>`;
+        } else {
+          return `<div class="mt-1 ml-2 d-flex align-items-center gap-1" style="flex-wrap:wrap;">
+            <label class="btn btn-outline-secondary btn-sm mb-0" style="font-size:.72rem;padding:2px 8px;cursor:pointer;">
+              <i class="fas fa-upload mr-1"></i>Upload PDF
+              <input type="file" accept=".pdf" style="display:none;" onchange="_uploadSectionFile(this,'${sl}',${i})">
+            </label>
+            <span style="font-size:.7rem;color:#aaa;">No PDF attached — separator page only</span>
+          </div>`;
+        }
+      })() : ''}
     `;
     container.appendChild(card);
   });

@@ -7571,8 +7571,8 @@ def proposal_generate_technical_pdf():
         fname = f"Technical_Submittal_{safe_proj or 'Document'}.pdf"
         from flask import send_file
 
-        # ── Merge Pre-Qualification PDF after Company Profile separator ──────
-        pdf_buf = _merge_preqal_pdf(pdf_buf, sections)
+        # ── Merge Pre-Qualification + section PDFs ────────────────────────────
+        pdf_buf = _merge_all_section_pdfs(pdf_buf, sections, rfq_ref, vendor)
 
         pdf_buf.seek(0)
         return send_file(pdf_buf, as_attachment=False, download_name=fname, mimetype='application/pdf')
@@ -7580,6 +7580,56 @@ def proposal_generate_technical_pdf():
         import traceback
         app.logger.error(f"generate_technical_pdf error: {e}\n{traceback.format_exc()}")
         return f"PDF generation failed: {e}", 500
+
+
+@app.route('/proposal_generator/upload_section_file', methods=['POST'])
+@login_required
+def upload_section_file():
+    """Upload a PDF to merge into a specific section of the Technical Submittal."""
+    rfq_ref       = request.form.get('rfq_ref', '').strip()
+    section_slug  = request.form.get('section_slug', '').strip()
+    f             = request.files.get('section_pdf')
+    if not rfq_ref or not section_slug:
+        return jsonify({'success': False, 'error': 'rfq_ref and section_slug are required'}), 400
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Only PDF files are accepted'}), 400
+    import os, re
+    safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
+    save_dir  = os.path.join('static', 'company_docs', 'sections', safe_ref)
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, section_slug + '.pdf')
+    f.save(save_path)
+    return jsonify({'success': True, 'message': 'Section PDF uploaded', 'slug': section_slug})
+
+
+@app.route('/proposal_generator/section_files', methods=['GET'])
+@login_required
+def get_section_files():
+    """Return list of uploaded section slugs for a given rfq_ref."""
+    rfq_ref = request.args.get('rfq_ref', '').strip()
+    import os, re
+    safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
+    sec_dir   = os.path.join('static', 'company_docs', 'sections', safe_ref)
+    if not os.path.isdir(sec_dir):
+        return jsonify({'success': True, 'slugs': []})
+    slugs = [fn[:-4] for fn in os.listdir(sec_dir) if fn.endswith('.pdf')]
+    return jsonify({'success': True, 'slugs': slugs})
+
+
+@app.route('/proposal_generator/delete_section_file', methods=['POST'])
+@login_required
+def delete_section_file():
+    """Delete an uploaded section PDF."""
+    rfq_ref      = request.json.get('rfq_ref', '').strip()
+    section_slug = request.json.get('section_slug', '').strip()
+    import os, re
+    safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
+    path      = os.path.join('static', 'company_docs', 'sections', safe_ref, section_slug + '.pdf')
+    if os.path.exists(path):
+        os.remove(path)
+    return jsonify({'success': True})
 
 
 def _merge_preqal_pdf(main_buf, sections):
@@ -7662,6 +7712,116 @@ def _merge_preqal_pdf(main_buf, sections):
         import traceback as _tb
         print("[merge_preqal] WARNING: " + str(_me) + "\n" + _tb.format_exc())
         # Non-fatal — return original PDF on any error
+        if hasattr(main_buf, 'seek'):
+            main_buf.seek(0)
+        return main_buf
+
+
+def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
+    """Merge pre-qualification PDF (after section 1 separator) and any uploaded
+    section PDFs (after each vendor section separator) into the main PDF.
+
+    Page layout of main_buf BEFORE merging:
+      [0] Cover
+      [1] Index
+      [2] Separator for sections_with_sep[0]  (= Company Profile)
+      [3] Separator for sections_with_sep[1]  (= first vendor section)
+      ...
+    """
+    import io as _io, os as _os, re as _re
+    try:
+        from pypdf import PdfReader, PdfWriter
+
+        # Identify sections that have separator pages (not no_separator, not closing)
+        main_secs       = [s for s in sections if not s.get('closing')]
+        secs_with_sep   = [s for s in main_secs if not s.get('no_separator')]
+
+        if not secs_with_sep:
+            return main_buf
+
+        # --- Load main PDF ---
+        raw = main_buf.read() if hasattr(main_buf, 'read') else main_buf
+        reader_main = PdfReader(_io.BytesIO(raw))
+        n_main      = len(reader_main.pages)
+
+        # --- Load pre-qual PDF (if available) ---
+        local_preqal = _os.path.join('static', 'company_docs', 'prequalification.pdf')
+        preqal_pages = []
+        if _os.path.exists(local_preqal):
+            with open(local_preqal, 'rb') as _f:
+                pb = _f.read()
+            if pb.startswith(b'%PDF'):
+                preqal_pages = list(PdfReader(_io.BytesIO(pb)).pages)
+        else:
+            # Fallback: try URL from DB (short timeout)
+            try:
+                import sqlite3 as _sql, requests as _mreq
+                _conn = _sql.connect('ProjectStatus.db')
+                _cur  = _conn.cursor()
+                _cur.execute("SELECT content FROM company_profile_content WHERE section_key='doc_prequalification_url'")
+                _row  = _cur.fetchone()
+                _conn.close()
+                if _row and _row[0]:
+                    url = _row[0].strip()
+                    gd  = _re.search(r'/file/d/([A-Za-z0-9_\-]+)', url)
+                    if gd:
+                        url = f'https://drive.google.com/uc?export=download&id={gd.group(1)}'
+                    _resp = _mreq.Session().get(url, timeout=8)
+                    if _resp.status_code == 200 and _resp.content.startswith(b'%PDF'):
+                        preqal_pages = list(PdfReader(_io.BytesIO(_resp.content)).pages)
+            except Exception:
+                pass
+
+        # --- Load uploaded section PDFs (vendor sections) ---
+        safe_ref = _re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref or '')
+        sec_dir  = _os.path.join('static', 'company_docs', 'sections', safe_ref)
+
+        def _slug(title):
+            resolved = title.replace('{vendor}', vendor or '')
+            return _re.sub(r'[^a-z0-9]+', '_', resolved.lower()).strip('_')
+
+        # Build mapping: section index in secs_with_sep → uploaded pages
+        sec_uploaded = {}
+        for idx, sec in enumerate(secs_with_sep[1:], start=1):   # skip Company Profile (idx 0)
+            sl    = _slug(sec.get('title', ''))
+            fpath = _os.path.join(sec_dir, sl + '.pdf')
+            if _os.path.exists(fpath):
+                with open(fpath, 'rb') as _sf:
+                    sb = _sf.read()
+                if sb.startswith(b'%PDF'):
+                    sec_uploaded[idx] = list(PdfReader(_io.BytesIO(sb)).pages)
+
+        # --- Build merged output ---
+        writer = PdfWriter()
+
+        # Cover + Index (pages 0,1)
+        for p in range(min(2, n_main)):
+            writer.add_page(reader_main.pages[p])
+
+        # For each section with separator, add its separator + injected content
+        for sep_idx, sec in enumerate(secs_with_sep):
+            main_page_idx = 2 + sep_idx   # separator is at this page in main PDF
+            if main_page_idx >= n_main:
+                break
+            writer.add_page(reader_main.pages[main_page_idx])
+
+            if sep_idx == 0:
+                # Company Profile → insert pre-qual pages
+                for pg in preqal_pages:
+                    writer.add_page(pg)
+            elif sep_idx in sec_uploaded:
+                # Vendor section → insert uploaded PDF pages
+                for pg in sec_uploaded[sep_idx]:
+                    writer.add_page(pg)
+
+        out = _io.BytesIO()
+        writer.write(out)
+        out.seek(0)
+        return out
+
+    except Exception as _e:
+        import traceback as _tb
+        print(f"[merge_all] WARNING: {_e}\n{_tb.format_exc()}")
         if hasattr(main_buf, 'seek'):
             main_buf.seek(0)
         return main_buf
