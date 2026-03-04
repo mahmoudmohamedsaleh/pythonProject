@@ -1855,6 +1855,31 @@ def company_profile_pdf_status():
     return jsonify({'exists': exists})
 
 
+@app.route('/debug/pdf_merge_status')
+@login_required
+def debug_pdf_merge_status():
+    """Diagnostic: check what PDF files exist for merging."""
+    import os, glob as _glob
+    base = os.path.join(APP_ROOT, 'static', 'company_docs')
+    info = {
+        'app_root':              APP_ROOT,
+        'company_docs_dir':      base,
+        'company_docs_exists':   os.path.isdir(base),
+        'prequalification_pdf':  os.path.exists(os.path.join(base, 'prequalification.pdf')),
+        'company_profile_pdf':   os.path.exists(os.path.join(base, 'company_profile.pdf')),
+        'stamp_png':             os.path.exists(os.path.join(base, 'stamp.png')),
+        'sections_dir':          os.path.isdir(os.path.join(base, 'sections')),
+        'sections_contents':     {},
+    }
+    sec_dir = os.path.join(base, 'sections')
+    if os.path.isdir(sec_dir):
+        for sub in os.listdir(sec_dir):
+            sub_path = os.path.join(sec_dir, sub)
+            if os.path.isdir(sub_path):
+                info['sections_contents'][sub] = os.listdir(sub_path)
+    return jsonify(info)
+
+
 @app.route('/api/company_profile/upload_company_profile', methods=['POST'])
 @login_required
 def upload_company_profile_pdf():
