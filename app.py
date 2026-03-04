@@ -7994,7 +7994,7 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
             with open(local_preqal, 'rb') as _f:
                 pb = _f.read()
             if pb.startswith(b'%PDF'):
-                preqal_pages = list(PdfReader(_io.BytesIO(pb)).pages)[3:]  # skip cover/intro pages
+                preqal_pages = list(PdfReader(_io.BytesIO(pb)).pages)[4:]  # skip cover/intro pages
         else:
             # Fallback: try URL from DB (short timeout)
             try:
@@ -8011,7 +8011,7 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
                         url = f'https://drive.google.com/uc?export=download&id={gd.group(1)}'
                     _resp = _mreq.Session().get(url, timeout=8)
                     if _resp.status_code == 200 and _resp.content.startswith(b'%PDF'):
-                        preqal_pages = list(PdfReader(_io.BytesIO(_resp.content)).pages)[3:]  # skip cover/intro pages
+                        preqal_pages = list(PdfReader(_io.BytesIO(_resp.content)).pages)[4:]  # skip cover/intro pages
             except Exception:
                 pass
 
