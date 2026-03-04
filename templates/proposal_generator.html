@@ -756,12 +756,12 @@
               <button type="button" class="btn-generate" onclick="generateTechPdf()" id="generateTechBtn" style="background:linear-gradient(135deg,#CC0000,#E83333);">
                 <i class="fas fa-file-pdf mr-2"></i> Generate Technical Submittal PDF
               </button>
-              <div id="techDownloadArea" style="display:none;margin-top:10px;">
-                <button type="button" id="techDownloadBtn" onclick="_downloadLastTechPdf()"
-                  style="width:100%;padding:10px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;
-                         background:linear-gradient(135deg,#1a7a3c,#28a745);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;">
+              <div id="techDownloadArea" style="margin-top:10px;">
+                <button type="button" id="techDownloadBtn" onclick="_downloadLastTechPdf()" disabled
+                  style="width:100%;padding:10px 16px;border:none;border-radius:6px;cursor:not-allowed;font-size:.9rem;font-weight:600;
+                         background:#b0b0b0;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;opacity:0.6;transition:all .3s;">
                   <i class="fas fa-download"></i>
-                  <span id="techDownloadBtnLabel">Download PDF</span>
+                  <span id="techDownloadBtnLabel">Download PDF (generate first)</span>
                 </button>
               </div>
               <button type="button" class="btn btn-success btn-block mt-2" onclick="saveTechDraft()" id="saveTechDraftBtn"
@@ -1707,9 +1707,17 @@ async function generateTechPdf() {
   const fd   = new FormData(form);
   const btn  = document.getElementById('generateTechBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating…'; }
-  // Hide previous download button while regenerating
+  // Reset download button while regenerating
   const dlArea = document.getElementById('techDownloadArea');
-  if (dlArea) dlArea.style.display = 'none';
+  const dlBtn2 = document.getElementById('techDownloadBtn');
+  if (dlBtn2) {
+    dlBtn2.disabled = true;
+    dlBtn2.style.background = '#b0b0b0';
+    dlBtn2.style.cursor = 'not-allowed';
+    dlBtn2.style.opacity = '0.6';
+    const lbl = document.getElementById('techDownloadBtnLabel');
+    if (lbl) lbl.textContent = 'Generating…';
+  }
   // Pre-open the tab NOW (synchronous, user-initiated) so popup blockers won't interfere
   const pdfWin = window.open('', '_blank');
   if (pdfWin) {
@@ -1725,10 +1733,16 @@ async function generateTechPdf() {
     // Build filename from Submittal Reference field
     const submittalRef = (document.getElementById('techSubmittalRef')?.value || '').trim();
     _lastTechPdfName = (submittalRef ? submittalRef.replace(/[^a-zA-Z0-9_\-\. ]/g, '_') : 'Technical_Submittal') + '.pdf';
-    // Show download button
+    // Enable and update download button
     const dlLabel = document.getElementById('techDownloadBtnLabel');
     if (dlLabel) dlLabel.textContent = 'Download: ' + _lastTechPdfName;
-    if (dlArea) dlArea.style.display = 'block';
+    const dlBtn = document.getElementById('techDownloadBtn');
+    if (dlBtn) {
+      dlBtn.disabled = false;
+      dlBtn.style.background = 'linear-gradient(135deg,#1a7a3c,#28a745)';
+      dlBtn.style.cursor = 'pointer';
+      dlBtn.style.opacity = '1';
+    }
     // Open PDF in new tab
     const url = URL.createObjectURL(blob);
     if (pdfWin && !pdfWin.closed) {
