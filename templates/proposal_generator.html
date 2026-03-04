@@ -1218,12 +1218,12 @@ renderSysTable();
 
 const _TECH_DEFAULT_SECTIONS = [
   { title: 'COMPANY PROFILE', subs: ['About Us','Our Vision','Our Mission','Core Values','A Word from our CEO','Strategic Approach','Solutions We Provide','Featured Projects','Our Value Proposition','Our Footprint','Our Esteemed Partners','Our Valued Clients'], closing: false },
-  { title: 'COMPANY CERTIFICATIONS', subs: ['Commercial Registration','Classification Certificate','Chamber of Commerce','National Address','Zakat Certificate','VAT Certificate','Saudization Certificate','GOSI Certificate'], closing: false },
-  { title: 'ISO & QUALITY CERTIFICATIONS', subs: [], closing: false },
-  { title: 'ORGANISATION CHART', subs: [], closing: false },
-  { title: 'STAFF & INSTALLERS CERTIFICATIONS', subs: [], closing: false },
-  { title: 'PROJECTS REFERENCES', subs: [], closing: false },
-  { title: 'PREVIOUS APPROVALS', subs: [], closing: false },
+  { title: 'COMPANY CERTIFICATIONS', subs: ['Commercial Registration','Classification Certificate','Chamber of Commerce','National Address','Zakat Certificate','VAT Certificate','Saudization Certificate','GOSI Certificate'], closing: false, no_separator: true },
+  { title: 'ISO & QUALITY CERTIFICATIONS', subs: [], closing: false, no_separator: true },
+  { title: 'ORGANISATION CHART', subs: [], closing: false, no_separator: true },
+  { title: 'STAFF & INSTALLERS CERTIFICATIONS', subs: [], closing: false, no_separator: true },
+  { title: 'PROJECTS REFERENCES', subs: [], closing: false, no_separator: true },
+  { title: 'PREVIOUS APPROVALS', subs: [], closing: false, no_separator: true },
   { title: '{vendor} Bill Of Quantity', subs: [], closing: false },
   { title: 'Catalogue & data sheet with selection', subs: [], closing: false },
   { title: '{vendor} Certificates of product', subs: [], closing: false },
@@ -1245,6 +1245,11 @@ function _techInit() {
     savedVendorNames.forEach(n => addVendorRow(n));
   }
   _techSections = saved && saved.length ? JSON.parse(JSON.stringify(saved)) : JSON.parse(JSON.stringify(_TECH_DEFAULT_SECTIONS));
+  // Migrate: apply no_separator from defaults to any loaded section whose title matches
+  const _defaultNoSepTitles = new Set(_TECH_DEFAULT_SECTIONS.filter(s=>s.no_separator).map(s=>s.title));
+  _techSections.forEach(sec => {
+    if (_defaultNoSepTitles.has(sec.title)) sec.no_separator = true;
+  });
   _renderTechIndex();
   refreshVendorLabels();
 }
@@ -1274,6 +1279,7 @@ function _renderTechIndex() {
     card.innerHTML = `
       <div class="d-flex align-items-center mb-1">
         <span class="badge badge-pill mr-2" style="background:${isClosing?'#A00000':'#CC0000'};color:#fff;font-size:.7rem;min-width:22px;">${numLabel}</span>
+        ${sec.no_separator ? `<span title="Included in Pre-Qualification — no separator page generated" style="font-size:.65rem;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 5px;margin-right:6px;white-space:nowrap;cursor:default;">📎 Pre-Qual</span>` : ''}
         <input type="text" class="form-control form-control-sm font-weight-bold mr-2"
                style="border:none;border-bottom:1px solid #ffcccc;border-radius:0;font-size:.82rem;color:#CC0000;background:transparent;"
                value="${_escHtml(sec.title)}" oninput="_techSecEdit(${i},this.value)" placeholder="Section title">

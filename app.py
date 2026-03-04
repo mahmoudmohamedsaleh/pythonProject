@@ -8170,11 +8170,15 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
 
     # ═══════════════════════ 3. SEPARATOR PAGES ═══════════════════════════
     # One separator per main section (not the closing one)
+    # Sections with no_separator=True are part of the pre-qualification merge — skip their separator page
     for i, sec in enumerate(main_sections):
         sec_num   = i + 1
         sec_title = sec.get('title', '')
         if vendor:
             sec_title = sec_title.replace('{vendor}', vendor)
+
+        if sec.get('no_separator'):
+            continue  # This section's content is inside the pre-qual PDF — no separator page needed
 
         # Full-page separator: purple left strip + white right
         # We simulate a full-page look using a two-column table
