@@ -8011,10 +8011,11 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
       ...
     """
     import io as _io, os as _os, re as _re
+    global _MERGE_LAST_STATUS, _MERGE_LAST_ERROR
+    _status = {'called': True, 'rfq_ref': rfq_ref, 'vendor': vendor}
+    _MERGE_LAST_STATUS = _status
     try:
         from pypdf import PdfReader, PdfWriter
-        global _MERGE_LAST_STATUS, _MERGE_LAST_ERROR
-        _status = {'called': True, 'rfq_ref': rfq_ref, 'vendor': vendor}
 
         # Identify sections that have separator pages (not no_separator, not closing)
         main_secs       = [s for s in sections if not s.get('closing')]
@@ -8130,10 +8131,9 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
     except Exception as _e:
         import traceback as _tb
         _MERGE_LAST_ERROR = f"[merge_all] {_e}\n{_tb.format_exc()}"
-        try:
-            _MERGE_LAST_STATUS['result'] = 'exception'
-        except Exception:
-            pass
+        _status['result'] = 'exception'
+        _status['error'] = str(_e)
+        _MERGE_LAST_STATUS = _status
         print(_MERGE_LAST_ERROR)
         if hasattr(main_buf, 'seek'):
             main_buf.seek(0)
