@@ -7512,12 +7512,21 @@ def proposal_generate_technical_pdf():
     vendor      = form.get('tech_vendor', '').strip()
     date_str       = form.get('tech_date', '').strip()
     submittal_ref  = form.get('tech_submittal_ref', '').strip()
-    # Logo uploads (optional)
+    # Logo uploads (optional) — fall back to previously saved logo if no file uploaded
+    import os as _os2, re as _re2, io as _io2
+    _safe_rfq = _re2.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref or '')
+    _logo_dir = _os2.path.join('static', 'company_docs', 'logos', _safe_rfq)
     def _read_logo(field):
         f = _req.files.get(field)
         if f and f.filename:
-            import io as _io2
             return _io2.BytesIO(f.read())
+        # Fallback: look for saved logo on disk
+        safe_field = _re2.sub(r'[^A-Za-z0-9_]', '_', field)
+        for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'):
+            path = _os2.path.join(_logo_dir, safe_field + ext)
+            if _os2.path.exists(path):
+                with open(path, 'rb') as _lf:
+                    return _io2.BytesIO(_lf.read())
         return None
     logo_end_user    = _read_logo('logo_end_user')
     logo_contractor  = _read_logo('logo_contractor')
@@ -7580,6 +7589,74 @@ def proposal_generate_technical_pdf():
         import traceback
         app.logger.error(f"generate_technical_pdf error: {e}\n{traceback.format_exc()}")
         return f"PDF generation failed: {e}", 500
+
+
+@app.route('/proposal_generator/save_tech_logo', methods=['POST'])
+@login_required
+def save_tech_logo():
+    """Save a logo image for the Technical Submittal (persists between sessions)."""
+    rfq_ref    = request.form.get('rfq_ref', '').strip()
+    field_name = request.form.get('field_name', '').strip()
+    f          = request.files.get('logo_file')
+    if not rfq_ref or not field_name:
+        return jsonify({'success': False, 'error': 'rfq_ref and field_name are required'}), 400
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    import os, re
+    allowed_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in allowed_exts:
+        return jsonify({'success': False, 'error': 'Image files only (PNG, JPG, etc.)'}), 400
+    safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
+    safe_field = re.sub(r'[^A-Za-z0-9_]', '_', field_name)
+    save_dir  = os.path.join('static', 'company_docs', 'logos', safe_ref)
+    os.makedirs(save_dir, exist_ok=True)
+    # Save with original extension
+    save_path = os.path.join(save_dir, safe_field + ext)
+    # Remove any previous version with different extension
+    for old_ext in allowed_exts:
+        old_path = os.path.join(save_dir, safe_field + old_ext)
+        if old_path != save_path and os.path.exists(old_path):
+            os.remove(old_path)
+    f.save(save_path)
+    return jsonify({'success': True, 'field': field_name, 'filename': f.filename})
+
+
+@app.route('/proposal_generator/delete_tech_logo', methods=['POST'])
+@login_required
+def delete_tech_logo():
+    """Delete a saved logo for the Technical Submittal."""
+    data       = request.get_json() or {}
+    rfq_ref    = data.get('rfq_ref', '').strip()
+    field_name = data.get('field_name', '').strip()
+    import os, re
+    safe_ref   = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
+    safe_field = re.sub(r'[^A-Za-z0-9_]', '_', field_name)
+    save_dir   = os.path.join('static', 'company_docs', 'logos', safe_ref)
+    removed    = False
+    for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'):
+        path = os.path.join(save_dir, safe_field + ext)
+        if os.path.exists(path):
+            os.remove(path)
+            removed = True
+    return jsonify({'success': True, 'removed': removed})
+
+
+@app.route('/proposal_generator/tech_logos', methods=['GET'])
+@login_required
+def get_tech_logos():
+    """Return dict of saved logo fields for a given rfq_ref."""
+    rfq_ref = request.args.get('rfq_ref', '').strip()
+    import os, re
+    safe_ref = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
+    save_dir = os.path.join('static', 'company_docs', 'logos', safe_ref)
+    saved    = {}
+    if os.path.isdir(save_dir):
+        for fname in os.listdir(save_dir):
+            name, ext = os.path.splitext(fname)
+            if ext.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}:
+                saved[name] = fname   # field → filename
+    return jsonify({'success': True, 'saved': saved})
 
 
 @app.route('/proposal_generator/upload_section_file', methods=['POST'])

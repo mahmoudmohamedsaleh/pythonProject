@@ -581,7 +581,9 @@
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">End User Logo</label>
                   <input type="file" class="form-control-file form-control-sm" name="logo_end_user"
-                         id="logoEndUser" accept="image/*" style="font-size:0.78rem;">
+                         id="logoEndUser" accept="image/*" style="font-size:0.78rem;"
+                         onchange="_autoSaveLogo(this,'logo_end_user','logoEndUserStatus')">
+                  <div id="logoEndUserStatus" style="font-size:.72rem;margin-top:3px;"></div>
                 </div>
               </div>
               <div class="form-row">
@@ -594,7 +596,9 @@
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Contractor Logo</label>
                   <input type="file" class="form-control-file form-control-sm" name="logo_contractor"
-                         id="logoContractor" accept="image/*" style="font-size:0.78rem;">
+                         id="logoContractor" accept="image/*" style="font-size:0.78rem;"
+                         onchange="_autoSaveLogo(this,'logo_contractor','logoContractorStatus')">
+                  <div id="logoContractorStatus" style="font-size:.72rem;margin-top:3px;"></div>
                 </div>
               </div>
               <div class="form-row">
@@ -607,7 +611,9 @@
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Consultant Logo</label>
                   <input type="file" class="form-control-file form-control-sm" name="logo_consultant"
-                         id="logoConsultant" accept="image/*" style="font-size:0.78rem;">
+                         id="logoConsultant" accept="image/*" style="font-size:0.78rem;"
+                         onchange="_autoSaveLogo(this,'logo_consultant','logoConsultantStatus')">
+                  <div id="logoConsultantStatus" style="font-size:.72rem;margin-top:3px;"></div>
                 </div>
               </div>
               <div class="form-row">
@@ -1243,6 +1249,87 @@ function _sectionSlug(title) {
   return (title || '').replace('{vendor}', vendor).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 }
 
+async function _autoSaveLogo(input, fieldName, statusId) {
+  if (!input.files.length) return;
+  const file  = input.files[0];
+  const rfqRef = '{{ rfq_ref }}';
+  if (!rfqRef) return;
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) statusEl.innerHTML = '<span style="color:#666"><i class="fas fa-spinner fa-spin mr-1"></i>Saving…</span>';
+  const fd = new FormData();
+  fd.append('rfq_ref',    rfqRef);
+  fd.append('field_name', fieldName);
+  fd.append('logo_file',  file);
+  try {
+    const resp = await fetch('/proposal_generator/save_tech_logo', { method:'POST', body:fd });
+    const data = await resp.json();
+    if (data.success && statusEl) {
+      statusEl.innerHTML = `<span style="color:#28a745"><i class="fas fa-check-circle mr-1"></i>${data.filename} saved</span>
+        <button type="button" class="btn btn-link p-0 ml-1 text-danger" style="font-size:.7rem;vertical-align:baseline;"
+          onclick="_clearSavedLogo('${fieldName}','${statusId}',this.closest('.form-group').querySelector('input[type=file]'))">
+          <i class="fas fa-times"></i> Clear
+        </button>`;
+    } else if (statusEl) {
+      statusEl.innerHTML = '<span style="color:#dc3545">Save failed</span>';
+    }
+  } catch(e) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#dc3545">Error saving logo</span>';
+  }
+}
+
+async function _clearSavedLogo(fieldName, statusId, inputEl) {
+  const rfqRef = '{{ rfq_ref }}';
+  try {
+    await fetch('/proposal_generator/delete_tech_logo', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rfq_ref: rfqRef, field_name: fieldName})
+    });
+  } catch(e) {}
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) statusEl.innerHTML = '';
+  if (inputEl) inputEl.value = '';
+}
+
+async function _loadSavedLogos() {
+  const rfqRef = '{{ rfq_ref }}';
+  if (!rfqRef) return;
+  try {
+    const resp = await fetch('/proposal_generator/tech_logos?rfq_ref=' + encodeURIComponent(rfqRef));
+    const data = await resp.json();
+    if (!data.success) return;
+    const saved = data.saved || {};
+    const logoMap = {
+      'logo_end_user':   'logoEndUserStatus',
+      'logo_contractor': 'logoContractorStatus',
+      'logo_consultant': 'logoConsultantStatus',
+    };
+    // Fixed logos
+    for (const [field, statusId] of Object.entries(logoMap)) {
+      if (saved[field]) {
+        const el = document.getElementById(statusId);
+        if (el) el.innerHTML = `<span style="color:#28a745"><i class="fas fa-check-circle mr-1"></i>${saved[field]} saved</span>
+          <button type="button" class="btn btn-link p-0 ml-1 text-danger" style="font-size:.7rem;vertical-align:baseline;"
+            onclick="_clearSavedLogo('${field}','${statusId}',document.getElementById('${field==='logo_end_user'?'logoEndUser':field==='logo_contractor'?'logoContractor':'logoConsultant'}'))">
+            <i class="fas fa-times"></i> Clear
+          </button>`;
+      }
+    }
+    // Vendor logos
+    for (const [field, fname] of Object.entries(saved)) {
+      if (field.startsWith('vendor_logo_')) {
+        const idx      = field.replace('vendor_logo_', '');
+        const statusEl = document.getElementById('vendorLogoStatus_' + idx);
+        if (statusEl) statusEl.innerHTML = `<span style="color:#28a745"><i class="fas fa-check-circle mr-1"></i>${fname} saved</span>
+          <button type="button" class="btn btn-link p-0 ml-1 text-danger" style="font-size:.7rem;vertical-align:baseline;"
+            onclick="_clearSavedLogo('${field}','vendorLogoStatus_${idx}',null)">
+            <i class="fas fa-times"></i> Clear
+          </button>`;
+      }
+    }
+  } catch(e) {}
+}
+
 async function _loadSectionStatus() {
   const rfqRef = '{{ rfq_ref }}';
   if (!rfqRef) return;
@@ -1314,6 +1401,7 @@ function _techInit() {
   _renderTechIndex();
   refreshVendorLabels();
   _loadSectionStatus();  // Load upload status for each section
+  _loadSavedLogos();     // Show saved logo status indicators
 }
 
 function _renderTechIndex() {
@@ -1460,7 +1548,9 @@ function addVendorRow(name) {
     </div>
     <div class="form-group col-md-5 mb-0">
       <input type="file" class="form-control-file form-control-sm" name="vendor_logo_${i}"
-             accept="image/*" style="font-size:0.78rem;">
+             accept="image/*" style="font-size:0.78rem;"
+             onchange="_autoSaveLogo(this,'vendor_logo_${i}','vendorLogoStatus_${i}')">
+      <div id="vendorLogoStatus_${i}" style="font-size:.7rem;margin-top:2px;"></div>
     </div>
     <div class="form-group col-md-1 mb-0 text-center">
       <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeVendorRow(this)" title="Remove">
