@@ -1792,7 +1792,8 @@ def company_profile():
     
     import os as _cpros
     preqal_uploaded = _cpros.path.exists(_cpros.path.join('static', 'company_docs', 'prequalification.pdf'))
-    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects, custom_documents=custom_documents, preqal_uploaded=preqal_uploaded)
+    company_profile_uploaded = _cpros.path.exists(_cpros.path.join('static', 'company_docs', 'company_profile.pdf'))
+    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects, custom_documents=custom_documents, preqal_uploaded=preqal_uploaded, company_profile_uploaded=company_profile_uploaded)
 
 @app.route('/api/company_profile/update', methods=['POST'])
 @login_required
@@ -1844,6 +1845,30 @@ def upload_prequalification_pdf():
     save_path = os.path.join(save_dir, 'prequalification.pdf')
     f.save(save_path)
     return jsonify({'success': True, 'message': 'Pre-Qualification PDF uploaded successfully', 'path': save_path})
+
+@app.route('/api/company_profile/company_profile_pdf_status', methods=['GET'])
+def company_profile_pdf_status():
+    import os
+    exists = os.path.exists(os.path.join('static', 'company_docs', 'company_profile.pdf'))
+    return jsonify({'exists': exists})
+
+
+@app.route('/api/company_profile/upload_company_profile', methods=['POST'])
+@login_required
+def upload_company_profile_pdf():
+    """Upload Company Profile PDF for auto-merge into Technical Submittal PDFs."""
+    f = request.files.get('company_profile_pdf')
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    import os
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Only PDF files allowed'}), 400
+    save_dir = os.path.join('static', 'company_docs')
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, 'company_profile.pdf')
+    f.save(save_path)
+    return jsonify({'success': True, 'message': 'Company Profile PDF uploaded successfully'})
+
 
 @app.route('/api/company_profile/solutions', methods=['GET'])
 @login_required
@@ -8000,6 +8025,14 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
 
         # Build mapping: section index in secs_with_sep → uploaded pages
         sec_uploaded = {}
+        # Load Company Profile PDF for section idx=0
+        company_profile_pdf_path = _os.path.join('static', 'company_docs', 'company_profile.pdf')
+        if _os.path.exists(company_profile_pdf_path):
+            with open(company_profile_pdf_path, 'rb') as _cf:
+                cpb = _cf.read()
+            if cpb.startswith(b'%PDF'):
+                sec_uploaded[0] = list(PdfReader(_io.BytesIO(cpb)).pages)
+
         for idx, sec in enumerate(secs_with_sep[1:], start=1):   # skip Company Profile (idx 0)
             sl    = _slug(sec.get('title', ''))
             fpath = _os.path.join(sec_dir, sl + '.pdf')
@@ -8024,8 +8057,9 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
             writer.add_page(reader_main.pages[main_page_idx])
 
             if sep_idx == 0:
-                # Company Profile → insert pre-qual pages
-                for pg in preqal_pages:
+                # Company Profile → prefer company_profile.pdf, else fall back to preqal PDF
+                cp_pages = sec_uploaded.get(0, preqal_pages)
+                for pg in cp_pages:
                     writer.add_page(pg)
             elif sep_idx in sec_uploaded:
                 # Vendor section → insert uploaded PDF pages

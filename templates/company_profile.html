@@ -1828,6 +1828,19 @@ function openEditModal(section) {
             <div class="edit-form-group">
                 <label><i class="fas fa-building mr-2" style="color: #4facfe;"></i>Company Profile PDF</label>
                 <input type="url" id="edit_doc_profile_url" value="{{ content.doc_profile_url or '' }}" placeholder="https://drive.google.com/..." style="width: 100%; padding: 12px 15px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 0.9rem;">
+                <div style="margin-top:10px; padding:12px; background:#f8f9fa; border-radius:8px; border:1px dashed #dee2e6;">
+                    <p style="margin:0 0 8px; font-size:0.82rem; color:#6c757d;"><i class="fas fa-upload mr-1"></i><strong>Upload PDF for Auto-Merge</strong> — Upload the Company Profile PDF here so it can be automatically merged into Technical Submittal PDFs as the first section.</p>
+                    {% if company_profile_uploaded %}
+                    <p style="margin:0 0 8px; font-size:0.8rem; color:#28a745;"><i class="fas fa-check-circle mr-1"></i>Local PDF is uploaded and ready for merging.</p>
+                    {% else %}
+                    <p style="margin:0 0 8px; font-size:0.8rem; color:#dc3545;"><i class="fas fa-exclamation-circle mr-1"></i>No local PDF uploaded yet. Section will show separator page only.</p>
+                    {% endif %}
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="file" id="companyProfilePdfFile" accept=".pdf" style="font-size:0.8rem; flex:1; min-width:0;">
+                        <button type="button" onclick="uploadCompanyProfilePdf()" style="background:#4facfe; color:#fff; border:none; padding:6px 14px; border-radius:6px; font-size:0.8rem; cursor:pointer; white-space:nowrap;"><i class="fas fa-upload mr-1"></i>Upload PDF</button>
+                    </div>
+                    <div id="companyProfileUploadMsg" style="margin-top:6px; font-size:0.8rem;"></div>
+                </div>
             </div>
             <div class="edit-form-group">
                 <label><i class="fas fa-id-card mr-2" style="color: #43e97b;"></i>Commercial Registration (CR)</label>
@@ -2304,6 +2317,30 @@ function filterIcons() {
         const iconName = el.dataset.icon.toLowerCase();
         el.style.display = iconName.includes(search) ? 'flex' : 'none';
     });
+}
+
+async function uploadCompanyProfilePdf() {
+    const fileInput = document.getElementById('companyProfilePdfFile');
+    const msgEl = document.getElementById('companyProfileUploadMsg');
+    if (!fileInput.files.length) {
+        msgEl.innerHTML = '<span style="color:#dc3545;">Please select a PDF file first.</span>';
+        return;
+    }
+    msgEl.innerHTML = '<span style="color:#666;"><i class="fas fa-spinner fa-spin mr-1"></i>Uploading...</span>';
+    const fd = new FormData();
+    fd.append('company_profile_pdf', fileInput.files[0]);
+    try {
+        const resp = await fetch('/api/company_profile/upload_company_profile', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.success) {
+            msgEl.innerHTML = '<span style="color:#28a745;"><i class="fas fa-check-circle mr-1"></i>' + data.message + '</span>';
+            fileInput.value = '';
+        } else {
+            msgEl.innerHTML = '<span style="color:#dc3545;">' + (data.error || 'Upload failed') + '</span>';
+        }
+    } catch (e) {
+        msgEl.innerHTML = '<span style="color:#dc3545;">Error: ' + e.message + '</span>';
+    }
 }
 
 async function uploadPreqalPdf() {

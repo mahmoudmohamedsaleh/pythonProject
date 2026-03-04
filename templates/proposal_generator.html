@@ -1404,17 +1404,24 @@ async function _loadSavedLogos() {
   } catch(e) {}
 }
 
+let _companyProfilePdfReady = false;
+
 async function _loadSectionStatus() {
   const rfqRef = '{{ rfq_ref }}';
   if (!rfqRef) return;
   try {
-    const resp = await fetch('/proposal_generator/section_files?rfq_ref=' + encodeURIComponent(rfqRef));
-    const data = await resp.json();
-    if (data.success) {
+    const [secResp, cpResp] = await Promise.all([
+      fetch('/proposal_generator/section_files?rfq_ref=' + encodeURIComponent(rfqRef)),
+      fetch('/api/company_profile/company_profile_pdf_status')
+    ]);
+    const secData = await secResp.json();
+    const cpData  = await cpResp.json();
+    if (secData.success) {
       _sectionUploadStatus = {};
-      (data.slugs || []).forEach(sl => { _sectionUploadStatus[sl] = true; });
-      _renderTechIndex();
+      (secData.slugs || []).forEach(sl => { _sectionUploadStatus[sl] = true; });
     }
+    _companyProfilePdfReady = !!(cpData && cpData.exists);
+    _renderTechIndex();
   } catch(e) { /* ignore */ }
 }
 
@@ -1514,9 +1521,30 @@ function _renderTechIndex() {
       ${!isClosing ? `<div class="ml-3" id="techSubs_${i}">${subsHtml}</div>
       <button type="button" class="btn btn-sm btn-link text-muted p-0 ml-3" style="font-size:.72rem;" onclick="_techSubAdd(${i})"><i class="fas fa-plus mr-1"></i>Add sub-item</button>` : ''}
       ${(!isClosing && !sec.no_separator) ? (() => {
+        // Special case: Company Profile section (first secs_with_sep entry) uses company_profile.pdf from Company Documents
+        const isCompanyProfile = (techSections.filter(s => !s.closing && !s.no_separator).findIndex(s => s === sec) === 0) && i === techSections.findIndex(s => s === sec);
         const sl = _sectionSlug(sec.title);
         const uploaded = _sectionUploadStatus[sl];
-        if (uploaded) {
+
+        // Check if this is idx=0 in secs_with_sep (Company Profile section)
+        const sepOrder = techSections.filter(s => !s.closing && !s.no_separator);
+        const isCPSection = sepOrder.length > 0 && sepOrder[0] === sec;
+
+        if (isCPSection) {
+          if (_companyProfilePdfReady) {
+            return `<div class="mt-1 ml-2 d-flex align-items-center" style="font-size:.75rem;">
+              <span style="color:#28a745;"><i class="fas fa-check-circle mr-1"></i><strong>Company Profile PDF ready</strong> — auto-merged from Company Documents</span>
+              <a href="/company_profile" target="_blank" class="btn btn-link p-0 ml-2" style="font-size:.72rem;color:#4facfe;">Update in Company Docs</a>
+            </div>`;
+          } else {
+            return `<div class="mt-1 ml-2 d-flex align-items-center" style="font-size:.75rem;flex-wrap:wrap;gap:6px;">
+              <span style="color:#f0a500;"><i class="fas fa-exclamation-triangle mr-1"></i>No Company Profile PDF uploaded yet — separator page only.</span>
+              <a href="/company_profile" target="_blank" class="btn btn-sm btn-outline-primary mb-0" style="font-size:.72rem;padding:2px 8px;">
+                <i class="fas fa-upload mr-1"></i>Upload in Company Docs
+              </a>
+            </div>`;
+          }
+        } else if (uploaded) {
           return `<div class="mt-1 ml-2 d-flex align-items-center" style="font-size:.75rem;">
             <span style="color:#28a745;"><i class="fas fa-check-circle mr-1"></i><strong>PDF uploaded</strong> — will be merged after separator</span>
             <button type="button" class="btn btn-sm btn-link text-danger p-0 ml-2" style="font-size:.72rem;" onclick="_deleteSectionFile('${sl}',${i})" title="Remove uploaded PDF"><i class="fas fa-trash"></i></button>
