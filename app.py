@@ -8281,8 +8281,12 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
             # Replace {vendor} placeholder
             if vendor:
                 title = title.replace('{vendor}', vendor)
-            # Section header row
-            items.append(_p(f'<b>{num}-  {title}</b>',
+            # Section header row — clickable link if this section has a separator page
+            if not sec.get('no_separator'):
+                hdr_markup = f'<b><link href="#sep_{num}" color="#CC0000">{num}-  {title}</link></b>'
+            else:
+                hdr_markup = f'<b>{num}-  {title}</b>'
+            items.append(_p(hdr_markup,
                             _ps(f's{num}', fontName='Helvetica-Bold', fontSize=9,
                                 textColor=C_PURPLE, leading=13, spaceAfter=1)))
             # Sub-items
@@ -8339,6 +8343,10 @@ def _build_technical_submittal_pdf(tech_title, project_name, location, contracto
 
         if sec.get('no_separator'):
             continue  # This section's content is inside the pre-qual PDF — no separator page needed
+
+        # Named anchor for internal PDF links from the index
+        from reportlab.platypus.flowables import AnchorFlowable
+        story.append(AnchorFlowable(f'sep_{sec_num}'))
 
         # Full-page separator: purple left strip + white right
         # We simulate a full-page look using a two-column table
