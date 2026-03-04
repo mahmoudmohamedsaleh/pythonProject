@@ -7550,12 +7550,99 @@ def proposal_generate_technical_pdf():
         safe_proj = ''.join(c for c in project_name if c.isalnum() or c in ' _-')[:40].strip()
         fname = f"Technical_Submittal_{safe_proj or 'Document'}.pdf"
         from flask import send_file
+
+        # ── Merge Pre-Qualification PDF after Company Profile separator ──────
+        pdf_buf = _merge_preqal_pdf(pdf_buf, sections)
+
         pdf_buf.seek(0)
         return send_file(pdf_buf, as_attachment=False, download_name=fname, mimetype='application/pdf')
     except Exception as e:
         import traceback
         app.logger.error(f"generate_technical_pdf error: {e}\n{traceback.format_exc()}")
         return f"PDF generation failed: {e}", 500
+
+
+def _merge_preqal_pdf(main_buf, sections):
+    """Download the Pre-Qualification PDF from the DB URL and merge it after the
+    Company Profile section separator (page index 2 = cover + index + first separator)."""
+    import io as _mio, sqlite3 as _msql, requests as _mreq
+    try:
+        # 1. Fetch URL from DB
+        _conn = _msql.connect('ProjectStatus.db')
+        _cur  = _conn.cursor()
+        _cur.execute("SELECT content FROM company_profile_content WHERE section_key='doc_prequalification_url'")
+        _row  = _cur.fetchone()
+        _conn.close()
+        if not _row or not _row[0]:
+            return main_buf
+
+        url = _row[0].strip()
+
+        # 2. Convert Google Drive share link → direct download URL
+        import re as _re
+        gd_match = _re.search(r'/file/d/([A-Za-z0-9_\-]+)', url)
+        if gd_match:
+            file_id = gd_match.group(1)
+            url = f'https://drive.google.com/uc?export=download&id={file_id}'
+
+        # 3. Download PDF (handle Google's large-file confirmation token)
+        _sess = _mreq.Session()
+        _resp = _sess.get(url, stream=True, timeout=30)
+        # Check for confirmation page (virus scan warning for large files)
+        if 'text/html' in _resp.headers.get('Content-Type', ''):
+            _token = None
+            for key, val in _resp.cookies.items():
+                if key.startswith('download_warning'):
+                    _token = val
+                    break
+            if _token:
+                url2 = url + f'&confirm={_token}'
+                _resp = _sess.get(url2, stream=True, timeout=60)
+
+        if _resp.status_code != 200:
+            return main_buf
+        preq_bytes = _resp.content
+        if not preq_bytes or not preq_bytes.startswith(b'%PDF'):
+            return main_buf
+
+        # 4. Find the Company Profile section index (0-based in sections list)
+        # Page layout: cover(1) + index(1) + section_separators(1 each)
+        # The first non-closing section → cover + index + 1 page = insert after page index 2
+        cp_section_idx = 0   # Company Profile is always the first section
+        insert_after_page = 1 + 1 + cp_section_idx   # 0-indexed: page 2
+
+        # 5. Merge using pypdf
+        from pypdf import PdfReader, PdfWriter
+        reader_main = PdfReader(_mio.BytesIO(main_buf.read() if hasattr(main_buf, 'read') else main_buf))
+        reader_preq = PdfReader(_mio.BytesIO(preq_bytes))
+
+        writer = PdfWriter()
+        n_main = len(reader_main.pages)
+
+        # Pages 0 .. insert_after_page (inclusive)
+        for i in range(min(insert_after_page + 1, n_main)):
+            writer.add_page(reader_main.pages[i])
+
+        # All pre-qualification pages
+        for pg in reader_preq.pages:
+            writer.add_page(pg)
+
+        # Remaining main pages
+        for i in range(insert_after_page + 1, n_main):
+            writer.add_page(reader_main.pages[i])
+
+        out = _mio.BytesIO()
+        writer.write(out)
+        out.seek(0)
+        return out
+
+    except Exception as _me:
+        import traceback as _tb
+        print("[merge_preqal] WARNING: " + str(_me) + "\n" + _tb.format_exc())
+        # Non-fatal — return original PDF on any error
+        if hasattr(main_buf, 'seek'):
+            main_buf.seek(0)
+        return main_buf
 
 
 def _build_technical_submittal_pdf(tech_title, project_name, location, contractor,
