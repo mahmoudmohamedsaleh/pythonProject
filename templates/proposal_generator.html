@@ -753,9 +753,17 @@
                 <i class="fas fa-info-circle text-primary mr-1"></i>
                 Generates a Technical Submittal PDF with Cover Page, Index, and Section Separators.
               </p>
-              <button type="button" class="btn-generate" onclick="generateTechPdf()" style="background:linear-gradient(135deg,#CC0000,#E83333);">
+              <button type="button" class="btn-generate" onclick="generateTechPdf()" id="generateTechBtn" style="background:linear-gradient(135deg,#CC0000,#E83333);">
                 <i class="fas fa-file-pdf mr-2"></i> Generate Technical Submittal PDF
               </button>
+              <div id="techDownloadArea" style="display:none;margin-top:10px;">
+                <button type="button" id="techDownloadBtn" onclick="_downloadLastTechPdf()"
+                  style="width:100%;padding:10px 16px;border:none;border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600;
+                         background:linear-gradient(135deg,#1a7a3c,#28a745);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;">
+                  <i class="fas fa-download"></i>
+                  <span id="techDownloadBtnLabel">Download PDF</span>
+                </button>
+              </div>
               <button type="button" class="btn btn-success btn-block mt-2" onclick="saveTechDraft()" id="saveTechDraftBtn"
                       style="font-weight:600;font-size:.88rem;">
                 <i class="fas fa-save mr-1"></i> Save Draft
@@ -1678,12 +1686,30 @@ function _renumberVendors() {
 }
 
 // ── Generate Technical PDF ─────────────────────────────────────────────
+let _lastTechPdfBlob = null;
+let _lastTechPdfName = 'Technical_Submittal.pdf';
+
+function _downloadLastTechPdf() {
+  if (!_lastTechPdfBlob) return;
+  const url = URL.createObjectURL(_lastTechPdfBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = _lastTechPdfName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 async function generateTechPdf() {
   _updateTechJson();
   const form = document.getElementById('techForm');
   const fd   = new FormData(form);
-  const btn  = document.querySelector('[onclick="generateTechPdf()"]');
+  const btn  = document.getElementById('generateTechBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating…'; }
+  // Hide previous download button while regenerating
+  const dlArea = document.getElementById('techDownloadArea');
+  if (dlArea) dlArea.style.display = 'none';
   // Pre-open the tab NOW (synchronous, user-initiated) so popup blockers won't interfere
   const pdfWin = window.open('', '_blank');
   if (pdfWin) {
@@ -1694,14 +1720,24 @@ async function generateTechPdf() {
     const resp = await fetch('{{ url_for("proposal_generate_technical_pdf") }}', { method:'POST', body:fd });
     if(!resp.ok) { const t=await resp.text(); throw new Error(t||'Server error '+resp.status); }
     const blob = await resp.blob();
-    const url  = URL.createObjectURL(blob);
+    // Store blob for download button
+    _lastTechPdfBlob = blob;
+    // Build filename from Submittal Reference field
+    const submittalRef = (document.getElementById('techSubmittalRef')?.value || '').trim();
+    _lastTechPdfName = (submittalRef ? submittalRef.replace(/[^a-zA-Z0-9_\-\. ]/g, '_') : 'Technical_Submittal') + '.pdf';
+    // Show download button
+    const dlLabel = document.getElementById('techDownloadBtnLabel');
+    if (dlLabel) dlLabel.textContent = 'Download: ' + _lastTechPdfName;
+    if (dlArea) dlArea.style.display = 'block';
+    // Open PDF in new tab
+    const url = URL.createObjectURL(blob);
     if (pdfWin && !pdfWin.closed) {
       pdfWin.location.href = url;
     } else {
       // Fallback: direct download if tab was blocked
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Technical_Submittal.pdf';
+      a.download = _lastTechPdfName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1712,7 +1748,7 @@ async function generateTechPdf() {
     alert('PDF generation failed: ' + err.message);
   } finally {
     hideLoader();
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf mr-1"></i> Generate Technical Submittal PDF'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf mr-2"></i> Generate Technical Submittal PDF'; }
   }
 }
 
