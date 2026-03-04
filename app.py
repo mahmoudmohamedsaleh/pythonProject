@@ -1889,7 +1889,60 @@ def debug_pdf_merge_status():
             sub_path = os.path.join(sec_dir, sub)
             if os.path.isdir(sub_path):
                 info['sections_contents'][sub] = os.listdir(sub_path)
+    # Also read persistent file-based status (survives restarts)
+    try:
+        import json as _fj
+        with open('/tmp/merge_debug.json') as _ff:
+            info['file_merge_status'] = _fj.load(_ff)
+    except Exception:
+        info['file_merge_status'] = None
     return jsonify(info)
+
+
+@app.route('/test_pdf_merge')
+@login_required
+def test_pdf_merge():
+    """Direct diagnostic: test pypdf import and prequalification PDF reading."""
+    import os, io, traceback
+    result = {}
+
+    # 1. pypdf import
+    try:
+        from pypdf import PdfReader, PdfWriter
+        import pypdf
+        result['pypdf_installed'] = True
+        result['pypdf_version'] = getattr(pypdf, '__version__', 'unknown')
+    except Exception as e:
+        result['pypdf_installed'] = False
+        result['pypdf_error'] = str(e)
+        return jsonify(result)
+
+    # 2. Pre-qual file
+    preqal_path = os.path.join(_STATIC_DIR, 'company_docs', 'prequalification.pdf')
+    result['preqal_path'] = preqal_path
+    result['preqal_exists'] = os.path.exists(preqal_path)
+    if not result['preqal_exists']:
+        return jsonify(result)
+
+    # 3. File size
+    result['preqal_size_mb'] = round(os.path.getsize(preqal_path) / 1024 / 1024, 2)
+
+    # 4. Read and parse
+    try:
+        with open(preqal_path, 'rb') as f:
+            raw = f.read()
+        result['preqal_is_pdf'] = raw.startswith(b'%PDF')
+        if result['preqal_is_pdf']:
+            reader = PdfReader(io.BytesIO(raw))
+            result['preqal_total_pages'] = len(reader.pages)
+            result['preqal_pages_after_skip4'] = max(0, len(reader.pages) - 4)
+        result['read_ok'] = True
+    except Exception as e:
+        result['read_ok'] = False
+        result['read_error'] = str(e)
+        result['read_traceback'] = traceback.format_exc()
+
+    return jsonify(result)
 
 
 @app.route('/api/company_profile/upload_company_profile', methods=['POST'])
@@ -8126,6 +8179,12 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
         _status['output_size_bytes'] = out.getbuffer().nbytes
         _MERGE_LAST_STATUS = _status
         _MERGE_LAST_ERROR = None
+        try:
+            import json as _dbgj
+            with open('/tmp/merge_debug.json', 'w') as _dbgf:
+                _dbgj.dump(_status, _dbgf, default=str)
+        except Exception:
+            pass
         return out
 
     except Exception as _e:
@@ -8133,7 +8192,14 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
         _MERGE_LAST_ERROR = f"[merge_all] {_e}\n{_tb.format_exc()}"
         _status['result'] = 'exception'
         _status['error'] = str(_e)
+        _status['traceback'] = _tb.format_exc()
         _MERGE_LAST_STATUS = _status
+        try:
+            import json as _dbgj
+            with open('/tmp/merge_debug.json', 'w') as _dbgf:
+                _dbgj.dump(_status, _dbgf, default=str)
+        except Exception:
+            pass
         print(_MERGE_LAST_ERROR)
         if hasattr(main_buf, 'seek'):
             main_buf.seek(0)
