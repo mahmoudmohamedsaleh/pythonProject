@@ -660,6 +660,58 @@
             </div>
           </div>
 
+          <!-- Stamp & Page Numbering -->
+          <div class="card mb-3 shadow-sm" style="border:1px solid #CC000033;">
+            <div class="card-header-pg" style="background:linear-gradient(135deg,#8B0000,#CC0000);">
+              <i class="fas fa-stamp mr-1"></i> PDF Options
+            </div>
+            <div class="card-body py-3">
+              <div class="form-row align-items-start">
+
+                <!-- Stamp toggle + upload -->
+                <div class="form-group col-md-6 mb-2">
+                  <div class="custom-control custom-switch mb-2">
+                    <input type="checkbox" class="custom-control-input" id="addStampChk" name="add_stamp" value="on" checked>
+                    <label class="custom-control-label font-weight-bold small" for="addStampChk">
+                      <i class="fas fa-stamp mr-1" style="color:#CC0000;"></i> Add Company Stamp
+                    </label>
+                  </div>
+                  <div class="d-flex align-items-center flex-wrap" style="gap:6px;">
+                    <span class="text-muted small">Current stamp:</span>
+                    <img id="stampPreviewThumb" src="/static/company_docs/stamp.png?t={{ now_ts }}"
+                         onerror="this.style.display='none'"
+                         style="height:48px;width:48px;object-fit:contain;border:1px solid #ddd;border-radius:4px;background:#f8f8f8;padding:2px;">
+                    <label class="btn btn-sm btn-outline-secondary mb-0" style="font-size:0.75rem;cursor:pointer;">
+                      <i class="fas fa-upload mr-1"></i> Update Stamp
+                      <input type="file" id="stampUploadInput" accept="image/*" style="display:none;"
+                             onchange="_uploadStamp(this)">
+                    </label>
+                    <span id="stampUploadStatus" style="font-size:.72rem;"></span>
+                  </div>
+                  <div class="text-muted mt-1" style="font-size:.72rem;">
+                    Stamp appears at bottom-right of every page with 35% transparency.
+                    White background is automatically removed.
+                  </div>
+                </div>
+
+                <!-- Page numbering toggle -->
+                <div class="form-group col-md-6 mb-2">
+                  <div class="custom-control custom-switch mb-2">
+                    <input type="checkbox" class="custom-control-input" id="addPageNumChk" name="add_page_num" value="on" checked>
+                    <label class="custom-control-label font-weight-bold small" for="addPageNumChk">
+                      <i class="fas fa-sort-numeric-down mr-1" style="color:#CC0000;"></i> Add Page Numbers
+                    </label>
+                  </div>
+                  <div class="text-muted" style="font-size:.72rem;">
+                    Adds <em>"Page X of Y"</em> at the bottom-center of every page across the full merged document
+                    (cover, index, separators, pre-qual, and all section PDFs).
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
           <!-- Vendors Section -->
           <div class="card mb-3 shadow-sm" style="border:1px solid #CC000033;">
             <div class="card-header-pg d-flex justify-content-between align-items-center" style="background:linear-gradient(135deg,#8B0000,#CC0000);">
@@ -1247,6 +1299,28 @@ let _sectionUploadStatus = {};   // slug → true if PDF is uploaded
 function _sectionSlug(title) {
   const vendor = document.getElementById('techVendor')?.value || '';
   return (title || '').replace('{vendor}', vendor).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+
+async function _uploadStamp(input) {
+  if (!input.files.length) return;
+  const statusEl = document.getElementById('stampUploadStatus');
+  statusEl.innerHTML = '<span style="color:#666"><i class="fas fa-spinner fa-spin mr-1"></i>Uploading…</span>';
+  const fd = new FormData();
+  fd.append('stamp_file', input.files[0]);
+  try {
+    const resp = await fetch('/proposal_generator/upload_stamp', { method:'POST', body:fd });
+    const data = await resp.json();
+    if (data.success) {
+      statusEl.innerHTML = '<span style="color:#28a745"><i class="fas fa-check-circle mr-1"></i>Stamp updated!</span>';
+      // Refresh preview thumbnail
+      const thumb = document.getElementById('stampPreviewThumb');
+      if (thumb) { thumb.style.display=''; thumb.src='/static/company_docs/stamp.png?t=' + Date.now(); }
+    } else {
+      statusEl.innerHTML = '<span style="color:#dc3545">' + (data.error || 'Upload failed') + '</span>';
+    }
+  } catch(e) {
+    statusEl.innerHTML = '<span style="color:#dc3545">Error uploading stamp</span>';
+  }
 }
 
 async function _autoSaveLogo(input, fieldName, statusId) {

@@ -6977,7 +6977,8 @@ def proposal_generator_main():
                            se_email=se_email,
                            saved_form=saved_form,
                            tech_saved_form=tech_saved_form,
-                           presale_engineers_list=presale_engineers_list))
+                           presale_engineers_list=presale_engineers_list,
+                           now_ts=int(__import__('time').time())))
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
     resp.headers['Pragma'] = 'no-cache'
     return resp
@@ -7583,6 +7584,12 @@ def proposal_generate_technical_pdf():
         # ── Merge Pre-Qualification + section PDFs ────────────────────────────
         pdf_buf = _merge_all_section_pdfs(pdf_buf, sections, rfq_ref, vendor)
 
+        # ── Apply transparent stamp + page numbers to ALL pages ──────────────
+        add_stamp    = form.get('add_stamp', 'on') != 'off'
+        add_page_num = form.get('add_page_num', 'on') != 'off'
+        if add_stamp or add_page_num:
+            pdf_buf = _apply_stamp_and_page_numbers(pdf_buf, rfq_ref, add_stamp, add_page_num)
+
         pdf_buf.seek(0)
         return send_file(pdf_buf, as_attachment=False, download_name=fname, mimetype='application/pdf')
     except Exception as e:
@@ -7792,6 +7799,140 @@ def _merge_preqal_pdf(main_buf, sections):
         if hasattr(main_buf, 'seek'):
             main_buf.seek(0)
         return main_buf
+
+
+@app.route('/proposal_generator/upload_stamp', methods=['POST'])
+@login_required
+def upload_stamp():
+    """Upload a custom stamp image to overlay on Technical Submittal PDFs."""
+    f = request.files.get('stamp_file')
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    import os
+    allowed = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in allowed:
+        return jsonify({'success': False, 'error': 'Image files only'}), 400
+    save_dir = os.path.join('static', 'company_docs')
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, 'stamp.png')
+    # Convert to PNG with transparent background using Pillow
+    try:
+        from PIL import Image as _PIL
+        img = _PIL.open(f)
+        img = img.convert('RGBA')
+        datas = img.getdata()
+        new_data = []
+        for item in datas:
+            r, g, b, a = item
+            # Make near-white pixels transparent
+            if r > 220 and g > 220 and b > 220:
+                new_data.append((255, 255, 255, 0))
+            else:
+                new_data.append(item)
+        img.putdata(new_data)
+        img.save(save_path, 'PNG')
+    except Exception:
+        f.seek(0)
+        f.save(save_path)
+    return jsonify({'success': True, 'message': 'Stamp uploaded successfully'})
+
+
+def _apply_stamp_and_page_numbers(pdf_buf, rfq_ref, add_stamp=True, add_page_num=True):
+    """Overlay transparent company stamp and page numbers (Page X of Y) on ALL pages."""
+    import io as _sio, os as _sos
+    try:
+        from pypdf import PdfReader, PdfWriter
+        from reportlab.pdfgen import canvas as _rl_canvas
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm
+
+        raw    = pdf_buf.read() if hasattr(pdf_buf, 'read') else pdf_buf
+        reader = PdfReader(_sio.BytesIO(raw))
+        total  = len(reader.pages)
+
+        if total == 0:
+            return _sio.BytesIO(raw)
+
+        W, H = A4   # 595.28 x 841.89 pts
+
+        # Load and preprocess stamp image (remove white bg if not already done)
+        stamp_path  = _sos.path.join('static', 'company_docs', 'stamp.png')
+        stamp_bytes = None
+        if add_stamp and _sos.path.exists(stamp_path):
+            try:
+                from PIL import Image as _PILI
+                _simg = _PILI.open(stamp_path).convert('RGBA')
+                _sdata = _simg.getdata()
+                _new   = []
+                for r, g, b, a in _sdata:
+                    _new.append((r, g, b, 0) if (r > 220 and g > 220 and b > 220) else (r, g, b, a))
+                _simg.putdata(_new)
+                _sbuf = _sio.BytesIO()
+                _simg.save(_sbuf, 'PNG')
+                _sbuf.seek(0)
+                stamp_bytes = _sbuf.read()
+            except Exception:
+                with open(stamp_path, 'rb') as _sf:
+                    stamp_bytes = _sf.read()
+
+        writer = PdfWriter()
+
+        for page_num, page in enumerate(reader.pages, start=1):
+            # Detect actual page size from PDF
+            try:
+                pw = float(page.mediabox.width)
+                ph = float(page.mediabox.height)
+            except Exception:
+                pw, ph = W, H
+
+            # Build overlay PDF for this page
+            overlay_buf = _sio.BytesIO()
+            c = _rl_canvas.Canvas(overlay_buf, pagesize=(pw, ph))
+
+            # ── Transparent stamp (bottom-right corner) ──────────────────────
+            if add_stamp and stamp_bytes:
+                stamp_size = min(pw * 0.18, 4.5 * cm)
+                sx = pw - stamp_size - 1.2 * cm
+                sy = 0.8 * cm
+                try:
+                    from reportlab.lib.utils import ImageReader
+                    _stamp_io = _sio.BytesIO(stamp_bytes)
+                    _stamp_reader = ImageReader(_stamp_io)
+                    c.saveState()
+                    c.setFillAlpha(0.35)
+                    c.drawImage(_stamp_reader, sx, sy, width=stamp_size, height=stamp_size,
+                                mask='auto', preserveAspectRatio=True)
+                    c.restoreState()
+                except Exception:
+                    pass
+
+            # ── Page number (bottom center) ──────────────────────────────────
+            if add_page_num:
+                c.saveState()
+                c.setFont('Helvetica', 8)
+                c.setFillColorRGB(0.45, 0.45, 0.45)
+                c.drawCentredString(pw / 2, 0.55 * cm, f'Page {page_num} of {total}')
+                c.restoreState()
+
+            c.save()
+            overlay_buf.seek(0)
+
+            overlay_reader = PdfReader(overlay_buf)
+            page.merge_page(overlay_reader.pages[0])
+            writer.add_page(page)
+
+        out = _sio.BytesIO()
+        writer.write(out)
+        out.seek(0)
+        return out
+
+    except Exception as _e:
+        import traceback as _tb
+        print(f"[stamp] WARNING: {_e}\n{_tb.format_exc()}")
+        if hasattr(pdf_buf, 'seek'):
+            pdf_buf.seek(0)
+        return pdf_buf
 
 
 def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
