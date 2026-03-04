@@ -1405,17 +1405,28 @@ async function generateTechPdf() {
   _updateTechJson();
   const form = document.getElementById('techForm');
   const fd   = new FormData(form);
+  const btn  = document.querySelector('[onclick="generateTechPdf()"]');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating…'; }
   showLoader();
   try {
     const resp = await fetch('{{ url_for("proposal_generate_technical_pdf") }}', { method:'POST', body:fd });
     if(!resp.ok) { const t=await resp.text(); throw new Error(t||'Server error '+resp.status); }
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    // Use anchor download — avoids popup blockers reliably
+    const projName = document.getElementById('techProject')?.value || 'Document';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Technical_Submittal_' + projName.replace(/[^a-zA-Z0-9]/g,'_') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch(err) {
     alert('PDF generation failed: ' + err.message);
   } finally {
     hideLoader();
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-pdf mr-1"></i> Generate Technical Submittal PDF'; }
   }
 }
 
