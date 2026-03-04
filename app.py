@@ -1,6 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify, make_response
 import os as _os_root
 APP_ROOT = _os_root.path.dirname(_os_root.path.abspath(__file__))
+# Detect static folder — handles both 'static' (Replit) and 'Static' (PythonAnywhere)
+_STATIC_DIR = next(
+    (p for p in [_os_root.path.join(APP_ROOT, 'static'),
+                 _os_root.path.join(APP_ROOT, 'Static')]
+     if _os_root.path.isdir(p)),
+    _os_root.path.join(APP_ROOT, 'static')   # fallback
+)
+_MERGE_LAST_ERROR = None  # stores last merge/stamp error for debug endpoint
 from collections import defaultdict
 import re
 import pandas as pd
@@ -1793,8 +1801,8 @@ def company_profile():
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
     import os as _cpros
-    preqal_uploaded = _cpros.path.exists(_cpros.path.join(app.static_folder, 'company_docs', 'prequalification.pdf'))
-    company_profile_uploaded = _cpros.path.exists(_cpros.path.join(app.static_folder, 'company_docs', 'company_profile.pdf'))
+    preqal_uploaded = _cpros.path.exists(_cpros.path.join(_STATIC_DIR, 'company_docs', 'prequalification.pdf'))
+    company_profile_uploaded = _cpros.path.exists(_cpros.path.join(_STATIC_DIR, 'company_docs', 'company_profile.pdf'))
     return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects, custom_documents=custom_documents, preqal_uploaded=preqal_uploaded, company_profile_uploaded=company_profile_uploaded)
 
 @app.route('/api/company_profile/update', methods=['POST'])
@@ -1842,7 +1850,7 @@ def upload_prequalification_pdf():
     if not f.filename.lower().endswith('.pdf'):
         return jsonify({'success': False, 'error': 'Only PDF files are accepted'}), 400
     import os
-    save_dir = os.path.join(app.static_folder, 'company_docs')
+    save_dir = os.path.join(_STATIC_DIR, 'company_docs')
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, 'prequalification.pdf')
     f.save(save_path)
@@ -1851,7 +1859,7 @@ def upload_prequalification_pdf():
 @app.route('/api/company_profile/company_profile_pdf_status', methods=['GET'])
 def company_profile_pdf_status():
     import os
-    exists = os.path.exists(os.path.join(app.static_folder, 'company_docs', 'company_profile.pdf'))
+    exists = os.path.exists(os.path.join(_STATIC_DIR, 'company_docs', 'company_profile.pdf'))
     return jsonify({'exists': exists})
 
 
@@ -1860,9 +1868,11 @@ def company_profile_pdf_status():
 def debug_pdf_merge_status():
     """Diagnostic: check what PDF files exist for merging."""
     import os, glob as _glob
-    base = os.path.join(app.static_folder, 'company_docs')
+    base = os.path.join(_STATIC_DIR, 'company_docs')
     info = {
         'app_root':              APP_ROOT,
+        'static_dir_detected':   _STATIC_DIR,
+        'last_merge_error':      _MERGE_LAST_ERROR,
         'company_docs_dir':      base,
         'company_docs_exists':   os.path.isdir(base),
         'prequalification_pdf':  os.path.exists(os.path.join(base, 'prequalification.pdf')),
@@ -1890,7 +1900,7 @@ def upload_company_profile_pdf():
     import os
     if not f.filename.lower().endswith('.pdf'):
         return jsonify({'success': False, 'error': 'Only PDF files allowed'}), 400
-    save_dir = os.path.join(app.static_folder, 'company_docs')
+    save_dir = os.path.join(_STATIC_DIR, 'company_docs')
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, 'company_profile.pdf')
     f.save(save_path)
@@ -7568,7 +7578,7 @@ def proposal_generate_technical_pdf():
     # Logo uploads (optional) — fall back to previously saved logo if no file uploaded
     import os as _os2, re as _re2, io as _io2
     _safe_rfq = _re2.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref or '')
-    _logo_dir = _os2.path.join(app.static_folder, 'company_docs', 'logos', _safe_rfq)
+    _logo_dir = _os2.path.join(_STATIC_DIR, 'company_docs', 'logos', _safe_rfq)
     def _read_logo(field):
         f = _req.files.get(field)
         if f and f.filename:
@@ -7668,7 +7678,7 @@ def save_tech_logo():
         return jsonify({'success': False, 'error': 'Image files only (PNG, JPG, etc.)'}), 400
     safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
     safe_field = re.sub(r'[^A-Za-z0-9_]', '_', field_name)
-    save_dir  = os.path.join(app.static_folder, 'company_docs', 'logos', safe_ref)
+    save_dir  = os.path.join(_STATIC_DIR, 'company_docs', 'logos', safe_ref)
     os.makedirs(save_dir, exist_ok=True)
     # Save with original extension
     save_path = os.path.join(save_dir, safe_field + ext)
@@ -7691,7 +7701,7 @@ def delete_tech_logo():
     import os, re
     safe_ref   = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
     safe_field = re.sub(r'[^A-Za-z0-9_]', '_', field_name)
-    save_dir   = os.path.join(app.static_folder, 'company_docs', 'logos', safe_ref)
+    save_dir   = os.path.join(_STATIC_DIR, 'company_docs', 'logos', safe_ref)
     removed    = False
     for ext in ('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'):
         path = os.path.join(save_dir, safe_field + ext)
@@ -7708,7 +7718,7 @@ def get_tech_logos():
     rfq_ref = request.args.get('rfq_ref', '').strip()
     import os, re
     safe_ref = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
-    save_dir = os.path.join(app.static_folder, 'company_docs', 'logos', safe_ref)
+    save_dir = os.path.join(_STATIC_DIR, 'company_docs', 'logos', safe_ref)
     saved    = {}
     if os.path.isdir(save_dir):
         for fname in os.listdir(save_dir):
@@ -7733,7 +7743,7 @@ def upload_section_file():
         return jsonify({'success': False, 'error': 'Only PDF files are accepted'}), 400
     import os, re
     safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
-    save_dir  = os.path.join(app.static_folder, 'company_docs', 'sections', safe_ref)
+    save_dir  = os.path.join(_STATIC_DIR, 'company_docs', 'sections', safe_ref)
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, section_slug + '.pdf')
     f.save(save_path)
@@ -7747,7 +7757,7 @@ def get_section_files():
     rfq_ref = request.args.get('rfq_ref', '').strip()
     import os, re
     safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
-    sec_dir   = os.path.join(app.static_folder, 'company_docs', 'sections', safe_ref)
+    sec_dir   = os.path.join(_STATIC_DIR, 'company_docs', 'sections', safe_ref)
     if not os.path.isdir(sec_dir):
         return jsonify({'success': True, 'slugs': []})
     slugs = [fn[:-4] for fn in os.listdir(sec_dir) if fn.endswith('.pdf')]
@@ -7762,7 +7772,7 @@ def delete_section_file():
     section_slug = request.json.get('section_slug', '').strip()
     import os, re
     safe_ref  = re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref)
-    path      = os.path.join(app.static_folder, 'company_docs', 'sections', safe_ref, section_slug + '.pdf')
+    path      = os.path.join(_STATIC_DIR, 'company_docs', 'sections', safe_ref, section_slug + '.pdf')
     if os.path.exists(path):
         os.remove(path)
     return jsonify({'success': True})
@@ -7774,7 +7784,7 @@ def _merge_preqal_pdf(main_buf, sections):
     import io as _mio, os as _os
     try:
         # 1. Check for locally uploaded pre-qual PDF first (most reliable)
-        local_path = _os.path.join(app.static_folder, 'company_docs', 'prequalification.pdf')
+        local_path = _os.path.join(_STATIC_DIR, 'company_docs', 'prequalification.pdf')
         if _os.path.exists(local_path):
             with open(local_path, 'rb') as _lf:
                 preq_bytes = _lf.read()
@@ -7865,7 +7875,7 @@ def upload_stamp():
     ext = os.path.splitext(f.filename)[1].lower()
     if ext not in allowed:
         return jsonify({'success': False, 'error': 'Image files only'}), 400
-    save_dir = os.path.join(app.static_folder, 'company_docs')
+    save_dir = os.path.join(_STATIC_DIR, 'company_docs')
     os.makedirs(save_dir, exist_ok=True)
     save_path = os.path.join(save_dir, 'stamp.png')
     # Convert to PNG with transparent background using Pillow
@@ -7909,7 +7919,7 @@ def _apply_stamp_and_page_numbers(pdf_buf, rfq_ref, add_stamp=True, add_page_num
         W, H = A4   # 595.28 x 841.89 pts
 
         # Load and preprocess stamp image (remove white bg if not already done)
-        stamp_path  = _sos.path.join(app.static_folder, 'company_docs', 'stamp.png')
+        stamp_path  = _sos.path.join(_STATIC_DIR, 'company_docs', 'stamp.png')
         stamp_bytes = None
         if add_stamp and _sos.path.exists(stamp_path):
             try:
@@ -8015,7 +8025,7 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
         n_main      = len(reader_main.pages)
 
         # --- Load pre-qual PDF (if available) ---
-        local_preqal = _os.path.join(app.static_folder, 'company_docs', 'prequalification.pdf')
+        local_preqal = _os.path.join(_STATIC_DIR, 'company_docs', 'prequalification.pdf')
         preqal_pages = []
         if _os.path.exists(local_preqal):
             with open(local_preqal, 'rb') as _f:
@@ -8044,7 +8054,7 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
 
         # --- Load uploaded section PDFs (vendor sections) ---
         safe_ref = _re.sub(r'[^A-Za-z0-9_\-]', '_', rfq_ref or '')
-        sec_dir  = _os.path.join(app.static_folder, 'company_docs', 'sections', safe_ref)
+        sec_dir  = _os.path.join(_STATIC_DIR, 'company_docs', 'sections', safe_ref)
 
         def _slug(title):
             resolved = title.replace('{vendor}', vendor or '')
@@ -8053,7 +8063,7 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
         # Build mapping: section index in secs_with_sep → uploaded pages
         sec_uploaded = {}
         # Load Company Profile PDF for section idx=0
-        company_profile_pdf_path = _os.path.join(app.static_folder, 'company_docs', 'company_profile.pdf')
+        company_profile_pdf_path = _os.path.join(_STATIC_DIR, 'company_docs', 'company_profile.pdf')
         if _os.path.exists(company_profile_pdf_path):
             with open(company_profile_pdf_path, 'rb') as _cf:
                 cpb = _cf.read()
@@ -8100,7 +8110,9 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
 
     except Exception as _e:
         import traceback as _tb
-        print(f"[merge_all] WARNING: {_e}\n{_tb.format_exc()}")
+        global _MERGE_LAST_ERROR
+        _MERGE_LAST_ERROR = f"[merge_all] {_e}\n{_tb.format_exc()}"
+        print(_MERGE_LAST_ERROR)
         if hasattr(main_buf, 'seek'):
             main_buf.seek(0)
         return main_buf
