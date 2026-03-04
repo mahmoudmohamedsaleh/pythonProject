@@ -1522,12 +1522,11 @@ function _renderTechIndex() {
       <button type="button" class="btn btn-sm btn-link text-muted p-0 ml-3" style="font-size:.72rem;" onclick="_techSubAdd(${i})"><i class="fas fa-plus mr-1"></i>Add sub-item</button>` : ''}
       ${(!isClosing && !sec.no_separator) ? (() => {
         // Special case: Company Profile section (first secs_with_sep entry) uses company_profile.pdf from Company Documents
-        const isCompanyProfile = (techSections.filter(s => !s.closing && !s.no_separator).findIndex(s => s === sec) === 0) && i === techSections.findIndex(s => s === sec);
         const sl = _sectionSlug(sec.title);
         const uploaded = _sectionUploadStatus[sl];
 
         // Check if this is idx=0 in secs_with_sep (Company Profile section)
-        const sepOrder = techSections.filter(s => !s.closing && !s.no_separator);
+        const sepOrder = _techSections.filter(s => !s.closing && !s.no_separator);
         const isCPSection = sepOrder.length > 0 && sepOrder[0] === sec;
 
         if (isCPSection) {
