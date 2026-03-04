@@ -1407,22 +1407,31 @@ async function generateTechPdf() {
   const fd   = new FormData(form);
   const btn  = document.querySelector('[onclick="generateTechPdf()"]');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Generating…'; }
+  // Pre-open the tab NOW (synchronous, user-initiated) so popup blockers won't interfere
+  const pdfWin = window.open('', '_blank');
+  if (pdfWin) {
+    pdfWin.document.write('<html><head><title>Technical Submittal PDF</title></head><body style="margin:0;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif"><div style="text-align:center;color:#fff"><div style="font-size:3rem;margin-bottom:20px">📄</div><p style="font-size:1.2rem;margin:0 0 10px">Generating Technical Submittal PDF…</p><p style="font-size:0.9rem;color:#aaa;margin:0">This includes merging the Pre-Qualification document. Please wait.</p><div style="margin-top:24px;width:200px;height:4px;background:#333;border-radius:2px;overflow:hidden"><div style="height:100%;width:60%;background:linear-gradient(90deg,#CC0000,#ff4444);border-radius:2px;animation:bar 1.5s ease-in-out infinite alternate"></div></div></div><style>@keyframes bar{from{width:20%}to{width:90%}}</style></body></html>');
+  }
   showLoader();
   try {
     const resp = await fetch('{{ url_for("proposal_generate_technical_pdf") }}', { method:'POST', body:fd });
     if(!resp.ok) { const t=await resp.text(); throw new Error(t||'Server error '+resp.status); }
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
-    // Use anchor download — avoids popup blockers reliably
-    const projName = document.getElementById('techProject')?.value || 'Document';
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Technical_Submittal_' + projName.replace(/[^a-zA-Z0-9]/g,'_') + '.pdf';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    if (pdfWin && !pdfWin.closed) {
+      pdfWin.location.href = url;
+    } else {
+      // Fallback: direct download if tab was blocked
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Technical_Submittal.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   } catch(err) {
+    if (pdfWin && !pdfWin.closed) pdfWin.close();
     alert('PDF generation failed: ' + err.message);
   } finally {
     hideLoader();

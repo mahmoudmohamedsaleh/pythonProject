@@ -1790,7 +1790,9 @@ def company_profile():
     # Check if current user is M.Saleh
     can_edit = session.get('username', '').lower() == 'm.saleh'
     
-    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects, custom_documents=custom_documents)
+    import os as _cpros
+    preqal_uploaded = _cpros.path.exists(_cpros.path.join('static', 'company_docs', 'prequalification.pdf'))
+    return render_template('company_profile.html', content=content, can_edit=can_edit, solutions=solutions, clients=clients, featured_projects=featured_projects, custom_documents=custom_documents, preqal_uploaded=preqal_uploaded)
 
 @app.route('/api/company_profile/update', methods=['POST'])
 @login_required
@@ -1824,6 +1826,24 @@ def update_company_profile_content():
     conn.close()
     
     return jsonify({'success': True, 'message': 'Content updated successfully'})
+
+@app.route('/api/company_profile/upload_prequalification', methods=['POST'])
+@login_required
+def upload_prequalification_pdf():
+    """Upload Pre-Qualification PDF for local storage and merging into Technical Submittal"""
+    if session.get('username', '').lower() != 'm.saleh':
+        return jsonify({'success': False, 'error': 'Unauthorized. Only M.Saleh can upload this file.'}), 403
+    f = request.files.get('prequalification_pdf')
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({'success': False, 'error': 'Only PDF files are accepted'}), 400
+    import os
+    save_dir = os.path.join('static', 'company_docs')
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, 'prequalification.pdf')
+    f.save(save_path)
+    return jsonify({'success': True, 'message': 'Pre-Qualification PDF uploaded successfully', 'path': save_path})
 
 @app.route('/api/company_profile/solutions', methods=['GET'])
 @login_required
@@ -7563,45 +7583,47 @@ def proposal_generate_technical_pdf():
 
 
 def _merge_preqal_pdf(main_buf, sections):
-    """Download the Pre-Qualification PDF from the DB URL and merge it after the
+    """Merge the Pre-Qualification PDF (local upload) into the main PDF after the
     Company Profile section separator (page index 2 = cover + index + first separator)."""
-    import io as _mio, sqlite3 as _msql, requests as _mreq
+    import io as _mio, os as _os
     try:
-        # 1. Fetch URL from DB
-        _conn = _msql.connect('ProjectStatus.db')
-        _cur  = _conn.cursor()
-        _cur.execute("SELECT content FROM company_profile_content WHERE section_key='doc_prequalification_url'")
-        _row  = _cur.fetchone()
-        _conn.close()
-        if not _row or not _row[0]:
-            return main_buf
+        # 1. Check for locally uploaded pre-qual PDF first (most reliable)
+        local_path = _os.path.join('static', 'company_docs', 'prequalification.pdf')
+        if _os.path.exists(local_path):
+            with open(local_path, 'rb') as _lf:
+                preq_bytes = _lf.read()
+        else:
+            # 2. Fallback: try to fetch from DB URL
+            import sqlite3 as _msql, requests as _mreq, re as _re
+            _conn = _msql.connect('ProjectStatus.db')
+            _cur  = _conn.cursor()
+            _cur.execute("SELECT content FROM company_profile_content WHERE section_key='doc_prequalification_url'")
+            _row  = _cur.fetchone()
+            _conn.close()
+            if not _row or not _row[0]:
+                return main_buf
+            url = _row[0].strip()
+            gd_match = _re.search(r'/file/d/([A-Za-z0-9_\-]+)', url)
+            if gd_match:
+                file_id = gd_match.group(1)
+                url = f'https://drive.google.com/uc?export=download&id={file_id}'
+            try:
+                _sess = _mreq.Session()
+                _resp = _sess.get(url, stream=True, timeout=15)
+                if 'text/html' in _resp.headers.get('Content-Type', ''):
+                    _token = None
+                    for key, val in _resp.cookies.items():
+                        if key.startswith('download_warning'):
+                            _token = val
+                            break
+                    if _token:
+                        _resp = _sess.get(url + f'&confirm={_token}', stream=True, timeout=30)
+                if _resp.status_code != 200:
+                    return main_buf
+                preq_bytes = _resp.content
+            except Exception:
+                return main_buf
 
-        url = _row[0].strip()
-
-        # 2. Convert Google Drive share link → direct download URL
-        import re as _re
-        gd_match = _re.search(r'/file/d/([A-Za-z0-9_\-]+)', url)
-        if gd_match:
-            file_id = gd_match.group(1)
-            url = f'https://drive.google.com/uc?export=download&id={file_id}'
-
-        # 3. Download PDF (handle Google's large-file confirmation token)
-        _sess = _mreq.Session()
-        _resp = _sess.get(url, stream=True, timeout=30)
-        # Check for confirmation page (virus scan warning for large files)
-        if 'text/html' in _resp.headers.get('Content-Type', ''):
-            _token = None
-            for key, val in _resp.cookies.items():
-                if key.startswith('download_warning'):
-                    _token = val
-                    break
-            if _token:
-                url2 = url + f'&confirm={_token}'
-                _resp = _sess.get(url2, stream=True, timeout=60)
-
-        if _resp.status_code != 200:
-            return main_buf
-        preq_bytes = _resp.content
         if not preq_bytes or not preq_bytes.startswith(b'%PDF'):
             return main_buf
 
