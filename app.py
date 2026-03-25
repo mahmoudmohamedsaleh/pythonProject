@@ -8974,7 +8974,7 @@ def _cost_sheet_json_to_boq(sheets):
 
 
 def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
-    """Build a BytesIO Excel workbook matching the PDF quotation layout."""
+    """Build a BytesIO Excel workbook matching the PDF quotation colour scheme."""
     import openpyxl
     from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
@@ -8985,27 +8985,31 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
     show_vendor = boq_opts.get('show_vendor',    False)
     show_stock  = boq_opts.get('show_stock',     False)
 
-    # ── Colour constants ────────────────────────────────────────────────
-    def _f(hex_): return PatternFill("solid", fgColor=hex_)
-    NAVY_F  = _f("1A0000"); RED_F   = _f("C30010"); GOLD_F  = _f("F59E0B")
-    TEAL_F  = _f("9B0012"); GREEN_F = _f("065F46"); LGREY_F = _f("FFF8F8")
-    LPINK_F = _f("FFE4E6"); WHITE_F = _f("FFFFFF"); LBLUE_F = _f("EEF2FF")
-    LRED_F  = _f("FFF0F0"); AMBE_F  = _f("FFF7ED"); PURP_F  = _f("4B2D8F")
-    REDTL_F = _f("FFCDD2")
+    # ── Colour palette — matches PDF exactly ──────────────────────────
+    def _f(h): return PatternFill("solid", fgColor=h)
+    PURP_F   = _f("4B2D8F")   # main headers (same as PDF C_PURPLE)
+    PURP2_F  = _f("7B52D3")   # lighter purple accent
+    TEAL_F   = _f("00897B")   # total rows (PDF C_TEAL)
+    SEC_F    = _f("EDE7F6")   # section header bg (PDF C_SEC_BG)
+    ROW1_F   = _f("FFFFFF")   # odd data rows
+    ROW2_F   = _f("F7F4FC")   # even data rows (PDF C_GREY_ROW)
+    WHITE_F  = _f("FFFFFF")
+    LGREY_F  = _f("F5F5F5")   # light grey for info cells
+    LBLUE_F  = _f("F3F0FF")   # exec summary bg
+    SCOPE_F  = _f("F0EBFF")   # scope row bg
 
-    def _font(name="Calibri", sz=10, bold=False, color="000000", italic=False):
+    def _font(name="Calibri", sz=10, bold=False, color="212121", italic=False):
         return Font(name=name, size=sz, bold=bold, color=color, italic=italic)
     def _al(h="left", v="center", wrap=False):
         return Alignment(horizontal=h, vertical=v, wrap_text=wrap)
-    def _bd(clr="CCCCCC", style="thin"):
-        s = Side(border_style=style, color=clr)
-        return Border(left=s, right=s, top=s, bottom=s)
+    def _side(c="D0C4F0", s="thin"): return Side(border_style=s, color=c)
+    def _bd(c="D0C4F0", s="thin"):
+        sd = _side(c, s)
+        return Border(left=sd, right=sd, top=sd, bottom=sd)
+    def _bd_purp(): return _bd("4B2D8F")
     def _fmt(v):
         try: return f"{float(v):,.2f}"
         except: return str(v) if v else ""
-
-    RED_BD  = _bd("C30010"); NAVY_BD = _bd("1A0000"); THIN_BD = _bd("DDDDDD")
-    PURP_BD = _bd("4B2D8F")
 
     def _c(ws, r, col, val="", fill=None, font=None, align=None, border=None, nf=None):
         cell = ws.cell(row=r, column=col, value=val)
@@ -9024,252 +9028,262 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
 
     def _row_h(ws, r, h): ws.row_dimensions[r].height = h
 
+    def _print_setup_portrait(ws, nc):
+        ws.page_setup.orientation = "portrait"
+        ws.page_setup.paperSize   = 9        # A4
+        ws.page_setup.fitToPage   = True
+        ws.page_setup.fitToWidth  = 1
+        ws.page_setup.fitToHeight = 0
+        ws.page_margins.left  = ws.page_margins.right  = 0.5
+        ws.page_margins.top   = 0.6
+        ws.page_margins.bottom = 0.6
+        ws.sheet_view.showGridLines = False
+        ws.print_area = f"A1:{get_column_letter(nc)}300"
+
+    def _print_setup_landscape(ws, nc, hdr_row):
+        ws.page_setup.orientation = "landscape"
+        ws.page_setup.paperSize   = 9
+        ws.page_setup.fitToPage   = True
+        ws.page_setup.fitToWidth  = 1
+        ws.page_setup.fitToHeight = 0
+        ws.page_margins.left  = ws.page_margins.right  = 0.4
+        ws.page_margins.top   = 0.5
+        ws.page_margins.bottom = 0.5
+        ws.sheet_view.showGridLines = False
+        ws.print_title_rows = f"1:{hdr_row}"
+
     wb = openpyxl.Workbook()
 
     # ═══════════════════════════════════════════════════════════════════
     # COVER SHEET
-    # Layout: 6 columns
-    #   A(20) = left label   B(40) = left value
-    #   C(2)  = divider      D(18) = right label   E(30) = right value
-    #   F(3)  = right margin
+    # Col layout: A(20) B(40) C(2) D(18) E(30) F(3) — 6 total
     # ═══════════════════════════════════════════════════════════════════
     ws = wb.active
     ws.title = "Commercial Quotation"
-    ws.sheet_view.showGridLines = False
-    ws.page_setup.orientation = "portrait"
-    ws.page_setup.paperSize   = 9   # A4
-    ws.page_margins.left  = ws.page_margins.right  = 0.5
-    ws.page_margins.top   = ws.page_margins.bottom = 0.6
-    ws.print_area = "A1:F200"
-
-    # Column widths: A=20, B=40, C=2, D=18, E=30, F=3
+    NC = 6
+    _print_setup_portrait(ws, NC)
     for col, w in zip("ABCDEF", [20, 40, 2, 18, 30, 3]):
         ws.column_dimensions[col].width = w
 
-    NC = 6   # total columns on cover sheet
     ri = 1
 
-    # ── Gold top stripe ───────────────────────────────────────────────
-    _row_h(ws, ri, 5)
-    for ci in range(1, NC+1): ws.cell(ri, ci).fill = GOLD_F
+    # Top accent stripe (purple)
+    _row_h(ws, ri, 6)
+    for ci in range(1, NC+1): ws.cell(ri, ci).fill = PURP_F
     ri += 1
 
-    # ── Main header ───────────────────────────────────────────────────
+    # Main title banner
     _row_h(ws, ri, 38)
-    _merge(ws, ri, 1, NC, "COMMERCIAL QUOTATION", NAVY_F,
+    _merge(ws, ri, 1, NC, "COMMERCIAL QUOTATION", PURP_F,
            _font("Calibri", 22, True, "FFFFFF"), _al("center","center"))
     ri += 1
     _row_h(ws, ri, 18)
-    _merge(ws, ri, 1, NC, "Proposal & Pricing Submission", NAVY_F,
-           _font("Calibri", 10, False, "F59E0B"), _al("center","center"))
+    _merge(ws, ri, 1, NC, "Proposal & Pricing Submission", PURP_F,
+           _font("Calibri", 10, False, "EDE7F6"), _al("center","center"))
     ri += 1
 
-    # ── Gold bottom stripe ────────────────────────────────────────────
+    # Bottom accent stripe (lighter purple)
     _row_h(ws, ri, 5)
-    for ci in range(1, NC+1): ws.cell(ri, ci).fill = GOLD_F
+    for ci in range(1, NC+1): ws.cell(ri, ci).fill = PURP2_F
     ri += 1
     _row_h(ws, ri, 6); ri += 1   # spacer
 
-    # ── Document info (label row + value row) ─────────────────────────
+    # Document info labels
     for val, c1, c2 in [("DATE",1,1),("QUOTE REFERENCE",2,3),("ENG. REFERENCE",4,5)]:
         ws.merge_cells(start_row=ri, start_column=c1, end_row=ri, end_column=c2)
-        _c(ws, ri, c1, val, _f("F0F0F0"),
-           _font("Calibri",7,True,"888888"), _al("left","center"), _bd("DDDDDD"))
+        _c(ws, ri, c1, val, _f("E8E0F7"),
+           _font("Calibri", 7, True, "4B2D8F"), _al("left","center"), _bd("B0A0D8"))
     _row_h(ws, ri, 13); ri += 1
 
+    # Document info values
     for val, c1, c2 in [(cover.get("date",""),1,1),
                         (cover.get("quoteref",""),2,3),
                         (cover.get("engref",""),4,5)]:
         ws.merge_cells(start_row=ri, start_column=c1, end_row=ri, end_column=c2)
         _c(ws, ri, c1, val, WHITE_F,
-           _font("Calibri",11,True,"1A0000"), _al("left","center"), _bd())
+           _font("Calibri", 11, True, "4B2D8F"), _al("left","center"), _bd_purp())
     _row_h(ws, ri, 20); ri += 1
     _row_h(ws, ri, 8); ri += 1   # spacer
 
-    # ── SUBMITTED TO ──────────────────────────────────────────────────
+    # SUBMITTED TO header
     _row_h(ws, ri, 18)
-    _merge(ws, ri, 1, NC, "SUBMITTED TO", RED_F,
-           _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
+    _merge(ws, ri, 1, NC, "SUBMITTED TO", PURP_F,
+           _font("Calibri", 10, True, "FFFFFF"), _al("left","center"))
     ri += 1
 
-    # Two-column rows: left label(A) + left value(B), right label(D) + right value(E:F)
-    pair_rows = [
-        ("COMPANY",   cover.get("to",  ""), "ATTENTION", cover.get("attn","")),
-        ("FROM",      cover.get("frm", ""), "MOBILE",    cover.get("cont","")),
-    ]
-    for lbl1, val1, lbl2, val2 in pair_rows:
+    # Two-column info rows
+    for lbl1, val1, lbl2, val2 in [
+        ("COMPANY", cover.get("to",""),   "ATTENTION", cover.get("attn","")),
+        ("FROM",    cover.get("frm",""),  "MOBILE",    cover.get("cont","")),
+    ]:
         _row_h(ws, ri, 18)
-        _c(ws, ri, 1, lbl1, RED_F,  _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), RED_BD)
-        _merge(ws, ri, 2, 3, val1, WHITE_F, _font("Calibri",9,False,"1A0000"), _al("left","center",True), _bd())
-        _c(ws, ri, 4, lbl2, RED_F,  _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), RED_BD)
-        _merge(ws, ri, 5, 6, val2, WHITE_F, _font("Calibri",9,False,"1A0000"), _al("left","center",True), _bd())
+        _c(ws, ri, 1, lbl1, PURP_F, _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), _bd_purp())
+        _merge(ws, ri, 2, 3, val1, WHITE_F, _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
+        _c(ws, ri, 4, lbl2, PURP_F, _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), _bd_purp())
+        _merge(ws, ri, 5, 6, val2, WHITE_F, _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
         ri += 1
 
-    # Full-width rows: label(A) + value(B:F)
+    # Full-width info rows
     for lbl, val, rh in [("SUBJECT", cover.get("sub",""), 20),
                          ("SCOPE",   cover.get("scope",""), 28)]:
         _row_h(ws, ri, rh)
-        _c(ws, ri, 1, lbl, RED_F, _font("Calibri",9,True,"FFFFFF"), _al("left","center"), RED_BD)
-        _merge(ws, ri, 2, NC, val, WHITE_F, _font("Calibri",9,False,"1A0000"), _al("left","center",True), _bd())
+        _c(ws, ri, 1, lbl, PURP_F, _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_purp())
+        _merge(ws, ri, 2, NC, val, WHITE_F, _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
         ri += 1
 
-    # ── Opening paragraph ─────────────────────────────────────────────
+    # Opening paragraph
     _row_h(ws, ri, 8); ri += 1
     _row_h(ws, ri, 13)
     _merge(ws, ri, 1, NC, "Dear Sir,", None,
-           _font("Calibri",9,True,"1A0000"), _al("left","center"))
+           _font("Calibri",9,True,"212121"), _al("left","center"))
     ri += 1
     _row_h(ws, ri, 36)
     _merge(ws, ri, 1, NC,
            "We thank you for your subject enquiry and have pleasure in putting together a "
            "comprehensive proposal for the same. We hope this is in line with your requirements "
            "and that you will favour us with your order.",
-           None, _font("Calibri",9,False,"1A0000"), _al("left","center",True))
+           None, _font("Calibri",9,False,"212121"), _al("left","center",True))
     ri += 1
 
-    # ── Executive Summary ─────────────────────────────────────────────
+    # Executive Summary
     exec_sum = cover.get("exec_summary","").strip()
     if exec_sum:
         _row_h(ws, ri, 8); ri += 1
         _row_h(ws, ri, 18)
-        _merge(ws, ri, 1, NC, "EXECUTIVE SUMMARY", NAVY_F,
-               _font("Calibri",10,True,"F59E0B"), _al("left","center"))
+        _merge(ws, ri, 1, NC, "EXECUTIVE SUMMARY", PURP_F,
+               _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
         ri += 1
-        est_h = max(60, min(150, len(exec_sum)//3))
+        est_h = max(60, min(200, len(exec_sum)//2))
         _row_h(ws, ri, est_h)
         _merge(ws, ri, 1, NC, exec_sum, LBLUE_F,
-               _font("Calibri",9,False,"1A0000"), _al("left","top",True), _bd("B0C4DE"))
+               _font("Calibri",9,False,"212121"), _al("left","top",True), _bd("B0A0D8"))
         ri += 1
 
-    # ── Commercial Summary ────────────────────────────────────────────
+    # Commercial Summary
     _row_h(ws, ri, 8); ri += 1
     _row_h(ws, ri, 18)
-    _merge(ws, ri, 1, NC, "COMMERCIAL SUMMARY", NAVY_F,
+    _merge(ws, ri, 1, NC, "COMMERCIAL SUMMARY", PURP_F,
            _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
     ri += 1
 
-    # Table header: No.(A) | System/Line Item(B:D) | Total Price SAR (E:F)
-    _row_h(ws, ri, 16)
-    _c(ws, ri, 1, "No.", RED_F, _font("Calibri",9,True,"FFFFFF"), _al("center","center"), RED_BD)
-    _merge(ws, ri, 2, 4, "System / Line Item", RED_F,
-           _font("Calibri",9,True,"FFFFFF"), _al("left","center"), RED_BD)
-    _merge(ws, ri, 5, NC, "Total Price (SAR)", RED_F,
-           _font("Calibri",9,True,"FFFFFF"), _al("right","center"), RED_BD)
+    # Summary table header
+    _row_h(ws, ri, 18)
+    _c(ws, ri, 1, "No.", PURP2_F, _font("Calibri",9,True,"FFFFFF"), _al("center","center"), _bd_purp())
+    _merge(ws, ri, 2, 4, "System / Line Item", PURP2_F,
+           _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_purp())
+    _merge(ws, ri, 5, NC, "Total Price (SAR)", PURP2_F,
+           _font("Calibri",9,True,"FFFFFF"), _al("right","center"), _bd_purp())
     ri += 1
 
-    grand_total = 0.0
-    row_num = 0
+    grand_total = 0.0; row_num = 0
     for sys in cover.get("systems",[]):
-        if sys.get("is_summary"): continue   # skip Total/VAT/Grand Total summary rows
+        if sys.get("is_summary"): continue
         tot = float(sys.get("total",0) or 0)
         grand_total += tot
         row_num += 1
-        rf = WHITE_F if row_num % 2 else LGREY_F
+        rf = ROW1_F if row_num % 2 else ROW2_F
         _row_h(ws, ri, 16)
-        _c(ws, ri, 1, row_num, rf, _font("Calibri",9,True,"C30010"), _al("center","center"), _bd())
+        _c(ws, ri, 1, row_num, rf, _font("Calibri",9,True,"4B2D8F"), _al("center","center"), _bd())
         _merge(ws, ri, 2, 4, sys.get("name",""), rf,
-               _font("Calibri",9,False,"1A0000"), _al("left","center"), _bd())
+               _font("Calibri",9,False,"212121"), _al("left","center"), _bd())
         tc = _merge(ws, ri, 5, NC, tot, rf,
-               _font("Calibri",9,False,"1A0000"), _al("right","center"), _bd())
+               _font("Calibri",9,False,"212121"), _al("right","center"), _bd())
         tc.number_format = "#,##0.00"; ri += 1
 
-    vat_pct  = 0.15
-    vat_amt  = grand_total * vat_pct
-    g_total  = grand_total + vat_amt
-
-    for lbl_s, val_s, bg, fg, bold in [
-        ("Total (SAR)",               grand_total, "C30010", "FFFFFF", True),
-        (f"VAT ({int(vat_pct*100)}%)", vat_amt,   "E53935", "FFFFFF", True),
-        ("Grand Total",               g_total,     "065F46", "FFFFFF", True),
+    vat_pct = 0.15
+    vat_amt = grand_total * vat_pct
+    g_total = grand_total + vat_amt
+    for lbl_s, val_s, bg in [
+        ("Total (SAR)",                grand_total, "4B2D8F"),
+        (f"VAT ({int(vat_pct*100)}%)", vat_amt,    "7B52D3"),
+        ("Grand Total",                g_total,     "00897B"),
     ]:
         _row_h(ws, ri, 18)
-        f_ = _f(bg)
-        _merge(ws, ri, 1, 4, lbl_s, f_, _font("Calibri",10,bold,fg), _al("right","center"), _bd(bg))
-        tc = _merge(ws, ri, 5, NC, val_s, f_, _font("Calibri",10,bold,fg), _al("right","center"), _bd(bg))
+        ff = _f(bg)
+        _merge(ws, ri, 1, 4, lbl_s, ff, _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd(bg))
+        tc = _merge(ws, ri, 5, NC, val_s, ff, _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd(bg))
         tc.number_format = "#,##0.00"; ri += 1
 
-    # ── Terms & Conditions ────────────────────────────────────────────
+    # Terms & Conditions
     terms = cover.get("terms",{})
     if terms:
         _row_h(ws, ri, 8); ri += 1
         _row_h(ws, ri, 18)
-        _merge(ws, ri, 1, NC, "TERMS & CONDITIONS", NAVY_F,
+        _merge(ws, ri, 1, NC, "TERMS & CONDITIONS", PURP_F,
                _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
         ri += 1
         for tk, tv in terms.items():
             _row_h(ws, ri, 16)
-            _c(ws, ri, 1, tk, RED_F,
-               _font("Calibri",9,True,"FFFFFF"), _al("left","center"), RED_BD)
+            _c(ws, ri, 1, tk, PURP2_F,
+               _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_purp())
             _merge(ws, ri, 2, NC, tv, WHITE_F,
-                   _font("Calibri",9,False,"1A0000"), _al("left","center",True), _bd())
+                   _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
             ri += 1
 
-    # ── Call to Action ────────────────────────────────────────────────
+    # Call to Action
     cta_email = cover.get("cta_email","").strip()
     cta_phone = cover.get("cta_phone","").strip()
     cta_body  = cover.get("cta_body","").strip()
     if cta_email or cta_body:
         _row_h(ws, ri, 8); ri += 1
         _row_h(ws, ri, 18)
-        _merge(ws, ri, 1, NC, "CALL TO ACTION", NAVY_F,
-               _font("Calibri",10,True,"F59E0B"), _al("left","center"))
+        _merge(ws, ri, 1, NC, "CALL TO ACTION", PURP_F,
+               _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
         ri += 1
         if cta_email or cta_phone:
             contact = f"For inquiries, please contact us at: {cta_email}"
             if cta_phone: contact += f"   |   Tel: {cta_phone}"
             _row_h(ws, ri, 16)
-            _merge(ws, ri, 1, NC, contact, AMBE_F,
-                   _font("Calibri",9,False,"1A0000"), _al("left","center",True), _bd("F59E0B"))
+            _merge(ws, ri, 1, NC, contact, LBLUE_F,
+                   _font("Calibri",9,False,"4B2D8F"), _al("left","center",True), _bd("B0A0D8"))
             ri += 1
         if cta_body:
             est_h = max(40, min(100, len(cta_body)//4))
             _row_h(ws, ri, est_h)
-            _merge(ws, ri, 1, NC, cta_body, AMBE_F,
-                   _font("Calibri",9,False,"1A0000"), _al("left","top",True), _bd("F59E0B"))
+            _merge(ws, ri, 1, NC, cta_body, LBLUE_F,
+                   _font("Calibri",9,False,"212121"), _al("left","top",True), _bd("B0A0D8"))
             ri += 1
 
-    # ── "With best regards" ───────────────────────────────────────────
+    # Signatures
     _row_h(ws, ri, 8); ri += 1
     _row_h(ws, ri, 16)
     _merge(ws, ri, 1, NC, "With best regards,", None,
-           _font("Calibri",10,True,"1A0000"), _al("left","center"))
+           _font("Calibri",10,True,"4B2D8F"), _al("left","center"))
     ri += 1
-    _row_h(ws, ri, 28); ri += 1   # sig space
+    _row_h(ws, ri, 28); ri += 1  # signature space
 
-    # Signatures side by side
     sig_pairs = [
-        (cover.get("prep_by_name",""),  cover.get("prep_by_title",""),  "Prepared By",  1, 3),
-        (cover.get("mgr_name",""),      cover.get("mgr_title",""),      "Approved By",  4, 6),
+        (cover.get("prep_by_name",""), cover.get("prep_by_title",""), "Prepared By",  1, 3),
+        (cover.get("mgr_name",""),     cover.get("mgr_title",""),     "Approved By",  4, 6),
     ]
-    max_sig_rows = 0
-    sig_start = ri
+    max_sig = 0; sig_start = ri
     for sname, stitle, srole, c1, c2 in sig_pairs:
         if not sname: continue
         r2 = sig_start
         _row_h(ws, r2, 13)
-        _merge(ws, r2, c1, c2, srole, _f("E8EAF6"),
-               _font("Calibri",8,True,"4B2D8F"), _al("left","center"), PURP_BD)
+        _merge(ws, r2, c1, c2, srole, SEC_F,
+               _font("Calibri",8,True,"4B2D8F"), _al("left","center"), _bd_purp())
         r2 += 1
         _row_h(ws, r2, 14)
         _merge(ws, r2, c1, c2, sname, WHITE_F,
-               _font("Calibri",10,True,"1A0000"), _al("left","center"), _bd())
+               _font("Calibri",10,True,"212121"), _al("left","center"), _bd())
         r2 += 1
         if stitle:
             _row_h(ws, r2, 13)
             _merge(ws, r2, c1, c2, stitle, WHITE_F,
                    _font("Calibri",9,False,"666666"), _al("left","center"), _bd())
             r2 += 1
-        max_sig_rows = max(max_sig_rows, r2 - sig_start)
-    ri += max_sig_rows
+        max_sig = max(max_sig, r2 - sig_start)
+    ri += max_sig
 
-    # ── Footer stripes ────────────────────────────────────────────────
-    _row_h(ws, ri, 6); [ws.cell(ri, ci).__setattr__("fill", NAVY_F) for ci in range(1,NC+1)]; ri += 1
-    _row_h(ws, ri, 4); [ws.cell(ri, ci).__setattr__("fill", GOLD_F) for ci in range(1,NC+1)]; ri += 1
+    # Footer stripes
+    _row_h(ws, ri, 4); [ws.cell(ri, ci).__setattr__("fill", PURP2_F) for ci in range(1,NC+1)]; ri += 1
+    _row_h(ws, ri, 6); [ws.cell(ri, ci).__setattr__("fill", PURP_F)  for ci in range(1,NC+1)]; ri += 1
 
     ws.freeze_panes = "A6"
 
     # ═══════════════════════════════════════════════════════════════════
-    # BOQ SHEETS — one per system
+    # BOQ SHEETS — one per system, landscape, print-ready
     # ═══════════════════════════════════════════════════════════════════
     def _boq_cols():
         cols = [("sn",   "S.#",              5,  "center")]
@@ -9296,29 +9310,22 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
         scope = bs.get("scope","")
         items = bs.get("items",[])
 
-        bad = str.maketrans({"/":"_", "\\":"_", "*":"", "?":"", "[":"", "]":"", ":":""})
+        bad = str.maketrans({"/":"_","\\":"_","*":"","?":"","[":"","]":"",":":""})
         safe_sh = sname[:29].translate(bad).strip() or "Sheet"
-        # Ensure unique sheet name
         existing = [s.title for s in wb.worksheets]
         base = safe_sh; cnt = 2
         while safe_sh in existing: safe_sh = f"{base[:26]}_{cnt}"; cnt += 1
 
         bws = wb.create_sheet(title=safe_sh)
-        bws.sheet_view.showGridLines = False
-        bws.page_setup.orientation = "landscape"
-        bws.page_setup.paperSize   = 9
-        bws.page_margins.left  = bws.page_margins.right  = 0.4
-        bws.page_margins.top   = bws.page_margins.bottom = 0.5
-
         for ci, (_, _, cw, _) in enumerate(COL_DEFS, start=1):
             bws.column_dimensions[get_column_letter(ci)].width = cw
 
         bri = 1
 
-        # System name banner
-        _row_h(bws, bri, 24)
+        # System name banner (purple, matches PDF)
+        _row_h(bws, bri, 26)
         bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=NCOLS_BOQ)
-        _c(bws, bri, 1, sname, NAVY_F, _font("Calibri",12,True,"FFFFFF"), _al("left","center"))
+        _c(bws, bri, 1, sname, PURP_F, _font("Calibri",12,True,"FFFFFF"), _al("left","center"))
         bri += 1
 
         # Scope row
@@ -9326,74 +9333,84 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
             h_scope = max(16, min(50, len(scope)//6))
             _row_h(bws, bri, h_scope)
             bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=NCOLS_BOQ)
-            _c(bws, bri, 1, f"SCOPE:  {scope}", LRED_F,
-               _font("Calibri",9,False,"1A0000"), _al("left","center",True), _bd("C30010"))
+            _c(bws, bri, 1, f"SCOPE:  {scope}", SCOPE_F,
+               _font("Calibri",9,False,"4B2D8F"), _al("left","center",True), _bd_purp())
             bri += 1
 
-        # Column headers
-        _row_h(bws, bri, 20)
-        for ci, (key, hdr, cw, algn) in enumerate(COL_DEFS, start=1):
-            hf = _al("right","center") if key in ("qty","up","total") else _al("center","center") if key != "desc" else _al("left","center")
-            _c(bws, bri, ci, hdr, RED_F, _font("Calibri",9,True,"FFFFFF"), hf, RED_BD)
-        bws.freeze_panes = f"A{bri+1}"
+        # Column header row (purple, matches PDF)
+        _row_h(bws, bri, 22)
+        for ci, (key, hdr, _, algn) in enumerate(COL_DEFS, start=1):
+            if key in ("qty","up","total"):
+                ha = _al("right","center")
+            elif key == "desc":
+                ha = _al("left","center")
+            else:
+                ha = _al("center","center")
+            _c(bws, bri, ci, hdr, PURP_F, _font("Calibri",9,True,"FFFFFF"), ha, _bd_purp())
         hdr_ri = bri; bri += 1
+
+        _print_setup_landscape(bws, NCOLS_BOQ, hdr_ri)
+        bws.freeze_panes = f"A{bri}"
 
         # Data rows
         item_ctr = 0; grand_boq = 0.0
         for it in items:
             is_sec = it.get("is_section", False)
             if is_sec:
-                _row_h(bws, bri, 16)
+                # Section header row — light purple bg, purple bold text (matches PDF)
+                _row_h(bws, bri, 17)
                 bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=NCOLS_BOQ)
-                _c(bws, bri, 1, it.get("desc",""), LPINK_F,
-                   _font("Calibri",9,True,"C30010"), _al("center","center"), RED_BD)
+                _c(bws, bri, 1, it.get("desc",""), SEC_F,
+                   _font("Calibri",9,True,"4B2D8F"), _al("left","center"), _bd("C5B8E8"))
             else:
                 item_ctr += 1
                 tot = float(it.get("total") or 0)
                 if tot: grand_boq += tot
                 try: qty_v = int(float(it.get("qty",0)))
                 except: qty_v = it.get("qty","")
-                rf = WHITE_F if item_ctr % 2 else LGREY_F
+                rf = ROW1_F if item_ctr % 2 else ROW2_F
                 desc_len = len(str(it.get("desc","")))
-                rh = 28 if desc_len > 60 else 20 if desc_len > 30 else 16
+                rh = 30 if desc_len > 70 else 22 if desc_len > 35 else 18
                 _row_h(bws, bri, rh)
-                rd = {"sn": item_ctr, "code": it.get("code",""),
-                      "desc": it.get("desc",""), "vendor": it.get("vendor",""),
-                      "uom": it.get("uom",""), "qty": qty_v,
-                      "up": it.get("unit_price") or "", "total": tot or "",
-                      "stock": it.get("stock","")}
+                rd = {"sn":item_ctr, "code":it.get("code",""),
+                      "desc":it.get("desc",""), "vendor":it.get("vendor",""),
+                      "uom":it.get("uom",""), "qty":qty_v,
+                      "up":it.get("unit_price") or "", "total":tot or "",
+                      "stock":it.get("stock","")}
                 for ci, (key, _, _, algn) in enumerate(COL_DEFS, start=1):
                     val = rd.get(key,"")
-                    af  = _al(algn,"center", wrap=True if key=="desc" else False)
+                    if key in ("qty","up","total"):
+                        af = _al("right","center")
+                    elif key == "desc":
+                        af = _al("left","center", wrap=True)
+                    else:
+                        af = _al("center","center")
                     cell = _c(bws, bri, ci, val, rf,
-                              _font("Calibri",9,False,"1A0000"), af, THIN_BD)
+                              _font("Calibri",9,False,"212121"), af, _bd())
                     if key in ("up","total") and val != "":
                         cell.number_format = "#,##0.00"
             bri += 1
 
-        # Total row
-        _row_h(bws, bri, 20)
+        # Grand total row (teal, matches PDF)
+        _row_h(bws, bri, 22)
         i_up  = _ci_boq("up"); i_tot = _ci_boq("total")
         for ci in range(1, NCOLS_BOQ+1): bws.cell(bri, ci).fill = TEAL_F
         if i_up > 1:
             bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=i_up-1)
         _c(bws, bri, 1, "", TEAL_F)
         _c(bws, bri, i_up, "Total Excluding VAT", TEAL_F,
-           _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("9B0012"))
+           _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("00897B"))
         tc = _c(bws, bri, i_tot, grand_boq, TEAL_F,
-                _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("9B0012"))
+                _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("00897B"))
         tc.number_format = "#,##0.00"
         if show_stock:
-            _c(bws, bri, NCOLS_BOQ, "", TEAL_F, None, None, _bd("9B0012"))
+            _c(bws, bri, NCOLS_BOQ, "", TEAL_F, None, None, _bd("00897B"))
         bri += 1
-
-        bws.print_title_rows = f"1:{hdr_ri}"
 
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
     return buf
-
 
 def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
     """Build a BytesIO PDF from parsed cover dict and boq_sheets list."""
