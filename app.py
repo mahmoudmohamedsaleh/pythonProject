@@ -30959,12 +30959,13 @@ def export_po_pdf(po_request_number):
         items = c.fetchall()
         conn.close()
 
-        # ── Color palette (matches EJTech PDF) ─────────────────────────────
-        C_RED   = colors.HexColor('#CC0000')
-        C_DARK  = colors.HexColor('#333333')
-        C_GREY  = colors.HexColor('#F5F5F5')
-        C_WHITE = colors.white
-        C_BLACK = colors.black
+        # ── Color palette ────────────────────────────────────────────────────
+        C_DARK     = colors.HexColor('#333333')
+        C_HDR_BG   = colors.HexColor('#2D2D2D')    # dark charcoal for items header
+        C_RED_LINE = colors.HexColor('#CC0000')     # thin accent line under company name
+        C_GREY     = colors.HexColor('#F5F5F5')     # alternating row background
+        C_WHITE    = colors.white
+        C_BORDER   = colors.HexColor('#CCCCCC')     # light grid borders
 
         buf = BytesIO()
         doc = SimpleDocTemplate(
@@ -30981,22 +30982,31 @@ def export_po_pdf(po_request_number):
         S_co_name  = ps('coName',  fontSize=11, fontName='Helvetica-Bold', textColor=C_DARK)
         S_co_addr  = ps('coAddr',  fontSize=8,  fontName='Helvetica',      textColor=C_DARK, leading=12)
         S_title    = ps('title',   fontSize=16, fontName='Helvetica-Bold', textColor=C_DARK,
-                        alignment=TA_CENTER, spaceAfter=6)
-        S_sec_hdr  = ps('secHdr',  fontSize=9,  fontName='Helvetica-Bold', textColor=C_DARK, spaceBefore=4)
-        S_cell     = ps('cell',    fontSize=8,  fontName='Helvetica',      textColor=C_DARK, leading=11)
-        S_cell_b   = ps('cellB',   fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK, leading=11)
-        S_lbl      = ps('lbl',     fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK)
-        S_val      = ps('val',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK)
+                        alignment=TA_CENTER, spaceAfter=4)
+        S_sec_hdr  = ps('secHdr',  fontSize=9,  fontName='Helvetica-Bold', textColor=C_DARK, spaceBefore=2)
         S_col_hdr  = ps('colHdr',  fontSize=8,  fontName='Helvetica-Bold', textColor=C_WHITE,
                         alignment=TA_CENTER)
+        S_blk_hdr  = ps('blkHdr',  fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK)
+        S_cell     = ps('cell',    fontSize=8,  fontName='Helvetica',      textColor=C_DARK, leading=11)
+        S_cell_b   = ps('cellB',   fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK, leading=11)
+        S_lbl      = ps('lbl',     fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK,
+                        alignment=TA_LEFT)
+        S_lbl_r    = ps('lblR',    fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK,
+                        alignment=TA_RIGHT)
+        S_val      = ps('val',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK,
+                        alignment=TA_LEFT)
         S_num      = ps('num',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK,
                         alignment=TA_RIGHT)
         S_ctr      = ps('ctr',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK,
                         alignment=TA_CENTER)
         S_small    = ps('small',   fontSize=7.5,fontName='Helvetica',      textColor=C_DARK, leading=10)
         S_small_b  = ps('smallB',  fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK)
-        S_foot_lbl = ps('ftLbl',   fontSize=9,  fontName='Helvetica-Bold', textColor=C_DARK)
-        S_foot_val = ps('ftVal',   fontSize=9,  fontName='Helvetica',      textColor=C_DARK)
+        S_small_r  = ps('smallR',  fontSize=8,  fontName='Helvetica',      textColor=C_DARK,
+                        alignment=TA_RIGHT)
+        S_sum_lbl  = ps('sumLbl',  fontSize=8.5,fontName='Helvetica-Bold', textColor=C_DARK,
+                        alignment=TA_RIGHT)
+        S_sum_val  = ps('sumVal',  fontSize=8.5,fontName='Helvetica',      textColor=C_DARK,
+                        alignment=TA_LEFT)
         # Arabic variants (Amiri font, right-aligned)
         _amiri = 'Amiri' if _amiri_registered else 'Helvetica'
         S_cell_ar  = ps('cellAr',  fontSize=9,  fontName=_amiri, textColor=C_DARK, leading=13, alignment=TA_RIGHT)
@@ -31023,15 +31033,16 @@ def export_po_pdf(po_request_number):
             ('ALIGN',  (1,0), (1,0),   'RIGHT'),
         ]))
         story.append(hdr_table)
-        story.append(Spacer(1, 6))
-        story.append(HRFlowable(width=W, thickness=1.5, color=C_RED))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 5))
+        story.append(HRFlowable(width=W, thickness=1.5, color=C_RED_LINE))
+        story.append(Spacer(1, 10))
         story.append(Paragraph('Purchase Order', S_title))
         story.append(HRFlowable(width=W, thickness=0.5, color=C_DARK))
         story.append(Spacer(1, 8))
 
         # ── BILLED TO / SHIPPED TO / INVOICE DETAILS ────────────────────────
-        def addr_lines(name, address, city, country, vat=''):
+        def addr_content(name, address, city, country):
+            """Build a list of flowables for an address block (no VAT here)."""
             lines = []
             if name:
                 lines.append(_smart_para(name, S_cell_b, S_cell_b_ar))
@@ -31041,8 +31052,6 @@ def export_po_pdf(po_request_number):
                 lines.append(_smart_para(city, S_cell, S_cell_ar))
             if country:
                 lines.append(_smart_para(country, S_cell, S_cell_ar))
-            if vat:
-                lines.append(Paragraph(f'VAT ID #: {vat}', S_cell_b))
             if not lines:
                 lines = [Paragraph('', S_cell)]
             return lines
@@ -31053,70 +31062,81 @@ def export_po_pdf(po_request_number):
         vat_reg   = '300055129100003'
         del_date  = po['delivery_date'] or ''
 
-        billed  = addr_lines(po['billed_to_name'], po['billed_to_address'],
-                             po['billed_to_city'],  po['billed_to_country'],
-                             po['billed_to_vat'])
-        shipped = addr_lines(po['shipped_to_name'], po['shipped_to_address'],
-                             po['shipped_to_city'],  po['shipped_to_country'])
+        billed_content  = addr_content(po['billed_to_name'], po['billed_to_address'],
+                                       po['billed_to_city'],  po['billed_to_country'])
+        shipped_content = addr_content(po['shipped_to_name'], po['shipped_to_address'],
+                                       po['shipped_to_city'],  po['shipped_to_country'])
 
+        # Invoice details as inline label+value rows
         inv_rows = [
-            [Paragraph('Purchase Order Date', S_lbl), Paragraph(po_date, S_val)],
+            [Paragraph('Purchase Order Date', S_lbl), Paragraph(po_date,  S_val)],
+            [Paragraph('',                    S_lbl), Paragraph('',       S_val)],
             [Paragraph('Delivery Date',       S_lbl), Paragraph(del_date, S_val)],
-            [Paragraph('',                    S_lbl), Paragraph('', S_val)],
-            [Paragraph('Purchase Order Number',S_lbl),Paragraph(po_num, S_val)],
-            [Paragraph('Reference',           S_lbl), Paragraph(ref, S_val)],
-            [Paragraph('VAT Registration',    S_lbl), Paragraph(vat_reg, S_val)],
+            [Paragraph('',                    S_lbl), Paragraph('',       S_val)],
+            [Paragraph('Purchase Order\nNumber', S_lbl), Paragraph(po_num, S_val)],
+            [Paragraph('Reference',           S_lbl), Paragraph(ref,      S_val)],
+            [Paragraph('VAT Registration',    S_lbl), Paragraph(vat_reg,  S_val)],
         ]
-        inv_tbl = Table(inv_rows, colWidths=[3.8*cm, 3*cm])
+        inv_tbl = Table(inv_rows, colWidths=[3.6*cm, 2.8*cm])
         inv_tbl.setStyle(TableStyle([
-            ('FONTNAME', (0,0),(-1,-1),'Helvetica'),
-            ('FONTSIZE', (0,0),(-1,-1), 8),
-            ('TOPPADDING',(0,0),(-1,-1), 1),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 1),
+            ('FONTSIZE',      (0,0),(-1,-1), 8),
+            ('TOPPADDING',    (0,0),(-1,-1), 1),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+            ('LEFTPADDING',   (0,0),(-1,-1), 0),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+            ('VALIGN',        (0,0),(-1,-1), 'TOP'),
         ]))
 
-        sec_hdr_style = TableStyle([
-            ('BACKGROUND',(0,0),(-1,0), C_RED),
-            ('TEXTCOLOR', (0,0),(-1,0), C_WHITE),
-            ('FONTNAME',  (0,0),(-1,0), 'Helvetica-Bold'),
-            ('FONTSIZE',  (0,0),(-1,0), 8),
-            ('ALIGN',     (0,0),(-1,0), 'LEFT'),
-            ('TOPPADDING',(0,0),(-1,0), 4),
-            ('BOTTOMPADDING',(0,0),(-1,0), 4),
-            ('LEFTPADDING',(0,0),(-1,0), 6),
-        ])
+        # Three-column block — plain bold text headers, light border per column
+        col_w = W / 3.0
+        inv_w = W - 2 * col_w
 
-        col_w  = W / 3.0
-        inv_w  = W - 2*col_w
-
-        bt_data  = [[Paragraph('Billed To',   S_col_hdr)]] + [[b] for b in billed]
-        st_data  = [[Paragraph('Shipped To',  S_col_hdr)]] + [[s] for s in shipped]
-        id_data  = [[Paragraph('Invoice Details', S_col_hdr)], [inv_tbl]]
-
-        bt_tbl = Table(bt_data, colWidths=[col_w - 4])
-        st_tbl = Table(st_data, colWidths=[col_w - 4])
-        id_tbl = Table(id_data, colWidths=[inv_w - 4])
-
-        for t in (bt_tbl, st_tbl, id_tbl):
+        def make_addr_col(header, content_list, width):
+            data = [[Paragraph(header, S_blk_hdr)]] + [[c] for c in content_list]
+            t = Table(data, colWidths=[width - 6])
             t.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), C_RED),
-                ('TEXTCOLOR',  (0,0), (-1,0), C_WHITE),
-                ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
-                ('FONTSIZE',   (0,0), (-1,0), 8),
-                ('TOPPADDING', (0,0), (-1,-1), 3),
-                ('BOTTOMPADDING',(0,0),(-1,-1), 3),
-                ('LEFTPADDING',(0,0),(-1,-1), 5),
-                ('BOX',        (0,0), (-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+                # No background on header — plain bold text only
+                ('TOPPADDING',    (0,0),(-1,-1), 3),
+                ('BOTTOMPADDING', (0,0),(-1,-1), 2),
+                ('LEFTPADDING',   (0,0),(-1,-1), 5),
+                ('RIGHTPADDING',  (0,0),(-1,-1), 5),
+                ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+                ('LINEBELOW',     (0,0),(-1,0),  0.8, C_DARK),   # underline the header
+                ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
             ]))
+            return t
 
-        three_col = Table([[bt_tbl, st_tbl, id_tbl]],
+        inv_col_data = [[Paragraph('Invoice Details', S_blk_hdr)], [inv_tbl]]
+        inv_col = Table(inv_col_data, colWidths=[inv_w - 6])
+        inv_col.setStyle(TableStyle([
+            ('TOPPADDING',    (0,0),(-1,-1), 3),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 2),
+            ('LEFTPADDING',   (0,0),(-1,-1), 5),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 5),
+            ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+            ('LINEBELOW',     (0,0),(-1,0),  0.8, C_DARK),
+            ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
+        ]))
+
+        bt_col = make_addr_col('Billed To',   billed_content,  col_w)
+        st_col = make_addr_col('Shipped To',  shipped_content, col_w)
+
+        three_col = Table([[bt_col, st_col, inv_col]],
                           colWidths=[col_w, col_w, inv_w])
         three_col.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('VALIGN',       (0,0),(-1,-1), 'TOP'),
             ('LEFTPADDING',  (0,0),(-1,-1), 2),
             ('RIGHTPADDING', (0,0),(-1,-1), 2),
+            ('TOPPADDING',   (0,0),(-1,-1), 0),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 0),
         ]))
         story.append(three_col)
+
+        # VAT ID line below three-col block
+        billed_vat = po['billed_to_vat'] or ''
+        if billed_vat:
+            story.append(Spacer(1, 5))
+            story.append(Paragraph(f'VAT ID #: {billed_vat}', S_cell_b))
         story.append(Spacer(1, 10))
 
         # ── ITEMS TABLE ──────────────────────────────────────────────────────
@@ -31131,13 +31151,13 @@ def export_po_pdf(po_request_number):
             2.2*cm,  # Amount
         ]
         hdr_row = [
-            Paragraph('#',           S_col_hdr),
-            Paragraph('Item No',     S_col_hdr),
-            Paragraph('Description', S_col_hdr),
-            Paragraph('Qty',         S_col_hdr),
+            Paragraph('#',               S_col_hdr),
+            Paragraph('Item No',         S_col_hdr),
+            Paragraph('Description',     S_col_hdr),
+            Paragraph('Quantity',        S_col_hdr),
             Paragraph('U. Price\n(SAR)', S_col_hdr),
-            Paragraph('Disc %',      S_col_hdr),
-            Paragraph('Tax Rate',    S_col_hdr),
+            Paragraph('Disc %',          S_col_hdr),
+            Paragraph('Tax Rate',        S_col_hdr),
             Paragraph('Amount\n(SAR)',   S_col_hdr),
         ]
         item_data = [hdr_row]
@@ -31153,7 +31173,6 @@ def export_po_pdf(po_request_number):
             subtotal       += amount
             total_discount += disc_amt
 
-            row_bg = C_WHITE if idx % 2 == 1 else C_GREY
             item_data.append([
                 Paragraph(str(idx),                                        S_ctr),
                 _smart_para(item['part_number'] or '',   S_small, S_small_ar),
@@ -31167,24 +31186,23 @@ def export_po_pdf(po_request_number):
 
         items_tbl = Table(item_data, colWidths=col_widths, repeatRows=1)
         item_style = TableStyle([
-            # Header row
-            ('BACKGROUND', (0,0), (-1,0), C_RED),
-            ('TEXTCOLOR',  (0,0), (-1,0), C_WHITE),
-            ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
-            ('ALIGN',      (0,0), (-1,0), 'CENTER'),
-            ('TOPPADDING', (0,0), (-1,0), 5),
-            ('BOTTOMPADDING',(0,0),(-1,0), 5),
+            # Header row — dark charcoal background, white bold text
+            ('BACKGROUND',    (0,0), (-1,0),  C_HDR_BG),
+            ('TEXTCOLOR',     (0,0), (-1,0),  C_WHITE),
+            ('FONTNAME',      (0,0), (-1,0),  'Helvetica-Bold'),
+            ('ALIGN',         (0,0), (-1,0),  'CENTER'),
+            ('TOPPADDING',    (0,0), (-1,0),  6),
+            ('BOTTOMPADDING', (0,0), (-1,0),  6),
             # Data rows
-            ('FONTNAME', (0,1),(-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0),(-1,-1), 8),
-            ('VALIGN',   (0,0),(-1,-1), 'MIDDLE'),
-            ('TOPPADDING', (0,1),(-1,-1), 3),
-            ('BOTTOMPADDING',(0,1),(-1,-1), 3),
-            # Grid
-            ('GRID',     (0,0),(-1,-1), 0.4, colors.HexColor('#CCCCCC')),
-            ('LINEBELOW',(0,0),(-1,0), 1, C_RED),
+            ('FONTNAME',      (0,1), (-1,-1), 'Helvetica'),
+            ('FONTSIZE',      (0,0), (-1,-1), 8),
+            ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING',    (0,1), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,1), (-1,-1), 3),
+            # Grid — thin light gray
+            ('GRID',          (0,0), (-1,-1), 0.4, C_BORDER),
         ])
-        # Alternating rows
+        # Alternating row backgrounds
         for i in range(1, len(item_data)):
             bg = C_WHITE if i % 2 == 1 else C_GREY
             item_style.add('BACKGROUND', (0,i), (-1,i), bg)
@@ -31193,76 +31211,101 @@ def export_po_pdf(po_request_number):
         story.append(items_tbl)
         story.append(Spacer(1, 6))
 
-        # ── SUMMARY ──────────────────────────────────────────────────────────
+        # ── SUMMARY TABLE ────────────────────────────────────────────────────
+        # Matches: Subtotal | SAR   SAR x,xxx.xx   Subtotal | US   US
+        #          Total Discount | SAR  SAR x   Total Discount | US   US x.xx
+        #          Total VAT | SAR   SAR x   Total VAT | US   US
+        #          Total | SAR   SAR x   Total | US   US
         vat_pct    = float(po['vat_percentage'] or 15) / 100
         vat_amount = subtotal * vat_pct
         total      = subtotal + vat_amount - total_discount
 
+        S_sum_b = ps('sumB', fontSize=8.5, fontName='Helvetica-Bold',
+                     textColor=C_DARK, alignment=TA_RIGHT)
+        S_sum_v = ps('sumV', fontSize=8.5, fontName='Helvetica',
+                     textColor=C_DARK, alignment=TA_LEFT)
+        S_sum_r = ps('sumR', fontSize=8.5, fontName='Helvetica',
+                     textColor=C_DARK, alignment=TA_RIGHT)
+
+        lw1 = W * 0.35   # SAR label
+        lw2 = W * 0.20   # SAR value
+        lw3 = W * 0.30   # US label
+        lw4 = W * 0.15   # US value
+
         summary_data = [
-            [Paragraph('Subtotal | SAR',        S_lbl), Paragraph(f'SAR {subtotal:,.2f}',        S_num),
-             Paragraph('Subtotal | US',          S_lbl), Paragraph('US',                          S_num)],
-            [Paragraph('Total Discount | SAR',   S_lbl), Paragraph(f'SAR {total_discount:,.2f}',  S_num),
-             Paragraph('Total Discount | US',    S_lbl), Paragraph(f'US {0:.2f}',                 S_num)],
-            [Paragraph('Total VAT | SAR',        S_lbl), Paragraph(f'SAR {vat_amount:,.2f}',      S_num),
-             Paragraph('Total VAT | US',         S_lbl), Paragraph('US',                          S_num)],
-            [Paragraph('Total | SAR',            S_foot_lbl), Paragraph(f'SAR {total:,.2f}',      S_num),
-             Paragraph('Total | US',             S_foot_lbl), Paragraph('US',                     S_num)],
+            [Paragraph('Subtotal | SAR',       S_sum_b), Paragraph(f'SAR {subtotal:,.2f}',       S_sum_r),
+             Paragraph('Subtotal | US',         S_sum_b), Paragraph('US',                         S_sum_r)],
+            [Paragraph('Total Discount | SAR',  S_sum_b), Paragraph(f'SAR {total_discount:,.2f}', S_sum_r),
+             Paragraph('Total Discount | US',   S_sum_b), Paragraph(f'US {0:.2f}',                S_sum_r)],
+            [Paragraph('Total VAT | SAR',       S_sum_b), Paragraph(f'SAR {vat_amount:,.2f}',     S_sum_r),
+             Paragraph('Total VAT | US',        S_sum_b), Paragraph('US',                         S_sum_r)],
+            [Paragraph('Total | SAR',           S_sum_b), Paragraph(f'SAR {total:,.2f}',          S_sum_r),
+             Paragraph('Total | US',            S_sum_b), Paragraph('US',                         S_sum_r)],
         ]
-        hw = W / 4
-        sum_tbl = Table(summary_data, colWidths=[hw*1.4, hw*0.8, hw*1.2, hw*0.6])
+        sum_tbl = Table(summary_data, colWidths=[lw1, lw2, lw3, lw4])
         sum_tbl.setStyle(TableStyle([
-            ('FONTNAME', (0,0),(-1,-1), 'Helvetica'),
-            ('FONTSIZE', (0,0),(-1,-1), 8),
-            ('ALIGN',    (1,0),(1,-1), 'RIGHT'),
-            ('ALIGN',    (3,0),(3,-1), 'RIGHT'),
-            ('TOPPADDING',(0,0),(-1,-1), 3),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 3),
-            ('LINEABOVE', (0,-1),(-1,-1), 1, C_RED),
-            ('FONTNAME',  (0,-1),(-1,-1), 'Helvetica-Bold'),
-            ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#FFF5F5')),
-            ('LINEBEFORE',(2,0),(2,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ('FONTSIZE',      (0,0),(-1,-1), 8.5),
+            ('TOPPADDING',    (0,0),(-1,-1), 4),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 4),
+            ('LEFTPADDING',   (0,0),(-1,-1), 5),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 5),
+            ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
+            # Full grid with light borders
+            ('GRID',          (0,0),(-1,-1), 0.5, C_BORDER),
+            # Vertical divider between SAR and US halves (slightly thicker)
+            ('LINEBEFORE',    (2,0),(2,-1),  0.8, colors.HexColor('#999999')),
+            # Total row — bold border on top
+            ('LINEABOVE',     (0,-1),(-1,-1), 1.0, C_DARK),
         ]))
         story.append(sum_tbl)
-        story.append(Spacer(1, 14))
+        story.append(Spacer(1, 16))
 
-        # ── DELIVERY DETAILS ──────────────────────────────────────────────────
-        story.append(HRFlowable(width=W, thickness=1, color=C_DARK))
-        story.append(Spacer(1, 4))
+        # ── DELIVERY DETAILS ─────────────────────────────────────────────────
+        # Matches exact layout: bold heading, 3 cols (Address | Attention+Telephone | Instructions)
+        # No table borders — just plain text with bold column labels
         story.append(Paragraph('DELIVERY DETAILS', S_sec_hdr))
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 8))
 
-        del_w = W / 3
-        del_data = [[
-            [Paragraph('Delivery Address', S_small_b),
-             _smart_para(po['delivery_address'] or '',    S_small, S_small_ar)],
-            [Paragraph('Attention', S_small_b),
-             _smart_para(po['delivery_attention'] or '',  S_small, S_small_ar),
-             Spacer(1,6),
-             Paragraph('Telephone', S_small_b),
-             _smart_para(po['delivery_telephone'] or '',  S_small, S_small_ar)],
-            [Paragraph('Delivery Instructions', S_small_b),
-             _smart_para(po['delivery_instructions'] or '', S_small, S_small_ar)],
-        ]]
+        del_w = W / 3.0
+        # Build each column as a list of flowables
+        addr_col = [
+            Paragraph('Delivery Address', S_small_b),
+            Spacer(1, 4),
+            _smart_para(po['delivery_address'] or '', S_small, S_small_ar),
+        ]
+        attn_col = [
+            Paragraph('Attention', S_small_b),
+            Spacer(1, 4),
+            _smart_para(po['delivery_attention'] or '', S_small, S_small_ar),
+            Spacer(1, 10),
+            Paragraph('Telephone', S_small_b),
+            Spacer(1, 4),
+            _smart_para(po['delivery_telephone'] or '', S_small, S_small_ar),
+        ]
+        inst_col = [
+            Paragraph('Delivery Instructions', S_small_b),
+            Spacer(1, 4),
+            _smart_para(po['delivery_instructions'] or '', S_small, S_small_ar),
+        ]
+        del_data = [[addr_col, attn_col, inst_col]]
         del_tbl = Table(del_data, colWidths=[del_w, del_w, del_w])
         del_tbl.setStyle(TableStyle([
-            ('VALIGN',  (0,0),(-1,-1), 'TOP'),
-            ('BOX',     (0,0),(-1,-1), 0.5, colors.HexColor('#CCCCCC')),
-            ('INNERGRID',(0,0),(-1,-1), 0.5, colors.HexColor('#CCCCCC')),
-            ('TOPPADDING',(0,0),(-1,-1), 6),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 6),
-            ('LEFTPADDING',(0,0),(-1,-1), 6),
-            ('RIGHTPADDING',(0,0),(-1,-1), 6),
-            ('MINROWHEIGHT',(0,0),(-1,-1), 2*cm),
+            ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+            ('TOPPADDING',    (0,0),(-1,-1), 4),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 4),
+            ('LEFTPADDING',   (0,0),(-1,-1), 4),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 4),
+            # Light vertical dividers only between columns (no outer box)
+            ('LINEBEFORE',    (1,0),(2,-1), 0.5, C_BORDER),
         ]))
         story.append(del_tbl)
-        story.append(Spacer(1, 14))
+        story.append(Spacer(1, 16))
 
         # ── TERMS AND CONDITIONS ─────────────────────────────────────────────
-        story.append(HRFlowable(width=W, thickness=1, color=C_DARK))
-        story.append(Spacer(1, 4))
         story.append(Paragraph('TERMS AND CONDITIONS', S_sec_hdr))
         story.append(Spacer(1, 4))
         story.append(Paragraph('Payment Terms :', S_small_b))
+        story.append(Spacer(1, 2))
         story.append(_smart_para(po['payment_terms'] or '', S_small, S_small_ar))
 
         doc.build(story)
