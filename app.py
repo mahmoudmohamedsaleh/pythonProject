@@ -31067,54 +31067,70 @@ def export_po_pdf(po_request_number):
         shipped_content = addr_content(po['shipped_to_name'], po['shipped_to_address'],
                                        po['shipped_to_city'],  po['shipped_to_country'])
 
-        # Invoice details as inline label+value rows
+        # Invoice details — label (bold) + value, sized to fit inside inv_col
+        # inv_w ≈ W/3; with 6pt padding each side, inner table ≈ inv_w − 12pt
+        _inv_lbl_w = W / 3 * 0.56   # ~56% for label
+        _inv_val_w = W / 3 * 0.44   # ~44% for value
+
+        S_inv_lbl = ps('invLbl', fontSize=8, fontName='Helvetica-Bold', textColor=C_DARK, leading=11)
+        S_inv_val = ps('invVal', fontSize=8, fontName='Helvetica',      textColor=C_DARK, leading=11,
+                       alignment=TA_RIGHT)
+
         inv_rows = [
-            [Paragraph('Purchase Order Date', S_lbl), Paragraph(po_date,  S_val)],
-            [Paragraph('',                    S_lbl), Paragraph('',       S_val)],
-            [Paragraph('Delivery Date',       S_lbl), Paragraph(del_date, S_val)],
-            [Paragraph('',                    S_lbl), Paragraph('',       S_val)],
-            [Paragraph('Purchase Order\nNumber', S_lbl), Paragraph(po_num, S_val)],
-            [Paragraph('Reference',           S_lbl), Paragraph(ref,      S_val)],
-            [Paragraph('VAT Registration',    S_lbl), Paragraph(vat_reg,  S_val)],
+            [Paragraph('Purchase Order Date',   S_inv_lbl), Paragraph(po_date,  S_inv_val)],
+            [Paragraph('Delivery Date',         S_inv_lbl), Paragraph(del_date, S_inv_val)],
+            [Paragraph('Purchase Order Number', S_inv_lbl), Paragraph(po_num,   S_inv_val)],
+            [Paragraph('Reference',             S_inv_lbl), Paragraph(ref,      S_inv_val)],
+            [Paragraph('VAT Registration',      S_inv_lbl), Paragraph(vat_reg,  S_inv_val)],
         ]
-        inv_tbl = Table(inv_rows, colWidths=[3.6*cm, 2.8*cm])
+        inv_tbl = Table(inv_rows, colWidths=[_inv_lbl_w, _inv_val_w])
         inv_tbl.setStyle(TableStyle([
             ('FONTSIZE',      (0,0),(-1,-1), 8),
-            ('TOPPADDING',    (0,0),(-1,-1), 1),
-            ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+            ('TOPPADDING',    (0,0),(-1,-1), 3),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 3),
             ('LEFTPADDING',   (0,0),(-1,-1), 0),
             ('RIGHTPADDING',  (0,0),(-1,-1), 0),
             ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+            ('LINEBELOW',     (0,0),(-1,-2), 0.3, C_BORDER),
         ]))
 
-        # Three-column block — plain bold text headers, light border per column
+        # Three-column block — light gray header bg, border per column
+        C_HDR_LIGHT = colors.HexColor('#EEEEEE')   # light gray for section headers
         col_w = W / 3.0
         inv_w = W - 2 * col_w
 
+        _col_style = TableStyle([
+            # Light gray header background
+            ('BACKGROUND',    (0,0),(-1,0),  C_HDR_LIGHT),
+            ('TOPPADDING',    (0,0),(-1,0),  5),
+            ('BOTTOMPADDING', (0,0),(-1,0),  5),
+            ('TOPPADDING',    (0,1),(-1,-1), 4),
+            ('BOTTOMPADDING', (0,1),(-1,-1), 4),
+            ('LEFTPADDING',   (0,0),(-1,-1), 6),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 6),
+            ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+            ('LINEBELOW',     (0,0),(-1,0),  0.8, C_BORDER),
+            ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
+        ])
+
         def make_addr_col(header, content_list, width):
             data = [[Paragraph(header, S_blk_hdr)]] + [[c] for c in content_list]
-            t = Table(data, colWidths=[width - 6])
-            t.setStyle(TableStyle([
-                # No background on header — plain bold text only
-                ('TOPPADDING',    (0,0),(-1,-1), 3),
-                ('BOTTOMPADDING', (0,0),(-1,-1), 2),
-                ('LEFTPADDING',   (0,0),(-1,-1), 5),
-                ('RIGHTPADDING',  (0,0),(-1,-1), 5),
-                ('VALIGN',        (0,0),(-1,-1), 'TOP'),
-                ('LINEBELOW',     (0,0),(-1,0),  0.8, C_DARK),   # underline the header
-                ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
-            ]))
+            t = Table(data, colWidths=[width - 4])
+            t.setStyle(_col_style)
             return t
 
         inv_col_data = [[Paragraph('Invoice Details', S_blk_hdr)], [inv_tbl]]
-        inv_col = Table(inv_col_data, colWidths=[inv_w - 6])
+        inv_col = Table(inv_col_data, colWidths=[inv_w - 4])
         inv_col.setStyle(TableStyle([
-            ('TOPPADDING',    (0,0),(-1,-1), 3),
-            ('BOTTOMPADDING', (0,0),(-1,-1), 2),
-            ('LEFTPADDING',   (0,0),(-1,-1), 5),
-            ('RIGHTPADDING',  (0,0),(-1,-1), 5),
+            ('BACKGROUND',    (0,0),(-1,0),  C_HDR_LIGHT),
+            ('TOPPADDING',    (0,0),(-1,0),  5),
+            ('BOTTOMPADDING', (0,0),(-1,0),  5),
+            ('TOPPADDING',    (0,1),(-1,-1), 6),
+            ('BOTTOMPADDING', (0,1),(-1,-1), 6),
+            ('LEFTPADDING',   (0,0),(-1,-1), 6),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 6),
             ('VALIGN',        (0,0),(-1,-1), 'TOP'),
-            ('LINEBELOW',     (0,0),(-1,0),  0.8, C_DARK),
+            ('LINEBELOW',     (0,0),(-1,0),  0.8, C_BORDER),
             ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
         ]))
 
@@ -31125,8 +31141,8 @@ def export_po_pdf(po_request_number):
                           colWidths=[col_w, col_w, inv_w])
         three_col.setStyle(TableStyle([
             ('VALIGN',       (0,0),(-1,-1), 'TOP'),
-            ('LEFTPADDING',  (0,0),(-1,-1), 2),
-            ('RIGHTPADDING', (0,0),(-1,-1), 2),
+            ('LEFTPADDING',  (0,0),(-1,-1), 1),
+            ('RIGHTPADDING', (0,0),(-1,-1), 1),
             ('TOPPADDING',   (0,0),(-1,-1), 0),
             ('BOTTOMPADDING',(0,0),(-1,-1), 0),
         ]))
