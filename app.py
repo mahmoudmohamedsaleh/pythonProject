@@ -30900,8 +30900,44 @@ def export_po_pdf(po_request_number):
                                         Table, TableStyle, HRFlowable, KeepTogether)
         from reportlab.platypus import Image as RLImage
         from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
         from io import BytesIO
-        import os
+        import os, re as _re
+
+        # ── Register Arabic font (Amiri) ────────────────────────────────────
+        amiri_path = os.path.join(_STATIC_DIR, 'Amiri-Regular.ttf')
+        _amiri_registered = False
+        if os.path.exists(amiri_path):
+            try:
+                pdfmetrics.registerFont(TTFont('Amiri', amiri_path))
+                _amiri_registered = True
+            except Exception:
+                pass
+
+        def _has_arabic(text):
+            return bool(_re.search(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]', str(text or '')))
+
+        def _ar(text):
+            """Reshape + bidi-reverse Arabic text so ReportLab renders it correctly."""
+            if not text:
+                return ''
+            text = str(text)
+            if not _has_arabic(text):
+                return text
+            try:
+                import arabic_reshaper
+                from bidi.algorithm import get_display
+                reshaped = arabic_reshaper.reshape(text)
+                return get_display(reshaped)
+            except Exception:
+                return text
+
+        def _smart_para(text, style_en, style_ar):
+            """Return a Paragraph using Arabic style when text contains Arabic."""
+            text = str(text or '')
+            if _amiri_registered and _has_arabic(text):
+                return Paragraph(_ar(text), style_ar)
+            return Paragraph(text, style_en)
 
         conn = sqlite3.connect('ProjectStatus.db')
         conn.row_factory = sqlite3.Row
@@ -30961,6 +30997,11 @@ def export_po_pdf(po_request_number):
         S_small_b  = ps('smallB',  fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK)
         S_foot_lbl = ps('ftLbl',   fontSize=9,  fontName='Helvetica-Bold', textColor=C_DARK)
         S_foot_val = ps('ftVal',   fontSize=9,  fontName='Helvetica',      textColor=C_DARK)
+        # Arabic variants (Amiri font, right-aligned)
+        _amiri = 'Amiri' if _amiri_registered else 'Helvetica'
+        S_cell_ar  = ps('cellAr',  fontSize=9,  fontName=_amiri, textColor=C_DARK, leading=13, alignment=TA_RIGHT)
+        S_cell_b_ar= ps('cellBAr', fontSize=9,  fontName=_amiri, textColor=C_DARK, leading=13, alignment=TA_RIGHT)
+        S_small_ar = ps('smallAr', fontSize=8.5,fontName=_amiri, textColor=C_DARK, leading=12, alignment=TA_RIGHT)
 
         story = []
 
@@ -30993,13 +31034,13 @@ def export_po_pdf(po_request_number):
         def addr_lines(name, address, city, country, vat=''):
             lines = []
             if name:
-                lines.append(Paragraph(name, S_cell_b))
+                lines.append(_smart_para(name, S_cell_b, S_cell_b_ar))
             if address:
-                lines.append(Paragraph(address, S_cell))
+                lines.append(_smart_para(address, S_cell, S_cell_ar))
             if city:
-                lines.append(Paragraph(city, S_cell))
+                lines.append(_smart_para(city, S_cell, S_cell_ar))
             if country:
-                lines.append(Paragraph(country, S_cell))
+                lines.append(_smart_para(country, S_cell, S_cell_ar))
             if vat:
                 lines.append(Paragraph(f'VAT ID #: {vat}', S_cell_b))
             if not lines:
@@ -31114,14 +31155,14 @@ def export_po_pdf(po_request_number):
 
             row_bg = C_WHITE if idx % 2 == 1 else C_GREY
             item_data.append([
-                Paragraph(str(idx),                      S_ctr),
-                Paragraph(str(item['part_number'] or ''), S_small),
-                Paragraph(str(item['description'] or ''), S_small),
-                Paragraph(f'{qty:g}',                    S_ctr),
-                Paragraph(f'{uprice:,.2f}',              S_num),
-                Paragraph(f'{disc_pct:g}%',              S_ctr),
-                Paragraph('VAT 15%\nOn Purchase',        S_ctr),
-                Paragraph(f'{amount:,.2f}',              S_num),
+                Paragraph(str(idx),                                        S_ctr),
+                _smart_para(item['part_number'] or '',   S_small, S_small_ar),
+                _smart_para(item['description'] or '',   S_small, S_small_ar),
+                Paragraph(f'{qty:g}',                                      S_ctr),
+                Paragraph(f'{uprice:,.2f}',                                S_num),
+                Paragraph(f'{disc_pct:g}%',                                S_ctr),
+                Paragraph('VAT 15%\nOn Purchase',                          S_ctr),
+                Paragraph(f'{amount:,.2f}',                                S_num),
             ])
 
         items_tbl = Table(item_data, colWidths=col_widths, repeatRows=1)
@@ -31193,14 +31234,14 @@ def export_po_pdf(po_request_number):
         del_w = W / 3
         del_data = [[
             [Paragraph('Delivery Address', S_small_b),
-             Paragraph(po['delivery_address'] or '', S_small)],
+             _smart_para(po['delivery_address'] or '',    S_small, S_small_ar)],
             [Paragraph('Attention', S_small_b),
-             Paragraph(po['delivery_attention'] or '', S_small),
+             _smart_para(po['delivery_attention'] or '',  S_small, S_small_ar),
              Spacer(1,6),
              Paragraph('Telephone', S_small_b),
-             Paragraph(po['delivery_telephone'] or '', S_small)],
+             _smart_para(po['delivery_telephone'] or '',  S_small, S_small_ar)],
             [Paragraph('Delivery Instructions', S_small_b),
-             Paragraph(po['delivery_instructions'] or '', S_small)],
+             _smart_para(po['delivery_instructions'] or '', S_small, S_small_ar)],
         ]]
         del_tbl = Table(del_data, colWidths=[del_w, del_w, del_w])
         del_tbl.setStyle(TableStyle([
@@ -31222,7 +31263,7 @@ def export_po_pdf(po_request_number):
         story.append(Paragraph('TERMS AND CONDITIONS', S_sec_hdr))
         story.append(Spacer(1, 4))
         story.append(Paragraph('Payment Terms :', S_small_b))
-        story.append(Paragraph(po['payment_terms'] or '', S_small))
+        story.append(_smart_para(po['payment_terms'] or '', S_small, S_small_ar))
 
         doc.build(story)
         buf.seek(0)
