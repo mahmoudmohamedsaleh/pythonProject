@@ -6866,18 +6866,37 @@ def proposal_save_form():
             pass
         from flask import session as _sess
         _saved_by = _sess.get('username', 'Unknown')
-        conn.execute("""INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
-                        VALUES (?, ?, ?, datetime('now'), ?)
-                        ON CONFLICT(rfq_ref, quote_ref) DO UPDATE SET
-                            form_json = excluded.form_json,
-                            saved_at  = excluded.saved_at,
-                            saved_by  = excluded.saved_by""",
-                     (rfq_ref, quote_ref, form_json, _saved_by))
+        # One quote per RFQ: check if a row already exists for this rfq_ref (any quote_ref)
+        existing = conn.execute(
+            "SELECT quote_ref FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
+            (rfq_ref,)
+        ).fetchone()
+        if existing:
+            # Update the existing row (may rename quote_ref if user changed it)
+            existing_qr = existing[0]
+            if existing_qr == quote_ref:
+                conn.execute(
+                    """UPDATE proposal_form_data SET form_json=?, saved_at=datetime('now'), saved_by=?
+                        WHERE rfq_ref=? AND quote_ref=?""",
+                    (form_json, _saved_by, rfq_ref, quote_ref))
+            else:
+                # Delete old row and insert with new quote_ref
+                conn.execute("DELETE FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+                             (rfq_ref, existing_qr))
+                conn.execute(
+                    """INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
+                        VALUES (?, ?, ?, datetime('now'), ?)""",
+                    (rfq_ref, quote_ref, form_json, _saved_by))
+        else:
+            conn.execute(
+                """INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
+                    VALUES (?, ?, ?, datetime('now'), ?)""",
+                (rfq_ref, quote_ref, form_json, _saved_by))
         conn.commit()
         # Fetch saved_at for response
         row = conn.execute(
-            "SELECT saved_at FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
-            (rfq_ref, quote_ref)
+            "SELECT saved_at FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
+            (rfq_ref,)
         ).fetchone()
         conn.close()
         return jsonify({'ok': True, 'saved_by': _saved_by, 'saved_at': row[0] if row else ''})
@@ -6894,7 +6913,35 @@ def proposal_generator_main():
     today = date.today().strftime('%d-%m-%Y')
     project_name = _req.args.get('project','')
     rfq_ref      = _req.args.get('rfq','')
-    quoteref     = _req.args.get('quoteref','')
+    quoteref     = _req.args.get('quoteref','').strip()
+
+    # ── One quote ref per RFQ: auto-load or auto-generate ─────────────────
+    if rfq_ref and not quoteref:
+        try:
+            _aq_conn = sqlite3.connect('ProjectStatus.db')
+            # Look up existing quote ref for this RFQ (from saved form data)
+            _aq_row = _aq_conn.execute(
+                "SELECT quote_ref FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
+                (rfq_ref,)
+            ).fetchone()
+            if not _aq_row:
+                # Also check cost_sheets
+                _aq_row2 = _aq_conn.execute(
+                    "SELECT quote_ref FROM cost_sheets WHERE rfq_ref=? ORDER BY updated_at DESC LIMIT 1",
+                    (rfq_ref,)
+                ).fetchone()
+                if _aq_row2:
+                    quoteref = _aq_row2[0]
+            else:
+                quoteref = _aq_row[0]
+            _aq_conn.close()
+        except Exception:
+            pass
+        # If still no quote ref, auto-generate one from the RFQ ref
+        if not quoteref:
+            import re as _re
+            _rfq_digits = _re.sub(r'^RFQ[-_]?', '', rfq_ref, flags=_re.IGNORECASE).strip('-_ ')
+            quoteref = f"QT-EJT-{_rfq_digits}" if _rfq_digits else f"QT-EJT-{rfq_ref}"
 
     # Defaults
     eng_ref          = ''

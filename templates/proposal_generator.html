@@ -163,9 +163,15 @@
                          value="{{ today }}" placeholder="DD-MM-YYYY">
                 </div>
                 <div class="form-group col-md-4">
-                  <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
+                  <label class="small font-weight-bold text-muted mb-1">
+                    Quote Reference
+                    <span class="badge badge-secondary ml-1" style="font-size:.65rem;vertical-align:middle;" title="Auto-assigned — one reference per RFQ">
+                      <i class="fas fa-lock mr-1"></i>Auto
+                    </span>
+                  </label>
                   <input type="text" class="form-control form-control-sm" name="quoteref"
-                         value="{{ quoteref }}" placeholder="QT-EJT-…">
+                         value="{{ quoteref }}" readonly
+                         style="background:#f3f0ff;border-color:#c5b8e8;color:#4B2D8F;font-weight:600;cursor:default;">
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
