@@ -10110,14 +10110,15 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
             up = it.get('unit_price'); tot = it.get('total'); sn = it.get('sn','')
 
             if is_sec:
-                _i_desc = _ci('desc')
                 _sec_cells = [_p('') for _ in range(_NCOLS_G)]
-                _sec_cells[_i_desc] = _p(f'<b>{desc}</b>', S_SEC)
+                # Place text in col 0 — SPAN merges from col 0, so content must be there
+                _sec_cells[0] = _p(f'<b>{desc}</b>', S_SEC)
                 tbl_data.append(_sec_cells)
                 style_cmds += [
                     ('SPAN',(0,ri),(-1,ri)),('BACKGROUND',(0,ri),(-1,ri),C_SEC_BG),
-                    ('ALIGN',(0,ri),(-1,ri),'CENTER'),('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),
+                    ('ALIGN',(0,ri),(-1,ri),'LEFT'),('FONTNAME',(0,ri),(-1,ri),'Helvetica-Bold'),
                     ('FONTSIZE',(0,ri),(-1,ri),8.5),('LINEABOVE',(0,ri),(-1,ri),0.5,C_PURPLE2),
+                    ('LEFTPADDING',(0,ri),(-1,ri),8),
                 ]
             else:
                 item_ctr += 1
@@ -10790,7 +10791,7 @@ def quotation_pdf_professional(quote_ref):
         S_RIGHT = _ps('right', alignment=TA_RIGHT)
         S_CENT  = _ps('cent', alignment=TA_CENTER)
         S_NUM   = _ps('num', fontSize=8.5, alignment=TA_RIGHT)
-        S_SEC   = _ps('sec', fontName='Helvetica-Bold', fontSize=8.5, textColor=C_PURPLE, alignment=TA_CENTER)
+        S_SEC   = _ps('sec', fontName='Helvetica-Bold', fontSize=9, textColor=C_PURPLE, alignment=TA_LEFT)
         S_CODHD = _ps('codhd', fontName='Helvetica-Bold', fontSize=8, textColor=C_WHITE, alignment=TA_CENTER)
         S_GREY  = _ps('grey', fontSize=8, textColor=colors.HexColor('#666666'))
 
