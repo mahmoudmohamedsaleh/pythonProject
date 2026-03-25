@@ -8985,28 +8985,28 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
     show_vendor = boq_opts.get('show_vendor',    False)
     show_stock  = boq_opts.get('show_stock',     False)
 
-    # ── Colour palette — matches PDF exactly ──────────────────────────
+    # ── EJTech brand colour palette — matches Quotation PDF exactly ───
     def _f(h): return PatternFill("solid", fgColor=h)
-    PURP_F   = _f("4B2D8F")   # main headers (same as PDF C_PURPLE)
-    PURP2_F  = _f("7B52D3")   # lighter purple accent
-    TEAL_F   = _f("00897B")   # total rows (PDF C_TEAL)
-    SEC_F    = _f("EDE7F6")   # section header bg (PDF C_SEC_BG)
-    ROW1_F   = _f("FFFFFF")   # odd data rows
-    ROW2_F   = _f("F7F4FC")   # even data rows (PDF C_GREY_ROW)
-    WHITE_F  = _f("FFFFFF")
-    LGREY_F  = _f("F5F5F5")   # light grey for info cells
-    LBLUE_F  = _f("F3F0FF")   # exec summary bg
-    SCOPE_F  = _f("F0EBFF")   # scope row bg
+    RED_F      = _f("CC0000")   # EJTech brand red  (C_PURPLE in PDF)
+    RED2_F     = _f("9B0012")   # dark red          (C_TEAL in PDF = dark red totals)
+    CHAR_F     = _f("444444")   # charcoal for section banners
+    CHAR2_F    = _f("555555")   # slightly lighter charcoal
+    SEC_F      = _f("EEEEEE")   # section header bg (C_SEC_BG in PDF)
+    ROW1_F     = _f("FFFFFF")   # odd data rows  (white)
+    ROW2_F     = _f("FAFAFA")   # even data rows (near-white, C_GREY_ROW in PDF)
+    WHITE_F    = _f("FFFFFF")
+    LRED_F     = _f("FFF5F5")   # very light red tint for exec summary
 
-    def _font(name="Calibri", sz=10, bold=False, color="212121", italic=False):
+    def _font(name="Calibri", sz=10, bold=False, color="333333", italic=False):
         return Font(name=name, size=sz, bold=bold, color=color, italic=italic)
     def _al(h="left", v="center", wrap=False):
         return Alignment(horizontal=h, vertical=v, wrap_text=wrap)
-    def _side(c="D0C4F0", s="thin"): return Side(border_style=s, color=c)
-    def _bd(c="D0C4F0", s="thin"):
+    def _side(c="CCCCCC", s="thin"): return Side(border_style=s, color=c)
+    def _bd(c="CCCCCC", s="thin"):
         sd = _side(c, s)
         return Border(left=sd, right=sd, top=sd, bottom=sd)
-    def _bd_purp(): return _bd("4B2D8F")
+    def _bd_red():  return _bd("CC0000")
+    def _bd_char(): return _bd("444444")
     def _fmt(v):
         try: return f"{float(v):,.2f}"
         except: return str(v) if v else ""
@@ -9030,13 +9030,12 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
 
     def _print_setup_portrait(ws, nc):
         ws.page_setup.orientation = "portrait"
-        ws.page_setup.paperSize   = 9        # A4
+        ws.page_setup.paperSize   = 9       # A4
         ws.page_setup.fitToPage   = True
         ws.page_setup.fitToWidth  = 1
         ws.page_setup.fitToHeight = 0
         ws.page_margins.left  = ws.page_margins.right  = 0.5
-        ws.page_margins.top   = 0.6
-        ws.page_margins.bottom = 0.6
+        ws.page_margins.top   = 0.6; ws.page_margins.bottom = 0.6
         ws.sheet_view.showGridLines = False
         ws.print_area = f"A1:{get_column_letter(nc)}300"
 
@@ -9047,16 +9046,14 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
         ws.page_setup.fitToWidth  = 1
         ws.page_setup.fitToHeight = 0
         ws.page_margins.left  = ws.page_margins.right  = 0.4
-        ws.page_margins.top   = 0.5
-        ws.page_margins.bottom = 0.5
+        ws.page_margins.top   = 0.5; ws.page_margins.bottom = 0.5
         ws.sheet_view.showGridLines = False
         ws.print_title_rows = f"1:{hdr_row}"
 
     wb = openpyxl.Workbook()
 
     # ═══════════════════════════════════════════════════════════════════
-    # COVER SHEET
-    # Col layout: A(20) B(40) C(2) D(18) E(30) F(3) — 6 total
+    # COVER SHEET  (6 cols: A=20, B=40, C=2, D=18, E=30, F=3)
     # ═══════════════════════════════════════════════════════════════════
     ws = wb.active
     ws.title = "Commercial Quotation"
@@ -9067,32 +9064,32 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
 
     ri = 1
 
-    # Top accent stripe (purple)
-    _row_h(ws, ri, 6)
-    for ci in range(1, NC+1): ws.cell(ri, ci).fill = PURP_F
+    # Top red stripe
+    _row_h(ws, ri, 5)
+    for ci in range(1, NC+1): ws.cell(ri, ci).fill = RED_F
     ri += 1
 
-    # Main title banner
-    _row_h(ws, ri, 38)
-    _merge(ws, ri, 1, NC, "COMMERCIAL QUOTATION", PURP_F,
+    # Main header banner — charcoal background, white text
+    _row_h(ws, ri, 40)
+    _merge(ws, ri, 1, NC, "COMMERCIAL QUOTATION", CHAR_F,
            _font("Calibri", 22, True, "FFFFFF"), _al("center","center"))
     ri += 1
     _row_h(ws, ri, 18)
-    _merge(ws, ri, 1, NC, "Proposal & Pricing Submission", PURP_F,
-           _font("Calibri", 10, False, "EDE7F6"), _al("center","center"))
+    _merge(ws, ri, 1, NC, "Proposal & Pricing Submission", CHAR_F,
+           _font("Calibri", 10, False, "AAAAAA"), _al("center","center"))
     ri += 1
 
-    # Bottom accent stripe (lighter purple)
+    # Bottom red stripe
     _row_h(ws, ri, 5)
-    for ci in range(1, NC+1): ws.cell(ri, ci).fill = PURP2_F
+    for ci in range(1, NC+1): ws.cell(ri, ci).fill = RED_F
     ri += 1
     _row_h(ws, ri, 6); ri += 1   # spacer
 
     # Document info labels
     for val, c1, c2 in [("DATE",1,1),("QUOTE REFERENCE",2,3),("ENG. REFERENCE",4,5)]:
         ws.merge_cells(start_row=ri, start_column=c1, end_row=ri, end_column=c2)
-        _c(ws, ri, c1, val, _f("E8E0F7"),
-           _font("Calibri", 7, True, "4B2D8F"), _al("left","center"), _bd("B0A0D8"))
+        _c(ws, ri, c1, val, _f("F0F0F0"),
+           _font("Calibri",7,True,"CC0000"), _al("left","center"), _bd())
     _row_h(ws, ri, 13); ri += 1
 
     # Document info values
@@ -9101,48 +9098,50 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
                         (cover.get("engref",""),4,5)]:
         ws.merge_cells(start_row=ri, start_column=c1, end_row=ri, end_column=c2)
         _c(ws, ri, c1, val, WHITE_F,
-           _font("Calibri", 11, True, "4B2D8F"), _al("left","center"), _bd_purp())
+           _font("Calibri",11,True,"333333"), _al("left","center"), _bd())
     _row_h(ws, ri, 20); ri += 1
     _row_h(ws, ri, 8); ri += 1   # spacer
 
-    # SUBMITTED TO header
+    # SUBMITTED TO banner
     _row_h(ws, ri, 18)
-    _merge(ws, ri, 1, NC, "SUBMITTED TO", PURP_F,
-           _font("Calibri", 10, True, "FFFFFF"), _al("left","center"))
+    _merge(ws, ri, 1, NC, "SUBMITTED TO", CHAR_F,
+           _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
     ri += 1
 
-    # Two-column info rows
+    # Two-column rows with red label cells
     for lbl1, val1, lbl2, val2 in [
-        ("COMPANY", cover.get("to",""),   "ATTENTION", cover.get("attn","")),
-        ("FROM",    cover.get("frm",""),  "MOBILE",    cover.get("cont","")),
+        ("COMPANY",  cover.get("to",""),   "ATTENTION", cover.get("attn","")),
+        ("FROM",     cover.get("frm",""),  "MOBILE",    cover.get("cont","")),
     ]:
         _row_h(ws, ri, 18)
-        _c(ws, ri, 1, lbl1, PURP_F, _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), _bd_purp())
-        _merge(ws, ri, 2, 3, val1, WHITE_F, _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
-        _c(ws, ri, 4, lbl2, PURP_F, _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), _bd_purp())
-        _merge(ws, ri, 5, 6, val2, WHITE_F, _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
+        _c(ws, ri, 1, lbl1, RED_F,   _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), _bd_red())
+        _merge(ws, ri, 2, 3, val1, WHITE_F, _font("Calibri",9,False,"333333"), _al("left","center",True), _bd())
+        _c(ws, ri, 4, lbl2, RED_F,   _font("Calibri",9,True,"FFFFFF"),  _al("left","center"), _bd_red())
+        _merge(ws, ri, 5, 6, val2, WHITE_F, _font("Calibri",9,False,"333333"), _al("left","center",True), _bd())
         ri += 1
 
-    # Full-width info rows
+    # Full-width rows
     for lbl, val, rh in [("SUBJECT", cover.get("sub",""), 20),
                          ("SCOPE",   cover.get("scope",""), 28)]:
         _row_h(ws, ri, rh)
-        _c(ws, ri, 1, lbl, PURP_F, _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_purp())
-        _merge(ws, ri, 2, NC, val, WHITE_F, _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
+        _c(ws, ri, 1, lbl, RED_F, _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_red())
+        _merge(ws, ri, 2, NC, val, WHITE_F,
+               _font("Calibri",9,True,"CC0000") if lbl=="SUBJECT" else _font("Calibri",9,False,"333333"),
+               _al("left","center",True), _bd())
         ri += 1
 
     # Opening paragraph
     _row_h(ws, ri, 8); ri += 1
     _row_h(ws, ri, 13)
     _merge(ws, ri, 1, NC, "Dear Sir,", None,
-           _font("Calibri",9,True,"212121"), _al("left","center"))
+           _font("Calibri",9,True,"333333"), _al("left","center"))
     ri += 1
-    _row_h(ws, ri, 36)
+    _row_h(ws, ri, 40)
     _merge(ws, ri, 1, NC,
            "We thank you for your subject enquiry and have pleasure in putting together a "
            "comprehensive proposal for the same. We hope this is in line with your requirements "
            "and that you will favour us with your order.",
-           None, _font("Calibri",9,False,"212121"), _al("left","center",True))
+           None, _font("Calibri",9,False,"333333"), _al("left","center",True))
     ri += 1
 
     # Executive Summary
@@ -9150,29 +9149,29 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
     if exec_sum:
         _row_h(ws, ri, 8); ri += 1
         _row_h(ws, ri, 18)
-        _merge(ws, ri, 1, NC, "EXECUTIVE SUMMARY", PURP_F,
+        _merge(ws, ri, 1, NC, "EXECUTIVE SUMMARY", RED_F,
                _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
         ri += 1
         est_h = max(60, min(200, len(exec_sum)//2))
         _row_h(ws, ri, est_h)
-        _merge(ws, ri, 1, NC, exec_sum, LBLUE_F,
-               _font("Calibri",9,False,"212121"), _al("left","top",True), _bd("B0A0D8"))
+        _merge(ws, ri, 1, NC, exec_sum, LRED_F,
+               _font("Calibri",9,False,"333333"), _al("left","top",True), _bd())
         ri += 1
 
     # Commercial Summary
     _row_h(ws, ri, 8); ri += 1
     _row_h(ws, ri, 18)
-    _merge(ws, ri, 1, NC, "COMMERCIAL SUMMARY", PURP_F,
+    _merge(ws, ri, 1, NC, "COMMERCIAL SUMMARY", CHAR_F,
            _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
     ri += 1
 
     # Summary table header
     _row_h(ws, ri, 18)
-    _c(ws, ri, 1, "No.", PURP2_F, _font("Calibri",9,True,"FFFFFF"), _al("center","center"), _bd_purp())
-    _merge(ws, ri, 2, 4, "System / Line Item", PURP2_F,
-           _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_purp())
-    _merge(ws, ri, 5, NC, "Total Price (SAR)", PURP2_F,
-           _font("Calibri",9,True,"FFFFFF"), _al("right","center"), _bd_purp())
+    _c(ws, ri, 1, "No.", RED_F, _font("Calibri",9,True,"FFFFFF"), _al("center","center"), _bd_red())
+    _merge(ws, ri, 2, 4, "System / Line Item", RED_F,
+           _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_red())
+    _merge(ws, ri, 5, NC, "Total Price (SAR)", RED_F,
+           _font("Calibri",9,True,"FFFFFF"), _al("right","center"), _bd_red())
     ri += 1
 
     grand_total = 0.0; row_num = 0
@@ -9183,20 +9182,18 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
         row_num += 1
         rf = ROW1_F if row_num % 2 else ROW2_F
         _row_h(ws, ri, 16)
-        _c(ws, ri, 1, row_num, rf, _font("Calibri",9,True,"4B2D8F"), _al("center","center"), _bd())
+        _c(ws, ri, 1, row_num, rf, _font("Calibri",9,True,"CC0000"), _al("center","center"), _bd())
         _merge(ws, ri, 2, 4, sys.get("name",""), rf,
-               _font("Calibri",9,False,"212121"), _al("left","center"), _bd())
+               _font("Calibri",9,False,"333333"), _al("left","center"), _bd())
         tc = _merge(ws, ri, 5, NC, tot, rf,
-               _font("Calibri",9,False,"212121"), _al("right","center"), _bd())
+               _font("Calibri",9,False,"333333"), _al("right","center"), _bd())
         tc.number_format = "#,##0.00"; ri += 1
 
-    vat_pct = 0.15
-    vat_amt = grand_total * vat_pct
-    g_total = grand_total + vat_amt
+    vat_pct = 0.15; vat_amt = grand_total * vat_pct; g_total = grand_total + vat_amt
     for lbl_s, val_s, bg in [
-        ("Total (SAR)",                grand_total, "4B2D8F"),
-        (f"VAT ({int(vat_pct*100)}%)", vat_amt,    "7B52D3"),
-        ("Grand Total",                g_total,     "00897B"),
+        ("Total (SAR)",                grand_total, "CC0000"),
+        (f"VAT ({int(vat_pct*100)}%)", vat_amt,    "E53935"),
+        ("Grand Total",                g_total,     "444444"),
     ]:
         _row_h(ws, ri, 18)
         ff = _f(bg)
@@ -9209,15 +9206,15 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
     if terms:
         _row_h(ws, ri, 8); ri += 1
         _row_h(ws, ri, 18)
-        _merge(ws, ri, 1, NC, "TERMS & CONDITIONS", PURP_F,
+        _merge(ws, ri, 1, NC, "TERMS & CONDITIONS", CHAR_F,
                _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
         ri += 1
         for tk, tv in terms.items():
             _row_h(ws, ri, 16)
-            _c(ws, ri, 1, tk, PURP2_F,
-               _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_purp())
+            _c(ws, ri, 1, tk, RED_F,
+               _font("Calibri",9,True,"FFFFFF"), _al("left","center"), _bd_red())
             _merge(ws, ri, 2, NC, tv, WHITE_F,
-                   _font("Calibri",9,False,"212121"), _al("left","center",True), _bd())
+                   _font("Calibri",9,False,"333333"), _al("left","center",True), _bd())
             ri += 1
 
     # Call to Action
@@ -9227,58 +9224,58 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
     if cta_email or cta_body:
         _row_h(ws, ri, 8); ri += 1
         _row_h(ws, ri, 18)
-        _merge(ws, ri, 1, NC, "CALL TO ACTION", PURP_F,
+        _merge(ws, ri, 1, NC, "CALL TO ACTION", RED_F,
                _font("Calibri",10,True,"FFFFFF"), _al("left","center"))
         ri += 1
         if cta_email or cta_phone:
             contact = f"For inquiries, please contact us at: {cta_email}"
             if cta_phone: contact += f"   |   Tel: {cta_phone}"
             _row_h(ws, ri, 16)
-            _merge(ws, ri, 1, NC, contact, LBLUE_F,
-                   _font("Calibri",9,False,"4B2D8F"), _al("left","center",True), _bd("B0A0D8"))
+            _merge(ws, ri, 1, NC, contact, LRED_F,
+                   _font("Calibri",9,False,"CC0000"), _al("left","center",True), _bd("CC0000"))
             ri += 1
         if cta_body:
             est_h = max(40, min(100, len(cta_body)//4))
             _row_h(ws, ri, est_h)
-            _merge(ws, ri, 1, NC, cta_body, LBLUE_F,
-                   _font("Calibri",9,False,"212121"), _al("left","top",True), _bd("B0A0D8"))
+            _merge(ws, ri, 1, NC, cta_body, LRED_F,
+                   _font("Calibri",9,False,"333333"), _al("left","top",True), _bd())
             ri += 1
 
     # Signatures
     _row_h(ws, ri, 8); ri += 1
     _row_h(ws, ri, 16)
     _merge(ws, ri, 1, NC, "With best regards,", None,
-           _font("Calibri",10,True,"4B2D8F"), _al("left","center"))
+           _font("Calibri",10,True,"333333"), _al("left","center"))
     ri += 1
-    _row_h(ws, ri, 28); ri += 1  # signature space
+    _row_h(ws, ri, 28); ri += 1
 
     sig_pairs = [
-        (cover.get("prep_by_name",""), cover.get("prep_by_title",""), "Prepared By",  1, 3),
-        (cover.get("mgr_name",""),     cover.get("mgr_title",""),     "Approved By",  4, 6),
+        (cover.get("prep_by_name",""), cover.get("prep_by_title",""), "Prepared By", 1, 3),
+        (cover.get("mgr_name",""),     cover.get("mgr_title",""),     "Approved By", 4, 6),
     ]
     max_sig = 0; sig_start = ri
     for sname, stitle, srole, c1, c2 in sig_pairs:
         if not sname: continue
         r2 = sig_start
         _row_h(ws, r2, 13)
-        _merge(ws, r2, c1, c2, srole, SEC_F,
-               _font("Calibri",8,True,"4B2D8F"), _al("left","center"), _bd_purp())
+        _merge(ws, r2, c1, c2, srole, _f("F5F5F5"),
+               _font("Calibri",8,True,"CC0000"), _al("left","center"), _bd())
         r2 += 1
         _row_h(ws, r2, 14)
         _merge(ws, r2, c1, c2, sname, WHITE_F,
-               _font("Calibri",10,True,"212121"), _al("left","center"), _bd())
+               _font("Calibri",10,True,"333333"), _al("left","center"), _bd())
         r2 += 1
         if stitle:
             _row_h(ws, r2, 13)
             _merge(ws, r2, c1, c2, stitle, WHITE_F,
-                   _font("Calibri",9,False,"666666"), _al("left","center"), _bd())
+                   _font("Calibri",9,False,"888888"), _al("left","center"), _bd())
             r2 += 1
         max_sig = max(max_sig, r2 - sig_start)
     ri += max_sig
 
     # Footer stripes
-    _row_h(ws, ri, 4); [ws.cell(ri, ci).__setattr__("fill", PURP2_F) for ci in range(1,NC+1)]; ri += 1
-    _row_h(ws, ri, 6); [ws.cell(ri, ci).__setattr__("fill", PURP_F)  for ci in range(1,NC+1)]; ri += 1
+    _row_h(ws, ri, 4); [ws.cell(ri,ci).__setattr__("fill",CHAR2_F) for ci in range(1,NC+1)]; ri+=1
+    _row_h(ws, ri, 6); [ws.cell(ri,ci).__setattr__("fill",RED_F)   for ci in range(1,NC+1)]; ri+=1
 
     ws.freeze_panes = "A6"
 
@@ -9322,10 +9319,10 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
 
         bri = 1
 
-        # System name banner (purple, matches PDF)
+        # System name banner — charcoal (matches PDF dark system header)
         _row_h(bws, bri, 26)
         bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=NCOLS_BOQ)
-        _c(bws, bri, 1, sname, PURP_F, _font("Calibri",12,True,"FFFFFF"), _al("left","center"))
+        _c(bws, bri, 1, sname, CHAR_F, _font("Calibri",12,True,"FFFFFF"), _al("left","center"))
         bri += 1
 
         # Scope row
@@ -9333,20 +9330,16 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
             h_scope = max(16, min(50, len(scope)//6))
             _row_h(bws, bri, h_scope)
             bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=NCOLS_BOQ)
-            _c(bws, bri, 1, f"SCOPE:  {scope}", SCOPE_F,
-               _font("Calibri",9,False,"4B2D8F"), _al("left","center",True), _bd_purp())
+            _c(bws, bri, 1, f"SCOPE:  {scope}", _f("FFF5F5"),
+               _font("Calibri",9,False,"CC0000"), _al("left","center",True), _bd("CC0000"))
             bri += 1
 
-        # Column header row (purple, matches PDF)
+        # Column headers — red (matches PDF BOQ header)
         _row_h(bws, bri, 22)
-        for ci, (key, hdr, _, algn) in enumerate(COL_DEFS, start=1):
-            if key in ("qty","up","total"):
-                ha = _al("right","center")
-            elif key == "desc":
-                ha = _al("left","center")
-            else:
-                ha = _al("center","center")
-            _c(bws, bri, ci, hdr, PURP_F, _font("Calibri",9,True,"FFFFFF"), ha, _bd_purp())
+        for ci, (key, hdr, _, _) in enumerate(COL_DEFS, start=1):
+            ha = _al("right","center") if key in ("qty","up","total") else \
+                 _al("left","center") if key == "desc" else _al("center","center")
+            _c(bws, bri, ci, hdr, RED_F, _font("Calibri",9,True,"FFFFFF"), ha, _bd_red())
         hdr_ri = bri; bri += 1
 
         _print_setup_landscape(bws, NCOLS_BOQ, hdr_ri)
@@ -9357,11 +9350,11 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
         for it in items:
             is_sec = it.get("is_section", False)
             if is_sec:
-                # Section header row — light purple bg, purple bold text (matches PDF)
+                # Section header — light gray bg, gray bold text (matches PDF)
                 _row_h(bws, bri, 17)
                 bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=NCOLS_BOQ)
                 _c(bws, bri, 1, it.get("desc",""), SEC_F,
-                   _font("Calibri",9,True,"4B2D8F"), _al("left","center"), _bd("C5B8E8"))
+                   _font("Calibri",9,True,"888888"), _al("left","center"), _bd("CCCCCC"))
             else:
                 item_ctr += 1
                 tot = float(it.get("total") or 0)
@@ -9372,39 +9365,33 @@ def _build_quotation_excel(cover, boq_sheets, quote_ref, boq_opts=None):
                 desc_len = len(str(it.get("desc","")))
                 rh = 30 if desc_len > 70 else 22 if desc_len > 35 else 18
                 _row_h(bws, bri, rh)
-                rd = {"sn":item_ctr, "code":it.get("code",""),
-                      "desc":it.get("desc",""), "vendor":it.get("vendor",""),
-                      "uom":it.get("uom",""), "qty":qty_v,
-                      "up":it.get("unit_price") or "", "total":tot or "",
-                      "stock":it.get("stock","")}
-                for ci, (key, _, _, algn) in enumerate(COL_DEFS, start=1):
+                rd = {"sn":item_ctr,"code":it.get("code",""),"desc":it.get("desc",""),
+                      "vendor":it.get("vendor",""),"uom":it.get("uom",""),"qty":qty_v,
+                      "up":it.get("unit_price") or "","total":tot or "","stock":it.get("stock","")}
+                for ci, (key, _, _, _) in enumerate(COL_DEFS, start=1):
                     val = rd.get(key,"")
-                    if key in ("qty","up","total"):
-                        af = _al("right","center")
-                    elif key == "desc":
-                        af = _al("left","center", wrap=True)
-                    else:
-                        af = _al("center","center")
+                    af  = _al("right","center") if key in ("qty","up","total") else \
+                          _al("left","center", wrap=True) if key=="desc" else _al("center","center")
                     cell = _c(bws, bri, ci, val, rf,
-                              _font("Calibri",9,False,"212121"), af, _bd())
+                              _font("Calibri",9,False,"333333"), af, _bd())
                     if key in ("up","total") and val != "":
                         cell.number_format = "#,##0.00"
             bri += 1
 
-        # Grand total row (teal, matches PDF)
+        # Grand total row — dark red (matches PDF C_TEAL = #9B0012)
         _row_h(bws, bri, 22)
-        i_up  = _ci_boq("up"); i_tot = _ci_boq("total")
-        for ci in range(1, NCOLS_BOQ+1): bws.cell(bri, ci).fill = TEAL_F
+        i_up = _ci_boq("up"); i_tot = _ci_boq("total")
+        for ci in range(1, NCOLS_BOQ+1): bws.cell(bri, ci).fill = _f("9B0012")
         if i_up > 1:
             bws.merge_cells(start_row=bri, start_column=1, end_row=bri, end_column=i_up-1)
-        _c(bws, bri, 1, "", TEAL_F)
-        _c(bws, bri, i_up, "Total Excluding VAT", TEAL_F,
-           _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("00897B"))
-        tc = _c(bws, bri, i_tot, grand_boq, TEAL_F,
-                _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("00897B"))
+        _c(bws, bri, 1, "", _f("9B0012"))
+        _c(bws, bri, i_up, "Total Excluding VAT", _f("9B0012"),
+           _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("9B0012"))
+        tc = _c(bws, bri, i_tot, grand_boq, _f("9B0012"),
+                _font("Calibri",10,True,"FFFFFF"), _al("right","center"), _bd("9B0012"))
         tc.number_format = "#,##0.00"
         if show_stock:
-            _c(bws, bri, NCOLS_BOQ, "", TEAL_F, None, None, _bd("00897B"))
+            _c(bws, bri, NCOLS_BOQ, "", _f("9B0012"), None, None, _bd("9B0012"))
         bri += 1
 
     buf = BytesIO()
