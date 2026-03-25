@@ -30841,6 +30841,394 @@ def export_po_profile_excel(po_request_number):
 
 
 ###################################
+# Save PO PDF details (Billed To, Shipped To, Delivery, Payment Terms)
+@app.route('/save_po_pdf_details/<po_request_number>', methods=['POST'])
+@login_required
+def save_po_pdf_details(po_request_number):
+    """Save PO PDF details (billed to, shipped to, delivery, payment terms)"""
+    try:
+        conn = sqlite3.connect('ProjectStatus.db')
+        c = conn.cursor()
+        c.execute("SELECT id FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'success': False, 'error': 'PO not found'}), 404
+
+        fields = [
+            'billed_to_name', 'billed_to_address', 'billed_to_city',
+            'billed_to_country', 'billed_to_vat',
+            'shipped_to_name', 'shipped_to_address', 'shipped_to_city',
+            'shipped_to_country', 'delivery_date',
+            'delivery_address', 'delivery_attention',
+            'delivery_telephone', 'delivery_instructions', 'payment_terms',
+        ]
+        values = {f: request.form.get(f, '').strip() for f in fields}
+        set_clause = ', '.join(f"{f} = ?" for f in fields)
+        params = list(values.values()) + [po_request_number]
+        c.execute(f"UPDATE purchase_orders SET {set_clause} WHERE po_request_number = ?", params)
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+###################################
+# Export PO as branded PDF (EJTech format)
+@app.route('/export_po_pdf/<po_request_number>')
+@login_required
+def export_po_pdf(po_request_number):
+    """Generate a branded Purchase Order PDF in EJTech format"""
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import cm, mm
+        from reportlab.lib import colors
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
+                                        Table, TableStyle, HRFlowable, KeepTogether)
+        from reportlab.platypus import Image as RLImage
+        from reportlab.pdfbase import pdfmetrics
+        from io import BytesIO
+        import os
+
+        conn = sqlite3.connect('ProjectStatus.db')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("""
+            SELECT po.*, COALESCE(rp.project_name, po.project_name) as project_name_actual
+            FROM purchase_orders po
+            LEFT JOIN register_project rp ON po.project_name = rp.project_name
+            WHERE po.po_request_number = ?
+        """, (po_request_number,))
+        po = c.fetchone()
+        if not po:
+            conn.close()
+            flash('Purchase Order not found!', 'danger')
+            return redirect(url_for('view_po_status'))
+
+        po_number = po['po_number']
+        c.execute("SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number ASC", (po_number,))
+        items = c.fetchall()
+        conn.close()
+
+        # ── Color palette (matches EJTech PDF) ─────────────────────────────
+        C_RED   = colors.HexColor('#CC0000')
+        C_DARK  = colors.HexColor('#333333')
+        C_GREY  = colors.HexColor('#F5F5F5')
+        C_WHITE = colors.white
+        C_BLACK = colors.black
+
+        buf = BytesIO()
+        doc = SimpleDocTemplate(
+            buf, pagesize=A4,
+            leftMargin=1.5*cm, rightMargin=1.5*cm,
+            topMargin=1.5*cm, bottomMargin=1.5*cm
+        )
+        W = A4[0] - 3*cm   # usable width
+
+        # ── Paragraph styles ────────────────────────────────────────────────
+        def ps(name, **kw):
+            return ParagraphStyle(name, **kw)
+
+        S_co_name  = ps('coName',  fontSize=11, fontName='Helvetica-Bold', textColor=C_DARK)
+        S_co_addr  = ps('coAddr',  fontSize=8,  fontName='Helvetica',      textColor=C_DARK, leading=12)
+        S_title    = ps('title',   fontSize=16, fontName='Helvetica-Bold', textColor=C_DARK,
+                        alignment=TA_CENTER, spaceAfter=6)
+        S_sec_hdr  = ps('secHdr',  fontSize=9,  fontName='Helvetica-Bold', textColor=C_DARK, spaceBefore=4)
+        S_cell     = ps('cell',    fontSize=8,  fontName='Helvetica',      textColor=C_DARK, leading=11)
+        S_cell_b   = ps('cellB',   fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK, leading=11)
+        S_lbl      = ps('lbl',     fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK)
+        S_val      = ps('val',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK)
+        S_col_hdr  = ps('colHdr',  fontSize=8,  fontName='Helvetica-Bold', textColor=C_WHITE,
+                        alignment=TA_CENTER)
+        S_num      = ps('num',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK,
+                        alignment=TA_RIGHT)
+        S_ctr      = ps('ctr',     fontSize=8,  fontName='Helvetica',      textColor=C_DARK,
+                        alignment=TA_CENTER)
+        S_small    = ps('small',   fontSize=7.5,fontName='Helvetica',      textColor=C_DARK, leading=10)
+        S_small_b  = ps('smallB',  fontSize=8,  fontName='Helvetica-Bold', textColor=C_DARK)
+        S_foot_lbl = ps('ftLbl',   fontSize=9,  fontName='Helvetica-Bold', textColor=C_DARK)
+        S_foot_val = ps('ftVal',   fontSize=9,  fontName='Helvetica',      textColor=C_DARK)
+
+        story = []
+
+        # ── HEADER: company info left, logo right ────────────────────────────
+        logo_path = os.path.join(_STATIC_DIR, 'ejt.png')
+        if os.path.exists(logo_path):
+            logo = RLImage(logo_path, width=4.5*cm, height=2*cm)
+        else:
+            logo = Paragraph('EJTech', S_co_name)
+
+        co_block = [
+            Paragraph('Eshraq Al Jazeera Technologies (EJTech)', S_co_name),
+            Paragraph('3365 Al Murabba Dist - Unit No 7755 King Faisal Ibn Abdulaziz Saud', S_co_addr),
+            Paragraph('Riyadh, Saudi Arabia', S_co_addr),
+        ]
+        hdr_table = Table([[co_block, logo]], colWidths=[W*0.65, W*0.35])
+        hdr_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN',  (1,0), (1,0),   'RIGHT'),
+        ]))
+        story.append(hdr_table)
+        story.append(Spacer(1, 6))
+        story.append(HRFlowable(width=W, thickness=1.5, color=C_RED))
+        story.append(Spacer(1, 8))
+        story.append(Paragraph('Purchase Order', S_title))
+        story.append(HRFlowable(width=W, thickness=0.5, color=C_DARK))
+        story.append(Spacer(1, 8))
+
+        # ── BILLED TO / SHIPPED TO / INVOICE DETAILS ────────────────────────
+        def addr_lines(name, address, city, country, vat=''):
+            lines = []
+            if name:
+                lines.append(Paragraph(name, S_cell_b))
+            if address:
+                lines.append(Paragraph(address, S_cell))
+            if city:
+                lines.append(Paragraph(city, S_cell))
+            if country:
+                lines.append(Paragraph(country, S_cell))
+            if vat:
+                lines.append(Paragraph(f'VAT ID #: {vat}', S_cell_b))
+            if not lines:
+                lines = [Paragraph('', S_cell)]
+            return lines
+
+        po_date   = (po['created_at'] or '')[:10]
+        po_num    = po['po_number'] or ''
+        ref       = po['po_request_number'] or ''
+        vat_reg   = '300055129100003'
+        del_date  = po['delivery_date'] or ''
+
+        billed  = addr_lines(po['billed_to_name'], po['billed_to_address'],
+                             po['billed_to_city'],  po['billed_to_country'],
+                             po['billed_to_vat'])
+        shipped = addr_lines(po['shipped_to_name'], po['shipped_to_address'],
+                             po['shipped_to_city'],  po['shipped_to_country'])
+
+        inv_rows = [
+            [Paragraph('Purchase Order Date', S_lbl), Paragraph(po_date, S_val)],
+            [Paragraph('Delivery Date',       S_lbl), Paragraph(del_date, S_val)],
+            [Paragraph('',                    S_lbl), Paragraph('', S_val)],
+            [Paragraph('Purchase Order Number',S_lbl),Paragraph(po_num, S_val)],
+            [Paragraph('Reference',           S_lbl), Paragraph(ref, S_val)],
+            [Paragraph('VAT Registration',    S_lbl), Paragraph(vat_reg, S_val)],
+        ]
+        inv_tbl = Table(inv_rows, colWidths=[3.8*cm, 3*cm])
+        inv_tbl.setStyle(TableStyle([
+            ('FONTNAME', (0,0),(-1,-1),'Helvetica'),
+            ('FONTSIZE', (0,0),(-1,-1), 8),
+            ('TOPPADDING',(0,0),(-1,-1), 1),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 1),
+        ]))
+
+        sec_hdr_style = TableStyle([
+            ('BACKGROUND',(0,0),(-1,0), C_RED),
+            ('TEXTCOLOR', (0,0),(-1,0), C_WHITE),
+            ('FONTNAME',  (0,0),(-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE',  (0,0),(-1,0), 8),
+            ('ALIGN',     (0,0),(-1,0), 'LEFT'),
+            ('TOPPADDING',(0,0),(-1,0), 4),
+            ('BOTTOMPADDING',(0,0),(-1,0), 4),
+            ('LEFTPADDING',(0,0),(-1,0), 6),
+        ])
+
+        col_w  = W / 3.0
+        inv_w  = W - 2*col_w
+
+        bt_data  = [[Paragraph('Billed To',   S_col_hdr)]] + [[b] for b in billed]
+        st_data  = [[Paragraph('Shipped To',  S_col_hdr)]] + [[s] for s in shipped]
+        id_data  = [[Paragraph('Invoice Details', S_col_hdr)], [inv_tbl]]
+
+        bt_tbl = Table(bt_data, colWidths=[col_w - 4])
+        st_tbl = Table(st_data, colWidths=[col_w - 4])
+        id_tbl = Table(id_data, colWidths=[inv_w - 4])
+
+        for t in (bt_tbl, st_tbl, id_tbl):
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), C_RED),
+                ('TEXTCOLOR',  (0,0), (-1,0), C_WHITE),
+                ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE',   (0,0), (-1,0), 8),
+                ('TOPPADDING', (0,0), (-1,-1), 3),
+                ('BOTTOMPADDING',(0,0),(-1,-1), 3),
+                ('LEFTPADDING',(0,0),(-1,-1), 5),
+                ('BOX',        (0,0), (-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ]))
+
+        three_col = Table([[bt_tbl, st_tbl, id_tbl]],
+                          colWidths=[col_w, col_w, inv_w])
+        three_col.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING',  (0,0),(-1,-1), 2),
+            ('RIGHTPADDING', (0,0),(-1,-1), 2),
+        ]))
+        story.append(three_col)
+        story.append(Spacer(1, 10))
+
+        # ── ITEMS TABLE ──────────────────────────────────────────────────────
+        col_widths = [
+            0.6*cm,  # #
+            2.4*cm,  # Item No
+            7.5*cm,  # Description
+            1.2*cm,  # Qty
+            2.0*cm,  # U.Price
+            1.2*cm,  # Disc%
+            2.5*cm,  # Tax Rate
+            2.2*cm,  # Amount
+        ]
+        hdr_row = [
+            Paragraph('#',           S_col_hdr),
+            Paragraph('Item No',     S_col_hdr),
+            Paragraph('Description', S_col_hdr),
+            Paragraph('Qty',         S_col_hdr),
+            Paragraph('U. Price\n(SAR)', S_col_hdr),
+            Paragraph('Disc %',      S_col_hdr),
+            Paragraph('Tax Rate',    S_col_hdr),
+            Paragraph('Amount\n(SAR)',   S_col_hdr),
+        ]
+        item_data = [hdr_row]
+        subtotal = 0.0
+        total_discount = 0.0
+
+        for idx, item in enumerate(items, 1):
+            qty      = float(item['quantity'] or 0)
+            uprice   = float(item['unit_price'] or 0)
+            disc_pct = float(item['discount_percentage'] or 0)
+            amount   = float(item['total_price'] or (qty * uprice))
+            disc_amt = qty * uprice * disc_pct / 100
+            subtotal       += amount
+            total_discount += disc_amt
+
+            row_bg = C_WHITE if idx % 2 == 1 else C_GREY
+            item_data.append([
+                Paragraph(str(idx),                      S_ctr),
+                Paragraph(str(item['part_number'] or ''), S_small),
+                Paragraph(str(item['description'] or ''), S_small),
+                Paragraph(f'{qty:g}',                    S_ctr),
+                Paragraph(f'{uprice:,.2f}',              S_num),
+                Paragraph(f'{disc_pct:g}%',              S_ctr),
+                Paragraph('VAT 15%\nOn Purchase',        S_ctr),
+                Paragraph(f'{amount:,.2f}',              S_num),
+            ])
+
+        items_tbl = Table(item_data, colWidths=col_widths, repeatRows=1)
+        item_style = TableStyle([
+            # Header row
+            ('BACKGROUND', (0,0), (-1,0), C_RED),
+            ('TEXTCOLOR',  (0,0), (-1,0), C_WHITE),
+            ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
+            ('ALIGN',      (0,0), (-1,0), 'CENTER'),
+            ('TOPPADDING', (0,0), (-1,0), 5),
+            ('BOTTOMPADDING',(0,0),(-1,0), 5),
+            # Data rows
+            ('FONTNAME', (0,1),(-1,-1), 'Helvetica'),
+            ('FONTSIZE', (0,0),(-1,-1), 8),
+            ('VALIGN',   (0,0),(-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,1),(-1,-1), 3),
+            ('BOTTOMPADDING',(0,1),(-1,-1), 3),
+            # Grid
+            ('GRID',     (0,0),(-1,-1), 0.4, colors.HexColor('#CCCCCC')),
+            ('LINEBELOW',(0,0),(-1,0), 1, C_RED),
+        ])
+        # Alternating rows
+        for i in range(1, len(item_data)):
+            bg = C_WHITE if i % 2 == 1 else C_GREY
+            item_style.add('BACKGROUND', (0,i), (-1,i), bg)
+
+        items_tbl.setStyle(item_style)
+        story.append(items_tbl)
+        story.append(Spacer(1, 6))
+
+        # ── SUMMARY ──────────────────────────────────────────────────────────
+        vat_pct    = float(po['vat_percentage'] or 15) / 100
+        vat_amount = subtotal * vat_pct
+        total      = subtotal + vat_amount - total_discount
+
+        summary_data = [
+            [Paragraph('Subtotal | SAR',        S_lbl), Paragraph(f'SAR {subtotal:,.2f}',        S_num),
+             Paragraph('Subtotal | US',          S_lbl), Paragraph('US',                          S_num)],
+            [Paragraph('Total Discount | SAR',   S_lbl), Paragraph(f'SAR {total_discount:,.2f}',  S_num),
+             Paragraph('Total Discount | US',    S_lbl), Paragraph(f'US {0:.2f}',                 S_num)],
+            [Paragraph('Total VAT | SAR',        S_lbl), Paragraph(f'SAR {vat_amount:,.2f}',      S_num),
+             Paragraph('Total VAT | US',         S_lbl), Paragraph('US',                          S_num)],
+            [Paragraph('Total | SAR',            S_foot_lbl), Paragraph(f'SAR {total:,.2f}',      S_num),
+             Paragraph('Total | US',             S_foot_lbl), Paragraph('US',                     S_num)],
+        ]
+        hw = W / 4
+        sum_tbl = Table(summary_data, colWidths=[hw*1.4, hw*0.8, hw*1.2, hw*0.6])
+        sum_tbl.setStyle(TableStyle([
+            ('FONTNAME', (0,0),(-1,-1), 'Helvetica'),
+            ('FONTSIZE', (0,0),(-1,-1), 8),
+            ('ALIGN',    (1,0),(1,-1), 'RIGHT'),
+            ('ALIGN',    (3,0),(3,-1), 'RIGHT'),
+            ('TOPPADDING',(0,0),(-1,-1), 3),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 3),
+            ('LINEABOVE', (0,-1),(-1,-1), 1, C_RED),
+            ('FONTNAME',  (0,-1),(-1,-1), 'Helvetica-Bold'),
+            ('BACKGROUND',(0,-1),(-1,-1), colors.HexColor('#FFF5F5')),
+            ('LINEBEFORE',(2,0),(2,-1), 0.5, colors.HexColor('#CCCCCC')),
+        ]))
+        story.append(sum_tbl)
+        story.append(Spacer(1, 14))
+
+        # ── DELIVERY DETAILS ──────────────────────────────────────────────────
+        story.append(HRFlowable(width=W, thickness=1, color=C_DARK))
+        story.append(Spacer(1, 4))
+        story.append(Paragraph('DELIVERY DETAILS', S_sec_hdr))
+        story.append(Spacer(1, 6))
+
+        del_w = W / 3
+        del_data = [[
+            [Paragraph('Delivery Address', S_small_b),
+             Paragraph(po['delivery_address'] or '', S_small)],
+            [Paragraph('Attention', S_small_b),
+             Paragraph(po['delivery_attention'] or '', S_small),
+             Spacer(1,6),
+             Paragraph('Telephone', S_small_b),
+             Paragraph(po['delivery_telephone'] or '', S_small)],
+            [Paragraph('Delivery Instructions', S_small_b),
+             Paragraph(po['delivery_instructions'] or '', S_small)],
+        ]]
+        del_tbl = Table(del_data, colWidths=[del_w, del_w, del_w])
+        del_tbl.setStyle(TableStyle([
+            ('VALIGN',  (0,0),(-1,-1), 'TOP'),
+            ('BOX',     (0,0),(-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ('INNERGRID',(0,0),(-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ('TOPPADDING',(0,0),(-1,-1), 6),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 6),
+            ('LEFTPADDING',(0,0),(-1,-1), 6),
+            ('RIGHTPADDING',(0,0),(-1,-1), 6),
+            ('MINROWHEIGHT',(0,0),(-1,-1), 2*cm),
+        ]))
+        story.append(del_tbl)
+        story.append(Spacer(1, 14))
+
+        # ── TERMS AND CONDITIONS ─────────────────────────────────────────────
+        story.append(HRFlowable(width=W, thickness=1, color=C_DARK))
+        story.append(Spacer(1, 4))
+        story.append(Paragraph('TERMS AND CONDITIONS', S_sec_hdr))
+        story.append(Spacer(1, 4))
+        story.append(Paragraph('Payment Terms :', S_small_b))
+        story.append(Paragraph(po['payment_terms'] or '', S_small))
+
+        doc.build(story)
+        buf.seek(0)
+
+        safe_num = (po_number or po_request_number).replace('/', '-')
+        return send_file(
+            buf,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'{safe_num}_PO.pdf'
+        )
+    except Exception as e:
+        import traceback
+        flash(f'Error generating PO PDF: {str(e)}', 'danger')
+        return redirect(url_for('po_profile', po_request_number=po_request_number))
+
+###################################
 # Export Complete PO Profile Report to PowerPoint
 @app.route('/export_po_profile_pptx/<po_request_number>')
 @login_required

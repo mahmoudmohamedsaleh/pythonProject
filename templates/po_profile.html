@@ -281,6 +281,118 @@
             <a class="dropdown-item" href="{{ url_for('export_po_profile_pptx', po_request_number=po_request_number) }}">
                 <i class="fas fa-file-powerpoint mr-2 text-danger"></i>Export to PowerPoint
             </a>
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="{{ url_for('export_po_pdf', po_request_number=po_request_number) }}">
+                <i class="fas fa-file-pdf mr-2 text-danger"></i>Export PO as PDF
+            </a>
+        </div>
+    </div>
+    <button class="btn btn-outline-danger ml-2" type="button" data-toggle="collapse" data-target="#poPdfDetailsPanel" aria-expanded="false">
+        <i class="fas fa-cog mr-1"></i>PO Document Details
+    </button>
+</div>
+
+<!-- ── PO Document Details Panel ──────────────────────────────────── -->
+<div class="collapse mb-3" id="poPdfDetailsPanel">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header" style="background:linear-gradient(135deg,#CC0000,#9B0012);color:#fff;">
+            <h6 class="mb-0"><i class="fas fa-file-alt mr-2"></i>PO Document Details
+                <small class="ml-2 font-weight-normal" style="opacity:.85;">Used when exporting PO PDF</small>
+            </h6>
+        </div>
+        <div class="card-body">
+            <form id="poPdfDetailsForm">
+                <div class="row">
+                    <!-- Billed To -->
+                    <div class="col-md-4">
+                        <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2"><i class="fas fa-file-invoice mr-1"></i>Billed To</h6>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Company Name</label>
+                            <input type="text" class="form-control form-control-sm" id="billed_to_name" name="billed_to_name" value="{{ po.billed_to_name or '' }}" placeholder="e.g. Redington Saudi Arabia">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Address</label>
+                            <textarea class="form-control form-control-sm" id="billed_to_address" name="billed_to_address" rows="2" placeholder="Street / Building">{{ po.billed_to_address or '' }}</textarea>
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">City / Postal</label>
+                            <input type="text" class="form-control form-control-sm" id="billed_to_city" name="billed_to_city" value="{{ po.billed_to_city or '' }}" placeholder="Riyadh 12222">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Country</label>
+                            <input type="text" class="form-control form-control-sm" id="billed_to_country" name="billed_to_country" value="{{ po.billed_to_country or '' }}" placeholder="Saudi Arabia">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">VAT ID #</label>
+                            <input type="text" class="form-control form-control-sm" id="billed_to_vat" name="billed_to_vat" value="{{ po.billed_to_vat or '' }}" placeholder="3011XXXXXXXXX">
+                        </div>
+                    </div>
+                    <!-- Shipped To -->
+                    <div class="col-md-4">
+                        <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2">
+                            <i class="fas fa-shipping-fast mr-1"></i>Shipped To
+                            <button type="button" class="btn btn-link btn-sm p-0 ml-2 text-muted" onclick="copyBilledToShipped()" style="font-size:11px;">
+                                <i class="fas fa-copy mr-1"></i>Copy from Billed To
+                            </button>
+                        </h6>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Company Name</label>
+                            <input type="text" class="form-control form-control-sm" id="shipped_to_name" name="shipped_to_name" value="{{ po.shipped_to_name or '' }}" placeholder="e.g. Redington Saudi Arabia">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Address</label>
+                            <textarea class="form-control form-control-sm" id="shipped_to_address" name="shipped_to_address" rows="2" placeholder="Street / Building">{{ po.shipped_to_address or '' }}</textarea>
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">City / Postal</label>
+                            <input type="text" class="form-control form-control-sm" id="shipped_to_city" name="shipped_to_city" value="{{ po.shipped_to_city or '' }}" placeholder="Riyadh 12222">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Country</label>
+                            <input type="text" class="form-control form-control-sm" id="shipped_to_country" name="shipped_to_country" value="{{ po.shipped_to_country or '' }}" placeholder="Saudi Arabia">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Delivery Date</label>
+                            <input type="date" class="form-control form-control-sm" id="delivery_date" name="delivery_date" value="{{ po.delivery_date or '' }}">
+                        </div>
+                    </div>
+                    <!-- Delivery & Payment -->
+                    <div class="col-md-4">
+                        <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2"><i class="fas fa-truck mr-1"></i>Delivery Details</h6>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Delivery Address</label>
+                            <textarea class="form-control form-control-sm" id="delivery_address" name="delivery_address" rows="2" placeholder="Delivery site address">{{ po.delivery_address or '' }}</textarea>
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Attention</label>
+                            <input type="text" class="form-control form-control-sm" id="delivery_attention" name="delivery_attention" value="{{ po.delivery_attention or '' }}" placeholder="Contact person">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Telephone</label>
+                            <input type="text" class="form-control form-control-sm" id="delivery_telephone" name="delivery_telephone" value="{{ po.delivery_telephone or '' }}" placeholder="+966 XX XXX XXXX">
+                        </div>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Delivery Instructions</label>
+                            <textarea class="form-control form-control-sm" id="delivery_instructions" name="delivery_instructions" rows="2" placeholder="Special instructions">{{ po.delivery_instructions or '' }}</textarea>
+                        </div>
+                        <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2 mt-3"><i class="fas fa-handshake mr-1"></i>Terms &amp; Conditions</h6>
+                        <div class="form-group mb-2">
+                            <label class="small font-weight-bold mb-0">Payment Terms</label>
+                            <textarea class="form-control form-control-sm" id="payment_terms" name="payment_terms" rows="2" placeholder="e.g. 60 Days after Delivery">{{ po.payment_terms or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-danger" onclick="savePoPdfDetails()">
+                            <i class="fas fa-save mr-1"></i>Save Details
+                        </button>
+                        <a href="{{ url_for('export_po_pdf', po_request_number=po_request_number) }}" class="btn btn-dark">
+                            <i class="fas fa-file-pdf mr-1"></i>Export PO as PDF
+                        </a>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -1671,6 +1783,55 @@ function showImportPriceChanges() {
             document.getElementById('priceChangesContent').style.display = 'block';
             document.getElementById('priceChangesBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading price changes</td></tr>';
         });
+}
+
+// ── PO PDF Details ─────────────────────────────────────────────────────────
+function copyBilledToShipped() {
+    var fields = [
+        ['billed_to_name',    'shipped_to_name'],
+        ['billed_to_address', 'shipped_to_address'],
+        ['billed_to_city',    'shipped_to_city'],
+        ['billed_to_country', 'shipped_to_country'],
+    ];
+    fields.forEach(function(pair) {
+        var src = document.getElementById(pair[0]);
+        var dst = document.getElementById(pair[1]);
+        if (src && dst) dst.value = src.value;
+    });
+}
+
+function savePoPdfDetails() {
+    var form = document.getElementById('poPdfDetailsForm');
+    var formData = new FormData(form);
+    var btn = event.currentTarget;
+    var origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Saving...';
+
+    fetch('{{ url_for("save_po_pdf_details", po_request_number=po_request_number) }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+        if (data.success) {
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Saved!';
+            btn.classList.replace('btn-danger', 'btn-success');
+            setTimeout(function() {
+                btn.innerHTML = origHtml;
+                btn.classList.replace('btn-success', 'btn-danger');
+            }, 2000);
+        } else {
+            alert('Error saving: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+        alert('Network error: ' + err);
+    });
 }
 </script>
 {% endblock %}
