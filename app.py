@@ -29710,7 +29710,17 @@ def po_profile(po_request_number):
     delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Delivered')
     partial_count = sum(1 for item in po_items if item['delivery_status'] == 'Partial')
     not_delivered_count = sum(1 for item in po_items if item['delivery_status'] == 'Not Delivered')
-    
+
+    # Fetch distributor info for Billed To defaults
+    distributor_info = None
+    if po['distributor']:
+        cursor.execute("""
+            SELECT name, address, contact_person, phone, email
+            FROM distributors WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+            LIMIT 1
+        """, (po['distributor'],))
+        distributor_info = cursor.fetchone()
+
     conn.close()
     
     return render_template('po_profile.html',
@@ -29726,7 +29736,8 @@ def po_profile(po_request_number):
                            users=users,
                            delivered_count=delivered_count,
                            partial_count=partial_count,
-                           not_delivered_count=not_delivered_count)
+                           not_delivered_count=not_delivered_count,
+                           distributor_info=distributor_info)
 
 
 

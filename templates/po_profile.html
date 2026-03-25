@@ -301,33 +301,40 @@
             </h6>
         </div>
         <div class="card-body">
+            {# ── Compute defaults ────────────────────────────────── #}
+            {% set dist_name    = distributor_info.name    if distributor_info else (po.distributor or '') %}
+            {% set dist_address = distributor_info.address if distributor_info else '' %}
             <form id="poPdfDetailsForm">
                 <div class="row">
-                    <!-- Billed To -->
+                    <!-- Billed To (defaults from distributor) -->
                     <div class="col-md-4">
                         <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2"><i class="fas fa-file-invoice mr-1"></i>Billed To</h6>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Company Name</label>
-                            <input type="text" class="form-control form-control-sm" id="billed_to_name" name="billed_to_name" value="{{ po.billed_to_name or '' }}" placeholder="e.g. Redington Saudi Arabia">
+                            <input type="text" class="form-control form-control-sm" id="billed_to_name" name="billed_to_name"
+                                   value="{{ po.billed_to_name or dist_name }}" placeholder="e.g. Redington Saudi Arabia">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Address</label>
-                            <textarea class="form-control form-control-sm" id="billed_to_address" name="billed_to_address" rows="2" placeholder="Street / Building">{{ po.billed_to_address or '' }}</textarea>
+                            <textarea class="form-control form-control-sm" id="billed_to_address" name="billed_to_address" rows="2" placeholder="Street / Building">{{ po.billed_to_address or dist_address }}</textarea>
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">City / Postal</label>
-                            <input type="text" class="form-control form-control-sm" id="billed_to_city" name="billed_to_city" value="{{ po.billed_to_city or '' }}" placeholder="Riyadh 12222">
+                            <input type="text" class="form-control form-control-sm" id="billed_to_city" name="billed_to_city"
+                                   value="{{ po.billed_to_city or 'Riyadh' }}" placeholder="Riyadh 12222">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Country</label>
-                            <input type="text" class="form-control form-control-sm" id="billed_to_country" name="billed_to_country" value="{{ po.billed_to_country or '' }}" placeholder="Saudi Arabia">
+                            <input type="text" class="form-control form-control-sm" id="billed_to_country" name="billed_to_country"
+                                   value="{{ po.billed_to_country or 'Saudi Arabia' }}" placeholder="Saudi Arabia">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">VAT ID #</label>
-                            <input type="text" class="form-control form-control-sm" id="billed_to_vat" name="billed_to_vat" value="{{ po.billed_to_vat or '' }}" placeholder="3011XXXXXXXXX">
+                            <input type="text" class="form-control form-control-sm" id="billed_to_vat" name="billed_to_vat"
+                                   value="{{ po.billed_to_vat or '' }}" placeholder="3011XXXXXXXXX">
                         </div>
                     </div>
-                    <!-- Shipped To -->
+                    <!-- Shipped To (defaults to EJTech) -->
                     <div class="col-md-4">
                         <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2">
                             <i class="fas fa-shipping-fast mr-1"></i>Shipped To
@@ -337,26 +344,29 @@
                         </h6>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Company Name</label>
-                            <input type="text" class="form-control form-control-sm" id="shipped_to_name" name="shipped_to_name" value="{{ po.shipped_to_name or '' }}" placeholder="e.g. Redington Saudi Arabia">
+                            <input type="text" class="form-control form-control-sm" id="shipped_to_name" name="shipped_to_name"
+                                   value="{{ po.shipped_to_name or 'Eshraq Al Jazeera Technologies (EJTech)' }}" placeholder="Company name">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Address</label>
-                            <textarea class="form-control form-control-sm" id="shipped_to_address" name="shipped_to_address" rows="2" placeholder="Street / Building">{{ po.shipped_to_address or '' }}</textarea>
+                            <textarea class="form-control form-control-sm" id="shipped_to_address" name="shipped_to_address" rows="2" placeholder="Street / Building">{{ po.shipped_to_address or '3365 Al Murabba Dist - Unit No 7755 King Faisal Ibn Abdulaziz Saud' }}</textarea>
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">City / Postal</label>
-                            <input type="text" class="form-control form-control-sm" id="shipped_to_city" name="shipped_to_city" value="{{ po.shipped_to_city or '' }}" placeholder="Riyadh 12222">
+                            <input type="text" class="form-control form-control-sm" id="shipped_to_city" name="shipped_to_city"
+                                   value="{{ po.shipped_to_city or 'Riyadh' }}" placeholder="Riyadh">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Country</label>
-                            <input type="text" class="form-control form-control-sm" id="shipped_to_country" name="shipped_to_country" value="{{ po.shipped_to_country or '' }}" placeholder="Saudi Arabia">
+                            <input type="text" class="form-control form-control-sm" id="shipped_to_country" name="shipped_to_country"
+                                   value="{{ po.shipped_to_country or 'Saudi Arabia' }}" placeholder="Saudi Arabia">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Delivery Date</label>
                             <input type="date" class="form-control form-control-sm" id="delivery_date" name="delivery_date" value="{{ po.delivery_date or '' }}">
                         </div>
                     </div>
-                    <!-- Delivery & Payment -->
+                    <!-- Delivery Details & Payment Terms -->
                     <div class="col-md-4">
                         <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2"><i class="fas fa-truck mr-1"></i>Delivery Details</h6>
                         <div class="form-group mb-2">
@@ -365,11 +375,13 @@
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Attention</label>
-                            <input type="text" class="form-control form-control-sm" id="delivery_attention" name="delivery_attention" value="{{ po.delivery_attention or '' }}" placeholder="Contact person">
+                            <input type="text" class="form-control form-control-sm" id="delivery_attention" name="delivery_attention"
+                                   value="{{ po.delivery_attention or '' }}" placeholder="Contact person">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Telephone</label>
-                            <input type="text" class="form-control form-control-sm" id="delivery_telephone" name="delivery_telephone" value="{{ po.delivery_telephone or '' }}" placeholder="+966 XX XXX XXXX">
+                            <input type="text" class="form-control form-control-sm" id="delivery_telephone" name="delivery_telephone"
+                                   value="{{ po.delivery_telephone or '' }}" placeholder="+966 XX XXX XXXX">
                         </div>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Delivery Instructions</label>
@@ -378,7 +390,7 @@
                         <h6 class="font-weight-bold text-danger border-bottom pb-1 mb-2 mt-3"><i class="fas fa-handshake mr-1"></i>Terms &amp; Conditions</h6>
                         <div class="form-group mb-2">
                             <label class="small font-weight-bold mb-0">Payment Terms</label>
-                            <textarea class="form-control form-control-sm" id="payment_terms" name="payment_terms" rows="2" placeholder="e.g. 60 Days after Delivery">{{ po.payment_terms or '' }}</textarea>
+                            <textarea class="form-control form-control-sm" id="payment_terms" name="payment_terms" rows="3" placeholder="e.g. 60 Days after Delivery">{{ po.payment_terms or '60% after delivery 30days\n10 after hand over' }}</textarea>
                         </div>
                     </div>
                 </div>
