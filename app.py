@@ -32321,7 +32321,8 @@ def po_requests_dashboard():
                 WHEN po.id IS NOT NULL THEN 'Created'
                 ELSE 'Not Created'
             END as po_creation_status,
-            po.po_number as created_po_number
+            po.po_number as created_po_number,
+            po.po_request_number as matched_po_request_number
         FROM po_requests pr
         LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
         LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id

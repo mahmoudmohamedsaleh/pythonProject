@@ -174,7 +174,7 @@
                                     <i class="fas fa-file-invoice"></i> Create PO
                                 </a>
                             {% elif req.po_creation_status == 'Created' %}
-                                <a href="{{ url_for('po_profile', po_request_number=req.po_request_reference) }}" class="btn btn-success btn-sm" title="View Purchase Order" style="white-space:nowrap;">
+                                <a href="{{ url_for('po_profile', po_request_number=req.matched_po_request_number) }}" class="btn btn-success btn-sm" title="View Purchase Order" style="white-space:nowrap;">
                                     <i class="fas fa-check-circle"></i> PO Created
                                 </a>
                             {% endif %}
