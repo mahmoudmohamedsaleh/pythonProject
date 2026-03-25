@@ -32326,7 +32326,16 @@ def po_requests_dashboard():
         LEFT JOIN users u_req ON pr.requested_by_id = u_req.id
         LEFT JOIN users u_appr ON pr.approved_by_id = u_appr.id
         LEFT JOIN supplier_quotations sq ON pr.supplier_quotation_id = sq.id
-        LEFT JOIN purchase_orders po ON pr.po_request_reference = po.po_request_number
+        LEFT JOIN purchase_orders po ON po.id = COALESCE(
+            (SELECT id FROM purchase_orders
+             WHERE po_request_number = pr.po_request_reference
+             LIMIT 1),
+            (SELECT id FROM purchase_orders
+             WHERE project_name = pr.project_name
+               AND LOWER(TRIM(COALESCE(vendor, ''))) = LOWER(TRIM(COALESCE(pr.vendor_name, '')))
+               AND LOWER(TRIM(COALESCE(system, ''))) = LOWER(TRIM(COALESCE(pr.system, '')))
+             LIMIT 1)
+        )
         WHERE 1=1
     """
     params = []
