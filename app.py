@@ -8888,7 +8888,7 @@ def _cost_sheet_json_to_boq(sheets):
         sn_ctr = 0
         for row in rows:
             rtype = row.get('type', 'item')
-            if rtype == 'header':
+            if rtype in ('header', 'section'):
                 desc = str(row.get('desc', '')).strip()
                 if desc:
                     items.append({'sn': '', 'code': '', 'desc': desc, 'uom': '',
