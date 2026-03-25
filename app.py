@@ -6981,6 +6981,12 @@ def proposal_generator_main():
                 "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                 (rfq_ref, quoteref or '')
             ).fetchone()
+            # Fallback: load most recent cost sheet for this RFQ if exact match failed
+            if not _cs_row:
+                _cs_row = _cs_conn.execute(
+                    "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? ORDER BY updated_at DESC LIMIT 1",
+                    (rfq_ref,)
+                ).fetchone()
             _cs_conn.close()
             if _cs_row:
                 _sheets = _json.loads(_cs_row[0])
@@ -7315,14 +7321,22 @@ def proposal_get_cost_summary():
     import json
     rfq_ref  = request.args.get('rfq', '')
     quoteref = request.args.get('quoteref', '')
-    if not rfq_ref or not quoteref:
+    if not rfq_ref:
         return jsonify({'cost': 0, 'selling': 0, 'systems': []})
     try:
         conn = sqlite3.connect('ProjectStatus.db')
-        row  = conn.execute(
-            'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?',
-            (rfq_ref, quoteref)
-        ).fetchone()
+        row = None
+        if quoteref:
+            row = conn.execute(
+                'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?',
+                (rfq_ref, quoteref)
+            ).fetchone()
+        # Fallback: most recent cost sheet for this RFQ
+        if not row:
+            row = conn.execute(
+                'SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? ORDER BY updated_at DESC LIMIT 1',
+                (rfq_ref,)
+            ).fetchone()
         conn.close()
         if not row:
             return jsonify({'cost': 0, 'selling': 0, 'systems': []})
