@@ -31037,18 +31037,18 @@ def export_po_pdf(po_request_number):
 
         logo_path = os.path.join(_STATIC_DIR, 'ejt.png')
         if os.path.exists(logo_path):
-            logo_img = RLImage(logo_path, width=4.0*cm, height=1.8*cm)
+            logo_img = RLImage(logo_path, width=3.5*cm, height=1.5*cm)
             ar_tag = _ar('اشرق الجزيرة للتقنيات')
             logo_block_data = [
                 [logo_img],
                 [Paragraph('Eshraq Al-Jazeera Technologies', S_logo_tag)],
                 [Paragraph(ar_tag, _amiri_tag)],
             ]
-            logo_block = Table(logo_block_data, colWidths=[4.2*cm])
+            logo_block = Table(logo_block_data, colWidths=[3.7*cm])
             logo_block.setStyle(TableStyle([
                 ('ALIGN',         (0,0),(-1,-1), 'CENTER'),
                 ('TOPPADDING',    (0,0),(-1,-1), 0),
-                ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+                ('BOTTOMPADDING', (0,0),(-1,-1), 0),
                 ('LEFTPADDING',   (0,0),(-1,-1), 0),
                 ('RIGHTPADDING',  (0,0),(-1,-1), 0),
             ]))
@@ -31067,9 +31067,9 @@ def export_po_pdf(po_request_number):
             ('ALIGN',  (1,0), (1,0),   'RIGHT'),
         ]))
         story.append(hdr_table)
-        story.append(Spacer(1, 20))
+        story.append(Spacer(1, 8))
         story.append(Paragraph('Purchase Order', S_title))
-        story.append(Spacer(1, 10))
+        story.append(Spacer(1, 8))
 
         # ── BILLED TO / SHIPPED TO / INVOICE DETAILS ────────────────────────
         def addr_content(name, address, city, country):
