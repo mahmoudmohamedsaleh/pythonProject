@@ -31034,11 +31034,10 @@ def export_po_pdf(po_request_number):
         ]))
         story.append(hdr_table)
         story.append(Spacer(1, 5))
-        story.append(HRFlowable(width=W, thickness=1.5, color=C_RED_LINE))
-        story.append(Spacer(1, 10))
+        story.append(HRFlowable(width=W, thickness=1.0, color=C_RED_LINE))
+        story.append(Spacer(1, 14))
         story.append(Paragraph('Purchase Order', S_title))
-        story.append(HRFlowable(width=W, thickness=0.5, color=C_DARK))
-        story.append(Spacer(1, 8))
+        story.append(Spacer(1, 10))
 
         # ── BILLED TO / SHIPPED TO / INVOICE DETAILS ────────────────────────
         def addr_content(name, address, city, country):
@@ -31094,44 +31093,33 @@ def export_po_pdf(po_request_number):
             ('LINEBELOW',     (0,0),(-1,-2), 0.3, C_BORDER),
         ]))
 
-        # Three-column block — light gray header bg, border per column
-        C_HDR_LIGHT = colors.HexColor('#EEEEEE')   # light gray for section headers
+        # Three-column block — NO backgrounds, NO borders — plain text columns
         col_w = W / 3.0
         inv_w = W - 2 * col_w
 
+        # Shared style: no background, no borders, no lines
         _col_style = TableStyle([
-            # Light gray header background
-            ('BACKGROUND',    (0,0),(-1,0),  C_HDR_LIGHT),
-            ('TOPPADDING',    (0,0),(-1,0),  5),
-            ('BOTTOMPADDING', (0,0),(-1,0),  5),
-            ('TOPPADDING',    (0,1),(-1,-1), 4),
-            ('BOTTOMPADDING', (0,1),(-1,-1), 4),
-            ('LEFTPADDING',   (0,0),(-1,-1), 6),
+            ('TOPPADDING',    (0,0),(-1,-1), 2),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 2),
+            ('LEFTPADDING',   (0,0),(-1,-1), 0),
             ('RIGHTPADDING',  (0,0),(-1,-1), 6),
             ('VALIGN',        (0,0),(-1,-1), 'TOP'),
-            ('LINEBELOW',     (0,0),(-1,0),  0.8, C_BORDER),
-            ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
         ])
 
         def make_addr_col(header, content_list, width):
             data = [[Paragraph(header, S_blk_hdr)]] + [[c] for c in content_list]
-            t = Table(data, colWidths=[width - 4])
+            t = Table(data, colWidths=[width])
             t.setStyle(_col_style)
             return t
 
         inv_col_data = [[Paragraph('Invoice Details', S_blk_hdr)], [inv_tbl]]
-        inv_col = Table(inv_col_data, colWidths=[inv_w - 4])
+        inv_col = Table(inv_col_data, colWidths=[inv_w])
         inv_col.setStyle(TableStyle([
-            ('BACKGROUND',    (0,0),(-1,0),  C_HDR_LIGHT),
-            ('TOPPADDING',    (0,0),(-1,0),  5),
-            ('BOTTOMPADDING', (0,0),(-1,0),  5),
-            ('TOPPADDING',    (0,1),(-1,-1), 6),
-            ('BOTTOMPADDING', (0,1),(-1,-1), 6),
-            ('LEFTPADDING',   (0,0),(-1,-1), 6),
-            ('RIGHTPADDING',  (0,0),(-1,-1), 6),
+            ('TOPPADDING',    (0,0),(-1,-1), 2),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 2),
+            ('LEFTPADDING',   (0,0),(-1,-1), 0),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 0),
             ('VALIGN',        (0,0),(-1,-1), 'TOP'),
-            ('LINEBELOW',     (0,0),(-1,0),  0.8, C_BORDER),
-            ('BOX',           (0,0),(-1,-1), 0.5, C_BORDER),
         ]))
 
         bt_col = make_addr_col('Billed To',   billed_content,  col_w)
@@ -31141,8 +31129,8 @@ def export_po_pdf(po_request_number):
                           colWidths=[col_w, col_w, inv_w])
         three_col.setStyle(TableStyle([
             ('VALIGN',       (0,0),(-1,-1), 'TOP'),
-            ('LEFTPADDING',  (0,0),(-1,-1), 1),
-            ('RIGHTPADDING', (0,0),(-1,-1), 1),
+            ('LEFTPADDING',  (0,0),(-1,-1), 0),
+            ('RIGHTPADDING', (0,0),(-1,-1), 0),
             ('TOPPADDING',   (0,0),(-1,-1), 0),
             ('BOTTOMPADDING',(0,0),(-1,-1), 0),
         ]))
