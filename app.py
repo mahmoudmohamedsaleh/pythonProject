@@ -31015,27 +31015,59 @@ def export_po_pdf(po_request_number):
 
         story = []
 
-        # ── HEADER: company info left, logo right ────────────────────────────
+        # ── Text cleaner — strip _x000D_ / \r artifacts from DB values ────────
+        def _clean(text):
+            """Remove carriage-return artifacts that come from Excel/Word copy-paste."""
+            if not text:
+                return ''
+            text = str(text)
+            text = text.replace('_x000D_', ' ')
+            text = text.replace('\r\n', ' ').replace('\r', ' ')
+            # collapse multiple spaces
+            import re as _re2
+            text = _re2.sub(r'  +', ' ', text).strip()
+            return text
+
+        # ── HEADER: company info left, full branded logo right ───────────────
+        S_co_addr_b = ps('coAddrB', fontSize=8, fontName='Helvetica-Bold', textColor=C_DARK, leading=12)
+        S_logo_tag  = ps('logoTag', fontSize=6.5, fontName='Helvetica', textColor=C_DARK,
+                         alignment=TA_CENTER, leading=9)
+        _amiri_tag  = ps('logoAr', fontSize=6.5, fontName=_amiri, textColor=C_DARK,
+                         alignment=TA_CENTER, leading=10)
+
         logo_path = os.path.join(_STATIC_DIR, 'ejt.png')
         if os.path.exists(logo_path):
-            logo = RLImage(logo_path, width=4.5*cm, height=2*cm)
+            logo_img = RLImage(logo_path, width=4.0*cm, height=1.8*cm)
+            ar_tag = _ar('اشرق الجزيرة للتقنيات')
+            logo_block_data = [
+                [logo_img],
+                [Paragraph('Eshraq Al-Jazeera Technologies', S_logo_tag)],
+                [Paragraph(ar_tag, _amiri_tag)],
+            ]
+            logo_block = Table(logo_block_data, colWidths=[4.2*cm])
+            logo_block.setStyle(TableStyle([
+                ('ALIGN',         (0,0),(-1,-1), 'CENTER'),
+                ('TOPPADDING',    (0,0),(-1,-1), 0),
+                ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+                ('LEFTPADDING',   (0,0),(-1,-1), 0),
+                ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+            ]))
+            logo = logo_block
         else:
             logo = Paragraph('EJTech', S_co_name)
 
         co_block = [
             Paragraph('Eshraq Al Jazeera Technologies (EJTech)', S_co_name),
-            Paragraph('3365 Al Murabba Dist - Unit No 7755 King Faisal Ibn Abdulaziz Saud', S_co_addr),
+            Paragraph('3365 Al Murabba Dist - Unit No 7755 King Faisal Ibn Abdulaziz Saud', S_co_addr_b),
             Paragraph('Riyadh, Saudi Arabia', S_co_addr),
         ]
         hdr_table = Table([[co_block, logo]], colWidths=[W*0.65, W*0.35])
         hdr_table.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('ALIGN',  (1,0), (1,0),   'RIGHT'),
         ]))
         story.append(hdr_table)
-        story.append(Spacer(1, 5))
-        story.append(HRFlowable(width=W, thickness=1.0, color=C_RED_LINE))
-        story.append(Spacer(1, 14))
+        story.append(Spacer(1, 20))
         story.append(Paragraph('Purchase Order', S_title))
         story.append(Spacer(1, 10))
 
@@ -31044,13 +31076,13 @@ def export_po_pdf(po_request_number):
             """Build a list of flowables for an address block (no VAT here)."""
             lines = []
             if name:
-                lines.append(_smart_para(name, S_cell_b, S_cell_b_ar))
+                lines.append(_smart_para(_clean(name), S_cell_b, S_cell_b_ar))
             if address:
-                lines.append(_smart_para(address, S_cell, S_cell_ar))
+                lines.append(_smart_para(_clean(address), S_cell, S_cell_ar))
             if city:
-                lines.append(_smart_para(city, S_cell, S_cell_ar))
+                lines.append(_smart_para(_clean(city), S_cell, S_cell_ar))
             if country:
-                lines.append(_smart_para(country, S_cell, S_cell_ar))
+                lines.append(_smart_para(_clean(country), S_cell, S_cell_ar))
             if not lines:
                 lines = [Paragraph('', S_cell)]
             return lines
@@ -31179,8 +31211,8 @@ def export_po_pdf(po_request_number):
 
             item_data.append([
                 Paragraph(str(idx),                                        S_ctr),
-                _smart_para(item['part_number'] or '',   S_small, S_small_ar),
-                _smart_para(item['description'] or '',   S_small, S_small_ar),
+                _smart_para(_clean(item['part_number']),  S_small, S_small_ar),
+                _smart_para(_clean(item['description']), S_small, S_small_ar),
                 Paragraph(f'{qty:g}',                                      S_ctr),
                 Paragraph(f'{uprice:,.2f}',                                S_num),
                 Paragraph(f'{disc_pct:g}%',                                S_ctr),
