@@ -31176,15 +31176,16 @@ def export_po_pdf(po_request_number):
         story.append(Spacer(1, 10))
 
         # ── ITEMS TABLE ──────────────────────────────────────────────────────
+        # Column widths summing to W (≈18cm) — # wide enough for 3-digit row numbers
         col_widths = [
-            0.6*cm,  # #
-            2.4*cm,  # Item No
-            7.5*cm,  # Description
-            1.2*cm,  # Qty
-            2.0*cm,  # U.Price
-            1.2*cm,  # Disc%
-            2.5*cm,  # Tax Rate
-            2.2*cm,  # Amount
+            0.9*cm,  # #         — fits up to 3-digit row numbers without wrapping
+            2.2*cm,  # Item No
+            6.4*cm,  # Description
+            1.2*cm,  # Quantity
+            1.9*cm,  # U.Price
+            1.1*cm,  # Disc%
+            2.2*cm,  # Tax Rate
+            2.1*cm,  # Amount
         ]
         hdr_row = [
             Paragraph('#',               S_col_hdr),
