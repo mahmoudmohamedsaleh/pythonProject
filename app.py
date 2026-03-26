@@ -31256,10 +31256,8 @@ def export_po_pdf(po_request_number):
             ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
             # Full grid with light borders
             ('GRID',          (0,0),(-1,-1), 0.5, C_BORDER),
-            # Vertical divider between SAR and US halves (slightly thicker)
+            # Vertical divider between SAR and US halves
             ('LINEBEFORE',    (2,0),(2,-1),  0.8, colors.HexColor('#999999')),
-            # Total row — bold border on top
-            ('LINEABOVE',     (0,-1),(-1,-1), 1.0, C_DARK),
         ]))
         story.append(sum_tbl)
         story.append(Spacer(1, 16))
