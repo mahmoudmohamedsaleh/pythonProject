@@ -39243,6 +39243,8 @@ def po_profile_check_price(po_request_number):
     db_map = {}
     if searchable_pns:
         placeholders = ','.join(['?' for _ in searchable_pns])
+        # Exclude any rows that belong to THIS PO (by po_number OR quote_ref / po_request_number)
+        # so we only compare against genuinely older / different POs.
         c.execute(f"""
             SELECT
                 TRIM(part_number) as pn,
@@ -39257,8 +39259,10 @@ def po_profile_check_price(po_request_number):
             FROM quotation_products qp
             LEFT JOIN distributors d ON qp.distributor_id = d.id
             WHERE TRIM(LOWER(part_number)) IN ({placeholders})
+              AND (qp.po_number       IS NULL OR UPPER(TRIM(qp.po_number))  != UPPER(?))
+              AND (qp.quote_ref       IS NULL OR UPPER(TRIM(qp.quote_ref))  != UPPER(?))
             ORDER BY qp.added_at DESC
-        """, [p.lower() for p in searchable_pns])
+        """, [p.lower() for p in searchable_pns] + [po_number, po_request_number])
         seen = set()
         for row in c.fetchall():
             key = row['pn'].strip().lower()
