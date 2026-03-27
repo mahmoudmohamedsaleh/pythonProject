@@ -39187,6 +39187,151 @@ def price_checker_from_cost_sheet():
                            column_info=column_info,
                            header_row=1, pn_column='', price_column='')
 
+@app.route('/po_profile_check_price/<po_request_number>')
+@login_required
+def po_profile_check_price(po_request_number):
+    """Run price check on all items in a PO Profile against the quotation_products price DB."""
+    import json as _json
+
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # Resolve PO and its items
+    c.execute("SELECT po_number FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
+    po_row = c.fetchone()
+    if not po_row:
+        conn.close()
+        flash('Purchase Order not found.', 'danger')
+        return redirect(url_for('view_po_status'))
+
+    po_number = po_row['po_number']
+    c.execute("SELECT * FROM po_items WHERE po_number = ? ORDER BY item_number ASC", (po_number,))
+    po_items = c.fetchall()
+
+    def to_float(val):
+        if val is None:
+            return None
+        try:
+            return float(str(val).replace(',', '').strip())
+        except Exception:
+            return None
+
+    excel_rows = []
+    for idx, item in enumerate(po_items, 1):
+        pn = str(item['part_number'] or '').strip()
+        if not pn or pn.lower() in ('n/a', 'nan', 'none', ''):
+            pn_key = f'__nopn_{idx}'
+        else:
+            pn_key = pn
+        qty_val  = to_float(item['quantity'])
+        cost_val = to_float(item['unit_price'])
+        total_val = round(qty_val * cost_val, 2) if (qty_val is not None and cost_val is not None) else None
+        excel_rows.append({
+            'sn':          str(idx),
+            'part_number': pn_key,
+            'description': str(item['description'] or '').strip(),
+            'uom':         '',
+            'qty':         qty_val,
+            'unit_cost':   cost_val,
+            'total':       total_val,
+            'sheet_name':  po_request_number,
+        })
+
+    # Lookup prices from quotation_products DB
+    searchable_pns = [r['part_number'] for r in excel_rows if not r['part_number'].startswith('__nopn_')]
+    db_map = {}
+    if searchable_pns:
+        placeholders = ','.join(['?' for _ in searchable_pns])
+        c.execute(f"""
+            SELECT
+                TRIM(part_number) as pn,
+                description,
+                unit_price,
+                supplier_name,
+                supplier_type,
+                COALESCE(quote_ref, '')       as quote_ref,
+                COALESCE(po_number, '')        as po_number,
+                system,
+                COALESCE(d.name, qp.supplier_name, '') as distributor_name
+            FROM quotation_products qp
+            LEFT JOIN distributors d ON qp.distributor_id = d.id
+            WHERE TRIM(LOWER(part_number)) IN ({placeholders})
+            ORDER BY qp.added_at DESC
+        """, [p.lower() for p in searchable_pns])
+        seen = set()
+        for row in c.fetchall():
+            key = row['pn'].strip().lower()
+            if key not in seen:
+                db_map[key] = dict(row)
+                seen.add(key)
+    conn.close()
+
+    results = []
+    for er in excel_rows:
+        is_no_pn = er['part_number'].startswith('__nopn_')
+        key = er['part_number'].strip().lower()
+        db  = db_map.get(key) if not is_no_pn else None
+        new_price = er['unit_cost']
+        old_price = float(db['unit_price']) if db and db['unit_price'] is not None else None
+        diff = round(new_price - old_price, 4) if (new_price is not None and old_price is not None) else None
+        diff_pct = round((diff / old_price) * 100, 2) if (diff is not None and old_price and old_price != 0) else None
+        if is_no_pn:
+            status = 'not_found'
+        elif db:
+            if diff_pct is not None:
+                status = 'same' if abs(diff_pct) < 0.5 else ('cheaper' if diff < 0 else 'higher')
+            else:
+                status = 'no_price'
+        else:
+            status = 'not_found'
+        results.append({
+            'sn':          er['sn'],
+            'part_number': '' if is_no_pn else er['part_number'],
+            'description': er['description'] or (db['description'] if db else ''),
+            'uom':         er['uom'],
+            'qty':         er['qty'],
+            'unit_cost':   new_price,
+            'total':       er['total'],
+            'old_price':   old_price,
+            'source':      db['quote_ref']        if db else '',
+            'po_number':   db['po_number']        if db else '',
+            'distributor': db['distributor_name'] if db else '',
+            'db_supplier': db['supplier_name']    if db else '',
+            'diff':        diff,
+            'diff_pct':    diff_pct,
+            'status':      status,
+            'sheet_name':  er.get('sheet_name', ''),
+        })
+
+    matched   = sum(1 for r in results if r['status'] != 'not_found')
+    not_found = sum(1 for r in results if r['status'] == 'not_found')
+    cheaper   = sum(1 for r in results if r['status'] == 'cheaper')
+    same      = sum(1 for r in results if r['status'] == 'same')
+    higher    = sum(1 for r in results if r['status'] == 'higher')
+    diffs     = [r['diff_pct'] for r in results if r['diff_pct'] is not None]
+    avg_diff  = round(sum(diffs) / len(diffs), 2) if diffs else 0
+
+    stats = {
+        'total_excel': len(results),
+        'matched':  matched,  'not_found': not_found,
+        'cheaper':  cheaper,  'same':      same,
+        'higher':   higher,   'avg_diff_pct': avg_diff,
+    }
+    column_info = {
+        'pn_col': 'Part No.', 'price_col': 'Unit Price',
+        'qty_col': 'Qty',     'desc_col': 'Description',
+        'uom_col': '', 'total_col': 'Total (SAR)',
+        'sn_col': '#', 'header_row': 1,
+        'filename': f'PO {po_request_number}', 'all_cols': []
+    }
+    return render_template('quotation_price_checker.html',
+                           results=results, stats=stats,
+                           results_json=_json.dumps(results),
+                           column_info=column_info,
+                           header_row=1, pn_column='', price_column='')
+
+
 @app.route('/quotation_price_checker/export', methods=['POST'])
 @login_required
 @permission_required('view_products')

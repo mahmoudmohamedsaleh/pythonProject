@@ -670,13 +670,21 @@
         <div class="card info-card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="fas fa-boxes mr-2"></i>Purchase Order Items</span>
-                <div class="btn-group">
-                    <a href="{{ url_for('export_po_items_excel', po_number=po_number) }}" class="btn btn-info btn-sm" title="Export to Excel">
-                        <i class="fas fa-file-download mr-1"></i>Export Excel
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('po_profile_check_price', po_request_number=po_request_number) }}"
+                       class="btn btn-sm"
+                       style="background:#f97316;color:#fff;font-weight:600;border:none;"
+                       title="Check item prices against the price database">
+                        <i class="fas fa-search-dollar mr-1"></i>Check Price
                     </a>
-                    <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#importExcelModal" title="Import from Excel">
-                        <i class="fas fa-file-upload mr-1"></i>Import Excel
-                    </button>
+                    <div class="btn-group ml-2">
+                        <a href="{{ url_for('export_po_items_excel', po_number=po_number) }}" class="btn btn-info btn-sm" title="Export to Excel">
+                            <i class="fas fa-file-download mr-1"></i>Export Excel
+                        </a>
+                        <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#importExcelModal" title="Import from Excel">
+                            <i class="fas fa-file-upload mr-1"></i>Import Excel
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
