@@ -16,72 +16,117 @@
     --vp-shadow: 0 4px 24px rgba(67,97,238,.08);
 }
 
-/* ── Hero header ────────────────────────────────────────────────────── */
-.vp-hero {
-    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 60%, #7209b7 100%);
-    border-radius: 20px;
-    padding: 28px 32px 20px;
-    margin-bottom: 24px;
+/* ── Slim banner ────────────────────────────────────────────────────── */
+.vp-banner {
+    background: linear-gradient(120deg, #4361ee 0%, #6d28d9 55%, #7c3aed 100%);
+    border-radius: 16px;
+    padding: 18px 28px;
+    margin-bottom: 16px;
     color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     position: relative;
     overflow: hidden;
 }
-.vp-hero::before {
+.vp-banner::before {
     content: '';
     position: absolute;
-    top: -40px; right: -40px;
-    width: 220px; height: 220px;
+    top: -50px; right: -30px;
+    width: 180px; height: 180px;
     border-radius: 50%;
     background: rgba(255,255,255,.06);
+    pointer-events: none;
 }
-.vp-hero::after {
-    content: '';
-    position: absolute;
-    bottom: -60px; left: 60px;
-    width: 160px; height: 160px;
-    border-radius: 50%;
-    background: rgba(255,255,255,.04);
+.vp-banner-left { display: flex; align-items: center; gap: 14px; }
+.vp-banner-icon {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,.18);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
 }
-.vp-hero-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -.3px; margin: 0; }
-.vp-hero-sub   { font-size: .88rem; opacity: .75; margin-top: 4px; }
-.vp-hero-btn   {
-    background: rgba(255,255,255,.15);
-    border: 1.5px solid rgba(255,255,255,.4);
-    color: #fff;
+.vp-banner-title { font-size: 1.3rem; font-weight: 800; margin: 0; letter-spacing: -.2px; }
+.vp-banner-sub   { font-size: .78rem; opacity: .72; margin-top: 2px; }
+.vp-hero-btn {
+    background: #fff;
+    border: none;
+    color: #4361ee;
     border-radius: 10px;
     padding: 9px 18px;
-    font-weight: 600;
-    font-size: .85rem;
-    transition: background .2s;
+    font-weight: 700;
+    font-size: .82rem;
+    transition: box-shadow .2s, transform .1s;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    backdrop-filter: blur(6px);
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
 }
-.vp-hero-btn:hover { background: rgba(255,255,255,.28); color: #fff; text-decoration: none; }
+.vp-hero-btn:hover {
+    color: #3251d4;
+    text-decoration: none;
+    box-shadow: 0 4px 18px rgba(0,0,0,.22);
+    transform: translateY(-1px);
+}
 
-/* ── Stat pills ─────────────────────────────────────────────────────── */
-.vp-stats-row {
-    display: flex;
-    flex-wrap: wrap;
+/* ── Metric cards row ───────────────────────────────────────────────── */
+.vp-metrics {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     gap: 12px;
-    margin-top: 20px;
+    margin-bottom: 20px;
 }
-.vp-stat {
-    background: rgba(255,255,255,.12);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,.2);
-    border-radius: 12px;
-    padding: 10px 18px;
-    min-width: 130px;
-    flex: 1;
+@media (max-width: 900px) { .vp-metrics { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 600px) { .vp-metrics { grid-template-columns: repeat(2,1fr); } }
+.vp-metric {
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 2px 12px rgba(67,97,238,.06);
+    border: 1px solid #e8eaf0;
+    border-top: 3px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: box-shadow .2s, transform .15s;
 }
-.vp-stat-val { font-size: 1.35rem; font-weight: 800; line-height: 1; }
-.vp-stat-lbl { font-size: .72rem; opacity: .7; margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
-.vp-stat.won  .vp-stat-val { color: #86efac; }
-.vp-stat.lost .vp-stat-val { color: #fca5a5; }
-.vp-stat.hot  .vp-stat-val { color: #fde68a; }
+.vp-metric:hover { box-shadow: 0 6px 20px rgba(67,97,238,.10); transform: translateY(-2px); }
+.vp-metric.m-total  { border-top-color: #4361ee; }
+.vp-metric.m-won    { border-top-color: #22c55e; }
+.vp-metric.m-active { border-top-color: #f59e0b; }
+.vp-metric.m-lost   { border-top-color: #ef4444; }
+.vp-metric.m-value  { border-top-color: #06b6d4; }
+.vp-metric-icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem;
+    margin-bottom: 4px;
+}
+.m-total  .vp-metric-icon { background: #ede9fe; color: #6d28d9; }
+.m-won    .vp-metric-icon { background: #dcfce7; color: #16a34a; }
+.m-active .vp-metric-icon { background: #fef3c7; color: #d97706; }
+.m-lost   .vp-metric-icon { background: #fee2e2; color: #dc2626; }
+.m-value  .vp-metric-icon { background: #cffafe; color: #0891b2; }
+.vp-metric-val {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1;
+}
+.m-value .vp-metric-val { font-size: 1.05rem; }
+.vp-metric-lbl {
+    font-size: .7rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+}
 
 /* ── Filter card ────────────────────────────────────────────────────── */
 .vp-filter-card {
@@ -378,58 +423,56 @@
 }
 </style>
 
-{# ── compute quick stats ──────────────────────────────────────────── #}
-{%- set total      = projects | length %}
-{%- set won_count  = projects | selectattr(3|string, 'equalto', 'Closed Won')  | list | length %}
-{%- set lost_count = projects | selectattr(3|string, 'equalto', 'Closed Lost') | list | length %}
+{# ── Pre-compute stats ────────────────────────────────────────────── #}
+{%- set active_stages = ['Proposal Sent','Technical Discussion','Negotiation','Qualification'] -%}
+{%- set ns = namespace(won=0, active=0, lost=0, tv=0) -%}
+{%- for p in projects -%}
+    {%- if p[3] == 'Closed Won'  -%}{%- set ns.won    = ns.won    + 1 -%}{%- endif -%}
+    {%- if p[3] == 'Closed Lost' -%}{%- set ns.lost   = ns.lost   + 1 -%}{%- endif -%}
+    {%- if p[3] in active_stages -%}{%- set ns.active = ns.active + 1 -%}{%- endif -%}
+    {%- if p[4] -%}{%- set ns.tv = ns.tv + p[4] -%}{%- endif -%}
+{%- endfor -%}
 
-{# ── Hero ─────────────────────────────────────────────────────────── #}
-<div class="vp-hero">
-    <div class="d-flex justify-content-between align-items-flex-start flex-wrap" style="position:relative;z-index:1;">
+{# ── Slim banner ─────────────────────────────────────────────────── #}
+<div class="vp-banner">
+    <div class="vp-banner-left">
+        <div class="vp-banner-icon"><i class="fas fa-folder-open"></i></div>
         <div>
-            <h1 class="vp-hero-title"><i class="fas fa-folder-open mr-2" style="opacity:.85;"></i>Registered Projects</h1>
-            <p class="vp-hero-sub">A detailed list of all registered projects and their sales data.</p>
-        </div>
-        <div class="mt-2">
-            <a href="{{ url_for('register_project') }}" class="vp-hero-btn">
-                <i class="fas fa-plus"></i>Register New Project
-            </a>
+            <div class="vp-banner-title">Registered Projects</div>
+            <div class="vp-banner-sub">A detailed list of all registered projects and their sales data.</div>
         </div>
     </div>
-    <div class="vp-stats-row" style="position:relative;z-index:1;">
-        <div class="vp-stat">
-            <div class="vp-stat-val">{{ total }}</div>
-            <div class="vp-stat-lbl">Total Projects</div>
-        </div>
-        <div class="vp-stat won">
-            <div class="vp-stat-val">{{ projects | selectattr('3', 'equalto', 'Closed Won') | list | length if false else projects | list | selectattr(3|string) | list | length }}</div>
-            <div class="vp-stat-lbl">Closed Won</div>
-        </div>
-        <div class="vp-stat hot">
-            <div class="vp-stat-val">
-                {%- set active_stages = ['Proposal Sent','Technical Discussion','Negotiation','Qualification'] -%}
-                {%- set active_count = namespace(v=0) -%}
-                {%- for p in projects -%}{%- if p[3] in active_stages -%}{%- set active_count.v = active_count.v + 1 -%}{%- endif -%}{%- endfor -%}
-                {{ active_count.v }}
-            </div>
-            <div class="vp-stat-lbl">Active Pipeline</div>
-        </div>
-        <div class="vp-stat lost">
-            <div class="vp-stat-val">
-                {%- set lc = namespace(v=0) -%}
-                {%- for p in projects -%}{%- if p[3] == 'Closed Lost' -%}{%- set lc.v = lc.v + 1 -%}{%- endif -%}{%- endfor -%}
-                {{ lc.v }}
-            </div>
-            <div class="vp-stat-lbl">Closed Lost</div>
-        </div>
-        <div class="vp-stat">
-            <div class="vp-stat-val" style="font-size:1.05rem;">
-                {%- set tv = namespace(v=0) -%}
-                {%- for p in projects -%}{%- if p[4] -%}{%- set tv.v = tv.v + p[4] -%}{%- endif -%}{%- endfor -%}
-                ${{ "{:,.0f}".format(tv.v) }}
-            </div>
-            <div class="vp-stat-lbl">Total Pipeline Value</div>
-        </div>
+    <a href="{{ url_for('register_project') }}" class="vp-hero-btn">
+        <i class="fas fa-plus"></i>Register New Project
+    </a>
+</div>
+
+{# ── Metric cards ────────────────────────────────────────────────── #}
+<div class="vp-metrics">
+    <div class="vp-metric m-total">
+        <div class="vp-metric-icon"><i class="fas fa-layer-group"></i></div>
+        <div class="vp-metric-val">{{ projects | length }}</div>
+        <div class="vp-metric-lbl">Total Projects</div>
+    </div>
+    <div class="vp-metric m-won">
+        <div class="vp-metric-icon"><i class="fas fa-trophy"></i></div>
+        <div class="vp-metric-val">{{ ns.won }}</div>
+        <div class="vp-metric-lbl">Closed Won</div>
+    </div>
+    <div class="vp-metric m-active">
+        <div class="vp-metric-icon"><i class="fas fa-fire"></i></div>
+        <div class="vp-metric-val">{{ ns.active }}</div>
+        <div class="vp-metric-lbl">Active Pipeline</div>
+    </div>
+    <div class="vp-metric m-lost">
+        <div class="vp-metric-icon"><i class="fas fa-times-circle"></i></div>
+        <div class="vp-metric-val">{{ ns.lost }}</div>
+        <div class="vp-metric-lbl">Closed Lost</div>
+    </div>
+    <div class="vp-metric m-value">
+        <div class="vp-metric-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="vp-metric-val">${{ "{:,.0f}".format(ns.tv) }}</div>
+        <div class="vp-metric-lbl">Pipeline Value</div>
     </div>
 </div>
 
