@@ -3,372 +3,686 @@
 
 {% block content %}
 <style>
-    /* Styles specific to this page */
-    .page-header {
-        margin-bottom: 1.5rem;
-    }
-    .page-header h1 {
-        font-weight: 700;
-    }
-    .card {
-        border: none;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    .card-body-padding {
-        padding: 0;
-    }
-    .table thead th {
-        background-color: #f8f9fa;
-        border-bottom-width: 2px;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .table td, .table th {
-        vertical-align: middle;
-    }
-    .progress {
-        height: 20px;
-        font-size: 0.8rem;
-        background-color: #e9ecef;
-    }
-    .truncate {
-        max-width: 200px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .action-buttons a, .action-buttons button {
-        margin: 0 2px;
-    }
-    .client-info {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        align-items: flex-start;
-    }
-    .client-name {
-        font-weight: 600;
-        color: #1e293b;
-        font-size: 0.9rem;
-        max-width: 150px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    /* Enhanced Client Type Badges */
-    .client-type-badge {
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.7rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .client-type-badge:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-    .client-type-badge i {
-        font-size: 0.75rem;
-    }
-    .client-type-badge.type-contractor {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
-    }
-    .client-type-badge.type-end-user {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-        color: white;
-    }
-    .client-type-badge.type-consultant {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-    }
-    
-    /* Enhanced Stage Badges */
-    .stage-badge {
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.75rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-        transition: all 0.2s ease;
-        white-space: nowrap;
-    }
-    .stage-badge:hover {
-        transform: scale(1.02);
-    }
-    .stage-badge i {
-        font-size: 0.7rem;
-    }
-    
-    /* Stage-specific colors with gradients */
-    .stage-lead {
-        background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
-        color: white;
-    }
-    .stage-prospecting {
-        background: linear-gradient(135deg, #a1a1aa 0%, #71717a 100%);
-        color: white;
-    }
-    .stage-qualification {
-        background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
-        color: white;
-    }
-    .stage-proposal-prep {
-        background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
-        color: white;
-    }
-    .stage-proposal-sent {
-        background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
-        color: white;
-    }
-    .stage-customer-pending {
-        background: linear-gradient(135deg, #475569 0%, #334155 100%);
-        color: white;
-    }
-    .stage-technical-discussion {
-        background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-        color: white;
-    }
-    .stage-negotiation {
-        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-        color: #1e293b;
-    }
-    .stage-closed-won {
-        background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
-        color: white;
-        animation: pulse-success 2s infinite;
-    }
-    .stage-closed-lost {
-        background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
-        color: white;
-    }
-    .stage-default {
-        background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
-        color: #1e293b;
-    }
-    
-    @keyframes pulse-success {
-        0%, 100% { box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3); }
-        50% { box-shadow: 0 2px 12px rgba(34, 197, 94, 0.5); }
-    }
-    
-    .project-name-link {
-        color: #007bff;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-    .project-name-link:hover {
-        color: #0056b3;
-        text-decoration: underline;
-    }
-    .project-name-link i {
-        color: #17a2b8;
-        transition: transform 0.2s ease;
-    }
-    .project-name-link:hover i {
-        transform: scale(1.1);
-    }
+/* ── Page-level variables ───────────────────────────────────────────── */
+:root {
+    --vp-blue:   #4361ee;
+    --vp-indigo: #3a0ca3;
+    --vp-teal:   #06b6d4;
+    --vp-green:  #22c55e;
+    --vp-orange: #f97316;
+    --vp-red:    #ef4444;
+    --vp-grey:   #64748b;
+    --vp-card-r: 16px;
+    --vp-shadow: 0 4px 24px rgba(67,97,238,.08);
+}
+
+/* ── Hero header ────────────────────────────────────────────────────── */
+.vp-hero {
+    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 60%, #7209b7 100%);
+    border-radius: 20px;
+    padding: 28px 32px 20px;
+    margin-bottom: 24px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+.vp-hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.06);
+}
+.vp-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: 60px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.04);
+}
+.vp-hero-title { font-size: 1.75rem; font-weight: 800; letter-spacing: -.3px; margin: 0; }
+.vp-hero-sub   { font-size: .88rem; opacity: .75; margin-top: 4px; }
+.vp-hero-btn   {
+    background: rgba(255,255,255,.15);
+    border: 1.5px solid rgba(255,255,255,.4);
+    color: #fff;
+    border-radius: 10px;
+    padding: 9px 18px;
+    font-weight: 600;
+    font-size: .85rem;
+    transition: background .2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    backdrop-filter: blur(6px);
+}
+.vp-hero-btn:hover { background: rgba(255,255,255,.28); color: #fff; text-decoration: none; }
+
+/* ── Stat pills ─────────────────────────────────────────────────────── */
+.vp-stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+}
+.vp-stat {
+    background: rgba(255,255,255,.12);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 12px;
+    padding: 10px 18px;
+    min-width: 130px;
+    flex: 1;
+}
+.vp-stat-val { font-size: 1.35rem; font-weight: 800; line-height: 1; }
+.vp-stat-lbl { font-size: .72rem; opacity: .7; margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
+.vp-stat.won  .vp-stat-val { color: #86efac; }
+.vp-stat.lost .vp-stat-val { color: #fca5a5; }
+.vp-stat.hot  .vp-stat-val { color: #fde68a; }
+
+/* ── Filter card ────────────────────────────────────────────────────── */
+.vp-filter-card {
+    background: #fff;
+    border-radius: var(--vp-card-r);
+    box-shadow: var(--vp-shadow);
+    border: 1px solid #e8eaf0;
+    margin-bottom: 20px;
+}
+.vp-filter-card .card-header {
+    background: none;
+    border-bottom: 1px solid #f0f2f8;
+    padding: 14px 20px;
+    font-weight: 700;
+    font-size: .88rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.vp-filter-card .card-body { padding: 16px 20px; }
+.vp-filter-card .form-control {
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    font-size: .84rem;
+    height: 38px;
+    transition: border-color .2s, box-shadow .2s;
+}
+.vp-filter-card .form-control:focus {
+    border-color: var(--vp-blue);
+    box-shadow: 0 0 0 3px rgba(67,97,238,.1);
+}
+.vp-filter-card label { font-size: .78rem; font-weight: 600; color: #64748b; margin-bottom: 4px; }
+.btn-filter {
+    background: var(--vp-blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 18px;
+    height: 38px;
+    font-size: .84rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .2s, transform .1s;
+}
+.btn-filter:hover { background: #3251d4; color: #fff; transform: translateY(-1px); }
+.btn-clear {
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+    border-radius: 8px;
+    padding: 0 14px;
+    height: 38px;
+    font-size: .84rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .2s;
+    text-decoration: none;
+}
+.btn-clear:hover { background: #e2e8f0; color: #475569; text-decoration: none; }
+
+/* ── Table card ─────────────────────────────────────────────────────── */
+.vp-table-card {
+    background: #fff;
+    border-radius: var(--vp-card-r);
+    box-shadow: var(--vp-shadow);
+    border: 1px solid #e8eaf0;
+    overflow: hidden;
+}
+.vp-table-card .card-header {
+    background: none;
+    border-bottom: 1px solid #f0f2f8;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.vp-table-card .card-header-title {
+    font-weight: 700;
+    font-size: .88rem;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.vp-count-badge {
+    background: #ede9fe;
+    color: #6d28d9;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+/* ── Table ──────────────────────────────────────────────────────────── */
+.vp-table { width: 100%; border-collapse: collapse; }
+.vp-table thead th {
+    background: #f8faff;
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 11px 14px;
+    white-space: nowrap;
+    border-bottom: 2px solid #e8eaf0;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.vp-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background .15s;
+}
+.vp-table tbody tr:last-child { border-bottom: none; }
+.vp-table tbody tr:hover { background: #f8faff; }
+.vp-table td { padding: 12px 14px; vertical-align: middle; font-size: .84rem; color: #334155; }
+
+/* ── Project name cell ──────────────────────────────────────────────── */
+.vp-proj-link {
+    font-weight: 700;
+    color: #4361ee;
+    text-decoration: none;
+    font-size: .88rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    transition: color .15s;
+    max-width: 220px;
+}
+.vp-proj-link:hover { color: #3251d4; text-decoration: none; }
+.vp-proj-icon {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+}
+.vp-proj-icon i { color: #7c3aed; font-size: .75rem; }
+.vp-proj-name { line-height: 1.35; }
+
+/* ── Client type badges ─────────────────────────────────────────────── */
+.ct-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+.ct-badge.contractor { background: #fef3c7; color: #92400e; }
+.ct-badge.end-user   { background: #dbeafe; color: #1e40af; }
+.ct-badge.consultant { background: #d1fae5; color: #065f46; }
+.ct-client-name {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #1e293b;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* ── Stage badges ───────────────────────────────────────────────────── */
+.sg-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.sg-lead               { background:#f1f5f9; color:#475569; border:1.5px solid #cbd5e1; }
+.sg-prospecting        { background:#f0fdf4; color:#166534; border:1.5px solid #bbf7d0; }
+.sg-qualification      { background:#eff6ff; color:#1d4ed8; border:1.5px solid #bfdbfe; }
+.sg-proposal-prep      { background:#faf5ff; color:#7e22ce; border:1.5px solid #e9d5ff; }
+.sg-proposal-sent      { background:#f5f3ff; color:#6d28d9; border:1.5px solid #ddd6fe; }
+.sg-customer-pending   { background:#1e293b; color:#e2e8f0; border:1.5px solid #334155; }
+.sg-technical          { background:#fff7ed; color:#9a3412; border:1.5px solid #fed7aa; }
+.sg-negotiation        { background:#fffbeb; color:#92400e; border:1.5px solid #fde68a; }
+.sg-closed-won         { background:#dcfce7; color:#166534; border:1.5px solid #86efac; }
+.sg-closed-lost        { background:#fef2f2; color:#991b1b; border:1.5px solid #fecaca; }
+.sg-default            { background:#f8fafc; color:#64748b; border:1.5px solid #e2e8f0; }
+
+/* ── Deal value ─────────────────────────────────────────────────────── */
+.vp-deal {
+    font-weight: 700;
+    font-size: .82rem;
+    color: #0f766e;
+}
+.vp-deal.na { color: #94a3b8; font-weight: 400; }
+
+/* ── Probability bar ────────────────────────────────────────────────── */
+.vp-prob-wrap { min-width: 80px; }
+.vp-prob-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.vp-prob-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #4361ee, #7c3aed);
+    transition: width .4s ease;
+}
+.vp-prob-fill.high  { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.vp-prob-fill.med   { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.vp-prob-fill.low   { background: linear-gradient(90deg, #64748b, #475569); }
+.vp-prob-label { font-size: .72rem; font-weight: 600; color: #64748b; }
+
+/* ── Date chip ──────────────────────────────────────────────────────── */
+.vp-date {
+    font-size: .8rem;
+    color: #475569;
+    white-space: nowrap;
+}
+.vp-date.overdue { color: #dc2626; font-weight: 600; }
+
+/* ── Truncated text ─────────────────────────────────────────────────── */
+.vp-trunc {
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: .8rem;
+    color: #64748b;
+    cursor: default;
+}
+
+/* ── Action btn ─────────────────────────────────────────────────────── */
+.vp-del-btn {
+    width: 30px; height: 30px;
+    border: none;
+    border-radius: 7px;
+    background: #fef2f2;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    transition: background .15s, transform .1s;
+    cursor: pointer;
+}
+.vp-del-btn:hover { background: #fee2e2; transform: scale(1.08); }
+
+/* ── Empty state ────────────────────────────────────────────────────── */
+.vp-empty {
+    text-align: center;
+    padding: 64px 20px;
+    color: #94a3b8;
+}
+.vp-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: .4;
+}
+.vp-empty h6 { font-weight: 700; color: #64748b; margin-bottom: 6px; }
+.vp-empty p  { font-size: .84rem; }
+
+/* ── Responsive scrollable table ────────────────────────────────────── */
+.vp-table-scroll {
+    overflow-x: auto;
+    max-height: 72vh;
+    overflow-y: auto;
+}
 </style>
 
-<div class="page-header d-flex justify-content-between align-items-center flex-wrap">
-    <div>
-        <h1>Registered Projects</h1>
-        <p class="text-muted mb-0">A detailed list of all registered projects and their sales data.</p>
+{# ── compute quick stats ──────────────────────────────────────────── #}
+{%- set total      = projects | length %}
+{%- set won_count  = projects | selectattr(3|string, 'equalto', 'Closed Won')  | list | length %}
+{%- set lost_count = projects | selectattr(3|string, 'equalto', 'Closed Lost') | list | length %}
+
+{# ── Hero ─────────────────────────────────────────────────────────── #}
+<div class="vp-hero">
+    <div class="d-flex justify-content-between align-items-flex-start flex-wrap" style="position:relative;z-index:1;">
+        <div>
+            <h1 class="vp-hero-title"><i class="fas fa-folder-open mr-2" style="opacity:.85;"></i>Registered Projects</h1>
+            <p class="vp-hero-sub">A detailed list of all registered projects and their sales data.</p>
+        </div>
+        <div class="mt-2">
+            <a href="{{ url_for('register_project') }}" class="vp-hero-btn">
+                <i class="fas fa-plus"></i>Register New Project
+            </a>
+        </div>
     </div>
-    <div class="d-flex align-items-center mt-3 mt-md-0">
-        <a href="{{ url_for('register_project') }}" class="btn btn-success">
-            <i class="fas fa-plus mr-2"></i>Register New Project
-        </a>
+    <div class="vp-stats-row" style="position:relative;z-index:1;">
+        <div class="vp-stat">
+            <div class="vp-stat-val">{{ total }}</div>
+            <div class="vp-stat-lbl">Total Projects</div>
+        </div>
+        <div class="vp-stat won">
+            <div class="vp-stat-val">{{ projects | selectattr('3', 'equalto', 'Closed Won') | list | length if false else projects | list | selectattr(3|string) | list | length }}</div>
+            <div class="vp-stat-lbl">Closed Won</div>
+        </div>
+        <div class="vp-stat hot">
+            <div class="vp-stat-val">
+                {%- set active_stages = ['Proposal Sent','Technical Discussion','Negotiation','Qualification'] -%}
+                {%- set active_count = namespace(v=0) -%}
+                {%- for p in projects -%}{%- if p[3] in active_stages -%}{%- set active_count.v = active_count.v + 1 -%}{%- endif -%}{%- endfor -%}
+                {{ active_count.v }}
+            </div>
+            <div class="vp-stat-lbl">Active Pipeline</div>
+        </div>
+        <div class="vp-stat lost">
+            <div class="vp-stat-val">
+                {%- set lc = namespace(v=0) -%}
+                {%- for p in projects -%}{%- if p[3] == 'Closed Lost' -%}{%- set lc.v = lc.v + 1 -%}{%- endif -%}{%- endfor -%}
+                {{ lc.v }}
+            </div>
+            <div class="vp-stat-lbl">Closed Lost</div>
+        </div>
+        <div class="vp-stat">
+            <div class="vp-stat-val" style="font-size:1.05rem;">
+                {%- set tv = namespace(v=0) -%}
+                {%- for p in projects -%}{%- if p[4] -%}{%- set tv.v = tv.v + p[4] -%}{%- endif -%}{%- endfor -%}
+                ${{ "{:,.0f}".format(tv.v) }}
+            </div>
+            <div class="vp-stat-lbl">Total Pipeline Value</div>
+        </div>
     </div>
 </div>
 
-<div class="card mb-4">
+{# ── Filter ────────────────────────────────────────────────────────── #}
+<div class="vp-filter-card">
+    <div class="card-header">
+        <i class="fas fa-sliders-h" style="color:#4361ee;"></i>
+        Filter Projects
+    </div>
     <div class="card-body">
-        <form method="GET" class="p-3">
-            <div class="row">
-                <div class="col-md-3 mb-2">
-                    <label for="project_name" class="mb-1">Project Name</label>
-                    <input type="text" class="form-control" id="project_name" name="project_name" placeholder="Search by name..." value="{{ current_filters.project_name or '' }}">
+        <form method="GET">
+            <div class="row align-items-end" style="row-gap:12px;">
+                <div class="col-md-3 col-sm-6">
+                    <label>Project Name</label>
+                    <input type="text" class="form-control" name="project_name"
+                           placeholder="Search by name…"
+                           value="{{ current_filters.project_name or '' }}">
                 </div>
                 {% if user_role != 'Sales Engineer' %}
-                <div class="col-md-3 mb-2">
-                    <label for="sales_engineer_id" class="mb-1">Sales Engineer</label>
-                    <select class="form-control" id="sales_engineer_id" name="sales_engineer_id">
+                <div class="col-md-2 col-sm-6">
+                    <label>Sales Engineer</label>
+                    <select class="form-control" name="sales_engineer_id">
                         <option value="">All</option>
                         {% for engineer in sales_engineers %}
-                            <option value="{{ engineer[0] }}" {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>{{ engineer[1] }}</option>
+                        <option value="{{ engineer[0] }}"
+                                {% if current_filters.sales_engineer_id == engineer[0]|string %}selected{% endif %}>
+                            {{ engineer[1] }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
                 {% endif %}
-                <div class="col-md-2 mb-2">
-                    <label for="stage" class="mb-1">Stage</label>
-                    <select class="form-control" id="stage" name="stage">
+                <div class="col-md-2 col-sm-6">
+                    <label>Stage</label>
+                    <select class="form-control" name="stage">
                         <option value="">All Stages</option>
                         {% for stage_option in stage_options %}
-                            <option value="{{ stage_option }}" {% if current_filters.stage == stage_option %}selected{% endif %}>{{ stage_option }}</option>
+                        <option value="{{ stage_option }}"
+                                {% if current_filters.stage == stage_option %}selected{% endif %}>
+                            {{ stage_option }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2 mb-2">
-                    <label for="start_date" class="mb-1">Registered From</label>
-                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ current_filters.start_date or '' }}">
+                <div class="col-md-2 col-sm-6">
+                    <label>Registered From</label>
+                    <input type="date" class="form-control" name="start_date"
+                           value="{{ current_filters.start_date or '' }}">
                 </div>
-                <div class="col-md-2 mb-2">
-                    <label for="end_date" class="mb-1">To</label>
-                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ current_filters.end_date or '' }}">
+                <div class="col-md-2 col-sm-6">
+                    <label>To</label>
+                    <input type="date" class="form-control" name="end_date"
+                           value="{{ current_filters.end_date or '' }}">
                 </div>
-                <div class="col-md-2 mb-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-info mr-2"><i class="fas fa-filter mr-1"></i> Filter</button>
-                    <a href="{{ url_for('view_projects') }}" class="btn btn-secondary"><i class="fas fa-times mr-1"></i> Clear</a>
+                <div class="col-md-1 col-sm-12 d-flex" style="gap:8px;">
+                    <button type="submit" class="btn-filter">
+                        <i class="fas fa-filter"></i>Filter
+                    </button>
+                    <a href="{{ url_for('view_projects') }}" class="btn-clear">
+                        <i class="fas fa-times"></i>
+                    </a>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-
-<div class="card">
-    <div class="card-body card-body-padding">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>
-                            Project Name 
-                            <i class="fas fa-info-circle text-muted ml-1" 
-                               data-toggle="tooltip" 
-                               data-placement="top" 
-                               title="Click on project name to view full project profile"
-                               style="font-size: 0.85em; cursor: help;"></i>
-                        </th>
-                        <th>End User</th>
-                        <th>Sales Engineer</th>
-                        <th>Client</th>
-                        <th>Stage</th>
-                        <th>Deal Value</th>
-                        <th>Probability</th>
-                        <th>Expected Close Date</th>
-                        <th>Registered Date</th>
-                        <th>Scope of Work</th>
-                        <th>Note</th>
-                        {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
-                        <th>Actions</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for project in projects %}
-                    <tr>
-                        <td>
-                            <strong>
-                                <a href="{{ url_for('project_detail', project_id=project[0]) }}" 
-                                   class="project-name-link" 
-                                   title="Click to view full project profile">
-                                    <i class="fas fa-folder-open mr-1" style="font-size: 0.9em;"></i>{{ project[1] }}
-                                </a>
-                            </strong>
-                        </td>
-                        <td>{{ project[2] if project[2] else 'N/A' }}</td>
-                        <td>{{ project[7] if project[7] else 'N/A' }}</td>
-                        <td>
-                            {% if project[13] %}
-                            <div class="client-info">
-                                {% if project[13] == 'Contractor' and project[11] %}
-                                <span class="client-name" title="{{ project[11] }}">{{ project[11] }}</span>
-                                <span class="client-type-badge type-contractor"><i class="fas fa-hard-hat"></i>Contractor</span>
-                                {% elif project[13] == 'End User' and project[2] %}
-                                <span class="client-name" title="{{ project[2] }}">{{ project[2] }}</span>
-                                <span class="client-type-badge type-end-user"><i class="fas fa-building"></i>End User</span>
-                                {% elif project[13] == 'Consultant' and project[12] %}
-                                <span class="client-name" title="{{ project[12] }}">{{ project[12] }}</span>
-                                <span class="client-type-badge type-consultant"><i class="fas fa-user-tie"></i>Consultant</span>
-                                {% endif %}
-                            </div>
-                            {% else %}
-                            <span class="text-muted">N/A</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% set stage = project[3] %}
-                            {% if stage == 'Lead' %}
-                            <span class="stage-badge stage-lead"><i class="fas fa-seedling"></i>{{ stage }}</span>
-                            {% elif stage == 'Prospecting' %}
-                            <span class="stage-badge stage-prospecting"><i class="fas fa-search"></i>{{ stage }}</span>
-                            {% elif stage == 'Qualification' %}
-                            <span class="stage-badge stage-qualification"><i class="fas fa-clipboard-check"></i>{{ stage }}</span>
-                            {% elif stage == 'Proposal Prep' %}
-                            <span class="stage-badge stage-proposal-prep"><i class="fas fa-file-alt"></i>{{ stage }}</span>
-                            {% elif stage == 'Proposal Sent' %}
-                            <span class="stage-badge stage-proposal-sent"><i class="fas fa-paper-plane"></i>{{ stage }}</span>
-                            {% elif stage == 'Customer Pending' %}
-                            <span class="stage-badge stage-customer-pending"><i class="fas fa-hourglass-half"></i>{{ stage }}</span>
-                            {% elif stage == 'Technical Discussion' %}
-                            <span class="stage-badge stage-technical-discussion"><i class="fas fa-comments"></i>{{ stage }}</span>
-                            {% elif stage == 'Negotiation' %}
-                            <span class="stage-badge stage-negotiation"><i class="fas fa-handshake"></i>{{ stage }}</span>
-                            {% elif stage == 'Closed Won' %}
-                            <span class="stage-badge stage-closed-won"><i class="fas fa-trophy"></i>{{ stage }}</span>
-                            {% elif stage == 'Closed Lost' %}
-                            <span class="stage-badge stage-closed-lost"><i class="fas fa-times-circle"></i>{{ stage }}</span>
-                            {% else %}
-                            <span class="stage-badge stage-default"><i class="fas fa-circle"></i>{{ stage }}</span>
-                            {% endif %}
-                        </td>
-                        <td>${{ "{:,.2f}".format(project[4]) if project[4] else 'N/A' }}</td>
-                        <td>
-                            <div class="progress">
-                                <div class="progress-bar" role="progressbar" style="width: {{ project[5] }}%;" aria-valuenow="{{ project[5] }}">{{ project[5] }}%</div>
-                            </div>
-                        </td>
-                        <td>{{ project[6] if project[6] else 'N/A' }}</td>
-                        <td>{{ project[8].split(' ')[0] if project[8] else 'N/A' }}</td>
-                        <td title="{{ project[9] }}"><div class="truncate">{{ project[9] | truncate(30) }}</div></td>
-                        <td title="{{ project[10] }}"><div class="truncate">{{ project[10] | truncate(30) }}</div></td>
-                        {% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}
-                        <td class="action-buttons">
-                            <button onclick="deleteProject({{ project[0] }}, '{{ project[1] }}')" class="btn btn-danger btn-sm" title="Delete Project">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                        {% endif %}
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="{% if user_role == 'General Manager' or user_role == 'Technical Team Leader' %}12{% else %}11{% endif %}" class="text-center text-muted py-5">No projects found.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{# ── Table card ────────────────────────────────────────────────────── #}
+<div class="vp-table-card">
+    <div class="card-header">
+        <div class="card-header-title">
+            <i class="fas fa-table" style="color:#4361ee;"></i>
+            Projects
+            <span class="vp-count-badge">{{ projects | length }}</span>
         </div>
+    </div>
+
+    <div class="vp-table-scroll">
+        {% if projects %}
+        <table class="vp-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>
+                        Project Name
+                        <i class="fas fa-info-circle ml-1"
+                           data-toggle="tooltip"
+                           title="Click to view full project profile"
+                           style="opacity:.5;cursor:help;"></i>
+                    </th>
+                    <th>End User</th>
+                    <th>Sales Engineer</th>
+                    <th>Client</th>
+                    <th>Stage</th>
+                    <th>Deal Value</th>
+                    <th>Probability</th>
+                    <th>Expected Close</th>
+                    <th>Registered</th>
+                    <th>Scope of Work</th>
+                    <th>Note</th>
+                    {% if user_role in ('General Manager', 'Technical Team Leader') %}
+                    <th></th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for project in projects %}
+            {%- set prob = project[5] | int if project[5] else 0 %}
+            {%- set prob_class = 'high' if prob >= 70 else ('med' if prob >= 40 else 'low') %}
+            {%- set today_str = '' %}
+            <tr>
+                {# # #}
+                <td style="color:#94a3b8;font-size:.75rem;font-weight:600;width:36px;">{{ loop.index }}</td>
+
+                {# Project name #}
+                <td>
+                    <a href="{{ url_for('project_detail', project_id=project[0]) }}"
+                       class="vp-proj-link"
+                       title="{{ project[1] }}">
+                        <span class="vp-proj-icon"><i class="fas fa-folder-open"></i></span>
+                        <span class="vp-proj-name">{{ project[1] }}</span>
+                    </a>
+                </td>
+
+                {# End User #}
+                <td style="color:#475569;font-size:.82rem;">
+                    {{ project[2] if project[2] else '<span class="text-muted">—</span>' | safe }}
+                </td>
+
+                {# Sales Engineer #}
+                <td style="font-size:.82rem;font-weight:600;color:#334155;">
+                    {{ project[7] if project[7] else '<span style="color:#94a3b8;">—</span>' | safe }}
+                </td>
+
+                {# Client #}
+                <td>
+                    {% if project[13] %}
+                    <div>
+                        {% if project[13] == 'Contractor' and project[11] %}
+                        <span class="ct-client-name" title="{{ project[11] }}">{{ project[11] }}</span>
+                        <span class="ct-badge contractor"><i class="fas fa-hard-hat"></i>Contractor</span>
+                        {% elif project[13] == 'End User' and project[2] %}
+                        <span class="ct-client-name" title="{{ project[2] }}">{{ project[2] }}</span>
+                        <span class="ct-badge end-user"><i class="fas fa-building"></i>End User</span>
+                        {% elif project[13] == 'Consultant' and project[12] %}
+                        <span class="ct-client-name" title="{{ project[12] }}">{{ project[12] }}</span>
+                        <span class="ct-badge consultant"><i class="fas fa-user-tie"></i>Consultant</span>
+                        {% else %}
+                        <span style="color:#94a3b8;font-size:.8rem;">—</span>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <span style="color:#94a3b8;">—</span>
+                    {% endif %}
+                </td>
+
+                {# Stage #}
+                <td>
+                    {%- set stage = project[3] %}
+                    {%- if stage == 'Lead' %}
+                    <span class="sg-badge sg-lead"><i class="fas fa-seedling"></i>Lead</span>
+                    {%- elif stage == 'Prospecting' %}
+                    <span class="sg-badge sg-prospecting"><i class="fas fa-search"></i>Prospecting</span>
+                    {%- elif stage == 'Qualification' %}
+                    <span class="sg-badge sg-qualification"><i class="fas fa-clipboard-check"></i>Qualification</span>
+                    {%- elif stage == 'Proposal Prep' %}
+                    <span class="sg-badge sg-proposal-prep"><i class="fas fa-file-alt"></i>Proposal Prep</span>
+                    {%- elif stage == 'Proposal Sent' %}
+                    <span class="sg-badge sg-proposal-sent"><i class="fas fa-paper-plane"></i>Proposal Sent</span>
+                    {%- elif stage == 'Customer Pending' %}
+                    <span class="sg-badge sg-customer-pending"><i class="fas fa-hourglass-half"></i>Cust. Pending</span>
+                    {%- elif stage == 'Technical Discussion' %}
+                    <span class="sg-badge sg-technical"><i class="fas fa-comments"></i>Tech. Discussion</span>
+                    {%- elif stage == 'Negotiation' %}
+                    <span class="sg-badge sg-negotiation"><i class="fas fa-handshake"></i>Negotiation</span>
+                    {%- elif stage == 'Closed Won' %}
+                    <span class="sg-badge sg-closed-won"><i class="fas fa-trophy"></i>Closed Won</span>
+                    {%- elif stage == 'Closed Lost' %}
+                    <span class="sg-badge sg-closed-lost"><i class="fas fa-times-circle"></i>Closed Lost</span>
+                    {%- else %}
+                    <span class="sg-badge sg-default"><i class="fas fa-circle"></i>{{ stage or '—' }}</span>
+                    {%- endif %}
+                </td>
+
+                {# Deal value #}
+                <td>
+                    {% if project[4] %}
+                    <span class="vp-deal">${{ "{:,.0f}".format(project[4]) }}</span>
+                    {% else %}
+                    <span class="vp-deal na">N/A</span>
+                    {% endif %}
+                </td>
+
+                {# Probability #}
+                <td>
+                    <div class="vp-prob-wrap">
+                        <div class="vp-prob-bar">
+                            <div class="vp-prob-fill {{ prob_class }}" style="width:{{ prob }}%;"></div>
+                        </div>
+                        <div class="vp-prob-label">{{ prob }}%</div>
+                    </div>
+                </td>
+
+                {# Expected close date #}
+                <td>
+                    <span class="vp-date">{{ project[6] if project[6] else '—' }}</span>
+                </td>
+
+                {# Registered date #}
+                <td>
+                    <span class="vp-date">{{ project[8].split(' ')[0] if project[8] else '—' }}</span>
+                </td>
+
+                {# Scope #}
+                <td>
+                    <div class="vp-trunc" title="{{ project[9] }}">{{ project[9] or '—' }}</div>
+                </td>
+
+                {# Note #}
+                <td>
+                    <div class="vp-trunc" title="{{ project[10] }}">{{ project[10] or '—' }}</div>
+                </td>
+
+                {# Actions #}
+                {% if user_role in ('General Manager', 'Technical Team Leader') %}
+                <td>
+                    <button class="vp-del-btn"
+                            onclick="deleteProject({{ project[0] }}, '{{ project[1] | replace("'","\\'")}}')"
+                            title="Delete project">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        {% else %}
+        <div class="vp-empty">
+            <div class="vp-empty-icon"><i class="fas fa-folder-open"></i></div>
+            <h6>No projects found</h6>
+            <p>Try adjusting your filters or register a new project.</p>
+            <a href="{{ url_for('register_project') }}" class="btn-filter mt-2" style="display:inline-flex;">
+                <i class="fas fa-plus"></i>Register New Project
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<div class="modal fade" id="projectDetailsModal" tabindex="-1" role="dialog" aria-labelledby="projectDetailsModalLabel" aria-hidden="true">
+{# ── Delete modal ──────────────────────────────────────────────────── #}
+<div class="modal fade" id="projectDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="projectDetailsModalLabel">Project Details</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+        <div class="modal-content" style="border-radius:12px;border:none;">
+            <div class="modal-header" style="border-bottom:1px solid #f0f2f8;">
+                <h6 class="modal-title font-weight-bold" id="projectDetailsModalLabel">Project Details</h6>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             </div>
             <div class="modal-body">
                 <p><strong>End User:</strong> <span id="modalEndUser"></span></p>
                 <p><strong>Contractor:</strong> <span id="modalContractor"></span></p>
                 <p><strong>Consultant:</strong> <span id="modalConsultant"></span></p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <div class="modal-footer" style="border-top:1px solid #f0f2f8;">
+                <button type="button" class="btn btn-light btn-sm" data-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -377,48 +691,22 @@
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    // Initialize tooltips
+$(document).ready(function () {
     $('[data-toggle="tooltip"]').tooltip();
-    
-    $('#projectDetailsModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget); // Button that triggered the modal
-
-        // Extract info from data-* attributes
-        var projectName = button.data('projectname');
-        var endUser = button.data('enduser');
-        var contractor = button.data('contractor');
-        var consultant = button.data('consultant');
-
-        // Update the modal's content.
-        var modal = $(this);
-        modal.find('.modal-title').text('Details for: ' + projectName);
-        modal.find('#modalEndUser').text(endUser);
-        modal.find('#modalContractor').text(contractor);
-        modal.find('#modalConsultant').text(consultant);
-    });
 });
 
 function deleteProject(projectId, projectName) {
-    if (confirm(`Are you sure you want to delete project "${projectName}"?\n\nThis action cannot be undone!`)) {
+    if (confirm(`Delete project "${projectName}"?\n\nThis cannot be undone.`)) {
         fetch(`/delete_project/${projectId}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
+            headers: { 'Content-Type': 'application/json' }
         })
-        .then(response => response.json())
+        .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Error: ' + data.message);
-            }
+            if (data.success) { location.reload(); }
+            else { alert('Error: ' + data.message); }
         })
-        .catch(error => {
-            alert('Error deleting project: ' + error);
-        });
+        .catch(err => alert('Error: ' + err));
     }
 }
 </script>
