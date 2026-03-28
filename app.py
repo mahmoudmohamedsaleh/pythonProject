@@ -14273,7 +14273,7 @@ def sales_engineer_report():
                    cn.client_tier, 'Consultant' AS client_type, e.name AS engineer_name
             FROM consultants cn
             LEFT JOIN engineers e ON cn.assigned_sales_engineer_id = e.id
-            ORDER BY name
+            ORDER BY 2
         """)
         clients = c.fetchall()
 
