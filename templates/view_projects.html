@@ -327,6 +327,19 @@
     cursor: default;
 }
 
+/* ── Client profile link ────────────────────────────────────────────── */
+.vp-client-link {
+    text-decoration: none;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    transition: opacity .15s;
+}
+.vp-client-link:hover { opacity: .82; text-decoration: none; }
+.vp-client-link:hover .ct-client-name { color: #4361ee; }
+.vp-client-link .ct-client-name { transition: color .15s; }
+
 /* ── Action btn ─────────────────────────────────────────────────────── */
 .vp-del-btn {
     width: 30px; height: 30px;
@@ -515,8 +528,6 @@
                     <th>Probability</th>
                     <th>Expected Close</th>
                     <th>Registered</th>
-                    <th>Scope of Work</th>
-                    <th>Note</th>
                     {% if user_role in ('General Manager', 'Technical Team Leader') %}
                     <th></th>
                     {% endif %}
@@ -551,23 +562,26 @@
                     {{ project[7] if project[7] else '<span style="color:#94a3b8;">—</span>' | safe }}
                 </td>
 
-                {# Client #}
+                {# Client — clickable link to client profile #}
                 <td>
-                    {% if project[13] %}
-                    <div>
-                        {% if project[13] == 'Contractor' and project[11] %}
-                        <span class="ct-client-name" title="{{ project[11] }}">{{ project[11] }}</span>
+                    {% if project[13] == 'Contractor' and project[11] and project[15] %}
+                    <a href="{{ url_for('client_profile', client_type='contractor', client_id=project[15]) }}"
+                       class="vp-client-link" title="View {{ project[11] }} profile">
+                        <span class="ct-client-name">{{ project[11] }}</span>
                         <span class="ct-badge contractor"><i class="fas fa-hard-hat"></i>Contractor</span>
-                        {% elif project[13] == 'End User' and project[2] %}
-                        <span class="ct-client-name" title="{{ project[2] }}">{{ project[2] }}</span>
+                    </a>
+                    {% elif project[13] == 'End User' and project[2] and project[14] %}
+                    <a href="{{ url_for('client_profile', client_type='end_user', client_id=project[14]) }}"
+                       class="vp-client-link" title="View {{ project[2] }} profile">
+                        <span class="ct-client-name">{{ project[2] }}</span>
                         <span class="ct-badge end-user"><i class="fas fa-building"></i>End User</span>
-                        {% elif project[13] == 'Consultant' and project[12] %}
-                        <span class="ct-client-name" title="{{ project[12] }}">{{ project[12] }}</span>
+                    </a>
+                    {% elif project[13] == 'Consultant' and project[12] and project[16] %}
+                    <a href="{{ url_for('client_profile', client_type='consultant', client_id=project[16]) }}"
+                       class="vp-client-link" title="View {{ project[12] }} profile">
+                        <span class="ct-client-name">{{ project[12] }}</span>
                         <span class="ct-badge consultant"><i class="fas fa-user-tie"></i>Consultant</span>
-                        {% else %}
-                        <span style="color:#94a3b8;font-size:.8rem;">—</span>
-                        {% endif %}
-                    </div>
+                    </a>
                     {% else %}
                     <span style="color:#94a3b8;">—</span>
                     {% endif %}
@@ -628,16 +642,6 @@
                 {# Registered date #}
                 <td>
                     <span class="vp-date">{{ project[8].split(' ')[0] if project[8] else '—' }}</span>
-                </td>
-
-                {# Scope #}
-                <td>
-                    <div class="vp-trunc" title="{{ project[9] }}">{{ project[9] or '—' }}</div>
-                </td>
-
-                {# Note #}
-                <td>
-                    <div class="vp-trunc" title="{{ project[10] }}">{{ project[10] or '—' }}</div>
                 </td>
 
                 {# Actions #}

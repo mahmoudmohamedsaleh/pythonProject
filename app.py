@@ -26584,7 +26584,8 @@ def view_projects():
             rp.deal_value, rp.probability, rp.expected_close_date,
             en.username AS sales_engineer, rp.registered_date,
             rp.scope_of_work, rp.note,
-            co.name as contractor, cn.name as consultant, rp.client_type
+            co.name as contractor, cn.name as consultant, rp.client_type,
+            rp.end_user_id, rp.contractor_id, rp.consultant_id
         FROM register_project rp
         LEFT JOIN end_users eu ON rp.end_user_id = eu.id
         LEFT JOIN contractors co ON rp.contractor_id = co.id
