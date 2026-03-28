@@ -14250,7 +14250,7 @@ def sales_engineer_report():
             LEFT JOIN end_users   eu ON rp.end_user_id   = eu.id AND rp.client_type = 'end_user'
             LEFT JOIN contractors co ON rp.contractor_id = co.id AND rp.client_type = 'contractor'
             LEFT JOIN consultants cn ON rp.consultant_id = cn.id AND rp.client_type = 'consultant'
-            LEFT JOIN engineers   e  ON CAST(rp.sales_engineer_id AS TEXT) = CAST(e.id AS TEXT)
+            LEFT JOIN engineers   e  ON CAST(CAST(rp.sales_engineer_id AS INTEGER) AS TEXT) = CAST(e.id AS TEXT)
             WHERE rp.approval_status = 'Approved'
             {proj_date_sql}
             ORDER BY rp.registered_date DESC
