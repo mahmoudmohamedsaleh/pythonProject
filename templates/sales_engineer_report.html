@@ -1,196 +1,298 @@
 {% extends "base.html" %}
 {% block title %}Sales Engineer Report{% endblock %}
 
-{% block styles %}
+{% block content %}
 <style>
-/* ── Banner ─────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════
+   SE REPORT — full design system
+   ════════════════════════════════════════════════════════ */
+
+/* ── Banner ────────────────────────────────────────── */
 .ser-banner {
-    background: linear-gradient(135deg,#4361ee 0%,#7c3aed 100%);
-    border-radius: 14px;
-    padding: 18px 28px;
+    background: linear-gradient(135deg, #4361ee 0%, #7c3aed 100%);
+    border-radius: 16px;
+    padding: 20px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 22px;
-    box-shadow: 0 4px 18px rgba(67,97,238,.22);
+    margin-bottom: 24px;
+    box-shadow: 0 8px 28px rgba(67, 97, 238, .28);
 }
-.ser-banner-left { display:flex; align-items:center; gap:14px; }
+.ser-banner-left { display: flex; align-items: center; gap: 16px; }
 .ser-banner-icon {
-    width:46px; height:46px; border-radius:12px;
-    background:rgba(255,255,255,.18); display:flex;
-    align-items:center; justify-content:center;
-    font-size:1.3rem; color:#fff;
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
 }
-.ser-banner-title { color:#fff; font-size:1.25rem; font-weight:700; line-height:1.2; }
-.ser-banner-sub   { color:rgba(255,255,255,.75); font-size:.8rem; margin-top:2px; }
+.ser-banner-title { color: #fff; font-size: 1.3rem; font-weight: 800; line-height: 1.2; }
+.ser-banner-sub   { color: rgba(255,255,255,.78); font-size: .82rem; margin-top: 3px; }
 
-/* ── Engineer selector ──────────────────────────────────────────── */
-.ser-selector-card {
-    background:#fff;
-    border-radius:12px;
-    border:1px solid #e5e7eb;
-    padding:20px 24px;
-    margin-bottom:22px;
-    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-    box-shadow:0 1px 4px rgba(0,0,0,.05);
+/* ── Selector card ─────────────────────────────────── */
+.ser-selector {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    padding: 18px 24px;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
-.ser-selector-label { font-weight:600; font-size:.85rem; color:#374151; white-space:nowrap; }
-.ser-selector-select {
-    flex:1; min-width:200px; max-width:340px;
-    border:1.5px solid #d1d5db; border-radius:8px;
-    padding:9px 14px; font-size:.9rem; color:#1f2937;
-    background:#f9fafb; transition:border-color .2s;
-    outline:none;
+.ser-sel-label {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; font-size: .85rem; color: #374151;
+    white-space: nowrap;
 }
-.ser-selector-select:focus { border-color:#4361ee; background:#fff; }
-.ser-btn-view {
-    padding:9px 22px; background:#4361ee; color:#fff;
-    border:none; border-radius:8px; font-weight:600;
-    font-size:.85rem; cursor:pointer; transition:background .2s;
-    white-space:nowrap;
+.ser-sel-label i { color: #4361ee; font-size: .95rem; }
+.ser-sel-select {
+    flex: 1; min-width: 220px; max-width: 380px;
+    border: 1.5px solid #d1d5db; border-radius: 10px;
+    padding: 10px 16px; font-size: .88rem; color: #1f2937;
+    background: #f9fafb;
+    transition: border-color .2s, box-shadow .2s;
+    outline: none; cursor: pointer;
 }
-.ser-btn-view:hover { background:#3451d1; }
+.ser-sel-select:focus { border-color: #4361ee; background: #fff; box-shadow: 0 0 0 3px rgba(67,97,238,.1); }
+.ser-sel-btn {
+    padding: 10px 24px;
+    background: linear-gradient(135deg, #4361ee, #6366f1);
+    color: #fff; border: none; border-radius: 10px;
+    font-weight: 700; font-size: .85rem; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    transition: opacity .2s, transform .15s;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(67,97,238,.3);
+}
+.ser-sel-btn:hover { opacity: .92; transform: translateY(-1px); }
 
-/* ── Engineer profile card ──────────────────────────────────────── */
-.ser-profile {
-    background: linear-gradient(135deg,#f8f9ff 0%,#f0f4ff 100%);
-    border: 1.5px solid #dbe4ff;
-    border-radius:12px; padding:20px 24px;
-    display:flex; align-items:center; gap:18px;
-    margin-bottom:20px;
-    box-shadow:0 2px 8px rgba(67,97,238,.07);
+/* ── Profile hero ──────────────────────────────────── */
+.ser-profile-hero {
+    background: linear-gradient(135deg, #f0f4ff 0%, #ede9fe 100%);
+    border: 1.5px solid #c7d2fe;
+    border-radius: 16px;
+    padding: 24px 28px;
+    display: flex; align-items: center; gap: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 12px rgba(67,97,238,.08);
 }
-.ser-profile-avatar {
-    width:58px; height:58px; border-radius:50%;
-    background:linear-gradient(135deg,#4361ee,#7c3aed);
-    display:flex; align-items:center; justify-content:center;
-    font-size:1.5rem; color:#fff; font-weight:700; flex-shrink:0;
+.ser-avatar {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: linear-gradient(135deg, #4361ee, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; color: #fff; font-weight: 800; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(67,97,238,.3);
+    text-transform: uppercase;
 }
-.ser-profile-name  { font-size:1.1rem; font-weight:700; color:#1e293b; }
-.ser-profile-role  { font-size:.8rem; color:#6366f1; font-weight:600; margin-top:2px; }
-.ser-profile-meta  { font-size:.78rem; color:#64748b; margin-top:4px; }
-.ser-profile-meta span { margin-right:14px; }
-.ser-profile-meta i { margin-right:4px; color:#94a3b8; }
+.ser-profile-info { flex: 1; }
+.ser-profile-name { font-size: 1.2rem; font-weight: 800; color: #1e293b; line-height: 1.2; }
+.ser-profile-role {
+    display: inline-block; margin-top: 5px;
+    background: linear-gradient(135deg, #4361ee, #7c3aed);
+    color: #fff; border-radius: 8px; padding: 3px 12px;
+    font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+}
+.ser-profile-meta {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-top: 10px; font-size: .8rem; color: #64748b;
+}
+.ser-profile-meta span { display: flex; align-items: center; gap: 5px; }
+.ser-profile-meta i { color: #818cf8; font-size: .8rem; }
 
-/* ── Stat cards ─────────────────────────────────────────────────── */
-.ser-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:22px; }
+/* ── Stats grid ─────────────────────────────────────── */
+.ser-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+}
+@media(max-width:900px) { .ser-stats { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:520px) { .ser-stats { grid-template-columns: 1fr; } }
+
 .ser-stat {
-    background:#fff; border:1px solid #e5e7eb; border-radius:10px;
-    padding:14px 16px; display:flex; flex-direction:column; gap:4px;
-    border-top-width:3px; transition:transform .15s, box-shadow .2s;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    transition: transform .15s, box-shadow .2s;
+    cursor: default;
 }
-.ser-stat:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.08); }
-.ser-stat-val  { font-size:1.5rem; font-weight:800; line-height:1; }
-.ser-stat-lbl  { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:#6b7280; }
-.ser-stat.s-proj   { border-top-color:#4361ee; } .ser-stat.s-proj   .ser-stat-val { color:#4361ee; }
-.ser-stat.s-cli    { border-top-color:#8b5cf6; } .ser-stat.s-cli    .ser-stat-val { color:#8b5cf6; }
-.ser-stat.s-rfq    { border-top-color:#f59e0b; } .ser-stat.s-rfq    .ser-stat-val { color:#f59e0b; }
-.ser-stat.s-po     { border-top-color:#06b6d4; } .ser-stat.s-po     .ser-stat-val { color:#06b6d4; }
-.ser-stat.s-won    { border-top-color:#22c55e; } .ser-stat.s-won    .ser-stat-val { color:#22c55e; }
-.ser-stat.s-active { border-top-color:#f97316; } .ser-stat.s-active .ser-stat-val { color:#f97316; }
-.ser-stat.s-lost   { border-top-color:#ef4444; } .ser-stat.s-lost   .ser-stat-val { color:#ef4444; }
-.ser-stat.s-deal   { border-top-color:#10b981; } .ser-stat.s-deal   .ser-stat-val { color:#10b981; font-size:1.1rem; }
-
-/* ── Tabs ───────────────────────────────────────────────────────── */
-.ser-tabs { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin-bottom:0; }
-.ser-tab {
-    padding:10px 20px; font-size:.83rem; font-weight:600;
-    color:#6b7280; cursor:pointer; border-bottom:2px solid transparent;
-    margin-bottom:-2px; transition:color .15s, border-color .15s;
-    display:flex; align-items:center; gap:7px; white-space:nowrap;
+.ser-stat:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.09); }
+.ser-stat-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
 }
-.ser-tab:hover { color:#4361ee; }
-.ser-tab.active { color:#4361ee; border-bottom-color:#4361ee; }
-.ser-tab-badge {
-    background:#e8ecfd; color:#4361ee; border-radius:99px;
-    padding:1px 8px; font-size:.7rem; font-weight:700;
-}
-.ser-tab.active .ser-tab-badge { background:#4361ee; color:#fff; }
+.ser-stat-body { min-width: 0; }
+.ser-stat-val  { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+.ser-stat-lbl  { font-size: .68rem; font-weight: 700; text-transform: uppercase;
+                 letter-spacing: .05em; color: #6b7280; margin-top: 3px; }
+/* colour themes */
+.ss-blue   .ser-stat-icon { background:#eff6ff; color:#2563eb; }
+.ss-blue   .ser-stat-val  { color: #2563eb; }
+.ss-green  .ser-stat-icon { background:#f0fdf4; color:#16a34a; }
+.ss-green  .ser-stat-val  { color: #16a34a; }
+.ss-orange .ser-stat-icon { background:#fff7ed; color:#ea580c; }
+.ss-orange .ser-stat-val  { color: #ea580c; }
+.ss-red    .ser-stat-icon { background:#fef2f2; color:#dc2626; }
+.ss-red    .ser-stat-val  { color: #dc2626; }
+.ss-teal   .ser-stat-icon { background:#f0fdfa; color:#0d9488; }
+.ss-teal   .ser-stat-val  { color: #0d9488; font-size: 1.15rem; }
+.ss-purple .ser-stat-icon { background:#faf5ff; color:#7c3aed; }
+.ss-purple .ser-stat-val  { color: #7c3aed; }
+.ss-amber  .ser-stat-icon { background:#fffbeb; color:#d97706; }
+.ss-amber  .ser-stat-val  { color: #d97706; }
+.ss-cyan   .ser-stat-icon { background:#ecfeff; color:#0891b2; }
+.ss-cyan   .ser-stat-val  { color: #0891b2; }
 
-.ser-tab-pane { display:none; }
-.ser-tab-pane.active { display:block; }
-
-/* ── Table card ─────────────────────────────────────────────────── */
+/* ── Main card + tabs ───────────────────────────────── */
 .ser-card {
-    background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-    overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.05);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,.05);
 }
-.ser-card-hdr {
-    padding:14px 20px; border-bottom:1px solid #f1f5f9;
-    font-weight:700; font-size:.9rem; color:#1e293b;
-    display:flex; align-items:center; gap:8px;
+.ser-tabs-bar {
+    display: flex; gap: 0;
+    border-bottom: 2px solid #f1f5f9;
+    padding: 0 8px;
+    background: #fafbff;
 }
-.ser-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.ser-tab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 20px;
+    font-size: .82rem; font-weight: 700; color: #6b7280;
+    cursor: pointer; border-bottom: 2.5px solid transparent;
+    margin-bottom: -2px; transition: color .15s, border-color .15s;
+    white-space: nowrap;
+}
+.ser-tab:hover { color: #4361ee; }
+.ser-tab.active { color: #4361ee; border-bottom-color: #4361ee; }
+.ser-tab i { font-size: .9rem; }
+.ser-tab-badge {
+    background: #e8ecfd; color: #4361ee; border-radius: 99px;
+    padding: 2px 8px; font-size: .68rem; font-weight: 800;
+    min-width: 20px; text-align: center;
+}
+.ser-tab.active .ser-tab-badge { background: #4361ee; color: #fff; }
+
+.ser-pane { display: none; }
+.ser-pane.active { display: block; }
+
+/* ── Tables ─────────────────────────────────────────── */
+.ser-table-wrap { overflow-x: auto; }
+.ser-table {
+    width: 100%; border-collapse: collapse;
+    font-size: .82rem; min-width: 600px;
+}
 .ser-table thead th {
-    background:#f8fafc; padding:9px 14px;
-    text-align:left; font-size:.7rem; font-weight:700;
-    text-transform:uppercase; letter-spacing:.04em;
-    color:#64748b; border-bottom:1px solid #e2e8f0;
-    white-space:nowrap;
+    background: #f8fafc; padding: 10px 16px;
+    text-align: left; font-size: .68rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: #64748b; border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
 }
-.ser-table tbody tr { transition:background .12s; }
-.ser-table tbody tr:hover { background:#f8f9ff; }
+.ser-table thead th:first-child { border-radius: 0; width: 38px; text-align: center; }
+.ser-table tbody tr { transition: background .1s; }
+.ser-table tbody tr:hover { background: #f8f9ff; }
 .ser-table tbody td {
-    padding:9px 14px; border-bottom:1px solid #f1f5f9;
-    color:#374151; vertical-align:middle;
+    padding: 10px 16px; border-bottom: 1px solid #f1f5f9;
+    color: #374151; vertical-align: middle;
 }
-.ser-table a { color:#4361ee; text-decoration:none; font-weight:600; }
-.ser-table a:hover { text-decoration:underline; }
+.ser-table tbody td:first-child { text-align: center; color: #94a3b8; font-size: .72rem; font-weight: 700; }
+.ser-table a { color: #4361ee; text-decoration: none; font-weight: 700; }
+.ser-table a:hover { text-decoration: underline; }
+.ser-table tbody tr:last-child td { border-bottom: none; }
 
-/* ── Stage badges ───────────────────────────────────────────────── */
-.stg { display:inline-flex; align-items:center; gap:5px;
-       padding:3px 9px; border-radius:99px; font-size:.7rem; font-weight:700; }
-.stg-won    { background:#dcfce7; color:#15803d; }
-.stg-lost   { background:#fee2e2; color:#b91c1c; }
-.stg-lead   { background:#dbeafe; color:#1d4ed8; }
-.stg-prop   { background:#fef9c3; color:#854d0e; }
-.stg-active { background:#ffedd5; color:#c2410c; }
-.stg-neg    { background:#ede9fe; color:#5b21b6; }
-.stg-def    { background:#f1f5f9; color:#475569; }
+/* ── Badges ─────────────────────────────────────────── */
+.badge-stage {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 99px;
+    font-size: .68rem; font-weight: 800; white-space: nowrap;
+}
+.bs-won    { background: #dcfce7; color: #15803d; }
+.bs-lost   { background: #fee2e2; color: #b91c1c; }
+.bs-lead   { background: #dbeafe; color: #1d4ed8; }
+.bs-prop   { background: #fef9c3; color: #854d0e; }
+.bs-neg    { background: #ede9fe; color: #5b21b6; }
+.bs-active { background: #ffedd5; color: #c2410c; }
+.bs-def    { background: #f1f5f9; color: #475569; }
 
-/* ── Tier badges ────────────────────────────────────────────────── */
-.tier-vip  { background:#fef3c7; color:#d97706; border:1px solid #fde68a; border-radius:6px; padding:2px 8px; font-size:.7rem; font-weight:700; }
-.tier-key  { background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; padding:2px 8px; font-size:.7rem; font-weight:700; }
-.tier-std  { background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; border-radius:6px; padding:2px 8px; font-size:.7rem; font-weight:700; }
-.tier-new  { background:#f8fafc; color:#64748b; border:1px solid #e2e8f0; border-radius:6px; padding:2px 8px; font-size:.7rem; font-weight:700; }
+.badge-tier {
+    display: inline-block; padding: 2px 9px; border-radius: 6px;
+    font-size: .68rem; font-weight: 800;
+}
+.bt-vip { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+.bt-key { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.bt-std { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.bt-new { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
 
-/* ── Client type pill ───────────────────────────────────────────── */
-.cli-type { display:inline-block; padding:2px 8px; border-radius:6px; font-size:.68rem; font-weight:700; }
-.cli-eu  { background:#e0e7ff; color:#3730a3; }
-.cli-co  { background:#fef3c7; color:#b45309; }
-.cli-cn  { background:#f0fdf4; color:#166534; }
+.badge-type {
+    display: inline-block; padding: 2px 9px; border-radius: 6px;
+    font-size: .68rem; font-weight: 800;
+}
+.bt-eu { background: #e0e7ff; color: #3730a3; }
+.bt-co { background: #fef3c7; color: #b45309; }
+.bt-cn { background: #f0fdf4; color: #166534; }
 
-/* ── PO status ──────────────────────────────────────────────────── */
-.po-st { display:inline-block; padding:2px 8px; border-radius:99px; font-size:.7rem; font-weight:700; }
-.po-approved  { background:#dcfce7; color:#15803d; }
-.po-pending   { background:#fef9c3; color:#854d0e; }
-.po-rejected  { background:#fee2e2; color:#b91c1c; }
-.po-delivered { background:#dbeafe; color:#1d4ed8; }
+.badge-role {
+    display: inline-block; padding: 2px 9px; border-radius: 6px;
+    font-size: .68rem; font-weight: 800;
+}
+.br-sales  { background: #eff6ff; color: #1d4ed8; }
+.br-pre    { background: #faf5ff; color: #6d28d9; }
 
-/* ── Empty state ─────────────────────────────────────────────────── */
+.badge-po {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 99px;
+    font-size: .68rem; font-weight: 800;
+}
+.bp-app  { background: #dcfce7; color: #15803d; }
+.bp-rej  { background: #fee2e2; color: #b91c1c; }
+.bp-pend { background: #fef9c3; color: #854d0e; }
+.bp-del  { background: #dbeafe; color: #1d4ed8; }
+
+/* ── Empty & prompt states ───────────────────────────── */
 .ser-empty {
-    text-align:center; padding:40px 20px;
-    color:#94a3b8; font-size:.88rem;
+    text-align: center; padding: 52px 24px;
+    color: #94a3b8;
 }
-.ser-empty i { font-size:2rem; margin-bottom:10px; display:block; color:#cbd5e1; }
+.ser-empty .empty-icon {
+    width: 68px; height: 68px; border-radius: 50%;
+    background: #f1f5f9; margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; color: #cbd5e1;
+}
+.ser-empty p { font-size: .88rem; font-weight: 600; margin: 0 0 4px; }
+.ser-empty small { font-size: .78rem; }
 
-/* ── Prompt box ─────────────────────────────────────────────────── */
 .ser-prompt {
-    background:linear-gradient(135deg,#f8f9ff,#f0f4ff);
-    border:1.5px dashed #c7d2fe; border-radius:12px;
-    padding:50px 20px; text-align:center; color:#6366f1;
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%);
+    border: 2px dashed #c7d2fe;
+    border-radius: 16px; padding: 60px 24px;
+    text-align: center;
 }
-.ser-prompt i { font-size:3rem; margin-bottom:14px; display:block; opacity:.5; }
-.ser-prompt p { font-size:.95rem; font-weight:600; margin:0; }
-.ser-prompt small { color:#94a3b8; font-size:.8rem; }
+.ser-prompt .prompt-icon {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, #e0e7ff, #ede9fe);
+    margin: 0 auto 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; color: #6366f1; opacity: .7;
+}
+.ser-prompt p { font-size: 1rem; font-weight: 700; color: #4338ca; margin: 0 0 6px; }
+.ser-prompt small { color: #818cf8; font-size: .82rem; }
 </style>
-{% endblock %}
 
-{% block content %}
-{# ── Banner ────────────────────────────────────────────────────────── #}
+{# ════════════════════════════════════════════════ BANNER #}
 <div class="ser-banner">
     <div class="ser-banner-left">
-        <div class="ser-banner-icon"><i class="fas fa-user-chart"></i></div>
+        <div class="ser-banner-icon">
+            <i class="fas fa-chart-bar"></i>
+        </div>
         <div>
             <div class="ser-banner-title">Sales Engineer Reports</div>
             <div class="ser-banner-sub">Full breakdown of clients, projects, RFQs and POs per engineer</div>
@@ -198,115 +300,148 @@
     </div>
 </div>
 
-{# ── Engineer selector ─────────────────────────────────────────────── #}
-<form method="GET" action="{{ url_for('sales_engineer_report') }}">
-<div class="ser-selector-card">
-    <span class="ser-selector-label"><i class="fas fa-user-tie" style="color:#4361ee;margin-right:6px;"></i>Select Engineer</span>
-    <select name="engineer" class="ser-selector-select" onchange="this.form.submit()">
-        <option value="">-- Choose a Sales Engineer --</option>
+{# ════════════════════════════════════════════════ SELECTOR #}
+<form method="GET" action="{{ url_for('sales_engineer_report') }}" id="serForm">
+<div class="ser-selector">
+    <div class="ser-sel-label">
+        <i class="fas fa-user-tie"></i>
+        Select Engineer
+    </div>
+    <select name="engineer" class="ser-sel-select" id="serSelect">
+        <option value="">— Choose a Sales Engineer —</option>
         {% for eng in engineers %}
-        <option value="{{ eng['username'] }}" {% if eng['username'] == selected_username %}selected{% endif %}>
-            {{ eng['username'] }} — {{ eng['name'] or '' }} ({{ eng['role'] }})
+        <option value="{{ eng['username'] }}"
+            {% if eng['username'] == selected_username %}selected{% endif %}>
+            {{ eng['username'] }} &mdash; {{ eng['name'] or '' }}
+            {% if eng['role'] %}({{ eng['role'] }}){% endif %}
         </option>
         {% endfor %}
     </select>
-    <button type="submit" class="ser-btn-view"><i class="fas fa-search" style="margin-right:6px;"></i>View Report</button>
+    <button type="submit" class="ser-sel-btn">
+        <i class="fas fa-search"></i> View Report
+    </button>
 </div>
 </form>
 
+{# ════════════════════════════════════════════════ PROMPT (no selection) #}
 {% if not selected_username %}
-{# ── Prompt ────────────────────────────────────────────────────────── #}
 <div class="ser-prompt">
-    <i class="fas fa-user-chart"></i>
+    <div class="prompt-icon"><i class="fas fa-user-chart"></i></div>
     <p>Select a Sales Engineer above to view their full report</p>
-    <small>Clients · Projects · RFQs · Purchase Orders</small>
+    <small>Clients &middot; Projects &middot; RFQs &middot; Purchase Orders</small>
 </div>
 
 {% elif not engineer_data %}
 <div class="ser-prompt">
-    <i class="fas fa-exclamation-circle"></i>
-    <p>Engineer not found</p>
+    <div class="prompt-icon" style="background:linear-gradient(135deg,#fee2e2,#fecaca);">
+        <i class="fas fa-exclamation-circle" style="color:#ef4444;"></i>
+    </div>
+    <p style="color:#b91c1c;">Engineer not found</p>
     <small>The selected engineer does not exist in the system.</small>
 </div>
 
 {% else %}
-{# ── Engineer profile ──────────────────────────────────────────────── #}
-<div class="ser-profile">
-    <div class="ser-profile-avatar">{{ (engineer_data['username'] or '?')[0].upper() }}</div>
-    <div>
+{# ════════════════════════════════════════════════ PROFILE HERO #}
+<div class="ser-profile-hero">
+    <div class="ser-avatar">{{ (engineer_data['username'] or '?')[0] }}</div>
+    <div class="ser-profile-info">
         <div class="ser-profile-name">{{ engineer_data['name'] or engineer_data['username'] }}</div>
-        <div class="ser-profile-role">{{ engineer_data['role'] }}</div>
+        <span class="ser-profile-role">{{ engineer_data['role'] }}</span>
         <div class="ser-profile-meta">
-            <span><i class="fas fa-user"></i>{{ engineer_data['username'] }}</span>
+            <span><i class="fas fa-at"></i>{{ engineer_data['username'] }}</span>
             {% if engineer_data['email'] %}<span><i class="fas fa-envelope"></i>{{ engineer_data['email'] }}</span>{% endif %}
             {% if engineer_data['phone'] %}<span><i class="fas fa-phone"></i>{{ engineer_data['phone'] }}</span>{% endif %}
         </div>
     </div>
 </div>
 
-{# ── Stat cards ────────────────────────────────────────────────────── #}
+{# ════════════════════════════════════════════════ STATS #}
 <div class="ser-stats">
-    <div class="ser-stat s-proj">
-        <div class="ser-stat-val">{{ stats.projects }}</div>
-        <div class="ser-stat-lbl">Projects</div>
+    <div class="ser-stat ss-blue">
+        <div class="ser-stat-icon"><i class="fas fa-folder-open"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.projects }}</div>
+            <div class="ser-stat-lbl">Total Projects</div>
+        </div>
     </div>
-    <div class="ser-stat s-won">
-        <div class="ser-stat-val">{{ stats.won }}</div>
-        <div class="ser-stat-lbl">Closed Won</div>
+    <div class="ser-stat ss-green">
+        <div class="ser-stat-icon"><i class="fas fa-trophy"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.won }}</div>
+            <div class="ser-stat-lbl">Closed Won</div>
+        </div>
     </div>
-    <div class="ser-stat s-active">
-        <div class="ser-stat-val">{{ stats.active }}</div>
-        <div class="ser-stat-lbl">Active Pipeline</div>
+    <div class="ser-stat ss-orange">
+        <div class="ser-stat-icon"><i class="fas fa-fire"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.active }}</div>
+            <div class="ser-stat-lbl">Active Pipeline</div>
+        </div>
     </div>
-    <div class="ser-stat s-lost">
-        <div class="ser-stat-val">{{ stats.lost }}</div>
-        <div class="ser-stat-lbl">Closed Lost</div>
+    <div class="ser-stat ss-red">
+        <div class="ser-stat-icon"><i class="fas fa-times-circle"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.lost }}</div>
+            <div class="ser-stat-lbl">Closed Lost</div>
+        </div>
     </div>
-    <div class="ser-stat s-deal">
-        <div class="ser-stat-val">${{ "{:,.0f}".format(stats.total_deal) }}</div>
-        <div class="ser-stat-lbl">Deal Value</div>
+    <div class="ser-stat ss-teal">
+        <div class="ser-stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">${{ "{:,.0f}".format(stats.total_deal) }}</div>
+            <div class="ser-stat-lbl">Total Deal Value</div>
+        </div>
     </div>
-    <div class="ser-stat s-cli">
-        <div class="ser-stat-val">{{ stats.clients }}</div>
-        <div class="ser-stat-lbl">Clients</div>
+    <div class="ser-stat ss-purple">
+        <div class="ser-stat-icon"><i class="fas fa-users"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.clients }}</div>
+            <div class="ser-stat-lbl">Clients</div>
+        </div>
     </div>
-    <div class="ser-stat s-rfq">
-        <div class="ser-stat-val">{{ stats.rfqs }}</div>
-        <div class="ser-stat-lbl">RFQs</div>
+    <div class="ser-stat ss-amber">
+        <div class="ser-stat-icon"><i class="fas fa-file-alt"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.rfqs }}</div>
+            <div class="ser-stat-lbl">RFQs</div>
+        </div>
     </div>
-    <div class="ser-stat s-po">
-        <div class="ser-stat-val">{{ stats.pos }}</div>
-        <div class="ser-stat-lbl">Purchase Orders</div>
+    <div class="ser-stat ss-cyan">
+        <div class="ser-stat-icon"><i class="fas fa-shopping-cart"></i></div>
+        <div class="ser-stat-body">
+            <div class="ser-stat-val">{{ stats.pos }}</div>
+            <div class="ser-stat-lbl">Purchase Orders</div>
+        </div>
     </div>
 </div>
 
-{# ── Tabs + tables ─────────────────────────────────────────────────── #}
+{# ════════════════════════════════════════════════ TABBED CARD #}
 <div class="ser-card">
-    <div style="padding:0 4px;">
-        <div class="ser-tabs" id="serTabs">
-            <div class="ser-tab active" data-tab="projects">
-                <i class="fas fa-folder"></i> Projects
-                <span class="ser-tab-badge">{{ stats.projects }}</span>
-            </div>
-            <div class="ser-tab" data-tab="clients">
-                <i class="fas fa-users"></i> Clients
-                <span class="ser-tab-badge">{{ stats.clients }}</span>
-            </div>
-            <div class="ser-tab" data-tab="rfqs">
-                <i class="fas fa-file-alt"></i> RFQs
-                <span class="ser-tab-badge">{{ stats.rfqs }}</span>
-            </div>
-            <div class="ser-tab" data-tab="pos">
-                <i class="fas fa-shopping-cart"></i> Purchase Orders
-                <span class="ser-tab-badge">{{ stats.pos }}</span>
-            </div>
+
+    {# ── Tab bar ── #}
+    <div class="ser-tabs-bar">
+        <div class="ser-tab active" data-pane="projects">
+            <i class="fas fa-folder"></i> Projects
+            <span class="ser-tab-badge">{{ stats.projects }}</span>
+        </div>
+        <div class="ser-tab" data-pane="clients">
+            <i class="fas fa-users"></i> Clients
+            <span class="ser-tab-badge">{{ stats.clients }}</span>
+        </div>
+        <div class="ser-tab" data-pane="rfqs">
+            <i class="fas fa-file-alt"></i> RFQs
+            <span class="ser-tab-badge">{{ stats.rfqs }}</span>
+        </div>
+        <div class="ser-tab" data-pane="pos">
+            <i class="fas fa-shopping-cart"></i> Purchase Orders
+            <span class="ser-tab-badge">{{ stats.pos }}</span>
         </div>
     </div>
 
-    {# ── Projects tab ────────────────────────────────────────────────── #}
-    <div class="ser-tab-pane active" id="tab-projects">
+    {# ════ PROJECTS PANE ════ #}
+    <div class="ser-pane active" id="pane-projects">
         {% if projects %}
-        <div style="overflow-x:auto;">
+        <div class="ser-table-wrap">
         <table class="ser-table">
             <thead>
                 <tr>
@@ -322,35 +457,50 @@
             <tbody>
             {% for p in projects %}
             {%- set stage = p['stage'] or '' %}
-            {%- if stage == 'Closed Won' %}   {%- set stg_cls = 'stg-won' %}
-            {%- elif stage == 'Closed Lost' %}{%- set stg_cls = 'stg-lost' %}
-            {%- elif stage == 'Lead' %}        {%- set stg_cls = 'stg-lead' %}
-            {%- elif 'Proposal' in stage %}    {%- set stg_cls = 'stg-prop' %}
-            {%- elif stage == 'Negotiation' %} {%- set stg_cls = 'stg-neg' %}
-            {%- else %}                        {%- set stg_cls = 'stg-active' %}
+            {%- if   stage == 'Closed Won'    %}{%- set scls = 'bs-won'  %}
+            {%- elif stage == 'Closed Lost'   %}{%- set scls = 'bs-lost' %}
+            {%- elif stage == 'Lead'          %}{%- set scls = 'bs-lead' %}
+            {%- elif 'Proposal' in stage      %}{%- set scls = 'bs-prop' %}
+            {%- elif stage == 'Negotiation'   %}{%- set scls = 'bs-neg'  %}
+            {%- else                          %}{%- set scls = 'bs-active'%}
             {%- endif %}
             <tr>
-                <td style="color:#94a3b8;font-size:.75rem;font-weight:600;">{{ loop.index }}</td>
-                <td><a href="{{ url_for('project_profile', project_id=p['id']) }}">{{ p['project_name'] }}</a></td>
-                <td>{{ p['client_name'] or '—' }}</td>
-                <td><span class="stg {{ stg_cls }}">{{ stage }}</span></td>
-                <td>{% if p['deal_value'] %}${{ "{:,.0f}".format(p['deal_value']|float) }}{% else %}<span style="color:#94a3b8;">N/A</span>{% endif %}</td>
-                <td>{{ p['expected_close_date'] or '—' }}</td>
-                <td>{{ p['registered_date'] or '—' }}</td>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ url_for('project_profile', project_id=p['id']) }}">
+                        <i class="fas fa-folder" style="color:#4361ee;margin-right:5px;font-size:.75rem;"></i>
+                        {{ p['project_name'] }}
+                    </a>
+                </td>
+                <td>{{ p['client_name'] or '<span style="color:#94a3b8;">—</span>' | safe }}</td>
+                <td><span class="badge-stage {{ scls }}">{{ stage or '—' }}</span></td>
+                <td>
+                    {% if p['deal_value'] %}
+                        <strong style="color:#0d9488;">${{ "{:,.0f}".format(p['deal_value']|float) }}</strong>
+                    {% else %}
+                        <span style="color:#94a3b8;">N/A</span>
+                    {% endif %}
+                </td>
+                <td style="color:#374151;">{{ p['expected_close_date'] or '—' }}</td>
+                <td style="color:#64748b;font-size:.78rem;">{{ p['registered_date'] or '—' }}</td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
         </div>
         {% else %}
-        <div class="ser-empty"><i class="fas fa-folder-open"></i>No projects found for this engineer.</div>
+        <div class="ser-empty">
+            <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
+            <p>No projects found</p>
+            <small>This engineer has no registered projects.</small>
+        </div>
         {% endif %}
     </div>
 
-    {# ── Clients tab ─────────────────────────────────────────────────── #}
-    <div class="ser-tab-pane" id="tab-clients">
+    {# ════ CLIENTS PANE ════ #}
+    <div class="ser-pane" id="pane-clients">
         {% if clients %}
-        <div style="overflow-x:auto;">
+        <div class="ser-table-wrap">
         <table class="ser-table">
             <thead>
                 <tr>
@@ -366,39 +516,51 @@
             <tbody>
             {% for cl in clients %}
             {%- set ct = cl['client_type'] %}
-            {%- set ct_cls = 'cli-eu' if ct == 'End User' else ('cli-co' if ct == 'Contractor' else 'cli-cn') %}
+            {%- set ct_cls = 'bt-eu' if ct == 'End User' else ('bt-co' if ct == 'Contractor' else 'bt-cn') %}
             {%- set tier = cl['client_tier'] or '' %}
-            {%- if tier == 'VIP' %}         {%- set tier_cls = 'tier-vip' %}
-            {%- elif tier == 'Key Account' %}{%- set tier_cls = 'tier-key' %}
-            {%- elif tier == 'Standard' %}   {%- set tier_cls = 'tier-std' %}
-            {%- else %}                      {%- set tier_cls = 'tier-new' %}
+            {%- if   tier == 'VIP'         %}{%- set tier_cls = 'bt-vip' %}
+            {%- elif tier == 'Key Account' %}{%- set tier_cls = 'bt-key' %}
+            {%- elif tier == 'Standard'    %}{%- set tier_cls = 'bt-std' %}
+            {%- else                       %}{%- set tier_cls = 'bt-new' %}
             {%- endif %}
-            {%- if ct == 'End User' %}       {%- set cli_url = url_for('client_profile', client_type='end_user',   client_id=cl['id']) %}
-            {%- elif ct == 'Contractor' %}   {%- set cli_url = url_for('client_profile', client_type='contractor', client_id=cl['id']) %}
-            {%- else %}                      {%- set cli_url = url_for('client_profile', client_type='consultant', client_id=cl['id']) %}
+            {%- if   ct == 'End User'    %}{%- set cli_url = url_for('client_profile', client_type='end_user',   client_id=cl['id']) %}
+            {%- elif ct == 'Contractor'  %}{%- set cli_url = url_for('client_profile', client_type='contractor', client_id=cl['id']) %}
+            {%- else                     %}{%- set cli_url = url_for('client_profile', client_type='consultant', client_id=cl['id']) %}
             {%- endif %}
             <tr>
-                <td style="color:#94a3b8;font-size:.75rem;font-weight:600;">{{ loop.index }}</td>
-                <td><a href="{{ cli_url }}">{{ cl['name'] }}</a></td>
-                <td><span class="cli-type {{ ct_cls }}">{{ ct }}</span></td>
-                <td>{% if tier %}<span class="{{ tier_cls }}">{{ tier }}</span>{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ cli_url }}">
+                        <i class="fas fa-building" style="color:#6366f1;margin-right:5px;font-size:.75rem;"></i>
+                        {{ cl['name'] }}
+                    </a>
+                </td>
+                <td><span class="badge-type {{ ct_cls }}">{{ ct }}</span></td>
+                <td>
+                    {% if tier %}<span class="badge-tier {{ tier_cls }}">{{ tier }}</span>
+                    {% else %}<span style="color:#94a3b8;">—</span>{% endif %}
+                </td>
                 <td>{{ cl['contact_person'] or '—' }}</td>
                 <td>{{ cl['phone'] or '—' }}</td>
-                <td>{{ cl['email'] or '—' }}</td>
+                <td style="font-size:.78rem;">{{ cl['email'] or '—' }}</td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
         </div>
         {% else %}
-        <div class="ser-empty"><i class="fas fa-users"></i>No clients assigned to this engineer.</div>
+        <div class="ser-empty">
+            <div class="empty-icon"><i class="fas fa-users"></i></div>
+            <p>No clients assigned</p>
+            <small>No end users, contractors, or consultants are assigned to this engineer.</small>
+        </div>
         {% endif %}
     </div>
 
-    {# ── RFQs tab ────────────────────────────────────────────────────── #}
-    <div class="ser-tab-pane" id="tab-rfqs">
+    {# ════ RFQs PANE ════ #}
+    <div class="ser-pane" id="pane-rfqs">
         {% if rfqs %}
-        <div style="overflow-x:auto;">
+        <div class="ser-table-wrap">
         <table class="ser-table">
             <thead>
                 <tr>
@@ -415,42 +577,60 @@
             </thead>
             <tbody>
             {% for r in rfqs %}
-            {%- set rs = r['rfq_status'] or '' %}
-            {%- set qs = r['quotation_status'] or '' %}
-            {%- set role_lbl = 'Sales' if r['sales_engineer_sales'] == selected_username else 'Presales' %}
-            {%- set role_col = '#4361ee' if role_lbl == 'Sales' else '#8b5cf6' %}
+            {%- set rs  = r['rfq_status'] or '' %}
+            {%- set qs  = r['quotation_status'] or '' %}
+            {%- set is_sales = (r['sales_engineer_sales'] == selected_username) %}
+            {%- if   'Won' in rs or 'Closed' in rs  %}{%- set rs_cls = 'bs-won'  %}
+            {%- elif 'Lost' in rs or 'Reject' in rs  %}{%- set rs_cls = 'bs-lost' %}
+            {%- elif rs %}{%- set rs_cls = 'bs-active' %}
+            {%- else    %}{%- set rs_cls = 'bs-def'    %}
+            {%- endif %}
+            {%- if   'Submitted' in qs or 'Sent' in qs %}{%- set qs_cls = 'bs-won'    %}
+            {%- elif 'Pending' in qs                    %}{%- set qs_cls = 'bs-prop'   %}
+            {%- elif qs                                 %}{%- set qs_cls = 'bs-active' %}
+            {%- else                                    %}{%- set qs_cls = 'bs-def'    %}
+            {%- endif %}
             <tr>
-                <td style="color:#94a3b8;font-size:.75rem;font-weight:600;">{{ loop.index }}</td>
-                <td><a href="{{ url_for('rfq_profile', rfq_id=r['id']) }}">{{ r['rfq_reference'] }}</a></td>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ url_for('rfq_profile', rfq_id=r['id']) }}">
+                        <i class="fas fa-file-alt" style="color:#d97706;margin-right:5px;font-size:.75rem;"></i>
+                        {{ r['rfq_reference'] }}
+                    </a>
+                </td>
                 <td>{{ r['project_name'] or '—' }}</td>
-                <td>{{ r['system'] or '—' }}</td>
                 <td>
-                    <span class="stg {% if 'Closed' in rs or 'Won' in rs %}stg-won{% elif 'Lost' in rs or 'Reject' in rs %}stg-lost{% elif rs %}stg-active{% else %}stg-def{% endif %}">
-                        {{ rs or '—' }}
+                    {% if r['system'] %}
+                    <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;">{{ r['system'] }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td><span class="badge-stage {{ rs_cls }}">{{ rs or '—' }}</span></td>
+                <td><span class="badge-stage {{ qs_cls }}">{{ qs or '—' }}</span></td>
+                <td>
+                    <span class="badge-role {{ 'br-sales' if is_sales else 'br-pre' }}">
+                        {{ 'Sales' if is_sales else 'Presales' }}
                     </span>
                 </td>
-                <td>
-                    <span class="stg {% if 'Submitted' in qs or 'Sent' in qs %}stg-won{% elif 'Pending' in qs %}stg-prop{% elif qs %}stg-active{% else %}stg-def{% endif %}">
-                        {{ qs or '—' }}
-                    </span>
-                </td>
-                <td><span style="background:#f0f4ff;color:{{ role_col }};border-radius:6px;padding:2px 9px;font-size:.7rem;font-weight:700;">{{ role_lbl }}</span></td>
-                <td>{{ r['deadline'] or '—' }}</td>
-                <td>{{ (r['requested_time'] or '')[:10] }}</td>
+                <td style="color:#ef4444;font-size:.78rem;font-weight:600;">{{ r['deadline'] or '—' }}</td>
+                <td style="color:#64748b;font-size:.78rem;">{{ (r['requested_time'] or '')[:10] }}</td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
         </div>
         {% else %}
-        <div class="ser-empty"><i class="fas fa-file-alt"></i>No RFQs found for this engineer.</div>
+        <div class="ser-empty">
+            <div class="empty-icon"><i class="fas fa-file-alt"></i></div>
+            <p>No RFQs found</p>
+            <small>This engineer has no associated RFQs.</small>
+        </div>
         {% endif %}
     </div>
 
-    {# ── POs tab ─────────────────────────────────────────────────────── #}
-    <div class="ser-tab-pane" id="tab-pos">
+    {# ════ POs PANE ════ #}
+    <div class="ser-pane" id="pane-pos">
         {% if pos %}
-        <div style="overflow-x:auto;">
+        <div class="ser-table-wrap">
         <table class="ser-table">
             <thead>
                 <tr>
@@ -470,32 +650,51 @@
             <tbody>
             {% for po in pos %}
             {%- set apst = po['po_approval_status'] or '' %}
-            {%- set apst_cls = 'po-approved' if apst == 'Approved' else ('po-rejected' if apst == 'Rejected' else 'po-pending') %}
-            {%- set dlst = po['po_delivery_status'] or '' %}
-            {%- set dlst_cls = 'po-delivered' if dlst == 'Delivered' else ('po-approved' if dlst == 'Shipped' else 'po-pending') %}
+            {%- set dlst = po['po_delivery_status']  or '' %}
+            {%- set ap_cls = 'bp-app' if apst == 'Approved' else ('bp-rej' if apst == 'Rejected' else 'bp-pend') %}
+            {%- set dl_cls = 'bp-del' if dlst == 'Delivered' else ('bp-app' if dlst == 'Shipped' else 'bp-pend') %}
             <tr>
-                <td style="color:#94a3b8;font-size:.75rem;font-weight:600;">{{ loop.index }}</td>
-                <td><a href="{{ url_for('po_profile', po_request_number=po['po_request_number']) }}">{{ po['po_request_number'] }}</a></td>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ url_for('po_profile', po_request_number=po['po_request_number']) }}">
+                        <i class="fas fa-shopping-cart" style="color:#0891b2;margin-right:5px;font-size:.75rem;"></i>
+                        {{ po['po_request_number'] }}
+                    </a>
+                </td>
                 <td>{{ po['po_number'] or '—' }}</td>
                 <td>{{ po['project_name'] or '—' }}</td>
                 <td>{{ po['vendor'] or '—' }}</td>
                 <td>{{ po['distributor'] or '—' }}</td>
-                <td>{{ po['system'] or '—' }}</td>
-                <td><span class="po-st {{ apst_cls }}">{{ apst or 'Pending' }}</span></td>
-                <td><span class="po-st {{ dlst_cls }}">{{ dlst or 'Pending' }}</span></td>
-                <td>{% if po['total_with_vat'] %}${{ "{:,.2f}".format(po['total_with_vat']|float) }}{% elif po['total_amount'] %}${{ "{:,.2f}".format(po['total_amount']|float) }}{% else %}—{% endif %}</td>
-                <td>{{ (po['created_at'] or '')[:10] }}</td>
+                <td>
+                    {% if po['system'] %}
+                    <span style="background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;">{{ po['system'] }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td><span class="badge-po {{ ap_cls }}">{{ apst or 'Pending' }}</span></td>
+                <td><span class="badge-po {{ dl_cls }}">{{ dlst or 'Pending' }}</span></td>
+                <td>
+                    {% if po['total_with_vat'] %}
+                    <strong style="color:#0d9488;">${{ "{:,.2f}".format(po['total_with_vat']|float) }}</strong>
+                    {% elif po['total_amount'] %}
+                    <strong style="color:#0d9488;">${{ "{:,.2f}".format(po['total_amount']|float) }}</strong>
+                    {% else %}—{% endif %}
+                </td>
+                <td style="color:#64748b;font-size:.78rem;">{{ (po['created_at'] or '')[:10] }}</td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
         </div>
         {% else %}
-        <div class="ser-empty"><i class="fas fa-shopping-cart"></i>No purchase orders found for this engineer.</div>
+        <div class="ser-empty">
+            <div class="empty-icon"><i class="fas fa-shopping-cart"></i></div>
+            <p>No purchase orders found</p>
+            <small>This engineer has no associated purchase orders.</small>
+        </div>
         {% endif %}
     </div>
 
-</div>{# end ser-card #}
+</div>{# end .ser-card #}
 {% endif %}
 {% endblock %}
 
@@ -503,12 +702,13 @@
 <script>
 $(document).ready(function () {
     // Tab switching
-    document.querySelectorAll('.ser-tab').forEach(tab => {
+    document.querySelectorAll('.ser-tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
-            document.querySelectorAll('.ser-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.ser-tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.ser-tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.ser-pane').forEach(function (p) { p.classList.remove('active'); });
             this.classList.add('active');
-            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            var pane = document.getElementById('pane-' + this.dataset.pane);
+            if (pane) pane.classList.add('active');
         });
     });
 });
