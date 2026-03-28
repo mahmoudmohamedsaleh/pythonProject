@@ -14048,6 +14048,125 @@ def aging_dashboard():
                            average_age=average_age,
                            stage_thresholds=stage_thresholds)  # Pass thresholds to the template
 ####################
+@app.route('/sales_engineer_report')
+def sales_engineer_report():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    conn = sqlite3.connect('ProjectStatus.db')
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # All engineers that can own clients / projects
+    c.execute("""SELECT id, username, name, role, email, phone FROM engineers
+                 WHERE role IN ('Sales Engineer','Technical Team Leader','General Manager',
+                                'Project Manager','Implementation Engineer','Presale Engineer')
+                 ORDER BY username""")
+    engineers = c.fetchall()
+
+    selected_username = request.args.get('engineer', '').strip()
+    engineer_data = None
+    projects = []
+    clients  = []
+    rfqs     = []
+    pos      = []
+    stats    = {}
+
+    if selected_username:
+        c.execute("SELECT * FROM engineers WHERE username = ?", (selected_username,))
+        engineer_data = c.fetchone()
+
+        if engineer_data:
+            eng_id  = engineer_data['id']
+            eng_uname = engineer_data['username']
+
+            # ── Projects ──────────────────────────────────────────────
+            c.execute("""
+                SELECT rp.id, rp.project_name,
+                       COALESCE(eu.name, co.name, cn.name, '') AS client_name,
+                       rp.client_type, rp.stage, rp.deal_value,
+                       rp.expected_close_date, rp.registered_date
+                FROM register_project rp
+                LEFT JOIN end_users  eu ON rp.end_user_id    = eu.id AND rp.client_type = 'end_user'
+                LEFT JOIN contractors co ON rp.contractor_id  = co.id AND rp.client_type = 'contractor'
+                LEFT JOIN consultants cn ON rp.consultant_id  = cn.id AND rp.client_type = 'consultant'
+                WHERE rp.sales_engineer_id = ? AND rp.approval_status = 'Approved'
+                ORDER BY rp.registered_date DESC
+            """, (eng_id,))
+            projects = c.fetchall()
+
+            # Stage summary for projects
+            stage_counts = {}
+            total_deal   = 0.0
+            for p in projects:
+                s = p['stage'] or 'Unknown'
+                stage_counts[s] = stage_counts.get(s, 0) + 1
+                try:
+                    total_deal += float(p['deal_value'] or 0)
+                except Exception:
+                    pass
+
+            # ── Clients ────────────────────────────────────────────────
+            c.execute("""
+                SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.email,
+                       eu.client_tier, 'End User' AS client_type
+                FROM end_users eu WHERE eu.assigned_sales_engineer_id = ?
+                UNION ALL
+                SELECT co.id, co.name, co.contact_person, co.phone, co.email,
+                       co.client_tier, 'Contractor' AS client_type
+                FROM contractors co WHERE co.assigned_sales_engineer_id = ?
+                UNION ALL
+                SELECT cn.id, cn.name, cn.contact_person, cn.phone, cn.email,
+                       cn.client_tier, 'Consultant' AS client_type
+                FROM consultants cn WHERE cn.assigned_sales_engineer_id = ?
+                ORDER BY name
+            """, (eng_id, eng_id, eng_id))
+            clients = c.fetchall()
+
+            # ── RFQs ───────────────────────────────────────────────────
+            c.execute("""
+                SELECT id, rfq_reference, project_name, rfq_status, quotation_status,
+                       deadline, requested_time, system,
+                       sales_engineer_sales, sales_engineer_presale
+                FROM rfq_requests
+                WHERE sales_engineer_sales = ? OR sales_engineer_presale = ?
+                ORDER BY requested_time DESC
+            """, (eng_uname, eng_uname))
+            rfqs = c.fetchall()
+
+            # ── Purchase Orders ────────────────────────────────────────
+            c.execute("""
+                SELECT id, po_request_number, po_number, project_name, distributor,
+                       vendor, system, po_approval_status, po_delivery_status,
+                       total_amount, total_with_vat, created_at
+                FROM purchase_orders
+                WHERE presale_engineer = ?
+                ORDER BY created_at DESC
+            """, (eng_uname,))
+            pos = c.fetchall()
+
+            stats = {
+                'projects'     : len(projects),
+                'clients'      : len(clients),
+                'rfqs'         : len(rfqs),
+                'pos'          : len(pos),
+                'total_deal'   : total_deal,
+                'won'          : stage_counts.get('Closed Won', 0),
+                'active'       : sum(v for k, v in stage_counts.items()
+                                     if k not in ('Closed Won', 'Closed Lost', 'Cancelled')),
+                'lost'         : stage_counts.get('Closed Lost', 0),
+            }
+
+    conn.close()
+    return render_template('sales_engineer_report.html',
+                           engineers=engineers,
+                           selected_username=selected_username,
+                           engineer_data=engineer_data,
+                           projects=projects,
+                           clients=clients,
+                           rfqs=rfqs,
+                           pos=pos,
+                           stats=stats)
+####################
 @app.route('/upload_documents', methods=['GET', 'POST'])
 #@role_required('editor')
 def upload_documents():
