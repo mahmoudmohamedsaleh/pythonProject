@@ -14123,7 +14123,12 @@ def sales_engineer_report():
                        COALESCE(eu.name, co.name, cn.name, '') AS client_name,
                        rp.client_type, rp.stage, rp.deal_value,
                        rp.expected_close_date, rp.registered_date,
-                       NULL AS engineer_name
+                       NULL AS engineer_name,
+                       (SELECT GROUP_CONCAT(DISTINCT r.sales_engineer_presale, ', ')
+                        FROM rfq_requests r
+                        WHERE r.project_name = rp.project_name
+                          AND r.sales_engineer_presale IS NOT NULL
+                          AND r.sales_engineer_presale != '') AS presale_engineers
                 FROM register_project rp
                 LEFT JOIN end_users   eu ON rp.end_user_id   = eu.id AND rp.client_type = 'end_user'
                 LEFT JOIN contractors co ON rp.contractor_id = co.id AND rp.client_type = 'contractor'
@@ -14235,7 +14240,12 @@ def sales_engineer_report():
                    COALESCE(eu.name, co.name, cn.name, '') AS client_name,
                    rp.client_type, rp.stage, rp.deal_value,
                    rp.expected_close_date, rp.registered_date,
-                   e.name AS engineer_name
+                   e.name AS engineer_name,
+                   (SELECT GROUP_CONCAT(DISTINCT r.sales_engineer_presale, ', ')
+                    FROM rfq_requests r
+                    WHERE r.project_name = rp.project_name
+                      AND r.sales_engineer_presale IS NOT NULL
+                      AND r.sales_engineer_presale != '') AS presale_engineers
             FROM register_project rp
             LEFT JOIN end_users   eu ON rp.end_user_id   = eu.id AND rp.client_type = 'end_user'
             LEFT JOIN contractors co ON rp.contractor_id = co.id AND rp.client_type = 'contractor'

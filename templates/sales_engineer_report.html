@@ -565,6 +565,7 @@
                     <th>Expected Close</th>
                     <th>Registered</th>
                     {% if show_all %}<th>Sales Engineer</th>{% endif %}
+                    <th>Presales Engineer</th>
                 </tr>
             </thead>
             <tbody>
@@ -630,6 +631,7 @@
                 <td style="color:#374151;">{{ p['expected_close_date'] or '—' }}</td>
                 <td style="color:#64748b;font-size:.78rem;">{{ p['registered_date'] or '—' }}</td>
                 {% if show_all %}<td style="color:#4361ee;font-size:.8rem;font-weight:600;">{{ p['engineer_name'] or '—' }}</td>{% endif %}
+                <td style="color:#7c3aed;font-size:.8rem;font-weight:600;">{{ p['presale_engineers'] or '—' }}</td>
             </tr>
             {% endfor %}
             </tbody>
