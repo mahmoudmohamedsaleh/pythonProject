@@ -282,6 +282,38 @@
 .bp-pend { background: #fef9c3; color: #854d0e; }
 .bp-del  { background: #dbeafe; color: #1d4ed8; }
 
+/* ── Related PO chips in Projects tab ───────────────── */
+.po-chip-wrap { display: flex; flex-direction: column; gap: 5px; }
+.po-expand-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #ecfeff; color: #0e7490;
+    border: 1px solid #a5f3fc; border-radius: 8px;
+    padding: 4px 10px; font-size: .72rem; font-weight: 700;
+    cursor: pointer; transition: background .15s;
+    white-space: nowrap;
+}
+.po-expand-btn:hover { background: #cffafe; }
+.po-expand-btn.open  { background: #0e7490; color: #fff; border-color: #0e7490; }
+.po-expand-btn.open .po-caret { transform: rotate(180deg); }
+.po-caret { font-size: .6rem; transition: transform .2s; }
+.po-cnt-badge { font-weight: 800; }
+.po-chips-list {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-top: 2px;
+}
+.po-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 4px 10px;
+    text-decoration: none; font-size: .72rem;
+    transition: background .12s, border-color .12s;
+}
+.po-chip:hover { background: #eff6ff; border-color: #bfdbfe; }
+.po-chip-st {
+    border-radius: 99px; padding: 1px 7px;
+    font-size: .65rem; font-weight: 800;
+}
+
 /* ── Empty & prompt states ───────────────────────────── */
 .ser-empty {
     text-align: center; padding: 52px 24px;
@@ -518,6 +550,7 @@
                     <th>Client</th>
                     <th>Stage</th>
                     <th>Deal Value</th>
+                    <th>Related POs</th>
                     <th>Expected Close</th>
                     <th>Registered</th>
                 </tr>
@@ -532,6 +565,11 @@
             {%- elif stage == 'Negotiation'   %}{%- set scls = 'bs-neg'  %}
             {%- else                          %}{%- set scls = 'bs-active'%}
             {%- endif %}
+            {%- set po_info = po_by_project.get(p['project_name'], {}) %}
+            {%- set po_cnt  = po_info.get('po_count', 0) %}
+            {%- set po_refs = (po_info.get('po_refs') or '').split('|') %}
+            {%- set po_nums = (po_info.get('po_numbers') or '').split('|') %}
+            {%- set po_sts  = (po_info.get('po_statuses') or '').split('|') %}
             <tr>
                 <td>{{ loop.index }}</td>
                 <td>
@@ -547,6 +585,34 @@
                         <strong style="color:#0d9488;">${{ "{:,.0f}".format(p['deal_value']|float) }}</strong>
                     {% else %}
                         <span style="color:#94a3b8;">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if po_cnt > 0 %}
+                    <div class="po-chip-wrap">
+                        <button class="po-expand-btn" onclick="togglePOs(this)"
+                                title="Click to show POs">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span class="po-cnt-badge">{{ po_cnt }} PO{{ 's' if po_cnt > 1 else '' }}</span>
+                            <i class="fas fa-chevron-down po-caret"></i>
+                        </button>
+                        <div class="po-chips-list" style="display:none;">
+                            {% for i in range(po_refs|length) %}
+                            {%- if po_refs[i] %}
+                            {%- set st = po_sts[i] if po_sts|length > i else '' %}
+                            {%- set st_col = '#15803d' if st == 'Approved' else ('#b91c1c' if st == 'Rejected' else '#854d0e') %}
+                            {%- set st_bg  = '#dcfce7' if st == 'Approved' else ('#fee2e2' if st == 'Rejected' else '#fef9c3') %}
+                            <a href="{{ url_for('po_profile', po_request_number=po_refs[i]) }}"
+                               class="po-chip" title="{{ st }}">
+                                <span style="color:#0891b2;font-weight:800;">{{ po_nums[i] if po_nums|length > i and po_nums[i] else '#' ~ po_refs[i] }}</span>
+                                <span class="po-chip-st" style="background:{{ st_bg }};color:{{ st_col }};">{{ st or 'Pending' }}</span>
+                            </a>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <span style="color:#cbd5e1;font-size:.78rem;">—</span>
                     {% endif %}
                 </td>
                 <td style="color:#374151;">{{ p['expected_close_date'] or '—' }}</td>
@@ -768,6 +834,12 @@
 
 {% block scripts %}
 <script>
+function togglePOs(btn) {
+    var list = btn.nextElementSibling;
+    var open = btn.classList.toggle('open');
+    list.style.display = open ? 'flex' : 'none';
+}
+
 $(document).ready(function () {
     // Tab switching
     document.querySelectorAll('.ser-tab').forEach(function (tab) {

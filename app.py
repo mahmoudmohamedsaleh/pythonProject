@@ -14174,19 +14174,41 @@ def sales_engineer_report():
             rfqs = c.fetchall()
 
             # ── Purchase Orders ────────────────────────────────────────
-            po_params = [eng_uname]
+            # Include POs where: (a) this engineer is listed as presale_engineer,
+            # OR (b) the PO's project_name matches one of this engineer's projects
+            po_params = [eng_uname, eng_id]
             po_date_sql = date_filter_clause('po.created_at', selected_year, selected_quarter, po_params)
             c.execute(f"""
-                SELECT po.id, po.po_request_number, po.po_number, po.project_name,
+                SELECT DISTINCT po.id, po.po_request_number, po.po_number, po.project_name,
                        po.distributor, po.vendor, po.system,
                        po.po_approval_status, po.po_delivery_status,
-                       po.total_amount, po.total_with_vat, po.created_at
+                       po.total_amount, po.total_with_vat, po.created_at,
+                       po.presale_engineer
                 FROM purchase_orders po
-                WHERE po.presale_engineer = ?
+                LEFT JOIN register_project rp
+                       ON CAST(po.project_name AS TEXT) = CAST(rp.project_name AS TEXT)
+                      AND rp.approval_status = 'Approved'
+                WHERE (po.presale_engineer = ? OR rp.sales_engineer_id = ?)
                 {po_date_sql}
                 ORDER BY po.created_at DESC
             """, po_params)
             pos = c.fetchall()
+
+            # ── PO lookup by project name (for Projects tab column) ────
+            c.execute("""
+                SELECT po.project_name,
+                       COUNT(*) AS po_count,
+                       GROUP_CONCAT(po.po_request_number, '|') AS po_refs,
+                       GROUP_CONCAT(po.po_number, '|') AS po_numbers,
+                       GROUP_CONCAT(COALESCE(po.po_approval_status,'Pending'), '|') AS po_statuses
+                FROM purchase_orders po
+                LEFT JOIN register_project rp
+                       ON CAST(po.project_name AS TEXT) = CAST(rp.project_name AS TEXT)
+                      AND rp.approval_status = 'Approved'
+                WHERE (po.presale_engineer = ? OR rp.sales_engineer_id = ?)
+                GROUP BY po.project_name
+            """, (eng_uname, eng_id))
+            po_by_project = {r['project_name']: dict(r) for r in c.fetchall()}
 
             stats = {
                 'projects'   : len(projects),
@@ -14212,6 +14234,7 @@ def sales_engineer_report():
                            clients=clients,
                            rfqs=rfqs,
                            pos=pos,
+                           po_by_project=po_by_project if engineer_data else {},
                            stats=stats)
 ####################
 @app.route('/upload_documents', methods=['GET', 'POST'])
