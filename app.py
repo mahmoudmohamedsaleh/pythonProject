@@ -14124,7 +14124,7 @@ def sales_engineer_report():
                        rp.client_type, rp.stage, rp.deal_value,
                        rp.expected_close_date, rp.registered_date,
                        NULL AS engineer_name,
-                       (SELECT GROUP_CONCAT(DISTINCT r.sales_engineer_presale, ', ')
+                       (SELECT GROUP_CONCAT(DISTINCT r.sales_engineer_presale)
                         FROM rfq_requests r
                         WHERE r.project_name = rp.project_name
                           AND r.sales_engineer_presale IS NOT NULL
@@ -14241,7 +14241,7 @@ def sales_engineer_report():
                    rp.client_type, rp.stage, rp.deal_value,
                    rp.expected_close_date, rp.registered_date,
                    e.name AS engineer_name,
-                   (SELECT GROUP_CONCAT(DISTINCT r.sales_engineer_presale, ', ')
+                   (SELECT GROUP_CONCAT(DISTINCT r.sales_engineer_presale)
                     FROM rfq_requests r
                     WHERE r.project_name = rp.project_name
                       AND r.sales_engineer_presale IS NOT NULL
