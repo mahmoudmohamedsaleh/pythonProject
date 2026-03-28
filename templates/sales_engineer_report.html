@@ -42,21 +42,26 @@
 }
 .ser-sel-label {
     display: flex; align-items: center; gap: 8px;
-    font-weight: 700; font-size: .85rem; color: #374151;
+    font-weight: 700; font-size: .82rem; color: #374151;
     white-space: nowrap;
 }
-.ser-sel-label i { color: #4361ee; font-size: .95rem; }
+.ser-sel-label i { color: #4361ee; font-size: .9rem; }
 .ser-sel-select {
-    flex: 1; min-width: 220px; max-width: 380px;
+    flex: 1; min-width: 180px; max-width: 340px;
     border: 1.5px solid #d1d5db; border-radius: 10px;
-    padding: 10px 16px; font-size: .88rem; color: #1f2937;
+    padding: 10px 14px; font-size: .85rem; color: #1f2937;
     background: #f9fafb;
     transition: border-color .2s, box-shadow .2s;
     outline: none; cursor: pointer;
 }
 .ser-sel-select:focus { border-color: #4361ee; background: #fff; box-shadow: 0 0 0 3px rgba(67,97,238,.1); }
+.ser-sel-select.sel-sm { min-width: 100px; max-width: 130px; flex: 0 0 auto; }
+.ser-sel-divider {
+    width: 1px; height: 32px; background: #e5e7eb;
+    flex-shrink: 0; margin: 0 4px;
+}
 .ser-sel-btn {
-    padding: 10px 24px;
+    padding: 10px 22px;
     background: linear-gradient(135deg, #4361ee, #6366f1);
     color: #fff; border: none; border-radius: 10px;
     font-weight: 700; font-size: .85rem; cursor: pointer;
@@ -66,6 +71,27 @@
     box-shadow: 0 3px 10px rgba(67,97,238,.3);
 }
 .ser-sel-btn:hover { opacity: .92; transform: translateY(-1px); }
+.ser-sel-clear {
+    padding: 9px 16px; background: #f1f5f9; color: #64748b;
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    font-weight: 600; font-size: .8rem; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: background .2s; white-space: nowrap; text-decoration: none;
+}
+.ser-sel-clear:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+/* Active filter banner */
+.ser-filter-active {
+    background: linear-gradient(135deg, #eff6ff, #ede9fe);
+    border: 1px solid #c7d2fe; border-radius: 10px;
+    padding: 10px 18px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 18px; font-size: .82rem; color: #3730a3;
+}
+.ser-filter-active strong { font-weight: 800; }
+.ser-filter-pill {
+    background: #4361ee; color: #fff; border-radius: 99px;
+    padding: 3px 12px; font-size: .72rem; font-weight: 700;
+}
 
 /* ── Profile hero ──────────────────────────────────── */
 .ser-profile-hero {
@@ -305,23 +331,65 @@
 <div class="ser-selector">
     <div class="ser-sel-label">
         <i class="fas fa-user-tie"></i>
-        Select Engineer
+        Engineer
     </div>
-    <select name="engineer" class="ser-sel-select" id="serSelect">
+    <select name="engineer" class="ser-sel-select">
         <option value="">— Choose a Sales Engineer —</option>
         {% for eng in engineers %}
         <option value="{{ eng['username'] }}"
             {% if eng['username'] == selected_username %}selected{% endif %}>
-            {{ eng['username'] }} &mdash; {{ eng['name'] or '' }}
-            {% if eng['role'] %}({{ eng['role'] }}){% endif %}
+            {{ eng['username'] }} — {{ eng['name'] or '' }}{% if eng['role'] %} ({{ eng['role'] }}){% endif %}
         </option>
         {% endfor %}
     </select>
+
+    <div class="ser-sel-divider"></div>
+
+    <div class="ser-sel-label">
+        <i class="fas fa-calendar-alt"></i>
+        Year
+    </div>
+    <select name="year" class="ser-sel-select sel-sm">
+        <option value="">All Years</option>
+        {% for yr in available_years %}
+        <option value="{{ yr }}" {% if yr == selected_year %}selected{% endif %}>{{ yr }}</option>
+        {% endfor %}
+    </select>
+
+    <div class="ser-sel-label" style="margin-left:4px;">
+        <i class="fas fa-layer-group"></i>
+        Quarter
+    </div>
+    <select name="quarter" class="ser-sel-select sel-sm">
+        <option value="">All Quarters</option>
+        {% for q in ['Q1','Q2','Q3','Q4'] %}
+        <option value="{{ q }}" {% if q == selected_quarter %}selected{% endif %}>{{ q }}</option>
+        {% endfor %}
+    </select>
+
     <button type="submit" class="ser-sel-btn">
         <i class="fas fa-search"></i> View Report
     </button>
+    {% if selected_username %}
+    <a href="{{ url_for('sales_engineer_report', engineer=selected_username) }}" class="ser-sel-clear">
+        <i class="fas fa-times"></i> Clear Filter
+    </a>
+    {% endif %}
 </div>
 </form>
+
+{# Active filter indicator #}
+{% if selected_username and (selected_year or selected_quarter) %}
+<div class="ser-filter-active">
+    <i class="fas fa-filter"></i>
+    <strong>Filtered view:</strong>
+    Showing data for
+    {% if selected_year %}<span class="ser-filter-pill">{{ selected_year }}</span>{% endif %}
+    {% if selected_quarter %}<span class="ser-filter-pill">{{ selected_quarter }}</span>{% endif %}
+    &nbsp;— Projects, RFQs and POs are filtered by registration / request date.
+    Clients always show all assigned contacts.
+</div>
+{% endif %}
 
 {# ════════════════════════════════════════════════ PROMPT (no selection) #}
 {% if not selected_username %}

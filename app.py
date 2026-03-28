@@ -14064,6 +14064,8 @@ def sales_engineer_report():
     engineers = c.fetchall()
 
     selected_username = request.args.get('engineer', '').strip()
+    selected_year     = request.args.get('year', '').strip()
+    selected_quarter  = request.args.get('quarter', '').strip()
     engineer_data = None
     projects = []
     clients  = []
@@ -14071,30 +14073,65 @@ def sales_engineer_report():
     pos      = []
     stats    = {}
 
+    # Quarter → month ranges
+    quarter_months = {
+        'Q1': ('01', '03'),
+        'Q2': ('04', '06'),
+        'Q3': ('07', '09'),
+        'Q4': ('10', '12'),
+    }
+
+    def date_filter_clause(date_col, year, quarter, params):
+        """Returns extra SQL snippet and appends needed params."""
+        clause = ''
+        if year:
+            clause += f" AND strftime('%Y', {date_col}) = ?"
+            params.append(year)
+        if quarter and quarter in quarter_months:
+            m_from, m_to = quarter_months[quarter]
+            clause += f" AND strftime('%m', {date_col}) BETWEEN ? AND ?"
+            params.append(m_from)
+            params.append(m_to)
+        return clause
+
+    # Available years (derive from data)
+    c.execute("""
+        SELECT DISTINCT strftime('%Y', registered_date) yr FROM register_project WHERE registered_date IS NOT NULL
+        UNION
+        SELECT DISTINCT strftime('%Y', requested_time)  yr FROM rfq_requests      WHERE requested_time  IS NOT NULL
+        UNION
+        SELECT DISTINCT strftime('%Y', created_at)      yr FROM purchase_orders    WHERE created_at      IS NOT NULL
+        ORDER BY yr DESC
+    """)
+    available_years = [r[0] for r in c.fetchall() if r[0]]
+
     if selected_username:
         c.execute("SELECT * FROM engineers WHERE username = ?", (selected_username,))
         engineer_data = c.fetchone()
 
         if engineer_data:
-            eng_id  = engineer_data['id']
+            eng_id    = engineer_data['id']
             eng_uname = engineer_data['username']
 
             # ── Projects ──────────────────────────────────────────────
-            c.execute("""
+            proj_params = [eng_id]
+            proj_date_sql = date_filter_clause('rp.registered_date', selected_year, selected_quarter, proj_params)
+            c.execute(f"""
                 SELECT rp.id, rp.project_name,
                        COALESCE(eu.name, co.name, cn.name, '') AS client_name,
                        rp.client_type, rp.stage, rp.deal_value,
                        rp.expected_close_date, rp.registered_date
                 FROM register_project rp
-                LEFT JOIN end_users  eu ON rp.end_user_id    = eu.id AND rp.client_type = 'end_user'
-                LEFT JOIN contractors co ON rp.contractor_id  = co.id AND rp.client_type = 'contractor'
-                LEFT JOIN consultants cn ON rp.consultant_id  = cn.id AND rp.client_type = 'consultant'
+                LEFT JOIN end_users   eu ON rp.end_user_id   = eu.id AND rp.client_type = 'end_user'
+                LEFT JOIN contractors co ON rp.contractor_id = co.id AND rp.client_type = 'contractor'
+                LEFT JOIN consultants cn ON rp.consultant_id = cn.id AND rp.client_type = 'consultant'
                 WHERE rp.sales_engineer_id = ? AND rp.approval_status = 'Approved'
+                {proj_date_sql}
                 ORDER BY rp.registered_date DESC
-            """, (eng_id,))
+            """, proj_params)
             projects = c.fetchall()
 
-            # Stage summary for projects
+            # Stage summary
             stage_counts = {}
             total_deal   = 0.0
             for p in projects:
@@ -14105,7 +14142,7 @@ def sales_engineer_report():
                 except Exception:
                     pass
 
-            # ── Clients ────────────────────────────────────────────────
+            # ── Clients (no date filter — clients are not time-bound) ──
             c.execute("""
                 SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.email,
                        eu.client_tier, 'End User' AS client_type
@@ -14123,43 +14160,53 @@ def sales_engineer_report():
             clients = c.fetchall()
 
             # ── RFQs ───────────────────────────────────────────────────
-            c.execute("""
-                SELECT id, rfq_reference, project_name, rfq_status, quotation_status,
-                       deadline, requested_time, system,
-                       sales_engineer_sales, sales_engineer_presale
-                FROM rfq_requests
-                WHERE sales_engineer_sales = ? OR sales_engineer_presale = ?
-                ORDER BY requested_time DESC
-            """, (eng_uname, eng_uname))
+            rfq_params = [eng_uname, eng_uname]
+            rfq_date_sql = date_filter_clause('r.requested_time', selected_year, selected_quarter, rfq_params)
+            c.execute(f"""
+                SELECT r.id, r.rfq_reference, r.project_name, r.rfq_status, r.quotation_status,
+                       r.deadline, r.requested_time, r.system,
+                       r.sales_engineer_sales, r.sales_engineer_presale
+                FROM rfq_requests r
+                WHERE (r.sales_engineer_sales = ? OR r.sales_engineer_presale = ?)
+                {rfq_date_sql}
+                ORDER BY r.requested_time DESC
+            """, rfq_params)
             rfqs = c.fetchall()
 
             # ── Purchase Orders ────────────────────────────────────────
-            c.execute("""
-                SELECT id, po_request_number, po_number, project_name, distributor,
-                       vendor, system, po_approval_status, po_delivery_status,
-                       total_amount, total_with_vat, created_at
-                FROM purchase_orders
-                WHERE presale_engineer = ?
-                ORDER BY created_at DESC
-            """, (eng_uname,))
+            po_params = [eng_uname]
+            po_date_sql = date_filter_clause('po.created_at', selected_year, selected_quarter, po_params)
+            c.execute(f"""
+                SELECT po.id, po.po_request_number, po.po_number, po.project_name,
+                       po.distributor, po.vendor, po.system,
+                       po.po_approval_status, po.po_delivery_status,
+                       po.total_amount, po.total_with_vat, po.created_at
+                FROM purchase_orders po
+                WHERE po.presale_engineer = ?
+                {po_date_sql}
+                ORDER BY po.created_at DESC
+            """, po_params)
             pos = c.fetchall()
 
             stats = {
-                'projects'     : len(projects),
-                'clients'      : len(clients),
-                'rfqs'         : len(rfqs),
-                'pos'          : len(pos),
-                'total_deal'   : total_deal,
-                'won'          : stage_counts.get('Closed Won', 0),
-                'active'       : sum(v for k, v in stage_counts.items()
-                                     if k not in ('Closed Won', 'Closed Lost', 'Cancelled')),
-                'lost'         : stage_counts.get('Closed Lost', 0),
+                'projects'   : len(projects),
+                'clients'    : len(clients),
+                'rfqs'       : len(rfqs),
+                'pos'        : len(pos),
+                'total_deal' : total_deal,
+                'won'        : stage_counts.get('Closed Won', 0),
+                'active'     : sum(v for k, v in stage_counts.items()
+                                   if k not in ('Closed Won', 'Closed Lost', 'Cancelled')),
+                'lost'       : stage_counts.get('Closed Lost', 0),
             }
 
     conn.close()
     return render_template('sales_engineer_report.html',
                            engineers=engineers,
                            selected_username=selected_username,
+                           selected_year=selected_year,
+                           selected_quarter=selected_quarter,
+                           available_years=available_years,
                            engineer_data=engineer_data,
                            projects=projects,
                            clients=clients,
