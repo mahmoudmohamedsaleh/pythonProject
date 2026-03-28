@@ -14105,6 +14105,8 @@ def sales_engineer_report():
     """)
     available_years = [r[0] for r in c.fetchall() if r[0]]
 
+    show_all = False
+
     if selected_username:
         c.execute("SELECT * FROM engineers WHERE username = ?", (selected_username,))
         engineer_data = c.fetchone()
@@ -14120,7 +14122,8 @@ def sales_engineer_report():
                 SELECT rp.id, rp.project_name,
                        COALESCE(eu.name, co.name, cn.name, '') AS client_name,
                        rp.client_type, rp.stage, rp.deal_value,
-                       rp.expected_close_date, rp.registered_date
+                       rp.expected_close_date, rp.registered_date,
+                       NULL AS engineer_name
                 FROM register_project rp
                 LEFT JOIN end_users   eu ON rp.end_user_id   = eu.id AND rp.client_type = 'end_user'
                 LEFT JOIN contractors co ON rp.contractor_id = co.id AND rp.client_type = 'contractor'
@@ -14145,15 +14148,15 @@ def sales_engineer_report():
             # ── Clients (no date filter — clients are not time-bound) ──
             c.execute("""
                 SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.email,
-                       eu.client_tier, 'End User' AS client_type
+                       eu.client_tier, 'End User' AS client_type, NULL AS engineer_name
                 FROM end_users eu WHERE eu.assigned_sales_engineer_id = ?
                 UNION ALL
                 SELECT co.id, co.name, co.contact_person, co.phone, co.email,
-                       co.client_tier, 'Contractor' AS client_type
+                       co.client_tier, 'Contractor' AS client_type, NULL AS engineer_name
                 FROM contractors co WHERE co.assigned_sales_engineer_id = ?
                 UNION ALL
                 SELECT cn.id, cn.name, cn.contact_person, cn.phone, cn.email,
-                       cn.client_tier, 'Consultant' AS client_type
+                       cn.client_tier, 'Consultant' AS client_type, NULL AS engineer_name
                 FROM consultants cn WHERE cn.assigned_sales_engineer_id = ?
                 ORDER BY name
             """, (eng_id, eng_id, eng_id))
@@ -14174,8 +14177,6 @@ def sales_engineer_report():
             rfqs = c.fetchall()
 
             # ── Purchase Orders ────────────────────────────────────────
-            # Include POs where: (a) this engineer is listed as presale_engineer,
-            # OR (b) the PO's project_name matches one of this engineer's projects
             po_params = [eng_uname, eng_id]
             po_date_sql = date_filter_clause('po.created_at', selected_year, selected_quarter, po_params)
             c.execute(f"""
@@ -14222,6 +14223,114 @@ def sales_engineer_report():
                 'lost'       : stage_counts.get('Closed Lost', 0),
             }
 
+    else:
+        # ── All Engineers (default view) ──────────────────────────────
+        show_all = True
+
+        # ── Projects ──────────────────────────────────────────────────
+        proj_params = []
+        proj_date_sql = date_filter_clause('rp.registered_date', selected_year, selected_quarter, proj_params)
+        c.execute(f"""
+            SELECT rp.id, rp.project_name,
+                   COALESCE(eu.name, co.name, cn.name, '') AS client_name,
+                   rp.client_type, rp.stage, rp.deal_value,
+                   rp.expected_close_date, rp.registered_date,
+                   e.name AS engineer_name
+            FROM register_project rp
+            LEFT JOIN end_users   eu ON rp.end_user_id   = eu.id AND rp.client_type = 'end_user'
+            LEFT JOIN contractors co ON rp.contractor_id = co.id AND rp.client_type = 'contractor'
+            LEFT JOIN consultants cn ON rp.consultant_id = cn.id AND rp.client_type = 'consultant'
+            LEFT JOIN engineers   e  ON CAST(rp.sales_engineer_id AS TEXT) = CAST(e.id AS TEXT)
+            WHERE rp.approval_status = 'Approved'
+            {proj_date_sql}
+            ORDER BY rp.registered_date DESC
+        """, proj_params)
+        projects = c.fetchall()
+
+        stage_counts = {}
+        total_deal   = 0.0
+        for p in projects:
+            s = p['stage'] or 'Unknown'
+            stage_counts[s] = stage_counts.get(s, 0) + 1
+            try:
+                total_deal += float(p['deal_value'] or 0)
+            except Exception:
+                pass
+
+        # ── Clients ────────────────────────────────────────────────────
+        c.execute("""
+            SELECT eu.id, eu.name, eu.contact_person, eu.phone, eu.email,
+                   eu.client_tier, 'End User' AS client_type, e.name AS engineer_name
+            FROM end_users eu
+            LEFT JOIN engineers e ON eu.assigned_sales_engineer_id = e.id
+            UNION ALL
+            SELECT co.id, co.name, co.contact_person, co.phone, co.email,
+                   co.client_tier, 'Contractor' AS client_type, e.name AS engineer_name
+            FROM contractors co
+            LEFT JOIN engineers e ON co.assigned_sales_engineer_id = e.id
+            UNION ALL
+            SELECT cn.id, cn.name, cn.contact_person, cn.phone, cn.email,
+                   cn.client_tier, 'Consultant' AS client_type, e.name AS engineer_name
+            FROM consultants cn
+            LEFT JOIN engineers e ON cn.assigned_sales_engineer_id = e.id
+            ORDER BY name
+        """)
+        clients = c.fetchall()
+
+        # ── RFQs ───────────────────────────────────────────────────────
+        rfq_params = []
+        rfq_date_sql = date_filter_clause('r.requested_time', selected_year, selected_quarter, rfq_params)
+        c.execute(f"""
+            SELECT r.id, r.rfq_reference, r.project_name, r.rfq_status, r.quotation_status,
+                   r.deadline, r.requested_time, r.system,
+                   r.sales_engineer_sales, r.sales_engineer_presale
+            FROM rfq_requests r
+            WHERE 1=1
+            {rfq_date_sql}
+            ORDER BY r.requested_time DESC
+        """, rfq_params)
+        rfqs = c.fetchall()
+
+        # ── Purchase Orders ────────────────────────────────────────────
+        po_params = []
+        po_date_sql = date_filter_clause('po.created_at', selected_year, selected_quarter, po_params)
+        c.execute(f"""
+            SELECT DISTINCT po.id, po.po_request_number, po.po_number, po.project_name,
+                   po.distributor, po.vendor, po.system,
+                   po.po_approval_status, po.po_delivery_status,
+                   po.total_amount, po.total_with_vat, po.created_at,
+                   po.presale_engineer
+            FROM purchase_orders po
+            WHERE 1=1
+            {po_date_sql}
+            ORDER BY po.created_at DESC
+        """, po_params)
+        pos = c.fetchall()
+
+        # ── PO lookup by project name ──────────────────────────────────
+        c.execute("""
+            SELECT po.project_name,
+                   COUNT(*) AS po_count,
+                   GROUP_CONCAT(po.po_request_number, '|') AS po_refs,
+                   GROUP_CONCAT(po.po_number, '|') AS po_numbers,
+                   GROUP_CONCAT(COALESCE(po.po_approval_status,'Pending'), '|') AS po_statuses
+            FROM purchase_orders po
+            GROUP BY po.project_name
+        """)
+        po_by_project = {r['project_name']: dict(r) for r in c.fetchall()}
+
+        stats = {
+            'projects'   : len(projects),
+            'clients'    : len(clients),
+            'rfqs'       : len(rfqs),
+            'pos'        : len(pos),
+            'total_deal' : total_deal,
+            'won'        : stage_counts.get('Closed Won', 0),
+            'active'     : sum(v for k, v in stage_counts.items()
+                               if k not in ('Closed Won', 'Closed Lost', 'Cancelled')),
+            'lost'       : stage_counts.get('Closed Lost', 0),
+        }
+
     conn.close()
     return render_template('sales_engineer_report.html',
                            engineers=engineers,
@@ -14230,11 +14339,12 @@ def sales_engineer_report():
                            selected_quarter=selected_quarter,
                            available_years=available_years,
                            engineer_data=engineer_data,
+                           show_all=show_all,
                            projects=projects,
                            clients=clients,
                            rfqs=rfqs,
                            pos=pos,
-                           po_by_project=po_by_project if engineer_data else {},
+                           po_by_project=po_by_project,
                            stats=stats)
 ####################
 @app.route('/upload_documents', methods=['GET', 'POST'])
