@@ -15,17 +15,46 @@ Handles:
 
 import os
 import re
+import datetime
+import decimal
 import psycopg2
 import psycopg2.extras
 import psycopg2.extensions
 from psycopg2 import IntegrityError, OperationalError, DatabaseError, ProgrammingError
+
+
+def _sqlite_val(v):
+    """Convert PostgreSQL Python types to SQLite-compatible equivalents.
+
+    SQLite returns everything as str/int/float/None/bytes.
+    PostgreSQL returns typed objects (datetime, Decimal, bool, etc.).
+    Templates written for SQLite expect string-slicing, string methods, etc.
+    """
+    if v is None:
+        return None
+    if isinstance(v, datetime.datetime):
+        return v.strftime('%Y-%m-%d %H:%M:%S')
+    if isinstance(v, datetime.date):
+        return v.strftime('%Y-%m-%d')
+    if isinstance(v, datetime.timedelta):
+        total = int(v.total_seconds())
+        h, rem = divmod(abs(total), 3600)
+        m, s = divmod(rem, 60)
+        return f'{h:02d}:{m:02d}:{s:02d}'
+    if isinstance(v, decimal.Decimal):
+        return float(v)
+    if isinstance(v, bool):
+        return int(v)
+    if isinstance(v, memoryview):
+        return bytes(v)
+    return v
 
 _PLACEHOLDER_RE = re.compile(r'\?')
 _INSERT_OR_IGNORE_RE = re.compile(r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', re.IGNORECASE)
 _INSERT_OR_REPLACE_RE = re.compile(r'\bINSERT\s+OR\s+REPLACE\s+INTO\b', re.IGNORECASE)
 _PERCENT_LITERAL_RE = re.compile(r'%([^s%])')
 _DATETIME_NOW_RE = re.compile(
-    r"\bdatetime\s*\(\s*'now'(?:\s*,\s*'[^']*')?\s*\)", re.IGNORECASE
+    r"\bdatetime\s*\(\s*'now'\s*(?:,\s*'(?:localtime|utc)'\s*)?\)", re.IGNORECASE
 )
 _DATE_NOW_RE = re.compile(r"\bdate\s*\(\s*'now'\s*\)", re.IGNORECASE)
 _ALTER_ADD_COL_RE = re.compile(
@@ -97,6 +126,19 @@ class Row(dict):
     def keys(self):
         return list(super().keys())
 
+    def get(self, key, default=None):
+        return super().get(key, default)
+
+
+def _convert_row_dict(row):
+    """Convert a psycopg2 dict row to a Row with SQLite-compatible value types."""
+    return Row({k: _sqlite_val(v) for k, v in row.items()})
+
+
+def _convert_row_tuple(row):
+    """Convert a psycopg2 tuple row to a tuple with SQLite-compatible value types."""
+    return tuple(_sqlite_val(v) for v in row)
+
 
 class Cursor:
     def __init__(self, pg_cursor, use_dict=False):
@@ -159,27 +201,31 @@ class Cursor:
         if row is None:
             return None
         if self._use_dict and isinstance(row, dict):
-            return Row(row)
-        return row
+            return _convert_row_dict(row)
+        return _convert_row_tuple(row)
 
     def fetchall(self):
         rows = self._cur.fetchall()
-        if self._use_dict and rows and isinstance(rows[0], dict):
-            return [Row(r) for r in rows]
-        return rows
+        if not rows:
+            return rows
+        if self._use_dict and isinstance(rows[0], dict):
+            return [_convert_row_dict(r) for r in rows]
+        return [_convert_row_tuple(r) for r in rows]
 
     def fetchmany(self, size=None):
         rows = self._cur.fetchmany(size) if size else self._cur.fetchmany()
-        if self._use_dict and rows and isinstance(rows[0], dict):
-            return [Row(r) for r in rows]
-        return rows
+        if not rows:
+            return rows
+        if self._use_dict and isinstance(rows[0], dict):
+            return [_convert_row_dict(r) for r in rows]
+        return [_convert_row_tuple(r) for r in rows]
 
     def __iter__(self):
         for row in self._cur:
             if self._use_dict and isinstance(row, dict):
-                yield Row(row)
+                yield _convert_row_dict(row)
             else:
-                yield row
+                yield _convert_row_tuple(row)
 
     def close(self):
         self._cur.close()
