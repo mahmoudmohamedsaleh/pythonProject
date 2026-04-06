@@ -189,9 +189,13 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if q[2] %}
                             <a href="{{ url_for('quotation_profile', quote_ref=q[2]) }}" class="quote-link">
                                 <i class="fas fa-file-alt mr-1"></i>{{ q[2] }}
                             </a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if q[12] %}
@@ -234,12 +238,14 @@
                         <td class="date-cell">{{ q[8].split(' ')[0] if q[8] else '-' }}</td>
                         <td class="date-cell">{{ q[9].split(' ')[0] if q[9] else '-' }}</td>
                         <td class="text-center">
+                            {% if q[2] %}
                             <a href="{{ url_for('quotation_profile', quote_ref=q[2]) }}" class="btn btn-info btn-action mr-1" title="View Profile">
                                 <i class="fas fa-eye"></i>
                             </a>
                             <a href="{{ url_for('edit_project', quote_ref=q[2]) }}" class="btn btn-warning btn-action mr-1" title="Edit Quotation">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            {% endif %}
                             {% if is_admin %}
                             <button class="btn btn-danger btn-action" onclick="deleteQuotation({{ q[0] }})" title="Delete Quotation">
                                 <i class="fas fa-trash"></i>

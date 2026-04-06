@@ -738,7 +738,7 @@
                 {% for q in quotations_list %}
                 <tr style="{% if loop.index is odd %}background-color: #f3e8ff;{% else %}background-color: white;{% endif %}">
                     <td>{{ q.num }}</td>
-                    <td><a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{{ q.quote_ref }}</a></td>
+                    <td>{% if q.quote_ref %}<a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" style="color: #2563eb; text-decoration: none; font-weight: 500;">{{ q.quote_ref }}</a>{% else %}-{% endif %}</td>
                     <td>{{ q.project_name[:30] }}{% if q.project_name|length > 30 %}...{% endif %}</td>
                     <td>{{ q.engineer }}</td>
                     <td>{{ q.presale_engineer }}</td>
