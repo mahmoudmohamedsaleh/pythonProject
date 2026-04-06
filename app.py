@@ -13,7 +13,7 @@ _MERGE_LAST_STATUS = None  # stores last merge run details for debug endpoint
 from collections import defaultdict
 import re
 import pandas as pd
-import sqlite3
+import db_postgres as sqlite3
 import os
 from io import BytesIO
 from datetime import datetime
@@ -233,7 +233,7 @@ def role_required(*roles):
                 return redirect(url_for('login'))  # Redirect to the login page
 
             # Check if the user's role matches any of the required roles
-            conn = sqlite3.connect('ProjectStatus.db')
+            conn = sqlite3.connect()
             c = conn.cursor()
             c.execute("SELECT role FROM users WHERE id=?", (session['user_id'],))
             user_role = c.fetchone()
@@ -480,7 +480,7 @@ def calculate_deal_value_for_project(project_name, conn=None):
     """
     close_conn = False
     if conn is None:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         close_conn = True
     
     cursor = conn.cursor()
@@ -526,7 +526,7 @@ def calculate_deal_value_for_project(project_name, conn=None):
             conn.close()
 
 def init_db():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS projects (
@@ -1076,7 +1076,7 @@ def init_db():
 
 def add_missing_permissions():
     """Add any new permissions that don't exist in the database"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # New permissions to add
@@ -1108,7 +1108,7 @@ def add_missing_permissions():
 
 def seed_permissions():
     """Seed permissions table with all available pages/features"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Check if permissions already exist
@@ -1177,7 +1177,7 @@ def seed_permissions():
 
 def seed_default_role_permissions():
     """Set up default permissions for each role"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -1249,7 +1249,7 @@ def seed_default_role_permissions():
 
 def seed_default_roles():
     """Set up default system roles"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Check if roles already exist
@@ -1281,7 +1281,7 @@ def seed_default_roles():
 
 def get_all_roles():
     """Get all roles from database"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM roles ORDER BY is_system_role DESC, name ASC")
@@ -1300,7 +1300,7 @@ def get_user_permissions(user_id, user_role):
     2. Explicit allow in user_permissions
     3. Role default permissions
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -1408,7 +1408,7 @@ def b64encode_filter(data):
 
 #########
 def get_notifications(user_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute('''
         SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC
@@ -1425,7 +1425,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         # The users table schema is: (id, username, password, role)
         c.execute("SELECT * FROM users WHERE username=?", (username,))
@@ -1465,7 +1465,7 @@ def login():
             session['session_id'] = session_id
             
             # Record active session in database
-            conn2 = sqlite3.connect('ProjectStatus.db')
+            conn2 = sqlite3.connect()
             c2 = conn2.cursor()
             # Remove any existing sessions for this user (enforce single session)
             c2.execute("DELETE FROM active_sessions WHERE user_id = ?", (user[0],))
@@ -1506,7 +1506,7 @@ def update_last_activity():
         # Skip static files and certain endpoints
         if request.endpoint and not request.endpoint.startswith('static'):
             try:
-                conn = sqlite3.connect('ProjectStatus.db')
+                conn = sqlite3.connect()
                 c = conn.cursor()
                 c.execute("""
                     UPDATE active_sessions 
@@ -1523,7 +1523,7 @@ def update_last_activity():
 def logout():
     # Remove active session from database
     if 'session_id' in session:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         c.execute("DELETE FROM active_sessions WHERE session_id = ?", (session['session_id'],))
         conn.commit()
@@ -1541,7 +1541,7 @@ def logout():
 @login_required
 def company_profile():
     """Company Profile page showing EJTech company information"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -1835,7 +1835,7 @@ def update_company_profile_content():
     if not section_key:
         return jsonify({'success': False, 'error': 'Section key is required'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Upsert the content
@@ -1980,7 +1980,7 @@ def upload_company_profile_pdf():
 @login_required
 def get_company_solutions():
     """Get all company solutions"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2090,7 +2090,7 @@ def add_company_solution():
         # AI-powered image selection based on solution name
         image_url = get_solution_image_url(name)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get max display order
@@ -2120,7 +2120,7 @@ def update_company_solution(solution_id):
     icon = data.get('icon')
     color_class = data.get('color_class')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -2141,7 +2141,7 @@ def delete_company_solution(solution_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM company_solutions WHERE id = ?", (solution_id,))
     conn.commit()
@@ -2162,7 +2162,7 @@ def reorder_company_solutions():
     if not order_list:
         return jsonify({'success': False, 'error': 'No order data provided'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -2187,7 +2187,7 @@ def reorder_company_solutions():
 @login_required
 def get_custom_documents():
     """Get all custom documents"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2213,7 +2213,7 @@ def add_custom_document():
     if not title or not url:
         return jsonify({'success': False, 'error': 'Title and URL are required'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get max display_order
@@ -2247,7 +2247,7 @@ def update_custom_document(doc_id):
     if not title or not url:
         return jsonify({'success': False, 'error': 'Title and URL are required'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("""
         UPDATE company_custom_documents 
@@ -2266,7 +2266,7 @@ def delete_custom_document(doc_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM company_custom_documents WHERE id = ?", (doc_id,))
     conn.commit()
@@ -2280,7 +2280,7 @@ def delete_custom_document(doc_id):
 @login_required
 def get_company_clients():
     """Get all company clients"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2340,7 +2340,7 @@ def add_company_client():
         
         image_url = f"/uploads/client_logos/{unique_filename}"
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get next display_order
@@ -2376,7 +2376,7 @@ def update_company_client(client_id):
         sector = data.get('sector', '')
         photo = None
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     image_url = None
@@ -2434,7 +2434,7 @@ def delete_company_client(client_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM company_clients WHERE id = ?", (client_id,))
     conn.commit()
@@ -2500,7 +2500,7 @@ def serve_project_approval(filename):
 @login_required
 def get_featured_projects():
     """Get all featured projects"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2527,7 +2527,7 @@ def add_featured_project():
     if not name:
         return jsonify({'success': False, 'error': 'Project name is required'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     client_id = data.get('client_id')
@@ -2561,7 +2561,7 @@ def update_featured_project(project_id):
     icon = data.get('icon', 'fa-building')
     client_id = data.get('client_id')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -2582,7 +2582,7 @@ def delete_featured_project(project_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM featured_projects WHERE id = ?", (project_id,))
     conn.commit()
@@ -2603,7 +2603,7 @@ def reorder_featured_projects():
     if not order_list:
         return jsonify({'success': False, 'error': 'No order data provided'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -2628,7 +2628,7 @@ def reorder_featured_projects():
 @login_required
 def company_client_profile(client_id):
     """Company Client Profile page showing client details, projects, certificates, and approvals"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2676,7 +2676,7 @@ def company_client_profile(client_id):
 @login_required
 def get_client_certificates(client_id):
     """Get all certificates for a client"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2717,7 +2717,7 @@ def add_client_certificate(client_id):
             file_path = os.path.join(upload_folder, unique_filename)
             file.save(file_path)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -2744,7 +2744,7 @@ def update_client_certificate(cert_id):
     issue_date = request.form.get('issue_date', '')
     expiry_date = request.form.get('expiry_date', '')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Check if new file is uploaded
@@ -2784,7 +2784,7 @@ def delete_client_certificate(cert_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM client_certificates WHERE id = ?", (cert_id,))
     conn.commit()
@@ -2796,7 +2796,7 @@ def delete_client_certificate(cert_id):
 @login_required
 def get_client_approvals(client_id):
     """Get all approvals for a client"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2838,7 +2838,7 @@ def add_client_approval(client_id):
             file_path = os.path.join(upload_folder, unique_filename)
             file.save(file_path)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -2866,7 +2866,7 @@ def update_client_approval(approval_id):
     issue_date = request.form.get('issue_date', '')
     expiry_date = request.form.get('expiry_date', '')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Check if new file is uploaded
@@ -2906,7 +2906,7 @@ def delete_client_approval(approval_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM client_approvals WHERE id = ?", (approval_id,))
     conn.commit()
@@ -2920,7 +2920,7 @@ def delete_client_approval(approval_id):
 @login_required
 def project_profile(project_id):
     """Project Profile page showing project details, certificates, and approvals"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -2996,7 +2996,7 @@ def add_project_certificate(project_id):
             file_path = os.path.join(upload_folder, unique_filename)
             file.save(file_path)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("""
         INSERT INTO project_certificates (project_id, title, description, issuing_authority, issue_date, expiry_date, file_path)
@@ -3023,7 +3023,7 @@ def update_project_certificate(cert_id):
     if not title:
         return jsonify({'success': False, 'error': 'Certificate title is required'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     file_path = None
@@ -3062,7 +3062,7 @@ def delete_project_certificate(cert_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM project_certificates WHERE id = ?", (cert_id,))
     conn.commit()
@@ -3098,7 +3098,7 @@ def add_project_approval(project_id):
             file_path = os.path.join(upload_folder, unique_filename)
             file.save(file_path)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("""
         INSERT INTO project_approvals (project_id, title, description, approval_type, status, issue_date, expiry_date, file_path)
@@ -3126,7 +3126,7 @@ def update_project_approval(approval_id):
     if not title:
         return jsonify({'success': False, 'error': 'Approval title is required'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     file_path = None
@@ -3165,7 +3165,7 @@ def delete_project_approval(approval_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM project_approvals WHERE id = ?", (approval_id,))
     conn.commit()
@@ -3177,7 +3177,7 @@ def delete_project_approval(approval_id):
 @login_required
 def solution_profile(solution_id):
     """Solution profile page with vendors and products"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -3357,7 +3357,7 @@ def add_solution_vendor(solution_id):
     else:
         category_id = None
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -3379,7 +3379,7 @@ def add_solution_product(solution_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     data = request.get_json()
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -3401,7 +3401,7 @@ def delete_solution_vendor(vendor_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM solution_vendors WHERE id = ?", (vendor_id,))
     conn.commit()
@@ -3431,7 +3431,7 @@ def update_solution_vendor(vendor_id):
     else:
         category_id = None
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("SELECT logo_url FROM solution_vendors WHERE id = ?", (vendor_id,))
@@ -3484,7 +3484,7 @@ def delete_solution_product(product_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("DELETE FROM solution_products WHERE id = ?", (product_id,))
     conn.commit()
@@ -3500,7 +3500,7 @@ def add_solution_category(solution_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     data = request.get_json()
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("SELECT MAX(display_order) FROM solution_vendor_categories WHERE solution_id = ?", (solution_id,))
@@ -3525,7 +3525,7 @@ def delete_solution_category(category_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("UPDATE solution_vendors SET category_id = NULL WHERE category_id = ?", (category_id,))
     c.execute("DELETE FROM solution_vendor_categories WHERE id = ?", (category_id,))
@@ -3542,7 +3542,7 @@ def update_solution_category(category_id):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     data = request.get_json()
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("""
@@ -3561,7 +3561,7 @@ def update_solution_category(category_id):
 @login_required
 @permission_required('view_dashboard')
 def index():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # --- KPI Card Calculations ---
@@ -3658,7 +3658,7 @@ def register_engineer():
             flash('Please provide a full name with at least three parts!', 'danger')
             return redirect(url_for('register_engineer'))
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             # Insert into engineers table
@@ -3692,7 +3692,7 @@ def generate_engineer_code(name):
 @app.route('/upload', methods=['GET', 'POST'])
 @role_required('Technical Team Leader', 'Presale Engineer', 'Sales Engineer', 'editor')
 def upload():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -3798,7 +3798,7 @@ def upload():
 #@role_required('editor')
 def search_quote():
     quote_ref = request.form['quote_ref']
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -3849,7 +3849,7 @@ def update_project(quote_ref):
     updated_quotation_file = request.files.get('updated_quotation')
     updated_cost_sheet_file = request.files.get('updated_cost_sheet')
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Check if new quote_ref already exists (if it was changed)
@@ -3899,7 +3899,7 @@ def update_project(quote_ref):
 @app.route('/project_summary', methods=['GET', 'POST'])
 #@role_required('editor')
 def project_summary():
-    conn = sqlite3.connect('ProjectStatus.db')  # Connect to the database
+    conn = sqlite3.connect()  # Connect to the database
     c = conn.cursor()
 
     # Fetch presale engineers
@@ -3982,7 +3982,7 @@ def project_summary():
 @app.route('/project_history/<project_name>', methods=['GET'])
 @login_required
 def show_project_history(project_name):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     # Fetch all quotation attempts for the given project name
     c.execute("SELECT * FROM projects WHERE project_name=?", (project_name,))
@@ -3996,7 +3996,7 @@ def show_project_history(project_name):
 @login_required
 def project_detail(project_id):
     """Comprehensive project profile showing all related data"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -4129,7 +4129,7 @@ def project_detail(project_id):
 @login_required
 def get_chat_messages(project_id):
     """Fetch chat messages for a project with proper access control"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -4197,7 +4197,7 @@ def get_chat_messages(project_id):
 @login_required
 def send_chat_message(project_id):
     """Send a chat message with optional file attachment - with access control"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -4310,7 +4310,7 @@ def send_chat_message(project_id):
 @login_required
 def download_chat_attachment(message_id):
     """Download chat message attachment with proper access control"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -4372,7 +4372,7 @@ def download_chat_attachment(message_id):
 @login_required
 def get_chat_notifications():
     """Get new chat messages for notifications across all accessible projects"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -4458,7 +4458,7 @@ def get_chat_notifications():
 @login_required
 def get_latest_chat_id():
     """Get the latest chat message ID to initialize the notification system"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     try:
@@ -4476,7 +4476,7 @@ def get_latest_chat_id():
 @login_required
 def toggle_quote_for_deal_value(project_id, quote_ref):
     """Toggle a quotation's inclusion in the deal value calculation"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -4548,7 +4548,7 @@ def toggle_quote_for_deal_value(project_id, quote_ref):
 @login_required
 def download_project_data_excel(project_id):
     """Export all project data (quotations, RFQs, POs) to Excel with enhanced formatting"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -4830,7 +4830,7 @@ def download_project_data_pptx(project_id):
     
     FONT_NAME = 'Calibri'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -5134,7 +5134,7 @@ def download_project_data_pptx(project_id):
 
 @app.route('/charts')
 def charts():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Fetch total won cost by summing all quotation costs
@@ -5165,7 +5165,7 @@ def charts():
 @app.route('/export_project_history/<project_name>')
 #@role_required('editor')
 def export_project_history(project_name):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
 
     # Fetch data without quotation and cost sheet columns
     df = pd.read_sql_query(
@@ -5185,7 +5185,7 @@ def export_project_history(project_name):
 @app.route('/download_project_history/<project_name>')
 #@role_required('editor')
 def download_project_history(project_name):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
 
     # Fetch data without quotation and cost sheet columns
     df = pd.read_sql_query(
@@ -5234,7 +5234,7 @@ def quotation_presentation(quote_ref):
     C_GREY_TXT   = RGBColor(0x61, 0x61, 0x61)
 
     # ── Load DB data ──────────────────────────────────────────────────
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM projects WHERE quote_ref = ?", (quote_ref,))
@@ -5267,7 +5267,7 @@ def quotation_presentation(quote_ref):
     # ── Load proposal_form_data and cost_sheets for this quote ─────────
     _rfq_ref_for_proposal = q['rfq_reference'] if q['rfq_reference'] else ''
     try:
-        _prop_conn = sqlite3.connect('ProjectStatus.db')
+        _prop_conn = sqlite3.connect()
         _prop_conn.row_factory = sqlite3.Row
         _pf_row = _prop_conn.execute(
             'SELECT form_json FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?',
@@ -6558,7 +6558,7 @@ def download_quotation(quote_ref):
         flash('You do not have permission to download quotations.', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT quotation FROM projects WHERE quote_ref=?", (quote_ref,))
 
@@ -6579,7 +6579,7 @@ def download_quotation(quote_ref):
 @login_required
 def proposal_generator():
     """Gateway: select Project, RFQ, enter Quote Ref before opening the editor."""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     # Distinct project names from projects table (non-empty)
@@ -6599,7 +6599,7 @@ def proposal_rfqs_for_project():
     project = _req.args.get('project', '').strip()
     if not project:
         return jsonify([])
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     # RFQs from rfq_requests table
     c.execute("""SELECT rfq_reference FROM rfq_requests
@@ -6619,7 +6619,7 @@ def proposal_quotes_for_rfq():
     rfq = _req.args.get('rfq', '').strip()
     if not rfq:
         return jsonify([])
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     results = []
@@ -6684,7 +6684,7 @@ def proposal_ai_executive_summary():
         grand_total  = 0.0
         if rfq_ref:
             try:
-                conn = sqlite3.connect('ProjectStatus.db')
+                conn = sqlite3.connect()
                 row = conn.execute(
                     "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                     (rfq_ref, quote_ref)
@@ -6784,7 +6784,7 @@ def proposal_ai_cta():
         systems_text = ''
         if rfq_ref and quote_ref:
             try:
-                conn = sqlite3.connect('ProjectStatus.db')
+                conn = sqlite3.connect()
                 row = conn.execute(
                     "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                     (rfq_ref, quote_ref)
@@ -6865,7 +6865,7 @@ def proposal_save_form():
         return jsonify({'ok': False, 'error': 'Missing rfq_ref or quote_ref'}), 400
     form_json = _json.dumps(data.get('form', {}), ensure_ascii=False)
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
             rfq_ref   TEXT NOT NULL,
             quote_ref TEXT NOT NULL,
@@ -6932,7 +6932,7 @@ def proposal_generator_main():
     # ── One quote ref per RFQ: auto-load or auto-generate ─────────────────
     if rfq_ref and not quoteref:
         try:
-            _aq_conn = sqlite3.connect('ProjectStatus.db')
+            _aq_conn = sqlite3.connect()
             # Look up existing quote ref for this RFQ (from saved form data)
             _aq_row = _aq_conn.execute(
                 "SELECT quote_ref FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
@@ -6969,7 +6969,7 @@ def proposal_generator_main():
     attention        = ''
 
     if project_name:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
@@ -7037,7 +7037,7 @@ def proposal_generator_main():
     cs_system_scopes = []
     if rfq_ref:
         try:
-            _cs_conn = sqlite3.connect('ProjectStatus.db')
+            _cs_conn = sqlite3.connect()
             _cs_row = _cs_conn.execute(
                 "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                 (rfq_ref, quoteref or '')
@@ -7075,7 +7075,7 @@ def proposal_generator_main():
     saved_form = {}
     if rfq_ref:
         try:
-            _pf_conn = sqlite3.connect('ProjectStatus.db')
+            _pf_conn = sqlite3.connect()
             try:
                 _pf_conn.execute("ALTER TABLE proposal_form_data ADD COLUMN saved_by TEXT")
                 _pf_conn.commit()
@@ -7117,7 +7117,7 @@ def proposal_generator_main():
 
     # Fetch presale engineers for the submit-quotation modal dropdown
     try:
-        _pe_conn = sqlite3.connect('ProjectStatus.db')
+        _pe_conn = sqlite3.connect()
         _pe_rows = _pe_conn.execute(
             "SELECT username FROM engineers WHERE role IN ('Presale Engineer','Technical Team Leader') ORDER BY username"
         ).fetchall()
@@ -7130,7 +7130,7 @@ def proposal_generator_main():
     tech_saved_form = {}
     if rfq_ref and quoteref:
         try:
-            _tf_conn = sqlite3.connect('ProjectStatus.db')
+            _tf_conn = sqlite3.connect()
             try:
                 _tf_conn.execute("ALTER TABLE proposal_form_data ADD COLUMN tech_form_json TEXT")
                 _tf_conn.commit()
@@ -7212,7 +7212,7 @@ def proposal_quick_pdf():
         return redirect(url_for('registered_quotations'))
 
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
 
         pf_row = conn.execute(
@@ -7334,7 +7334,7 @@ def proposal_generate_pdf():
         quote_ref = cover.get('quoteref', '').strip() or 'Proposal'
         if rfq_ref:
             try:
-                conn = sqlite3.connect('ProjectStatus.db')
+                conn = sqlite3.connect()
                 # Try exact match (rfq_ref + quote_ref) first
                 row = None
                 if quote_ref and quote_ref != 'Proposal':
@@ -7385,7 +7385,7 @@ def proposal_get_cost_summary():
     if not rfq_ref:
         return jsonify({'cost': 0, 'selling': 0, 'systems': []})
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         row = None
         if quoteref:
             row = conn.execute(
@@ -7444,7 +7444,7 @@ def proposal_quick_submit():
     note_v     = request.form.get('quotation_note', '')
     feedback_v = request.form.get('feedback', '')
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     dup = conn.execute('SELECT COUNT(*) FROM projects WHERE quote_ref=?', (quoteref,)).fetchone()[0]
     if dup > 0:
@@ -7616,7 +7616,7 @@ def proposal_quick_submit():
         now_str2 = now2.strftime('%Y-%m-%d %H:%M:%S')
         username2 = session.get('username', '')
 
-        conn3 = sqlite3.connect('ProjectStatus.db')
+        conn3 = sqlite3.connect()
         conn3.execute(
             '''INSERT INTO projects
                (project_name, quote_ref, presale_eng, sales_eng, system, sow, status, quarter,
@@ -7657,7 +7657,7 @@ def proposal_save_tech_form():
     tech_json = _json.dumps(data.get('form', {}), ensure_ascii=False)
     _saved_by = _sess.get('username', 'Unknown')
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         try:
             conn.execute("ALTER TABLE proposal_form_data ADD COLUMN tech_form_json TEXT")
             conn.commit()
@@ -7920,7 +7920,7 @@ def _merge_preqal_pdf(main_buf, sections):
                 preq_bytes = _lf.read()
         else:
             # 2. Fallback: try to fetch from DB URL
-            import sqlite3 as _msql, requests as _mreq, re as _re
+            import db_postgres as _msql; import requests as _mreq; import re as _re
             _conn = _msql.connect('ProjectStatus.db')
             _cur  = _conn.cursor()
             _cur.execute("SELECT content FROM company_profile_content WHERE section_key='doc_prequalification_url'")
@@ -8179,7 +8179,7 @@ def _merge_all_section_pdfs(main_buf, sections, rfq_ref, vendor):
         else:
             # Fallback: try URL from DB (short timeout)
             try:
-                import sqlite3 as _sql, requests as _mreq
+                import db_postgres as _sql; import requests as _mreq
                 _conn = _sql.connect('ProjectStatus.db')
                 _cur  = _conn.cursor()
                 _cur.execute("SELECT content FROM company_profile_content WHERE section_key='doc_prequalification_url'")
@@ -8910,7 +8910,7 @@ def proposal_generate_excel():
         quote_ref = cover.get('quoteref', '').strip() or 'Proposal'
         if rfq_ref and quote_ref and quote_ref != 'Proposal':
             try:
-                conn = sqlite3.connect('ProjectStatus.db')
+                conn = sqlite3.connect()
                 row = conn.execute(
                     "SELECT sheets_json FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                     (rfq_ref, quote_ref)
@@ -10326,7 +10326,7 @@ def _build_quotation_pdf(cover, boq_sheets, quote_ref, boq_opts=None):
 def cost_sheet_builder():
     """Standalone Cost Sheet Builder page - loads previously saved sheet if any."""
     from flask import request as _req
-    import sqlite3
+    import db_postgres as sqlite3
     project_name = _req.args.get('project', '')
     rfq_ref      = _req.args.get('rfq', '')
     quoteref     = _req.args.get('quoteref', '')
@@ -10335,7 +10335,7 @@ def cost_sheet_builder():
     saved_by = None
     if rfq_ref:
         try:
-            conn = sqlite3.connect('ProjectStatus.db')
+            conn = sqlite3.connect()
             row = conn.execute(
                 "SELECT sheets_json, updated_at, saved_by FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
                 (rfq_ref, quoteref or '')
@@ -10362,7 +10362,8 @@ def cost_sheet_builder():
 @login_required
 def cost_sheet_save():
     """AJAX: Upsert cost sheet data keyed by rfq_ref+quote_ref."""
-    import sqlite3, json
+    import db_postgres as sqlite3
+    import json
     from flask import request as _req, jsonify, session
     data = _req.get_json(force=True) or {}
     rfq_ref      = data.get('rfq_ref', '').strip()
@@ -10376,7 +10377,7 @@ def cost_sheet_save():
     sheets_json = json.dumps(sheets, ensure_ascii=False)
     saved_by = session.get('username', 'unknown')
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         sql = ('INSERT INTO cost_sheets (rfq_ref, quote_ref, project_name, sheets_json, saved_by, updated_at) '
                'VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) '
                'ON CONFLICT(rfq_ref, quote_ref) DO UPDATE SET '
@@ -10806,7 +10807,7 @@ def quotation_pdf_professional(quote_ref):
         flash('You do not have permission to download quotations.', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -11019,7 +11020,7 @@ def quotation_pdf_preview(quote_ref):
         flash('You do not have permission to download quotations.', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -11121,7 +11122,7 @@ def quotation_pdf_generate(quote_ref):
         flash('You do not have permission to download quotations.', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM projects WHERE quote_ref=?", (quote_ref,))
@@ -11263,7 +11264,7 @@ def download_cost_sheet(quote_ref):
         flash('You do not have permission to download cost sheets.', 'danger')
         return redirect(url_for('quotation_profile', quote_ref=quote_ref))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT cost_sheet FROM projects WHERE quote_ref=?", (quote_ref,))
 
@@ -11313,7 +11314,7 @@ def upload_supplier_quotation():
         quotation_data = quotation_file.read()
         filename = quotation_file.filename
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         # Get distributor name if selected
@@ -11367,7 +11368,7 @@ def download_supplier_quotation(quotation_id):
     try:
         action = request.args.get('action', 'download')  # Default to download
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -11406,7 +11407,7 @@ def download_supplier_quotation(quotation_id):
 def upload_project_documents(project_id):
     """Upload or update project documents (BOQ, Spec, Google Drive Link)"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -11515,7 +11516,7 @@ def upload_project_documents(project_id):
 def download_project_boq(project_id):
     """Download BOQ file for a project"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -11548,7 +11549,7 @@ def download_project_boq(project_id):
 def download_project_spec(project_id):
     """Download Specification PDF for a project"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -11581,7 +11582,7 @@ def download_project_spec(project_id):
 def remove_project_document(project_id, doc_type):
     """Remove individual document (BOQ, Spec, or Google Drive link)"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         # Map doc_type to database columns
@@ -11624,7 +11625,7 @@ def remove_project_document(project_id, doc_type):
 def update_project_document(project_id, doc_type):
     """Update individual document (BOQ, Spec, or Google Drive link)"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         updated_by = session.get('username', 'Unknown')
         
@@ -11734,7 +11735,7 @@ def add_product_from_quotation(quotation_id):
                 flash('Quantity must be a valid integer!', 'danger')
                 return redirect(request.referrer or url_for('index'))
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -11785,7 +11786,7 @@ def add_product_from_quotation(quotation_id):
 @permission_required('view_products')
 def quotation_products_dashboard():
     """Dashboard showing all products extracted from supplier quotations"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -11926,7 +11927,7 @@ def quotation_products_dashboard():
 def delete_quotation_product(product_id):
     """Delete a product from quotation products"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("DELETE FROM quotation_products WHERE id = ?", (product_id,))
@@ -11950,7 +11951,7 @@ def export_quotation_products_excel():
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from io import BytesIO
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -12058,7 +12059,7 @@ def import_quotation_products_excel():
         workbook = openpyxl.load_workbook(file_content)
         sheet = workbook.active
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -12240,7 +12241,7 @@ def add_quotation_product_manual():
         except:
             quantity = 1
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -12309,7 +12310,7 @@ def download_files():
 @app.route('/edit_project/<quote_ref>', methods=['GET', 'POST'])
 @role_required('Technical Team Leader', 'Sales Engineer', 'Presale Engineer', 'editor')
 def edit_project(quote_ref):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -12405,7 +12406,7 @@ def edit_project(quote_ref):
 @app.route('/registered_quotations')
 @permission_required('view_reports')
 def registered_quotations():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get filter values from URL
@@ -12467,7 +12468,7 @@ def delete_quotation(quotation_id):
     if session.get('username', '').lower() != 'm.saleh':
         return jsonify({'success': False, 'error': 'Unauthorized. Admin access required.'}), 403
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Check if quotation exists and get quote_ref
@@ -12496,7 +12497,7 @@ def delete_quotation(quotation_id):
 @login_required
 def engineer_reports():
     """Engineer Reports - View projects and quotations by Sales or Presale Engineer"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -12751,7 +12752,7 @@ def export_engineer_report_excel():
     from openpyxl.utils import get_column_letter
     from io import BytesIO
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -13097,7 +13098,7 @@ def export_engineer_report_pptx():
     from pptx.enum.shapes import MSO_SHAPE
     from io import BytesIO
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -13539,7 +13540,7 @@ def export_engineer_report_pptx():
     
     # Get RELATED engineers data (presales for sales report, sales for presales report)
     # Apply the same date filters as the main query
-    conn2 = sqlite3.connect('ProjectStatus.db')
+    conn2 = sqlite3.connect()
     c2 = conn2.cursor()
     
     if report_type == 'sales':
@@ -13850,7 +13851,7 @@ def export_engineer_report_pptx():
 @app.route('/download_quotations_excel')
 @login_required
 def download_quotations_excel():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
 
     # Replicate the filtering logic from the main page
     filters = {
@@ -13893,7 +13894,7 @@ def download_quotations_report(period):
     """Generate Weekly, Monthly, or Quarterly quotation reports"""
     from datetime import timedelta
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     today = datetime.now()
     
     # Calculate date range based on period
@@ -13995,7 +13996,7 @@ def download_quotations_report(period):
 @app.route('/aging_dashboard')
 @permission_required('view_aging_dashboard')
 def aging_dashboard():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     today = datetime.now()
@@ -14066,7 +14067,7 @@ def aging_dashboard():
 def sales_engineer_report():
     if 'username' not in session:
         return redirect(url_for('login'))
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -14387,7 +14388,7 @@ def upload_documents():
         other_data = other_document_file.read() if other_document_file else None
 
         # Store the documents in the database
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             c.execute('''INSERT INTO project_documents (project_id, system_name, sld, technical_submittal, other_document)
@@ -14403,7 +14404,7 @@ def upload_documents():
         return redirect(url_for('upload_documents'))
 
     # Fetch project IDs from the database for the dropdown
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT id, project_name FROM projects")
     projects = c.fetchall()
@@ -14414,7 +14415,7 @@ def upload_documents():
 @app.route('/view_documents', methods=['GET'])
 #@role_required('editor')
 def view_documents():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Fetch project names for the dropdown
@@ -14453,7 +14454,7 @@ def download_file(doc_type, doc_id):
     if doc_type not in allowed_doc_types:
         flash('Invalid document type requested.', 'danger')
         return redirect(url_for('view_documents'))
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute(f'SELECT {doc_type} FROM project_documents WHERE id = ?', (doc_id,))
     file_data = c.fetchone()
@@ -14484,7 +14485,7 @@ def register_vendor():
         phone = request.form['phone']
         email = request.form['email']
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             c.execute('''INSERT INTO vendors (name, address, contact_person, phone, email)
@@ -14505,7 +14506,7 @@ def register_vendor():
 @login_required
 def register_distributor():
     """Register a new distributor with full SRM support"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -14572,7 +14573,7 @@ def register_distributor():
 @permission_required('view_distributors')
 def show_distributors():
     """Display all distributors with SRM enhancements (associated vendors)"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -14624,7 +14625,7 @@ def add_distributor_ajax():
     if not name:
         return jsonify({'status': 'error', 'message': 'Distributor name is required.'}), 400
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     try:
         # Insert the new distributor with full SRM fields
@@ -14675,7 +14676,7 @@ def add_vendor_ajax():
     if not name:
         return jsonify({'status': 'error', 'message': 'Vendor name is required.'}), 400
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     try:
         # Insert the new vendor with full SRM fields
@@ -14723,7 +14724,7 @@ def add_vendor_ajax():
 @login_required
 def get_distributor_details(distributor_id):
     """Fetches distributor details and contacts to auto-populate the PO form."""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -14765,15 +14766,14 @@ def get_distributor_details(distributor_id):
         return jsonify({'error': 'Distributor not found'}), 404
 #################
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-import sqlite3
-
+import db_postgres as sqlite3
 # ... [rest of your existing imports and code] ...
 
 @app.route('/edit_distributor/<int:distributor_id>', methods=['GET', 'POST'])
 @login_required
 def edit_distributor(distributor_id):
     """Edit distributor with full SRM support"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -14835,7 +14835,7 @@ def edit_distributor(distributor_id):
 @role_required('General Manager', 'Technical Team Leader')
 def delete_distributor(distributor_id):
     """Delete a distributor (Admin only) with SRM activity logging"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -14882,7 +14882,7 @@ def delete_distributor(distributor_id):
 @permission_required('view_active_users')
 def active_users():
     """View currently active users - Admin (General Manager) only"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -14928,7 +14928,7 @@ def active_users():
 @permission_required('view_active_users')
 def terminate_user_session(session_id):
     """Terminate a specific user session - Admin only"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get session info for logging
@@ -14955,7 +14955,7 @@ def terminate_user_session(session_id):
 @permission_required('view_vendors')
 def vendor_detail(vendor_id):
     """Comprehensive vendor detail page with contacts, performance, documents, POs"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -15080,7 +15080,7 @@ def vendor_detail(vendor_id):
 @permission_required('view_distributors')
 def distributor_detail(distributor_id):
     """Comprehensive distributor detail page"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -15202,7 +15202,7 @@ def distributor_detail(distributor_id):
 @login_required
 def add_vendor_contact_new(vendor_id):
     """Add new contact to vendor"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     name = request.form.get('name')
@@ -15239,7 +15239,7 @@ def add_vendor_contact_new(vendor_id):
 @login_required
 def add_distributor_contact_new(distributor_id):
     """Add new contact to distributor"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     name = request.form.get('name')
@@ -15276,7 +15276,7 @@ def add_distributor_contact_new(distributor_id):
 @login_required
 def delete_contact(entity_type, contact_id):
     """Delete a contact"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     if entity_type == 'vendor':
@@ -15312,7 +15312,7 @@ def delete_contact(entity_type, contact_id):
 @login_required
 def assign_account_manager():
     """Assign account manager to vendor or distributor"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     entity_type = request.form.get('entity_type')
@@ -15354,7 +15354,7 @@ def assign_account_manager():
 @login_required
 def update_performance():
     """Update performance metrics"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     entity_type = request.form.get('entity_type')
@@ -15440,7 +15440,7 @@ def upload_srm_document():
     file_size = os.path.getsize(file_path)
     
     # Save to database
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -15469,7 +15469,7 @@ def upload_srm_document():
 @login_required
 def delete_srm_document(document_id):
     """Delete a document"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("SELECT entity_type, entity_id, file_path, document_name FROM srm_documents WHERE id = ?", (document_id,))
@@ -15506,7 +15506,7 @@ def delete_srm_document(document_id):
 @role_required('General Manager', 'Technical Team Leader', 'Presale Engineer')
 def srm_analytics():
     """SRM Analytics Dashboard with charts and metrics"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -15597,7 +15597,7 @@ def srm_analytics():
 @login_required
 def download_srm_document(document_id):
     """Secure document download with authorization"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -15639,14 +15639,12 @@ def fetch_cctv_products():
 ##########
 import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, jsonify
-import sqlite3
-
-
+import db_postgres as sqlite3
 @app.route('/cctv_products', methods=['GET', 'POST'])
 @login_required
 def cctv_products():
     """CCTV Products Page with Advanced Filtering"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get filter parameters from request
@@ -15808,7 +15806,7 @@ def register_product():
         datasheet_url = request.form.get('datasheet_url')  # New Datasheet URL field
 
         # Insert the data into the database
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         c.execute('''
             INSERT INTO cctv_products (
@@ -15857,7 +15855,7 @@ def import_products_excel():
         # Read Excel file
         df = pd.read_excel(excel_file)
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         imported_count = 0
@@ -15933,7 +15931,7 @@ def import_products_excel():
 @login_required
 def view_product_details(product_id):
     """View detailed specifications of a CCTV product"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -15986,7 +15984,7 @@ def view_product_details(product_id):
 @login_required
 def edit_product(product_id):
     """Edit CCTV product specifications"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     if request.method == 'POST':
@@ -16118,7 +16116,7 @@ def edit_product(product_id):
 @role_required('General Manager', 'Technical Team Leader')
 def delete_product(product_id):
     """Delete a CCTV product (Admin only)"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     # First, get the product details for confirmation message
@@ -16194,7 +16192,7 @@ def compare_products():
         return redirect(url_for('cctv_products'))
     
     # Fetch products from database
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     placeholders = ','.join(['?' for _ in ids])
@@ -16240,7 +16238,7 @@ def fire_alarm_products():
 #@role_required('editor')
 def view_detectors_products():
     # Connect to the database
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Initialize filter parameters
@@ -16315,7 +16313,7 @@ def register_detector_product():
             return redirect(url_for('register_detector_product'))
 
         # Database connection
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
 
         try:
@@ -16347,7 +16345,7 @@ def view_manual_call_point():
 @app.route('/view_manual_call_point_products', methods=['GET'])
 #@role_required('editor')
 def view_manual_call_point_products():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Initialize filter parameters
@@ -16412,7 +16410,7 @@ def register_manual_call_point_product():
             return redirect(url_for('register_manual_call_point_product'))
 
         # Database connection
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
 
         try:
@@ -16460,7 +16458,7 @@ def register_consultant():
         email = request.form['email']
         note = request.form['note']
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             c.execute('''INSERT INTO consultants (name, contact_person, phone, email, note)
@@ -16487,7 +16485,7 @@ def register_contractor():
         email = request.form['email']
         note = request.form['note']
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             c.execute('''INSERT INTO contractors (name, contact_person, phone, email, note)
@@ -16514,7 +16512,7 @@ def register_end_user():
         email = request.form['email']
         note = request.form['note']
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             c.execute('''INSERT INTO end_users (name, contact_person, phone, email, note)
@@ -16534,7 +16532,7 @@ def register_end_user():
 @app.route('/register_project', methods=['GET', 'POST'])
 @permission_required('view_projects')
 def register_project():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -16693,7 +16691,7 @@ def register_project():
 @app.route('/project_pipeline')
 @permission_required('view_projects')
 def project_pipeline():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get filter values
@@ -16791,7 +16789,7 @@ def project_pipeline():
 @app.route('/edit_project_pipeline/<int:project_id>', methods=['GET', 'POST'])
 @login_required
 def edit_project_pipeline(project_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -16910,7 +16908,7 @@ def delete_project(project_id):
     Delete a project from the pipeline (Admin only)
     """
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         # Get project name for confirmation
@@ -16985,7 +16983,7 @@ def update_project_stage():
     updated_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         # Get current stage and project details before updating
@@ -17028,7 +17026,7 @@ def update_project_stage():
             recipients = admin_recipients.copy()
             if sales_engineer_id and sales_engineer_name:
                 # Get user_id for this sales engineer from users table
-                conn2 = sqlite3.connect('ProjectStatus.db')
+                conn2 = sqlite3.connect()
                 c2 = conn2.cursor()
                 c2.execute("SELECT id FROM users WHERE username = ?", (sales_engineer_name,))
                 sales_user = c2.fetchone()
@@ -17062,7 +17060,7 @@ def update_project_stage():
 @login_required
 @permission_required('view_pipeline_analysis')
 def pipeline_analysis():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     current_year = datetime.now().year
@@ -17161,7 +17159,7 @@ def pipeline_analysis():
 @app.route('/presales_performance')
 @permission_required('view_presales')
 def presales_performance():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get filter values from URL
@@ -17566,7 +17564,7 @@ def get_deadline_rfqs():
     if not engineer or not deadline_type:
         return jsonify({'error': 'Missing parameters'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -17654,7 +17652,7 @@ def get_engineer_performance_rfqs():
         end_date = today.strftime('%Y-%m-%d')
         period_label = 'Last 30 Days'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -17783,7 +17781,7 @@ def get_presales_won_deals():
     if not engineer:
         return jsonify({'error': 'Missing engineer parameter'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -17862,7 +17860,7 @@ def get_rfts_performance():
         end_date = today.strftime('%Y-%m-%d')
         period_label = 'Last 30 Days'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -17943,7 +17941,7 @@ def get_sales_engineer_quotations():
     if not year:
         year = datetime.now().year
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -18002,7 +18000,7 @@ def get_sales_engineer_quotations():
 @login_required
 @permission_required('view_sales_performance')
 def sales_performance():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get filter values from URL
@@ -18126,7 +18124,7 @@ def sales_performance():
 @login_required
 def quotation_profile(quote_ref):
     """Comprehensive quotation profile page showing all quotation details"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -18204,7 +18202,7 @@ def show_comparison(ref):
 @app.route('/request_for_quotation', methods=['GET', 'POST'])
 @login_required
 def request_for_quotation():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -18328,7 +18326,7 @@ def request_for_quotation():
 @app.route('/rfq_summary', methods=['GET'])
 @permission_required('view_rfq')
 def rfq_summary():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get user role to conditionally show elements
@@ -18404,7 +18402,7 @@ def rfq_summary():
     status_counts = [row[1] for row in status_counts_raw]
     
     # Calculate KPI statistics
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Build same query for statistics
@@ -18466,7 +18464,7 @@ def rfq_summary():
 @login_required
 def rfq_engineer_reports():
     """RFQ Engineer Reports - View RFQ statistics by Sales or Presale Engineer"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -18700,7 +18698,7 @@ def export_rfq_engineer_report_excel():
     from io import BytesIO
     from datetime import datetime, date
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -18999,7 +18997,7 @@ def export_rfq_engineer_report_pptx():
     DARK_TEXT = RGBColor(51, 51, 51)
     LIGHT_BG = RGBColor(248, 249, 250)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -19276,7 +19274,7 @@ def export_rfq_engineer_report_pptx():
     
     # ===== RELATED ENGINEERS SECTION ON DASHBOARD =====
     # Get related engineers (presales for sales report, sales for presales report)
-    conn2 = sqlite3.connect('ProjectStatus.db')
+    conn2 = sqlite3.connect()
     c2 = conn2.cursor()
     
     if report_type == 'sales':
@@ -19773,7 +19771,7 @@ def export_rfq_engineer_report_pptx():
 @role_required('Admin', 'Technical Team Leader')  # Allow Admin and Technical Team Leader
 def delete_rfq(rfq_id):
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         c.execute("DELETE FROM rfq_requests WHERE id = ?", (rfq_id,))
         conn.commit()
@@ -19786,7 +19784,7 @@ def delete_rfq(rfq_id):
 @app.route('/download_filtered_rfqs', methods=['GET'])
 @login_required
 def download_filtered_rfqs():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Reconstruct the filtering logic including date range
@@ -19858,7 +19856,7 @@ def rfq_profile(rfq_id):
     RFQ Profile page showing complete RFQ details, process timeline,
     related quotations, and comments
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -19992,7 +19990,7 @@ def rfq_profile(rfq_id):
 @app.route('/edit_rfq/<int:rfq_id>', methods=['GET', 'POST'])
 @role_required('Technical Team Leader', 'Presale Engineer')  # Define roles that can edit
 def edit_rfq(rfq_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     # Use row_factory to easily access columns by name in the template
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -20121,7 +20119,7 @@ def edit_rfq(rfq_id):
 @app.route('/rfq_pipeline')
 @permission_required('view_rfts')
 def rfq_pipeline():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -20185,7 +20183,7 @@ def update_rfq_status():
         return jsonify({'status': 'error', 'message': 'Missing data'}), 400
 
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         c.execute("UPDATE rfq_requests SET rfq_status = ? WHERE id = ?", (new_status, rfq_id))
         conn.commit()
@@ -20200,7 +20198,7 @@ from datetime import datetime
 @app.route('/request_technical_support', methods=['GET', 'POST'])
 @login_required
 def request_technical_support():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     # Fetch presale engineers
     c.execute("SELECT username FROM engineers WHERE role='Presale Engineer'")
@@ -20264,7 +20262,7 @@ def request_technical_support():
 @login_required
 @permission_required('view_rfts')
 def technical_support_summary():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get filter parameters from URL
@@ -20345,7 +20343,7 @@ def rfts_profile(rfts_id):
     RFTS Profile page showing complete technical support request details,
     process timeline, and related information
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -20474,7 +20472,7 @@ def rfts_profile(rfts_id):
 @permission_required('view_rfts')
 def add_rfts_deliverable(rfts_id):
     """Add a new deliverable (Google Drive link) to an RFTS"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Verify RFTS exists
@@ -20516,7 +20514,7 @@ def add_rfts_deliverable(rfts_id):
 @permission_required('view_rfts')
 def delete_rfts_deliverable(deliverable_id):
     """Delete a deliverable from an RFTS"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get the deliverable to check if it exists and get rfts_id for redirect
@@ -20545,7 +20543,7 @@ def delete_rfts_deliverable(deliverable_id):
 @app.route('/download_filtered_technical_support', methods=['GET'])
 #@role_required('editor')
 def download_filtered_technical_support():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Reconstruct the filtering logic based on the parameters passed from the request
@@ -20603,7 +20601,7 @@ def download_filtered_technical_support():
 @permission_required('view_rfts')
 def rfts_engineer_reports():
     """RFTS Engineer Reports - View RFTS statistics by Sales or Presale Engineer"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -20839,7 +20837,7 @@ def export_rfts_engineer_report_excel():
     from io import BytesIO
     from datetime import datetime, date
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -21043,7 +21041,7 @@ def export_rfts_engineer_report_pptx():
     DARK_TEXT = RGBColor(51, 51, 51)
     LIGHT_BG = RGBColor(248, 249, 250)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -21308,7 +21306,7 @@ def export_rfts_engineer_report_pptx():
         p.alignment = PP_ALIGN.CENTER
     
     # ===== RELATED ENGINEERS SECTION ON DASHBOARD =====
-    conn2 = sqlite3.connect('ProjectStatus.db')
+    conn2 = sqlite3.connect()
     c2 = conn2.cursor()
     
     if report_type == 'sales':
@@ -21788,7 +21786,7 @@ def export_rfts_engineer_report_pptx():
 @login_required
 def engineer_performance_center():
     """Engineer Performance Center - Combined report for Projects, RFQs, and RFTS"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     report_type = request.args.get('type', 'sales')
@@ -22241,7 +22239,7 @@ def export_engineer_performance_pptx():
     if not selected_engineer:
         return "No engineer selected", 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Build date conditions
@@ -23988,7 +23986,7 @@ def export_engineer_performance_pptx():
 @app.route('/edit_request', methods=['GET', 'POST'])
 @login_required
 def edit_request():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -24101,7 +24099,7 @@ def view_consultants():
     """
     search_query = request.args.get('search_query', '')
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get user role and engineer ID for filtering
@@ -24183,7 +24181,7 @@ def view_consultants():
 @app.route('/consultant_projects/<int:consultant_id>')
 @login_required
 def consultant_projects(consultant_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get consultant details
@@ -24247,7 +24245,7 @@ def view_all_clients():
     filter_engineer = request.args.get('engineer', '')
     sort_by = request.args.get('sort', 'name')  # name, projects, tier
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get user role and engineer ID for filtering
@@ -24470,7 +24468,7 @@ def view_all_clients():
 @login_required
 def client_profile(client_type, client_id):
     """Comprehensive client profile page with follow-up tracking"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -24611,7 +24609,7 @@ def export_client_profile_excel(client_type, client_id):
     
     FONT_NAME = 'Calibri'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -25050,7 +25048,7 @@ def export_client_profile_pptx(client_type, client_id):
     
     FONT_NAME = 'Calibri'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -25850,7 +25848,7 @@ def add_client_follow_up():
     if not all([client_type, client_id, follow_up_type, follow_up_date, subject]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -25890,7 +25888,7 @@ def add_client_follow_up():
 @login_required
 def complete_client_follow_up(follow_up_id):
     """Mark a follow-up as completed"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -25930,7 +25928,7 @@ def complete_client_follow_up(follow_up_id):
 @login_required
 def cancel_client_follow_up(follow_up_id):
     """Cancel a follow-up"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -25978,7 +25976,7 @@ def add_client_activity():
     if not all([client_type, client_id, activity_type, activity_description]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26020,7 +26018,7 @@ def update_client_tier(client_type, client_id):
     if not table_name:
         return jsonify({'success': False, 'error': 'Invalid client type'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute(f"UPDATE {table_name} SET client_tier = ? WHERE id = ?", (new_tier, client_id))
@@ -26061,7 +26059,7 @@ def send_follow_up_email_reminders():
     user_id = session.get('user_id')
     
     # Get user email
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26211,7 +26209,7 @@ def add_rfq_follow_up():
     if not all([rfq_id, follow_up_type, contact_type, follow_up_date, subject]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26247,7 +26245,7 @@ def add_rfq_follow_up():
 @login_required
 def complete_rfq_follow_up(follow_up_id):
     """Mark an RFQ follow-up as completed"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26284,7 +26282,7 @@ def complete_rfq_follow_up(follow_up_id):
 @login_required
 def cancel_rfq_follow_up(follow_up_id):
     """Cancel an RFQ follow-up"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26332,7 +26330,7 @@ def add_rfq_activity():
     if not all([rfq_id, activity_type, activity_description]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26371,7 +26369,7 @@ def add_rfts_follow_up():
     if not all([rfts_id, follow_up_type, contact_type, follow_up_date, subject]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26407,7 +26405,7 @@ def add_rfts_follow_up():
 @login_required
 def complete_rfts_follow_up(follow_up_id):
     """Mark an RFTS follow-up as completed"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26444,7 +26442,7 @@ def complete_rfts_follow_up(follow_up_id):
 @login_required
 def cancel_rfts_follow_up(follow_up_id):
     """Cancel an RFTS follow-up"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26492,7 +26490,7 @@ def add_rfts_activity():
     if not all([rfts_id, activity_type, activity_description]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26532,7 +26530,7 @@ def add_po_follow_up():
     if not all([po_id, follow_up_type, contact_type, follow_up_date, subject]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26568,7 +26566,7 @@ def add_po_follow_up():
 @login_required
 def complete_po_follow_up(follow_up_id):
     """Mark a PO follow-up as completed"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26605,7 +26603,7 @@ def complete_po_follow_up(follow_up_id):
 @login_required
 def cancel_po_follow_up(follow_up_id):
     """Cancel a PO follow-up"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -26654,7 +26652,7 @@ def add_po_activity():
     if not all([po_id, activity_type, activity_description]):
         return jsonify({'success': False, 'error': 'Missing required fields'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -26681,7 +26679,7 @@ def view_contractors():
     """
     search_query = request.args.get('search_query', '')
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get user role and engineer ID for filtering
@@ -26763,7 +26761,7 @@ def view_contractors():
 @app.route('/contractor_projects/<int:contractor_id>')
 @login_required
 def contractor_projects(contractor_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get contractor details
@@ -26814,7 +26812,7 @@ def contractor_projects(contractor_id):
 @app.route('/edit_consultant/<int:consultant_id>', methods=['GET', 'POST'])
 #@role_required('editor')
 def edit_consultant(consultant_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -26845,7 +26843,7 @@ def edit_consultant(consultant_id):
 @app.route('/edit_contractor/<int:contractor_id>', methods=['GET', 'POST'])
 #@role_required('editor')
 def edit_contractor(contractor_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -26877,7 +26875,7 @@ def edit_contractor(contractor_id):
 @login_required
 @permission_required('view_projects')
 def view_projects():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Get filter values
@@ -26993,7 +26991,7 @@ def view_end_users():
     """
     search_query = request.args.get('search_query', '')
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get user role and engineer ID for filtering
@@ -27093,7 +27091,7 @@ def toggle_client_status():
     entity_id = request.form.get('entity_id')
     is_client = request.form.get('is_client')  # '1' or '0'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -27123,7 +27121,7 @@ def assign_sales_engineer():
     entity_id = request.form.get('entity_id')
     sales_engineer_id = request.form.get('sales_engineer_id')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -27150,7 +27148,7 @@ def manage_clients():
         flash('Access denied. Admin privileges required.', 'danger')
         return redirect(url_for('index'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get all engineers for assignment dropdown (Sales Engineer, Project Manager, General Manager, Technical Team Leader)
@@ -27226,7 +27224,7 @@ def pending_project_approvals():
         flash('Access denied. Admin privileges required.', 'danger')
         return redirect(url_for('index'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get all pending projects with full details
@@ -27273,7 +27271,7 @@ def approve_project(project_id):
     approved_by_id = session.get('user_id')
     approved_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -27366,7 +27364,7 @@ def reject_project(project_id):
     approved_by_id = session.get('user_id')
     approved_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -27455,7 +27453,7 @@ def view_rejection_details(project_id):
     """
     Show rejection details for a project
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get project details including rejection reason
@@ -27496,7 +27494,7 @@ def pending_approvals_count():
     if session.get('user_role') not in ['General Manager', 'Technical Team Leader']:
         return jsonify({'count': 0})
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("SELECT COUNT(*) FROM register_project WHERE approval_status = 'Pending'")
@@ -27510,7 +27508,7 @@ def pending_approvals_count():
 @app.route('/end_user_contractors/<int:end_user_id>')
 @login_required
 def end_user_contractors(end_user_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get end user details
@@ -27542,7 +27540,7 @@ def end_user_contractors(end_user_id):
 @app.route('/end_user_projects/<int:end_user_id>')
 @login_required
 def end_user_projects(end_user_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get end user details
@@ -27601,7 +27599,7 @@ def end_user_projects(end_user_id):
 @app.route('/edit_end_user/<int:end_user_id>', methods=['GET', 'POST'])
 #@role_required('editor')
 def edit_end_user(end_user_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -27637,7 +27635,7 @@ def crm_page():
 @app.route('/view_engineers')
 @role_required('editor', 'General Manager', 'Technical Team Leader')  # Adjust roles as needed
 def view_engineers():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Fetch all engineers from the engineers table
@@ -27650,7 +27648,7 @@ def view_engineers():
 @app.route('/delete_engineer/<int:engineer_id>', methods=['POST'])
 @role_required('editor', 'General Manager', 'Technical Team Leader')  # Adjust roles as needed
 def delete_engineer(engineer_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     try:
@@ -27670,7 +27668,7 @@ def delete_engineer(engineer_id):
 @app.route('/edit_engineer/<int:engineer_id>', methods=['GET', 'POST'])
 @role_required('editor', 'General Manager', 'Technical Team Leader')
 def edit_engineer(engineer_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     if request.method == 'POST':
@@ -27765,7 +27763,7 @@ def register_po():
         po_notes_client = request.form['po_notes_client']
 
         # Store the data in the database
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
@@ -27884,7 +27882,7 @@ def register_po():
             conn.close()
 
     # Handle GET request: Fetch data for dropdowns
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT id, project_name FROM register_project")
     projects = c.fetchall()
@@ -27903,7 +27901,7 @@ def register_po():
 @app.route('/view_po_status', methods=['GET', 'POST'])
 @permission_required('view_po_status')
 def view_po_status():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row  # Enable named field access
     c = conn.cursor()
 
@@ -28109,7 +28107,7 @@ def view_po_status():
 @permission_required('view_po_reports')
 def po_reports():
     """PO Reports page - View and export purchase order reports grouped by project"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -28303,7 +28301,7 @@ def export_po_report_excel():
     import pandas as pd
     from io import BytesIO
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -28452,7 +28450,7 @@ def export_po_report_pptx():
     
     FONT_NAME = 'Arial'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -29246,7 +29244,7 @@ def export_po_report_pptx():
 def delete_po(po_id):
     """Delete Purchase Order and all associated data (Admin only)"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -29308,7 +29306,7 @@ def add_rfq_comment(rfq_id):
         flash('Comment cannot be empty!', 'danger')
         return redirect(url_for('rfq_summary'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -29375,7 +29373,7 @@ def add_rfq_comment(rfq_id):
 @app.route('/get_rfq_comments/<int:rfq_id>', methods=['GET'])
 @login_required
 def get_rfq_comments(rfq_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute('''
@@ -29409,7 +29407,7 @@ def add_po_comment(po_id):
         flash('Comment cannot be empty!', 'danger')
         return redirect(url_for('view_po_status'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -29429,7 +29427,7 @@ def add_po_comment(po_id):
 @app.route('/get_po_comments/<int:po_id>', methods=['GET'])
 @login_required
 def get_po_comments(po_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute('''
@@ -29455,7 +29453,7 @@ def get_po_comments(po_id):
 @app.route('/download_filtered_po_excel', methods=['GET'])
 #@role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
 def download_filtered_po_excel():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Initialize filter parameters
@@ -29539,7 +29537,7 @@ def download_filtered_po_excel():
 @permission_required('view_vendors')
 def download_vendor_pos_excel(vendor_id):
     """Export all purchase orders for a specific vendor to Excel"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     
     # Get vendor name for filename
     cursor = conn.cursor()
@@ -29605,7 +29603,7 @@ def download_vendor_pos_excel(vendor_id):
 @permission_required('view_distributors')
 def download_distributor_pos_excel(distributor_id):
     """Export all purchase orders for a specific distributor to Excel"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     
     # Get distributor name for filename
     cursor = conn.cursor()
@@ -29677,7 +29675,7 @@ def update_po_field():
         if not po_id or not field:
             return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         # Map frontend field names to database columns
@@ -29737,7 +29735,7 @@ def update_po_field():
 @app.route('/edit_po/<int:po_id>', methods=['GET', 'POST'])
 #@role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
 def edit_po(po_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -29899,7 +29897,7 @@ def edit_po(po_id):
 @app.route('/download_po/<po_number>', methods=['GET'], endpoint='download_po_endpoint')
 @role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
 def download_po(po_number):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT po_document FROM purchase_orders WHERE po_request_number=?", (po_number,))
     result = c.fetchone()
@@ -29918,7 +29916,7 @@ def download_po(po_number):
 @app.route('/download_quotation/<po_number>', methods=['GET'], endpoint='download_quotation_endpoint')
 @role_required('editor', 'General Manager', 'Technical Team Leader','Project Coordinator')  # Adjust roles as needed
 def download_quotation(po_number):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT quotation FROM purchase_orders WHERE po_request_number=?", (po_number,))
     result = c.fetchone()
@@ -29936,7 +29934,7 @@ def download_quotation(po_number):
 @app.route('/view_po_details/<po_number>', methods=['GET'])
 @login_required
 def view_po_details(po_number):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     # Use row_factory to access columns by name
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -29962,7 +29960,7 @@ def view_po_details(po_number):
 @login_required
 def po_profile(po_request_number):
     """Comprehensive PO Profile page with delivery tracking"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -30086,7 +30084,7 @@ def po_ai_email(po_number):
         data = request.get_json(silent=True) or {}
         tone = data.get('tone', 'Professional')
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
@@ -30204,7 +30202,7 @@ def po_ai_email(po_number):
 @login_required
 def add_po_item(po_number):
     """Add new item to PO with comprehensive validation"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     # Resolve po_request_number for redirect
@@ -30299,7 +30297,7 @@ def add_po_item(po_number):
 @login_required
 def edit_po_item(item_id):
     """Edit existing PO item with comprehensive validation"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -30417,7 +30415,7 @@ def edit_po_item(item_id):
 @login_required
 def delete_po_item(item_id):
     """Delete PO item"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -30447,7 +30445,7 @@ def delete_po_item(item_id):
 @login_required
 def update_po_vat(po_number):
     """Update VAT percentage for PO"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -30506,7 +30504,7 @@ def import_po_items_excel(po_request_number):
         workbook = openpyxl.load_workbook(file_content)
         sheet = workbook.active
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -30853,7 +30851,7 @@ def export_po_items_excel(po_number):
         from openpyxl.styles import Font, PatternFill, Alignment
         from io import BytesIO
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -30925,7 +30923,7 @@ def export_po_profile_excel(po_request_number):
         from io import BytesIO
         from datetime import datetime
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -31186,7 +31184,7 @@ def export_po_profile_excel(po_request_number):
 def save_po_pdf_details(po_request_number):
     """Save PO PDF details (billed to, shipped to, delivery, payment terms)"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         c.execute("SELECT id FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
         row = c.fetchone()
@@ -31267,7 +31265,7 @@ def export_po_pdf(po_request_number):
                 return Paragraph(_ar(text), style_ar)
             return Paragraph(text, style_en)
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("""
@@ -31700,7 +31698,7 @@ def export_po_profile_pptx(po_request_number):
         from io import BytesIO
         from datetime import datetime
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -32511,7 +32509,7 @@ def upload_vat_invoice(po_request_number):
         pdf_data = file.read()
         file_size = len(pdf_data)
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("""
@@ -32535,7 +32533,7 @@ def upload_vat_invoice(po_request_number):
 @login_required
 def download_vat_invoice(po_request_number):
     """Download VAT Invoice PDF"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -32578,7 +32576,7 @@ def add_po_delivery_note(po_request_number):
     
     try:
         from datetime import datetime
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("SELECT po_number FROM purchase_orders WHERE po_request_number = ?", (po_request_number,))
@@ -32606,7 +32604,7 @@ def add_po_delivery_note(po_request_number):
 @login_required
 def view_vat_invoice(invoice_id):
     """View a specific VAT invoice PDF"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -32638,7 +32636,7 @@ def view_vat_invoice(invoice_id):
 @login_required
 def download_vat_invoice_file(invoice_id):
     """Download a specific VAT invoice PDF"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -32672,7 +32670,7 @@ def download_vat_invoice_file(invoice_id):
 def delete_vat_invoice(invoice_id):
     """Delete a VAT invoice - requires authorization"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -32709,7 +32707,7 @@ def delete_vat_invoice(invoice_id):
 def edit_delivery_note(note_id):
     """Edit a delivery note status"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("SELECT po_number FROM purchase_order_monitoring WHERE id = ? AND deleted_at IS NULL", (note_id,))
@@ -32759,7 +32757,7 @@ def delete_delivery_note(note_id):
     """Soft delete a delivery note - requires authorization"""
     try:
         from datetime import datetime
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         cursor.execute("SELECT po_number FROM purchase_order_monitoring WHERE id = ? AND deleted_at IS NULL", (note_id,))
@@ -32792,7 +32790,7 @@ def delete_delivery_note(note_id):
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
 def request_po():
     """Request PO from a quotation - requires approval from TTL/GM"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33005,7 +33003,7 @@ def request_po():
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager')
 def request_po_from_supplier_quotation(quotation_id):
     """Request PO from a supplier quotation - auto-fills form with supplier quotation data"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33067,7 +33065,7 @@ def request_po_from_supplier_quotation(quotation_id):
 @login_required
 def create_po_from_request(rfpo_ref):
     """Create PO from an approved RFPO request - pre-fills register_po form"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33114,7 +33112,7 @@ def create_po_from_request(rfpo_ref):
 @login_required
 @permission_required('view_po_requests')
 def po_requests_dashboard():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33251,7 +33249,7 @@ def po_requests_dashboard():
 @app.route('/approve_po_request/<rfpo_ref>', methods=['POST'])
 @role_required('Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def approve_po_request(rfpo_ref):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33313,7 +33311,7 @@ def approve_po_request(rfpo_ref):
 @app.route('/reject_po_request/<rfpo_ref>', methods=['POST'])
 @role_required('Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def reject_po_request(rfpo_ref):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33384,7 +33382,7 @@ def reject_po_request(rfpo_ref):
 @app.route('/delete_po_request/<rfpo_ref>', methods=['POST'])
 @role_required('Technical Team Leader', 'Procurement Engineer')
 def delete_po_request(rfpo_ref):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33422,7 +33420,7 @@ def delete_po_request(rfpo_ref):
 @app.route('/get_po_request_details/<int:request_id>')
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def get_po_request_details(request_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33450,7 +33448,7 @@ def get_po_request_details(request_id):
 @app.route('/download_po_requests')
 @role_required('Sales Engineer', 'Presale Engineer', 'Project Manager', 'Technical Team Leader', 'General Manager', 'Procurement Engineer')
 def download_po_requests():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -33567,7 +33565,7 @@ def register_po_follow_up():
         delivered_boq_data = delivered_boq_file.read() if delivered_boq_file and delivered_boq_file.filename != '' else None
 
         # 4. Insert the new follow-up record into the database
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         try:
             c.execute('''INSERT INTO purchase_order_monitoring (
@@ -33587,7 +33585,7 @@ def register_po_follow_up():
         return redirect(url_for('view_po_status'))
 
     # --- For GET request, find the first order date to pre-fill the form ---
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("""
         SELECT order_date FROM purchase_order_monitoring 
@@ -33610,7 +33608,7 @@ def register_po_follow_up():
 @login_required
 def edit_po_follow_up(entry_id):
     """Handles editing a specific PO follow-up entry."""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -33672,7 +33670,7 @@ def edit_po_follow_up(entry_id):
 @login_required
 def delete_po_follow_up(entry_id):
     """Deletes a specific PO follow-up entry."""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -33709,7 +33707,7 @@ def view_document(entry_id, doc_type):
         flash('Invalid document type requested.', 'danger')
         return redirect(request.referrer or url_for('view_po_status'))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     # Fetch the specific document BLOB from the database
     c.execute(f"SELECT {doc_type} FROM purchase_order_monitoring WHERE id = ?", (entry_id,))
@@ -33732,12 +33730,11 @@ def view_document(entry_id, doc_type):
 ##################
 import io
 from flask import send_file, flash, redirect, url_for
-import sqlite3
-
+import db_postgres as sqlite3
 @app.route('/download_invoice/<int:id>')
 @login_required
 def download_invoice(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT invoice FROM purchase_order_monitoring WHERE id=?", (id,))
     result = c.fetchone()
@@ -33753,7 +33750,7 @@ def download_invoice(id):
 @app.route('/download_delivery_note/<int:id>')
 @login_required
 def download_delivery_note(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT delivery_note FROM purchase_order_monitoring WHERE id=?", (id,))
     result = c.fetchone()
@@ -33769,7 +33766,7 @@ def download_delivery_note(id):
 @app.route('/download_delivered_boq/<int:id>')
 @login_required
 def download_delivered_boq(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT delivered_boq FROM purchase_order_monitoring WHERE id=?", (id,))
     result = c.fetchone()
@@ -33792,7 +33789,7 @@ def view_po_document(po_id, doc_type):
         flash('Invalid document type.', 'danger')
         return redirect(url_for('view_po_status'))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Fetch the specific document's binary data
@@ -33811,7 +33808,7 @@ def view_po_document(po_id, doc_type):
 @app.route('/download_po_details_excel/<po_number>', methods=['GET'])
 @login_required
 def download_po_details_excel(po_number):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
 
     # Query to fetch purchase order details
     query = '''
@@ -34279,7 +34276,7 @@ def fiber_solution_builder():
 @app.route('/view_passive_products')
 @login_required
 def view_passive_products():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT * FROM passive_products")
     products = c.fetchall()
@@ -34303,7 +34300,7 @@ def register_passive_products():
         if file and file.filename.endswith('.xlsx'):
             try:
                 df = pd.read_excel(file)
-                conn = sqlite3.connect('ProjectStatus.db')
+                conn = sqlite3.connect()
                 c = conn.cursor()
 
                 # Rename columns to match the database schema
@@ -34342,7 +34339,7 @@ def register_passive_products():
 @app.route('/get_specific_solutions/<solution_category>')
 @login_required
 def get_specific_solutions(solution_category):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     c.execute("SELECT DISTINCT specific_solution FROM passive_products WHERE solution_category = ? ORDER BY specific_solution", (solution_category,))
     specific_solutions = [row[0] for row in c.fetchall()]
@@ -34353,7 +34350,7 @@ def get_specific_solutions(solution_category):
 @login_required
 @permission_required('view_quotation_builder')
 def quotation_builder():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
 
     # Fetch data for the main project dropdown
@@ -34387,7 +34384,7 @@ def search_products():
     solution = request.args.get('solution', '')
     specific_solution = request.args.get('specific_solution', '')
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -34439,7 +34436,7 @@ def save_quotation():
             flash('Missing required data (Project Name, Quote Ref, or Items).', 'danger')
             return redirect(url_for('quotation_builder'))
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
 
         # --- Step 1: Save to Database ---
@@ -34581,7 +34578,7 @@ def register_srm_vendor():
         website = request.form.get('website', '')
         notes = request.form.get('notes', '')
 
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -34635,7 +34632,7 @@ def register_srm_vendor():
 @permission_required('view_vendors')
 def show_vendors():
     """Display all vendors with SRM enhancements (contacts, account managers)"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -34690,7 +34687,7 @@ def show_vendors():
 @login_required
 def edit_vendor(vendor_id):
     """Edit vendor basic information with SRM compatibility"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -34769,7 +34766,7 @@ def edit_vendor(vendor_id):
 @role_required('General Manager', 'Technical Team Leader')
 def delete_vendor(vendor_id):
     """Delete a vendor (Admin only) with SRM activity logging"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -34832,7 +34829,7 @@ def delete_vendor(vendor_id):
 @login_required
 @permission_required('view_tasks')
 def tasks():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -35039,7 +35036,7 @@ def update_task_with_comment():
         flash('A comment is required to change the task status.', 'danger')
         return redirect(url_for('tasks'))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     try:
         # 1. Update the task status
@@ -35071,7 +35068,7 @@ def get_task_comments(task_id):
     """
     Fetches all comments for a given task to display in the history modal.
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute('''
@@ -35100,7 +35097,7 @@ def add_task_comment():
         flash('Comment cannot be empty.', 'danger')
         return redirect(url_for('tasks'))
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     try:
         # Insert the comment directly
@@ -35121,7 +35118,7 @@ def add_task_comment():
 @app.route('/delete_task/<int:task_id>', methods=['POST'])
 @login_required
 def delete_task(task_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -35155,7 +35152,7 @@ def manage_users():
     Admin panel to view and manage all system users
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35196,7 +35193,7 @@ def add_user():
         # Hash the password using werkzeug for security
         hashed_password = generate_password_hash(password)
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         try:
@@ -35228,7 +35225,7 @@ def edit_user(user_id):
     Edit existing user details
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35293,7 +35290,7 @@ def admin_reset_password(user_id):
     Admin can reset user password directly without email OTP
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35366,7 +35363,7 @@ def delete_user(user_id):
         flash('You cannot delete your own account!', 'danger')
         return redirect(url_for('manage_users'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -35421,7 +35418,7 @@ def register():
         # Encrypt password immediately
         hashed_password = generate_password_hash(password)
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         try:
@@ -35488,7 +35485,7 @@ def pending_registrations():
     Admin page to view and manage pending registration requests
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35523,7 +35520,7 @@ def approve_registration(request_id):
     Approve a registration request and create the user account
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35593,7 +35590,7 @@ def reject_registration(request_id):
     Reject a registration request
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -35631,7 +35628,7 @@ def pending_otp_requests():
     Shows OTP codes that admins can share with users manually
     Accessible by General Manager and Technical Team Leader
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35666,7 +35663,7 @@ def mark_otp_shared(token_id):
     """
     Mark an OTP as shared with user (optional feature for tracking)
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -35692,7 +35689,7 @@ def access_control():
     Admin page to manage user permissions
     Allows assigning/revoking specific page access for each user
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35726,7 +35723,7 @@ def get_user_permissions_api(user_id):
     API endpoint to get user's effective permissions
     Returns JSON with permission IDs and grant types
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35782,7 +35779,7 @@ def update_user_permission():
     permission_id = data.get('permission_id')
     action = data.get('action')  # 'allow', 'deny', or 'inherit'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -35823,7 +35820,7 @@ def update_user_permission():
 @permission_required('manage_permissions')
 def manage_roles():
     """View and manage all roles"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35854,7 +35851,7 @@ def add_role():
         flash('Role name is required!', 'danger')
         return redirect(url_for('manage_roles'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -35886,7 +35883,7 @@ def edit_role(role_id):
         flash('Role name is required!', 'danger')
         return redirect(url_for('manage_roles'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35931,7 +35928,7 @@ def edit_role(role_id):
 @permission_required('manage_permissions')
 def delete_role(role_id):
     """Delete a custom role (system roles cannot be deleted)"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -35995,7 +35992,7 @@ def api_add_role():
     if not role_name:
         return jsonify({'success': False, 'error': 'Role name is required'})
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -36019,7 +36016,7 @@ def api_add_role():
 @permission_required('manage_permissions')
 def manage_role_permissions(role_name):
     """Manage default permissions for a specific role"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -36072,7 +36069,7 @@ def update_role_permission():
     permission_id = data.get('permission_id')
     action = data.get('action')  # 'add' or 'remove'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     try:
@@ -36112,7 +36109,7 @@ def forgot_password():
             flash('Please enter your username or email!', 'danger')
             return redirect(url_for('forgot_password'))
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
@@ -36200,7 +36197,7 @@ def verify_otp():
             flash('Please enter the OTP code!', 'danger')
             return redirect(url_for('verify_otp'))
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
@@ -36261,7 +36258,7 @@ def reset_password_with_otp():
             flash('Password must be at least 6 characters long!', 'danger')
             return redirect(url_for('reset_password_with_otp'))
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         try:
@@ -36310,7 +36307,7 @@ def resend_otp():
         flash('Session expired! Please start over.', 'warning')
         return redirect(url_for('forgot_password'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -36358,7 +36355,7 @@ def admin_update_deal_values():
     Handles quote revisions intelligently to avoid duplicates
     """
     if request.method == 'POST':
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         cursor = conn.cursor()
         
         # Get all projects from register_project
@@ -36410,7 +36407,7 @@ def admin_update_deal_values():
                              total_value_changed=total_value_changed)
     
     # GET request - show confirmation page
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     cursor = conn.cursor()
     
     cursor.execute("SELECT COUNT(*) FROM register_project")
@@ -36451,7 +36448,7 @@ def api_get_project_sales_engineer(project_name):
     Returns JSON with sales engineer username
     """
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         c.execute("""
@@ -36486,7 +36483,7 @@ def api_get_project_quotations(project_name):
     Returns JSON with list of quotation references
     """
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         c = conn.cursor()
         
         c.execute("""
@@ -36525,7 +36522,7 @@ def cctv_smart_selector():
     AI-Powered CCTV Product Selection Tool
     Helps users find the perfect camera based on their requirements
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Get filter parameters
@@ -36617,7 +36614,7 @@ def api_cctv_recommend():
     purpose = data.get('purpose', 'general')  # indoor, outdoor, general
     priority = data.get('priority', 'balanced')  # price, quality, features
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     # Build recommendation query based on purpose
@@ -36692,7 +36689,7 @@ def api_cctv_compare():
     if len(product_ids) > 4:
         return jsonify({'success': False, 'error': 'Maximum 4 products can be compared'}), 400
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     placeholders = ','.join('?' * len(product_ids))
@@ -36730,7 +36727,7 @@ def api_user_timezone():
     GET: Returns user's current timezone
     POST: Updates user's timezone (Body: { "timezone": "Asia/Riyadh" })
     """
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     user_id = session.get('user_id')
     
@@ -36846,7 +36843,7 @@ def api_notifications_count():
 def api_price_history(part_number):
     """Get price history for a specific part number"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -36919,7 +36916,7 @@ def api_import_price_changes():
 def api_price_alerts():
     """Get recent price change alerts"""
     try:
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -36972,7 +36969,7 @@ def export_price_history_excel(part_number):
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from io import BytesIO
         
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -37077,7 +37074,7 @@ def export_price_history_excel(part_number):
 @login_required
 def aggregate_reports():
     """Aggregate Reports page - select multiple clients for combined reporting"""
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -37151,7 +37148,7 @@ def generate_aggregate_report():
     if report_format == 'powerpoint':
         return generate_aggregate_powerpoint(selected_clients)
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -37508,7 +37505,7 @@ def generate_aggregate_powerpoint(selected_clients):
     
     FONT_NAME = 'Calibri'
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
@@ -38160,7 +38157,7 @@ def generate_aggregate_powerpoint(selected_clients):
 @login_required
 @permission_required('view_implementation')
 def implementation_dashboard():
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38270,7 +38267,7 @@ def implementation_transfer():
         flash('Please select a project to transfer.', 'danger')
         return redirect(url_for('implementation_dashboard'))
     
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38322,7 +38319,7 @@ def implementation_transfer():
 @app.route('/implementation/<int:id>')
 @login_required
 def implementation_profile(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38483,7 +38480,7 @@ def implementation_profile(id):
 @login_required
 @permission_required('manage_implementation')
 def implementation_update(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38535,7 +38532,7 @@ def implementation_update(id):
 @login_required
 @permission_required('assign_implementation_team')
 def implementation_assign(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38589,7 +38586,7 @@ def implementation_assign(id):
 @login_required
 @permission_required('manage_implementation')
 def implementation_milestone_add(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     phase_name = request.form.get('phase_name', '')
@@ -38624,7 +38621,7 @@ def implementation_milestone_add(id):
 @login_required
 @permission_required('manage_implementation')
 def implementation_milestone_update(id, milestone_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     status = request.form.get('status', '')
@@ -38667,7 +38664,7 @@ def implementation_milestone_update(id, milestone_id):
 @login_required
 @permission_required('manage_implementation')
 def implementation_milestone_delete(id, milestone_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     c = conn.cursor()
     
     c.execute("SELECT phase_name FROM implementation_milestones WHERE id = ? AND implementation_project_id = ?", (milestone_id, id))
@@ -38690,7 +38687,7 @@ def implementation_milestone_delete(id, milestone_id):
 @login_required
 @permission_required('manage_implementation')
 def implementation_upload_document(id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38752,7 +38749,7 @@ def implementation_upload_document(id):
 @app.route('/implementation/<int:id>/download_document/<int:doc_id>')
 @login_required
 def implementation_download_document(id, doc_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38781,7 +38778,7 @@ def implementation_download_document(id, doc_id):
 @login_required
 @permission_required('manage_implementation')
 def implementation_delete_document(id, doc_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38813,7 +38810,7 @@ def implementation_delete_document(id, doc_id):
 @login_required
 @permission_required('manage_implementation')
 def milestone_detail(project_id, milestone_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38846,7 +38843,7 @@ def milestone_detail(project_id, milestone_id):
 @login_required
 @permission_required('manage_implementation')
 def milestone_add_task(project_id, milestone_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38892,7 +38889,7 @@ def milestone_add_task(project_id, milestone_id):
 @login_required
 @permission_required('manage_implementation')
 def milestone_update_task(project_id, milestone_id, task_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38938,7 +38935,7 @@ def milestone_update_task(project_id, milestone_id, task_id):
 @login_required
 @permission_required('manage_implementation')
 def milestone_delete_task(project_id, milestone_id, task_id):
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -38975,7 +38972,7 @@ def milestone_delete_task(project_id, milestone_id, task_id):
 def implementation_export_materials(id):
     import io
     import xlsxwriter
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     
@@ -39282,7 +39279,7 @@ def quotation_price_checker():
         part_numbers = list({r['part_number'] for r in excel_rows})
         db_map = {}
         if part_numbers:
-            conn = sqlite3.connect('ProjectStatus.db')
+            conn = sqlite3.connect()
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
             placeholders = ','.join(['?' for _ in part_numbers])
@@ -39424,7 +39421,7 @@ def price_checker_from_cost_sheet():
     db_map = {}
     if excel_rows:
         part_numbers = list({r['part_number'] for r in excel_rows})
-        conn = sqlite3.connect('ProjectStatus.db')
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         placeholders = ','.join(['?' for _ in part_numbers])
@@ -39521,7 +39518,7 @@ def po_profile_check_price(po_request_number):
     """Run price check on all items in a PO Profile against the quotation_products price DB."""
     import json as _json
 
-    conn = sqlite3.connect('ProjectStatus.db')
+    conn = sqlite3.connect()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 

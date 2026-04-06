@@ -4,7 +4,7 @@ Created: 2025-10-30
 Purpose: Centralized notification management for CRM activities
 """
 
-import sqlite3
+import db_postgres as sqlite3
 import json
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -19,7 +19,7 @@ class NotificationService:
     
     def _get_connection(self):
         """Get database connection"""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         return conn
     

@@ -14,7 +14,7 @@ The system features an admin access control UI, an admin OTP Dashboard for passw
 
 ### Technical Implementations
 - **Backend**: Flask
-- **Database**: SQLite3
+- **Database**: PostgreSQL (Replit built-in) via `db_postgres.py` adapter (migrated from SQLite3)
 - **Data Processing**: Pandas, openpyxl, xlsxwriter
 - **PDF Generation**: ReportLab
 - **Frontend**: HTML templates with Jinja2
@@ -43,4 +43,4 @@ The system features an admin access control UI, an admin OTP Dashboard for passw
 
 ## External Dependencies
 - **Email Service**: Resend API (for OTP via email and follow-up reminders).
-- **Database**: SQLite3 (for application data).
+- **Database**: PostgreSQL via Replit built-in (accessed through `db_postgres.py` drop-in adapter). `ProjectStatus.db` (SQLite) kept as backup only.
