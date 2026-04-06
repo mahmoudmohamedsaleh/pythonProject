@@ -400,9 +400,11 @@
                                         <td>{{ q.registered_date.split(' ')[0] if q.registered_date else '-' }}</td>
                                         <td>
                                             <div class="btn-group" role="group">
+                                                {% if q.quote_ref %}
                                                 <a href="{{ url_for('quotation_profile', quote_ref=q.quote_ref) }}" class="btn btn-info btn-sm" title="View Quotation">
                                                     <i class="fas fa-file-invoice"></i>
                                                 </a>
+                                                {% endif %}
                                                 {% if q.register_project_id %}
                                                 <a href="{{ url_for('project_detail', project_id=q.register_project_id) }}" class="btn btn-warning btn-sm" title="View Project">
                                                     <i class="fas fa-project-diagram"></i>

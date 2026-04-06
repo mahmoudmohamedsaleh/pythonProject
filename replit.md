@@ -67,5 +67,12 @@ The cast function uses `to_date()` internally to avoid infinite recursion.
 - `julianday(expr)` → epoch-based formula equivalent
 - `col != ''` / `col = ''` / `col <> ''` → `col::text != ''` etc. (prevents `InvalidDatetimeFormat` on DATE columns)
 
-### LIKE `%` Escaping
-`Cursor.execute()` applies `_PERCENT_LITERAL_RE.sub(r'%%\1', sql)` **only when params are provided**. This escapes literal `%` in `LIKE '%word%'` patterns to `%%` so psycopg2 doesn't treat them as format specifiers (which causes `IndexError: list index out of range`). The regex `r'%([^s%])'` safely skips already-escaped `%%` and the `%s` placeholders added by `_to_pg()`. When params are None, no `%` escaping is done, so `strftime('%Y', ...)` calls work correctly with no-param queries.
+### LIKE `%` Escaping — 3-Step Placeholder Approach
+psycopg2 treats `%s` in SQL as a parameter placeholder. `LIKE '%study%'` contains a literal `%s` that would fool psycopg2 into expecting an extra parameter (→ `IndexError: list index out of range`).
+
+**Solution (in `_to_pg()` + `Cursor.execute()`):**
+1. `_to_pg()` replaces `?` with a unique null-byte marker (`'\x00PG_PARAM\x00'`) instead of `%s` directly.
+2. `execute()` (when params provided): escapes ALL `%` → `%%` (covers LIKE patterns, strftime, etc).
+3. `execute()` (always): replaces the marker → `%s`.
+
+This way `LIKE '%study%'` → `LIKE '%%study%%'` (psycopg2 renders back to `%study%`), while the real `%s` placeholders come only from step 3. When params are None, step 2 is skipped so `strftime('%Y', col)` passes `%Y` directly to PostgreSQL unchanged.

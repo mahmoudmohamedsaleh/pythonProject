@@ -50,9 +50,10 @@ def _sqlite_val(v):
     return v
 
 _PLACEHOLDER_RE = re.compile(r'\?')
+# Unique marker for ? -> %s replacement (cannot appear in real SQL)
+_PLACEHOLDER_MARKER = '\x00PG_PARAM\x00'
 _INSERT_OR_IGNORE_RE = re.compile(r'\bINSERT\s+OR\s+IGNORE\s+INTO\b', re.IGNORECASE)
 _INSERT_OR_REPLACE_RE = re.compile(r'\bINSERT\s+OR\s+REPLACE\s+INTO\b', re.IGNORECASE)
-_PERCENT_LITERAL_RE = re.compile(r'%([^s%])')
 _DATETIME_NOW_RE = re.compile(
     r"\bdatetime\s*\(\s*'now'\s*(?:,\s*'(?:localtime|utc)'\s*)?\)", re.IGNORECASE
 )
@@ -84,8 +85,12 @@ _JULIANDAY_RE = re.compile(
 
 
 def _to_pg(sql):
-    """Replace SQLite ? placeholders with PostgreSQL %s and fix SQLite DML."""
-    sql = _PLACEHOLDER_RE.sub('%s', sql)
+    """Replace SQLite ? placeholders with a temporary marker; fix SQLite DML.
+
+    % escaping happens in execute/executemany (where params availability is known).
+    This avoids confusing LIKE '%study%' literal %s with psycopg2 placeholders.
+    """
+    sql = _PLACEHOLDER_RE.sub(_PLACEHOLDER_MARKER, sql)
     sql = _DATETIME_NOW_RE.sub('CURRENT_TIMESTAMP', sql)
     sql = _DATE_NOW_RE.sub('CURRENT_DATE', sql)
     # julianday(expr) → (EXTRACT(EPOCH FROM (expr)::timestamp) / 86400.0 + 2440587.5)
@@ -192,7 +197,11 @@ class Cursor:
         sql = _to_pg(sql)
         sql = _patch_ddl(sql)
         if params is not None:
-            sql = _PERCENT_LITERAL_RE.sub(r'%%\1', sql)
+            # Escape ALL literal % first (handles LIKE '%study%', strftime('%Y',...)
+            # then install parameter placeholders. This is the only correct order
+            # because %s in LIKE patterns must become %%s before we add real %s.
+            sql = sql.replace('%', '%%')
+        sql = sql.replace(_PLACEHOLDER_MARKER, '%s')
         try:
             if params is not None:
                 self._cur.execute(sql, params)
@@ -214,7 +223,8 @@ class Cursor:
 
     def executemany(self, sql, seq):
         sql = _to_pg(sql)
-        sql = _PERCENT_LITERAL_RE.sub(r'%%\1', sql)
+        sql = sql.replace('%', '%%')
+        sql = sql.replace(_PLACEHOLDER_MARKER, '%s')
         self._cur.executemany(sql, seq)
         self.rowcount = self._cur.rowcount
 
