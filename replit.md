@@ -44,3 +44,25 @@ The system features an admin access control UI, an admin OTP Dashboard for passw
 ## External Dependencies
 - **Email Service**: Resend API (for OTP via email and follow-up reminders).
 - **Database**: PostgreSQL via Replit built-in (accessed through `db_postgres.py` drop-in adapter). `ProjectStatus.db` (SQLite) kept as backup only.
+
+## PostgreSQL Compatibility Notes (db_postgres.py adapter)
+
+### Custom Functions in `public` Schema
+The following SQLite-compatibility functions are installed directly in the PostgreSQL `public` schema:
+- `public.strftime(fmt text, dt text)` / `public.strftime(fmt text, dt timestamp)` — replicates SQLite `strftime()`
+- `public.date(txt text)` — converts text (including `'YYYY-MM-DD HH:MM:SS'`) to `date` using `to_date()` internally. **Must use `to_date()` (not `::date` cast) to avoid circular dependency** since an implicit `TEXT → DATE` cast exists that routes through this function.
+- `public.datetime(what text, modifier text)` / `public.datetime(ts timestamp)` — replicates SQLite `datetime()`
+- `public.group_concat(text)` / `public.group_concat(text, text)` — replicates SQLite `GROUP_CONCAT()`
+- `public.printf(fmt text, val anyelement)` — replicates SQLite `printf()`
+
+### Implicit Cast: `TEXT AS DATE`
+Created with `CREATE CAST (text AS date) WITH FUNCTION public.date(text) AS IMPLICIT`.
+This allows cross-type comparisons like `registered_date_text_col <= deadline_date_col`.
+The cast function uses `to_date()` internally to avoid infinite recursion.
+
+### `_to_pg()` Transformations in `db_postgres.py`
+- `?` → `%s` (parameter placeholder)
+- `datetime('now')` → `CURRENT_TIMESTAMP`
+- `date('now')` → `CURRENT_DATE`
+- `julianday(expr)` → epoch-based formula equivalent
+- `col != ''` / `col = ''` / `col <> ''` → `col::text != ''` etc. (prevents `InvalidDatetimeFormat` on DATE columns)

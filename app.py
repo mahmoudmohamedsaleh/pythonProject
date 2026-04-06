@@ -252,6 +252,12 @@ def role_required(*roles):
 
 app = Flask(__name__)
 
+import traceback as _traceback_mod
+@app.errorhandler(Exception)
+def _handle_exception(e):
+    app.logger.error("Unhandled exception:\n" + _traceback_mod.format_exc())
+    return "Internal Server Error", 500
+
 def _get_or_create_secret_key():
     env_key = os.getenv('SECRET_KEY')
     if env_key:

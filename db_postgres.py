@@ -70,6 +70,17 @@ _EMPTY_STRING_DEFAULT_RE = re.compile(r'DEFAULT\s+""', re.IGNORECASE)
 _PRAGMA_TABLE_INFO_RE = re.compile(
     r'^\s*PRAGMA\s+table_info\s*\(\s*(\w+)\s*\)\s*$', re.IGNORECASE
 )
+# Transform col != '' / col = '' to col::text != '' / col::text = ''
+# This handles DATE/TIMESTAMP columns where PG cannot compare directly with ''
+_NEQ_EMPTY_STR_RE = re.compile(
+    r"([\w.]+)\s*(!=|<>|=)\s*''", re.IGNORECASE
+)
+# julianday() is SQLite-specific; transform to equivalent PG expression
+_JULIANDAY_RE = re.compile(
+    r'\bjulianday\s*\(([^)]+)\)', re.IGNORECASE
+)
+# CAST(strftime(...) AS INTEGER) — valid in PG since strftime returns text
+# PostgreSQL accepts CAST(text AS INTEGER) so no change needed, but keep regex for future use.
 
 
 def _to_pg(sql):
@@ -77,6 +88,17 @@ def _to_pg(sql):
     sql = _PLACEHOLDER_RE.sub('%s', sql)
     sql = _DATETIME_NOW_RE.sub('CURRENT_TIMESTAMP', sql)
     sql = _DATE_NOW_RE.sub('CURRENT_DATE', sql)
+    # julianday(expr) → (EXTRACT(EPOCH FROM (expr)::timestamp) / 86400.0 + 2440587.5)
+    sql = _JULIANDAY_RE.sub(
+        lambda m: f"(EXTRACT(EPOCH FROM ({m.group(1).strip()})::timestamp) / 86400.0 + 2440587.5)",
+        sql
+    )
+    # col != '' / col = '' → col::text != '' / col::text = ''
+    # Prevents InvalidDatetimeFormat when PG tries to cast '' to DATE/TIMESTAMP
+    sql = _NEQ_EMPTY_STR_RE.sub(
+        lambda m: f"{m.group(1)}::text {m.group(2)} ''",
+        sql
+    )
     stripped = sql.strip()
     if _INSERT_OR_IGNORE_RE.search(stripped):
         sql = _INSERT_OR_IGNORE_RE.sub('INSERT INTO', sql)
