@@ -251,7 +251,21 @@ def role_required(*roles):
     return decorator
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', os.urandom(24).hex())
+
+def _get_or_create_secret_key():
+    env_key = os.getenv('SECRET_KEY')
+    if env_key:
+        return env_key
+    key_file = os.path.join(APP_ROOT, '.secret_key')
+    if os.path.exists(key_file):
+        with open(key_file, 'r') as f:
+            return f.read().strip()
+    new_key = os.urandom(24).hex()
+    with open(key_file, 'w') as f:
+        f.write(new_key)
+    return new_key
+
+app.secret_key = _get_or_create_secret_key()
 
 # Sample lists of names for engineers
 PRESALE_ENGINEERS = ["m.saleh", "R.Elnaggar", "S.Hussin", "m.fakhrany",]
@@ -14435,6 +14449,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 @app.route('/download/<doc_type>/<int:doc_id>', methods=['GET'])
 @login_required
 def download_file(doc_type, doc_id):
+    allowed_doc_types = ['sld', 'technical_submittal', 'other_document']
+    if doc_type not in allowed_doc_types:
+        flash('Invalid document type requested.', 'danger')
+        return redirect(url_for('view_documents'))
     conn = sqlite3.connect('ProjectStatus.db')
     c = conn.cursor()
     c.execute(f'SELECT {doc_type} FROM project_documents WHERE id = ?', (doc_id,))
