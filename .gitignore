@@ -33,6 +33,10 @@ env/
 *.sqlite
 *.sqlite3
 
+# Database export artifacts (never commit live data dumps)
+*.dump
+ejtech_crm.sql
+
 # Flask
 instance/
 .webassets-cache
