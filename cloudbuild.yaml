@@ -14,19 +14,25 @@ steps:
       - '--all-tags'
       - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}'
 
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - '${_SERVICE}'
-      - '--image'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$COMMIT_SHA'
-      - '--region'
-      - '${_REGION}'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
+  # Cloud Run deploy is handled by deploy_gcp.sh with full Cloud SQL +
+  # Secret Manager wiring.  Uncomment the block below ONLY after you
+  # have provisioned Cloud SQL, imported the database, and stored all
+  # secrets in Secret Manager (see deploy_gcp.sh for instructions).
+  #
+  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  #   entrypoint: gcloud
+  #   args:
+  #     - 'run'
+  #     - 'deploy'
+  #     - '${_SERVICE}'
+  #     - '--image'
+  #     - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$COMMIT_SHA'
+  #     - '--region=${_REGION}'
+  #     - '--platform=managed'
+  #     - '--allow-unauthenticated'
+  #     - '--add-cloudsql-instances=${PROJECT_ID}:${_REGION}:${_SQL_INSTANCE}'
+  #     - '--set-secrets=DATABASE_URL=EJTECH_DATABASE_URL:latest,SECRET_KEY=EJTECH_SECRET_KEY:latest,OPENAI_API_KEY=EJTECH_OPENAI_KEY:latest,RESEND_API_KEY=EJTECH_RESEND_KEY:latest'
+  #     - '--set-env-vars=FLASK_ENV=production'
 
 substitutions:
   _REGION: me-central1

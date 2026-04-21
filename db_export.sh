@@ -21,8 +21,9 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
+REDACTED_URL=$(echo "$DATABASE_URL" | sed 's|://[^@]*@|://***:***@|')
 echo "==> Exporting Replit PostgreSQL database..."
-echo "    Source: $DATABASE_URL"
+echo "    Source: $REDACTED_URL"
 echo ""
 
 # Custom-format dump (recommended — smaller, supports parallel restore)
