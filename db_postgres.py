@@ -133,6 +133,10 @@ def _patch_ddl(sql):
 def _get_dsn():
     url = os.getenv('DATABASE_URL')
     if url:
+        # psycopg2 uses plain 'postgresql://' — strip SQLAlchemy dialect prefix
+        # e.g. 'postgresql+psycopg2://user:pw@/db?host=/cloudsql/...'
+        if url.startswith('postgresql+psycopg2://'):
+            url = 'postgresql://' + url[len('postgresql+psycopg2://'):]
         return url
     return {
         'host': os.getenv('PGHOST', 'localhost'),
