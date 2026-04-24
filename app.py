@@ -7033,11 +7033,11 @@ def proposal_generator_main():
                 presale_title = pe['role'] or ''
 
         # Reviewed By = default to Mohamed Farouk
-        c.execute("SELECT name, role FROM engineers WHERE username=? LIMIT 1", ('M.Farouk',))
+        c.execute("SELECT name FROM engineers WHERE username=? LIMIT 1", ('M.Farouk',))
         rv = c.fetchone()
         if rv:
             reviewer_name  = rv['name'] or ''
-            reviewer_title = rv['role'] or ''
+            reviewer_title = 'Service Delivery Manager'
 
         # Client info from register_project
         if rp:
