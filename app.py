@@ -26967,8 +26967,25 @@ def view_projects():
         query += " AND rp.stage = ?"
         params.append(stage_filter)
 
-    # Order by registered date - newest first
-    query += " ORDER BY rp.registered_date DESC"
+    # Order by stage priority (closest to closing first), then deal value descending
+    query += """
+        ORDER BY
+            CASE rp.stage
+                WHEN 'Negotiation'          THEN 1
+                WHEN 'Technical Discussion' THEN 2
+                WHEN 'Customer Pending'     THEN 3
+                WHEN 'Proposal Sent'        THEN 4
+                WHEN 'Proposal Prep'        THEN 5
+                WHEN 'Qualification'        THEN 6
+                WHEN 'Prospecting'          THEN 7
+                WHEN 'Lead'                 THEN 8
+                WHEN 'Closed Won'           THEN 9
+                WHEN 'Closed Lost'          THEN 10
+                WHEN 'Cancelled'            THEN 11
+                ELSE 12
+            END,
+            rp.deal_value DESC NULLS LAST
+    """
     
     c.execute(query, params)
     projects = c.fetchall()
