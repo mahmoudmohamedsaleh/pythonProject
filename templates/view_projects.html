@@ -434,12 +434,12 @@
 </style>
 
 {# ── Pre-compute stats ────────────────────────────────────────────── #}
-{%- set active_stages = ['Proposal Sent','Technical Discussion','Negotiation','Qualification'] -%}
+{%- set closed_stages = ['Closed Won','Closed Lost','Cancelled'] -%}
 {%- set ns = namespace(won=0, active=0, lost=0, tv=0) -%}
 {%- for p in projects -%}
     {%- if p[3] == 'Closed Won'  -%}{%- set ns.won    = ns.won    + 1 -%}{%- endif -%}
     {%- if p[3] == 'Closed Lost' -%}{%- set ns.lost   = ns.lost   + 1 -%}{%- endif -%}
-    {%- if p[3] in active_stages -%}{%- set ns.active = ns.active + 1 -%}{%- endif -%}
+    {%- if p[3] and p[3] not in closed_stages -%}{%- set ns.active = ns.active + 1 -%}{%- endif -%}
     {%- if p[4] -%}{%- set ns.tv = ns.tv + p[4] -%}{%- endif -%}
 {%- endfor -%}
 
@@ -747,7 +747,7 @@
 
 {% block scripts %}
 <script>
-const ACTIVE_STAGES = ['Proposal Sent','Technical Discussion','Negotiation','Qualification','Proposal Prep'];
+const ACTIVE_STAGES = ['Lead','Prospecting','Qualification','Proposal Prep','Proposal Sent','Customer Pending','Technical Discussion','Negotiation'];
 
 function applyMetricFilter(filterVal) {
     const rows   = document.querySelectorAll('.vp-row');
