@@ -164,8 +164,17 @@
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
-                  <input type="text" class="form-control form-control-sm" name="quoteref"
-                         value="{{ quoteref }}" placeholder="QT-EJT-…">
+                  <div class="input-group input-group-sm">
+                    <input type="text" class="form-control form-control-sm" name="quoteref"
+                           id="quoteRefInput" value="{{ quoteref }}" placeholder="QT-EJT-…">
+                    <div class="input-group-append">
+                      <button type="button" class="btn btn-outline-secondary btn-sm"
+                              title="Create next revision (R01 → R02 → …)"
+                              onclick="incrementQuoteRevision()">
+                        <i class="fas fa-plus"></i> Rev
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
@@ -1870,6 +1879,25 @@ async function saveTechDraft() {
 
 // Initialise on page load
 _techInit();
+
+function incrementQuoteRevision() {
+  const input = document.getElementById('quoteRefInput');
+  if (!input) return;
+  let val = input.value.trim();
+  if (!val) { alert('Quote Reference is empty.'); return; }
+
+  // Match trailing -Rxx or -rxx (e.g. -R01, -R02, -r09)
+  const m = val.match(/^(.*)-[Rr](\d+)$/);
+  if (m) {
+    const base = m[1];
+    const num  = parseInt(m[2], 10) + 1;
+    input.value = base + '-R' + String(num).padStart(2, '0');
+  } else {
+    // No revision suffix yet — append -R01
+    input.value = val + '-R01';
+  }
+  input.dispatchEvent(new Event('input'));
+}
 
 </script>
 
