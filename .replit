@@ -37,7 +37,7 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["python3", "app.py"]
+run = ["gunicorn", "--bind=0.0.0.0:5000", "--workers=2", "--timeout=120", "--reuse-port", "app:app"]
 
 [userenv]
 

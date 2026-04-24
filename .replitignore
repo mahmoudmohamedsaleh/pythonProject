@@ -12,6 +12,7 @@ attached_assets/
 *.db-shm
 *.db-wal
 *.db.backup*
+*.db.backup_*
 ProjectStatus*.db*
 
 # Python cache
@@ -47,9 +48,3 @@ create_notifications_schema.sql
 # Docs
 *.md
 !README.md
-
-# Replit config
-.replit
-replit.nix
-.gitignore
-.gitattributes
