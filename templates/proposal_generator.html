@@ -373,7 +373,7 @@
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Prepared By (Title)</label>
                   <input type="text" class="form-control form-control-sm" name="prep_by_title"
-                         value="{{ saved_form.get('prep_by_title', 'Pre-Sales Engineer') if saved_form else 'Pre-Sales Engineer' }}">
+                         value="{{ saved_form.get('prep_by_title', presale_title or 'Pre-Sales Engineer') if saved_form else (presale_title or 'Pre-Sales Engineer') }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Reviewed By (Name)</label>
@@ -646,7 +646,7 @@
                   <label class="small font-weight-bold text-muted mb-1">Prepared By (Title)</label>
                   <input type="text" class="form-control form-control-sm" name="tech_prep_title"
                          id="techPrepTitle" placeholder="e.g. Pre-Sales Engineer"
-                         value="{{ tech_saved_form.get('tech_prep_title', '') }}">
+                         value="{{ tech_saved_form.get('tech_prep_title', presale_title or 'Pre-Sales Engineer') }}">
                 </div>
               </div>
               <div class="form-row">

@@ -6970,6 +6970,7 @@ def proposal_generator_main():
     se_email         = ''
     subject          = ''
     presale_name     = ''
+    presale_title    = ''
     presale_username = ''
     to_company       = ''
     attention        = ''
@@ -7010,11 +7011,14 @@ def proposal_generator_main():
                                (se_row['username'],)).fetchone()
             if _eu: se_email = (_eu['email'] or '').strip()
 
-        # Prepared By = presale engineer full name
+        # Prepared By = presale engineer full name + title
+        presale_title = ''
         if presale_username:
-            c.execute("SELECT name FROM engineers WHERE username=? LIMIT 1", (presale_username,))
+            c.execute("SELECT name, role FROM engineers WHERE username=? LIMIT 1", (presale_username,))
             pe = c.fetchone()
-            if pe: presale_name = pe['name'] or ''
+            if pe:
+                presale_name  = pe['name'] or ''
+                presale_title = pe['role'] or ''
 
         # Client info from register_project
         if rp:
@@ -7158,6 +7162,7 @@ def proposal_generator_main():
                            quoteref=quoteref,
                            eng_ref=eng_ref, frm=frm, contact=contact,
                            subject=subject, presale_name=presale_name,
+                           presale_title=presale_title,
                            presale_username=presale_username,
                            sales_name='',
                            to_company=to_company, attention=attention,
