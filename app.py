@@ -6991,7 +6991,17 @@ def proposal_generator_main():
         # Sales engineer: prefer register_project.sales_engineer_id (by id), fallback to projects.sales_eng
         c.execute("SELECT * FROM projects WHERE TRIM(project_name)=? LIMIT 1", (project_name.strip(),))
         proj = c.fetchone()
-        presale_username = (proj['presale_eng'] if proj else '') or ''
+
+        # Presale engineer: prefer rfq_requests (authoritative) over projects (may have multiple rows)
+        presale_username = ''
+        if rfq_ref:
+            c.execute("SELECT sales_engineer_presale FROM rfq_requests WHERE rfq_reference=? LIMIT 1",
+                      (rfq_ref,))
+            rfq_row = c.fetchone()
+            if rfq_row:
+                presale_username = (rfq_row['sales_engineer_presale'] or '').strip()
+        if not presale_username:
+            presale_username = (proj['presale_eng'] if proj else '') or ''
 
         se_row = None
         if rp and rp['sales_engineer_id']:
