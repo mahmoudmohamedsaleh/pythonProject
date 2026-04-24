@@ -285,6 +285,12 @@ class Connection:
             pg_cur = self._conn.cursor()
         return Cursor(pg_cur, use_dict=use_dict)
 
+    def execute(self, sql, params=None):
+        """SQLite-compatible shortcut: creates a cursor, executes, and returns it."""
+        c = self.cursor()
+        c.execute(sql, params)
+        return c
+
     def commit(self):
         self._conn.commit()
 
