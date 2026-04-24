@@ -384,7 +384,7 @@
                   <label class="small font-weight-bold text-muted mb-1">Reviewed By (Title)</label>
                   <input type="text" class="form-control form-control-sm" name="mgr_title"
                          placeholder="e.g. Sales Manager"
-                         value="{{ saved_form.get('mgr_title', '') if saved_form else '' }}">
+                         value="{{ saved_form.get('mgr_title', reviewer_title) if saved_form else reviewer_title }}">
                 </div>
               </div>
             </div>
@@ -654,13 +654,13 @@
                   <label class="small font-weight-bold text-muted mb-1">Approved By (Name)</label>
                   <input type="text" class="form-control form-control-sm" name="tech_appr_name"
                          id="techApprName" placeholder="e.g. Eng. Mohammed Saleh"
-                         value="{{ tech_saved_form.get('tech_appr_name', '') }}">
+                         value="{{ tech_saved_form.get('tech_appr_name', reviewer_name) }}">
                 </div>
                 <div class="form-group col-md-6">
                   <label class="small font-weight-bold text-muted mb-1">Approved By (Title)</label>
                   <input type="text" class="form-control form-control-sm" name="tech_appr_title"
                          id="techApprTitle" placeholder="e.g. Technical Team Leader"
-                         value="{{ tech_saved_form.get('tech_appr_title', '') }}">
+                         value="{{ tech_saved_form.get('tech_appr_title', reviewer_title) }}">
                 </div>
               </div>
             </div>

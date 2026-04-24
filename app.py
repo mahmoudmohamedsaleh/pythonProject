@@ -6972,6 +6972,8 @@ def proposal_generator_main():
     presale_name     = ''
     presale_title    = ''
     presale_username = ''
+    reviewer_name    = ''
+    reviewer_title   = ''
     to_company       = ''
     attention        = ''
 
@@ -7019,6 +7021,13 @@ def proposal_generator_main():
             if pe:
                 presale_name  = pe['name'] or ''
                 presale_title = pe['role'] or ''
+
+        # Reviewed By = default to Mohamed Farouk
+        c.execute("SELECT name, role FROM engineers WHERE username=? LIMIT 1", ('M.Farouk',))
+        rv = c.fetchone()
+        if rv:
+            reviewer_name  = rv['name'] or ''
+            reviewer_title = rv['role'] or ''
 
         # Client info from register_project
         if rp:
@@ -7164,7 +7173,9 @@ def proposal_generator_main():
                            subject=subject, presale_name=presale_name,
                            presale_title=presale_title,
                            presale_username=presale_username,
-                           sales_name='',
+                           sales_name=reviewer_name,
+                           reviewer_name=reviewer_name,
+                           reviewer_title=reviewer_title,
                            to_company=to_company, attention=attention,
                            preset_systems=preset_systems,
                            cs_scope=cs_scope,
