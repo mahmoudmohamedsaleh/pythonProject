@@ -6957,11 +6957,39 @@ def proposal_generator_main():
             _aq_conn.close()
         except Exception:
             pass
-        # If still no quote ref, auto-generate one from the RFQ ref
+        # If still no quote ref, auto-generate one in format QT-EJT-{Project}-{System}-{Date}-R01
         if not quoteref:
             import re as _re
-            _rfq_digits = _re.sub(r'^RFQ[-_]?', '', rfq_ref, flags=_re.IGNORECASE).strip('-_ ')
-            quoteref = f"QT-EJT-{_rfq_digits}" if _rfq_digits else f"QT-EJT-{rfq_ref}"
+            from datetime import date as _date_cls
+
+            # Extract YYYYMMDD from RFQ ref (e.g. RFQ-20260422123559 → 20260422)
+            _dm = _re.search(r'(\d{8})', rfq_ref)
+            _qt_date = _dm.group(1) if _dm else _date_cls.today().strftime('%Y%m%d')
+
+            # Clean project name: ASCII only, spaces → hyphens, uppercase, max 20 chars
+            _proj_clean = _re.sub(r'[^A-Za-z0-9\s]', '', project_name or '').strip()
+            _proj_clean = _re.sub(r'\s+', '-', _proj_clean).upper()[:20].strip('-')
+
+            # Fetch system from rfq_requests
+            _sys_clean = ''
+            try:
+                _sq_conn = sqlite3.connect()
+                _sq_row = _sq_conn.execute(
+                    "SELECT system FROM rfq_requests WHERE rfq_reference=? LIMIT 1", (rfq_ref,)
+                ).fetchone()
+                _sq_conn.close()
+                if _sq_row and _sq_row[0]:
+                    _sys_clean = _re.sub(r'[^A-Za-z0-9\s]', '', str(_sq_row[0])).strip()
+                    _sys_clean = _re.sub(r'\s+', '-', _sys_clean).upper()[:15].strip('-')
+            except Exception:
+                pass
+
+            if _proj_clean and _sys_clean:
+                quoteref = f"QT-EJT-{_proj_clean}-{_sys_clean}-{_qt_date}-R01"
+            elif _proj_clean:
+                quoteref = f"QT-EJT-{_proj_clean}-{_qt_date}-R01"
+            else:
+                quoteref = f"QT-EJT-{_qt_date}-R01"
 
     # Defaults
     eng_ref          = ''
