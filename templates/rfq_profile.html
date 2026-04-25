@@ -1116,11 +1116,9 @@ document.getElementById('newRevisionBtn').addEventListener('click', function () 
         // No existing drafts — open the Proposal Generator directly
         var rfqRef  = {{ rfq.rfq_reference | tojson }};
         var project = {{ rfq.project_name  | tojson }};
-        var pgBase  = "{{ url_for('proposal_generator_main', project='__PROJ__', rfq='__RFQ__', quoteref='__REF__') }}";
-        window.location.href = pgBase
-            .replace('__PROJ__', encodeURIComponent(project))
-            .replace('__RFQ__',  encodeURIComponent(rfqRef))
-            .replace('__REF__',  '');
+        var pgBase  = "{{ url_for('proposal_generator_main') }}";
+        var params  = new URLSearchParams({project: project, rfq: rfqRef});
+        window.location.href = pgBase + '?' + params.toString();
         return;
     }
     // Show the reason modal first
@@ -1140,13 +1138,11 @@ document.getElementById('confirmNewRevisionBtn').addEventListener('click', funct
     var drafts = {{ proposal_drafts | tojson }};
     var rfqRef  = {{ rfq.rfq_reference | tojson }};
     var project = {{ rfq.project_name  | tojson }};
-    var pgBase  = "{{ url_for('proposal_generator_main', project='__PROJ__', rfq='__RFQ__', quoteref='__REF__') }}";
+    var pgBase  = "{{ url_for('proposal_generator_main') }}";
 
     function openPG(quoteref) {
-        window.location.href = pgBase
-            .replace('__PROJ__', encodeURIComponent(project))
-            .replace('__RFQ__',  encodeURIComponent(rfqRef))
-            .replace('__REF__',  encodeURIComponent(quoteref));
+        var params = new URLSearchParams({project: project, rfq: rfqRef, quoteref: quoteref});
+        window.location.href = pgBase + '?' + params.toString();
     }
 
     drafts.sort(function (a, b) { return a.quote_ref.localeCompare(b.quote_ref); });
