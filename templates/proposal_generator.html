@@ -156,35 +156,47 @@
           <div class="card mb-3 shadow-sm">
             <div class="card-header-pg"><i class="fas fa-info-circle mr-1"></i> Document Information</div>
             <div class="card-body py-3">
-              <div class="form-row">
-                <div class="form-group col-md-4">
-                  <label class="small font-weight-bold text-muted mb-1">Date</label>
-                  <input type="text" class="form-control form-control-sm" name="date"
-                         value="{{ today }}" placeholder="DD-MM-YYYY">
-                </div>
-                <div class="form-group col-md-4">
-                  <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
-                  <div class="input-group input-group-sm">
-                    <input type="text" class="form-control form-control-sm" name="quoteref"
-                           id="quoteRefInput" value="{{ quoteref }}" placeholder="QT-EJT-…">
-                    <div class="input-group-append">
-                      <button type="button" class="btn btn-warning btn-sm" id="btnNewRevision"
-                              title="Create next revision — copies this quote &amp; cost sheet to R02, R03…"
-                              onclick="createNewRevision()">
-                        <i class="fas fa-copy"></i> New Revision
-                      </button>
+              <div class="row no-gutters" style="gap:0;">
+                <!-- Fields: Date / Quote Ref / Eng. Ref -->
+                <div class="col-md-7 pr-md-3">
+                  <div class="form-row">
+                    <div class="form-group col-md-5 mb-2">
+                      <label class="small font-weight-bold text-muted mb-1">Date</label>
+                      <input type="text" class="form-control form-control-sm" name="date"
+                             value="{{ today }}" placeholder="DD-MM-YYYY">
+                    </div>
+                    <div class="form-group col-md-7 mb-2">
+                      <label class="small font-weight-bold text-muted mb-1">Quote Reference</label>
+                      <div class="input-group input-group-sm">
+                        <input type="text" class="form-control form-control-sm" name="quoteref"
+                               id="quoteRefInput" value="{{ quoteref }}" placeholder="QT-EJT-…">
+                        <div class="input-group-append">
+                          <button type="button" class="btn btn-warning btn-sm" id="btnNewRevision"
+                                  title="Create next revision — copies this quote &amp; cost sheet to R02, R03…"
+                                  onclick="createNewRevision()">
+                            <i class="fas fa-copy"></i> New Revision
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="form-group col-md-12 mb-0">
+                      <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
+                      <input type="text" class="form-control form-control-sm" name="engref"
+                             value="{{ eng_ref }}" placeholder="e.g. MMA784">
                     </div>
                   </div>
-                  <!-- Revision switcher — populated by JS on load -->
-                  <div id="revisionSwitcher" class="mt-2" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;max-width:420px;">
-                    <div style="font-size:0.75rem;font-weight:600;color:#92400e;margin-bottom:4px;"><i class="fas fa-history mr-1"></i>Revision History</div>
-                    <div id="revisionLinks"></div>
-                  </div>
                 </div>
-                <div class="form-group col-md-4">
-                  <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
-                  <input type="text" class="form-control form-control-sm" name="engref"
-                         value="{{ eng_ref }}" placeholder="e.g. MMA784">
+                <!-- Revision History panel -->
+                <div class="col-md-5 pl-md-2" style="border-left:1px solid #f3f4f6;">
+                  <div style="font-size:0.75rem;font-weight:600;color:#92400e;margin-bottom:6px;padding-left:4px;">
+                    <i class="fas fa-history mr-1"></i>Revision History
+                  </div>
+                  <div id="revisionSwitcher" style="display:none;">
+                    <div id="revisionLinks" style="max-height:160px;overflow-y:auto;padding-right:2px;"></div>
+                  </div>
+                  <div id="revisionSwitcherEmpty" style="display:flex;align-items:center;justify-content:center;height:60px;color:#d1d5db;font-size:0.75rem;">
+                    <i class="fas fa-code-branch mr-1"></i> No revisions yet
+                  </div>
                 </div>
               </div>
             </div>
@@ -2005,6 +2017,8 @@ async function loadRevisionSwitcher() {
     });
     linksEl.innerHTML = html;
     container.style.display = 'block';
+    const emptyEl = document.getElementById('revisionSwitcherEmpty');
+    if (emptyEl) emptyEl.style.display = 'none';
   } catch(e) { /* silent fail */ }
 }
 
