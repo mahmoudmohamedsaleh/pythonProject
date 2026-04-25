@@ -228,6 +228,7 @@
                         <th>Deadline</th>
                         <th>Overdue By</th>
                         <th>Age</th>
+                        <th>Rev.</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -338,6 +339,15 @@
                                 {% set request_date = rfq[11][:10] %}
                                 <span class="age-badge" title="Requested on {{ request_date }}">
                                     <i class="fas fa-calendar-alt"></i> {{ request_date }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if rfq[14] and rfq[14] > 0 %}
+                                <span class="badge" style="background:#f59e0b;color:white;font-size:0.85rem;padding:5px 9px;border-radius:12px;" title="{{ rfq[14] }} proposal revision{{ 's' if rfq[14] != 1 else '' }}">
+                                    <i class="fas fa-file-alt mr-1"></i>{{ rfq[14] }}
                                 </span>
                             {% else %}
                                 <span class="text-muted">-</span>

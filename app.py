@@ -18489,7 +18489,8 @@ def rfq_summary():
             r.id, r.rfq_reference, r.project_name, r.project_status, r.priority,
             r.sales_engineer_presale, r.sales_engineer_sales, r.rfq_status,
             r.quotation_status, r.deadline, r.note, r.requested_time,
-            p.quote_ref, r.system
+            p.quote_ref, r.system,
+            (SELECT COUNT(*) FROM proposal_form_data pfd WHERE pfd.rfq_ref = r.rfq_reference) AS revision_count
         FROM rfq_requests r
         LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
         WHERE 1=1
