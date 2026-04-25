@@ -239,7 +239,9 @@ select.stock-sel.s-empty    { background:#f9fafb; color:#6b7280; }
         <div>
           <h3><i class="fas fa-file-excel mr-2" style="font-size:1rem;opacity:.8;"></i>Cost Sheet Builder</h3>
           <p>
-            {% if project_name %}<strong>{{ project_name }}</strong>{% if rfq_ref %} &nbsp;·&nbsp; {{ rfq_ref }}{% endif %}{% else %}Build your cost sheet and export as Excel{% endif %}
+            {% if project_name %}
+              <strong>{{ project_name }}</strong>{% if rfq_ref %} &nbsp;·&nbsp; {{ rfq_ref }}{% endif %}{% if quoteref %} &nbsp;·&nbsp; <span style="opacity:.85;">{{ quoteref }}</span>{% endif %}
+            {% else %}Build your cost sheet and export as Excel{% endif %}
           </p>
         </div>
       </div>
