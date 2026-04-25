@@ -1175,9 +1175,17 @@ function initTerms() {
 // ── Save Draft ─────────────────────────────────────────────────────────
 async function saveDraft() {
   rebuildScope();
-  const rfqRef   = '{{ rfq_ref }}';
+  const rfqRef   = '{{ rfq_ref }}' || new URLSearchParams(window.location.search).get('rfq') || '';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
-  if (!rfqRef || !quoteRef) {
+  if (!rfqRef && !quoteRef) {
+    alert('Please fill in the Quote Reference before saving.');
+    return;
+  }
+  if (!rfqRef) {
+    alert('This page is missing the RFQ reference. Please reopen the Proposal Generator from the RFQ Profile page.');
+    return;
+  }
+  if (!quoteRef) {
     alert('Please fill in the Quote Reference before saving.');
     return;
   }
@@ -1262,7 +1270,7 @@ rebuildScope();
 
 // ── Auto-save: fire-and-forget save on page exit ───────────────────────
 function _gatherAndBeacon() {
-  const rfqRef   = '{{ rfq_ref }}';
+  const rfqRef   = '{{ rfq_ref }}' || new URLSearchParams(window.location.search).get('rfq') || '';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
   if (!rfqRef || !quoteRef) return;
   rebuildScope();
@@ -1832,9 +1840,10 @@ async function generateTechPdf() {
 // ── Save Tech Draft ────────────────────────────────────────────────────
 async function saveTechDraft() {
   _updateTechJson();
-  const rfqRef   = '{{ rfq_ref }}';
+  const rfqRef   = '{{ rfq_ref }}' || new URLSearchParams(window.location.search).get('rfq') || '';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
-  if(!rfqRef || !quoteRef) { alert('Please fill in the Quote Reference before saving.'); return; }
+  if(!rfqRef) { alert('This page is missing the RFQ reference. Please reopen the Proposal Generator from the RFQ Profile page.'); return; }
+  if(!quoteRef) { alert('Please fill in the Quote Reference before saving.'); return; }
   const form = {
     tech_title:      document.getElementById('techTitle')?.value || '',
     tech_vendor:     document.getElementById('techVendor')?.value || '',

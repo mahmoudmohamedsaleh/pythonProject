@@ -7002,6 +7002,23 @@ def proposal_generator_main():
     rfq_ref      = _req.args.get('rfq','')
     quoteref     = _req.args.get('quoteref','').strip()
 
+    # ── Recover rfq_ref from quoteref when rfq= is missing from URL ────────
+    if not rfq_ref and quoteref:
+        try:
+            _rc = sqlite3.connect()
+            _rr = _rc.execute(
+                "SELECT rfq_ref FROM proposal_form_data WHERE quote_ref=? LIMIT 1", (quoteref,)
+            ).fetchone()
+            if not _rr:
+                _rr = _rc.execute(
+                    "SELECT rfq_ref FROM cost_sheets WHERE quote_ref=? LIMIT 1", (quoteref,)
+                ).fetchone()
+            _rc.close()
+            if _rr:
+                rfq_ref = _rr[0] or ''
+        except Exception:
+            pass
+
     # ── One quote ref per RFQ: auto-load or auto-generate ─────────────────
     if rfq_ref and not quoteref:
         try:
