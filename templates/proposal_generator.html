@@ -818,6 +818,26 @@
 </div><!-- /container -->
 
 <script>
+// ── Resolve RFQ reference (handles &amp; encoded URLs) ─────────────────
+// Jinja2 in HTML context may encode & to &amp; when url_for() is used
+// inside JS strings, producing ?project=...&amp;rfq=RFQ-... which the
+// browser parses as param "amp;rfq" instead of "rfq". All three sources
+// are checked so the page works regardless of how it was navigated to.
+(function() {
+  var _sp = new URLSearchParams(window.location.search);
+  window._PAGE_RFQ_REF = '{{ rfq_ref }}'
+      || _sp.get('rfq')
+      || _sp.get('amp;rfq')
+      || '';
+  // If recovered from URL, rewrite the address bar to the clean form
+  if (!('{{ rfq_ref }}') && window._PAGE_RFQ_REF) {
+    var _clean = new URL(window.location.href);
+    _clean.searchParams.set('rfq', window._PAGE_RFQ_REF);
+    _clean.searchParams.delete('amp;rfq');
+    window.history.replaceState(null, '', _clean.toString());
+  }
+})();
+
 // ── Tab switching ──────────────────────────────────────────────────────
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -1035,7 +1055,7 @@ async function generateAICta() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        rfq_ref:   '{{ rfq_ref }}',
+        rfq_ref:   window._PAGE_RFQ_REF,
         quote_ref: document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}',
         project:   '{{ project_name }}',
         to:        document.querySelector('[name="to"]')?.value || '',
@@ -1106,7 +1126,7 @@ async function generateAISummary() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        rfq_ref:   '{{ rfq_ref }}',
+        rfq_ref:   window._PAGE_RFQ_REF,
         quote_ref: document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}',
         project:   '{{ project_name }}',
         to:        document.querySelector('[name="to"]')?.value || '',
@@ -1175,7 +1195,7 @@ function initTerms() {
 // ── Save Draft ─────────────────────────────────────────────────────────
 async function saveDraft() {
   rebuildScope();
-  const rfqRef   = '{{ rfq_ref }}' || new URLSearchParams(window.location.search).get('rfq') || '';
+  const rfqRef   = window._PAGE_RFQ_REF || new URLSearchParams(window.location.search).get('rfq') || '';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
   if (!rfqRef && !quoteRef) {
     alert('Please fill in the Quote Reference before saving.');
@@ -1270,7 +1290,7 @@ rebuildScope();
 
 // ── Auto-save: fire-and-forget save on page exit ───────────────────────
 function _gatherAndBeacon() {
-  const rfqRef   = '{{ rfq_ref }}' || new URLSearchParams(window.location.search).get('rfq') || '';
+  const rfqRef   = window._PAGE_RFQ_REF || new URLSearchParams(window.location.search).get('rfq') || '';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
   if (!rfqRef || !quoteRef) return;
   rebuildScope();
@@ -1308,7 +1328,7 @@ function _gatherAndBeacon() {
 window.addEventListener('pagehide', _gatherAndBeacon);
 
 async function refreshFromCostSheet() {
-  const rfq       = '{{ rfq_ref }}';
+  const rfq       = window._PAGE_RFQ_REF;
   const quoteref  = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
   const btn       = document.getElementById('refreshCsBtn');
   if (!rfq) { alert('No RFQ reference found.'); return; }
@@ -1405,7 +1425,7 @@ async function _uploadStamp(input) {
 async function _autoSaveLogo(input, fieldName, statusId) {
   if (!input.files.length) return;
   const file  = input.files[0];
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   if (!rfqRef) return;
   const statusEl = document.getElementById(statusId);
   if (statusEl) statusEl.innerHTML = '<span style="color:#666"><i class="fas fa-spinner fa-spin mr-1"></i>Saving…</span>';
@@ -1431,7 +1451,7 @@ async function _autoSaveLogo(input, fieldName, statusId) {
 }
 
 async function _clearSavedLogo(fieldName, statusId, inputEl) {
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   try {
     await fetch('/proposal_generator/delete_tech_logo', {
       method:'POST',
@@ -1445,7 +1465,7 @@ async function _clearSavedLogo(fieldName, statusId, inputEl) {
 }
 
 async function _loadSavedLogos() {
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   if (!rfqRef) return;
   try {
     const resp = await fetch('/proposal_generator/tech_logos?rfq_ref=' + encodeURIComponent(rfqRef));
@@ -1486,7 +1506,7 @@ async function _loadSavedLogos() {
 let _companyProfilePdfReady = false;
 
 async function _loadSectionStatus() {
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   if (!rfqRef) return;
   try {
     const [secResp, cpResp] = await Promise.all([
@@ -1507,7 +1527,7 @@ async function _loadSectionStatus() {
 async function _uploadSectionFile(input, slug, sectionIdx) {
   if (!input.files.length) return;
   const file = input.files[0];
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   const fd = new FormData();
   fd.append('rfq_ref', rfqRef);
   fd.append('section_slug', slug);
@@ -1528,7 +1548,7 @@ async function _uploadSectionFile(input, slug, sectionIdx) {
 
 async function _deleteSectionFile(slug, sectionIdx) {
   if (!confirm('Remove the uploaded PDF for this section?')) return;
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   try {
     const resp = await fetch('/proposal_generator/delete_section_file', {
       method:'POST',
@@ -1840,7 +1860,7 @@ async function generateTechPdf() {
 // ── Save Tech Draft ────────────────────────────────────────────────────
 async function saveTechDraft() {
   _updateTechJson();
-  const rfqRef   = '{{ rfq_ref }}' || new URLSearchParams(window.location.search).get('rfq') || '';
+  const rfqRef   = window._PAGE_RFQ_REF || new URLSearchParams(window.location.search).get('rfq') || '';
   const quoteRef = document.querySelector('[name="quoteref"]')?.value || '{{ quoteref }}';
   if(!rfqRef) { alert('This page is missing the RFQ reference. Please reopen the Proposal Generator from the RFQ Profile page.'); return; }
   if(!quoteRef) { alert('Please fill in the Quote Reference before saving.'); return; }
@@ -1899,7 +1919,7 @@ _techInit();
 
 // Load existing revisions for this RFQ and show switcher links
 async function loadRevisionSwitcher() {
-  const rfqRef = '{{ rfq_ref }}';
+  const rfqRef = window._PAGE_RFQ_REF;
   const currentRef = '{{ quoteref }}';
   if (!rfqRef) return;
   try {
@@ -1936,7 +1956,7 @@ async function createNewRevision() {
   if (!input) return;
 
   const currentRef = input.value.trim();
-  const rfqRef     = '{{ rfq_ref }}';
+  const rfqRef     = window._PAGE_RFQ_REF;
   const projectArg = encodeURIComponent('{{ project_name }}');
 
   if (!currentRef) { alert('Please fill in a Quote Reference first.'); return; }

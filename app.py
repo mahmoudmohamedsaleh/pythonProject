@@ -6999,8 +6999,11 @@ def proposal_generator_main():
     from flask import request as _req
     today = date.today().strftime('%d-%m-%Y')
     project_name = _req.args.get('project','')
-    rfq_ref      = _req.args.get('rfq','')
-    quoteref     = _req.args.get('quoteref','').strip()
+    # 'amp;rfq' fallback handles &amp; encoding bug where Jinja2 url_for()
+    # inside JS strings encodes & to &amp;, causing browsers to parse
+    # the param name as 'amp;rfq' instead of 'rfq'.
+    rfq_ref      = _req.args.get('rfq','') or _req.args.get('amp;rfq','')
+    quoteref     = _req.args.get('quoteref','').strip() or _req.args.get('amp;quoteref','').strip()
 
     # ── Recover rfq_ref from quoteref when rfq= is missing from URL ────────
     if not rfq_ref and quoteref:
