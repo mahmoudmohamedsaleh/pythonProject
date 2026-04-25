@@ -6977,15 +6977,16 @@ def proposal_generator_revisions_for_rfq():
         conn = sqlite3.connect()
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        c.execute("""SELECT quote_ref, saved_at, saved_by
+        c.execute("""SELECT quote_ref, saved_at, saved_by, revision_reason
                      FROM proposal_form_data
                      WHERE rfq_ref = ?
-                     ORDER BY saved_at DESC""", (rfq_ref,))
+                     ORDER BY saved_at ASC""", (rfq_ref,))
         rows = c.fetchall()
         conn.close()
-        revisions = [{'quote_ref': r['quote_ref'],
-                      'saved_at': r['saved_at'] or '',
-                      'saved_by': r['saved_by'] or ''} for r in rows]
+        revisions = [{'quote_ref':       r['quote_ref'],
+                      'saved_at':        r['saved_at'] or '',
+                      'saved_by':        r['saved_by'] or '',
+                      'revision_reason': r['revision_reason'] or ''} for r in rows]
         return jsonify({'ok': True, 'revisions': revisions})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500

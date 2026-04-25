@@ -176,9 +176,9 @@
                     </div>
                   </div>
                   <!-- Revision switcher — populated by JS on load -->
-                  <div id="revisionSwitcher" class="mt-1" style="display:none;">
-                    <small class="text-muted"><i class="fas fa-history mr-1"></i>Saved revisions: </small>
-                    <span id="revisionLinks"></span>
+                  <div id="revisionSwitcher" class="mt-2" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;max-width:420px;">
+                    <div style="font-size:0.75rem;font-weight:600;color:#92400e;margin-bottom:4px;"><i class="fas fa-history mr-1"></i>Revision History</div>
+                    <div id="revisionLinks"></div>
                   </div>
                 </div>
                 <div class="form-group col-md-4">
@@ -1931,16 +1931,36 @@ async function loadRevisionSwitcher() {
     const linksEl   = document.getElementById('revisionLinks');
     if (!container || !linksEl) return;
 
-    const url = new URL(window.location.href);
+    const baseUrl = new URL(window.location.href);
     let html = '';
-    data.revisions.forEach(rev => {
+    data.revisions.forEach((rev, idx) => {
       const isCurrent = rev.quote_ref === currentRef;
-      url.searchParams.set('quoteref', rev.quote_ref);
-      if (isCurrent) {
-        html += `<span class="badge badge-primary mr-1" title="Current revision">${rev.quote_ref}</span>`;
-      } else {
-        html += `<a href="${url.toString()}" class="badge badge-light border mr-1" title="Saved ${rev.saved_at} by ${rev.saved_by}">${rev.quote_ref}</a>`;
-      }
+      baseUrl.searchParams.set('quoteref', rev.quote_ref);
+      const href = baseUrl.toString();
+      const reason  = (rev.revision_reason || '').trim();
+      const savedBy = (rev.saved_by || '').trim();
+      const savedAt = (rev.saved_at || '').replace('T', ' ').substring(0, 16);
+      const revNum  = idx + 1;
+
+      const badgeEl = isCurrent
+        ? `<span class="badge badge-primary" style="font-size:0.8rem;padding:4px 8px;">&#10003; ${rev.quote_ref}</span>`
+        : `<a href="${href}" class="badge badge-light border" style="font-size:0.8rem;padding:4px 8px;color:#374151;">${rev.quote_ref}</a>`;
+
+      const reasonEl = reason
+        ? `<div style="font-size:0.78rem;color:#92400e;margin-top:2px;"><i class="fas fa-comment-alt mr-1" style="opacity:0.7;"></i>${reason}</div>`
+        : '';
+
+      const metaEl = `<div style="font-size:0.72rem;color:#9ca3af;margin-top:1px;">${savedBy ? 'by ' + savedBy : ''}${savedAt ? ' &mdash; ' + savedAt : ''}</div>`;
+
+      html += `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;${idx < data.revisions.length - 1 ? 'border-bottom:1px solid #f3f4f6;' : ''}">
+          <div style="min-width:20px;font-size:0.72rem;color:#d97706;font-weight:700;margin-top:3px;">${revNum}</div>
+          <div style="flex:1;min-width:0;">
+            ${badgeEl}
+            ${reasonEl}
+            ${metaEl}
+          </div>
+        </div>`;
     });
     linksEl.innerHTML = html;
     container.style.display = 'block';
