@@ -18559,7 +18559,8 @@ def rfq_summary():
             r.sales_engineer_presale, r.sales_engineer_sales, r.rfq_status,
             r.quotation_status, r.deadline, r.note, r.requested_time,
             p.quote_ref, r.system,
-            (SELECT COUNT(*) FROM proposal_form_data pfd WHERE pfd.rfq_ref = r.rfq_reference) AS revision_count
+            (SELECT COUNT(*) FROM proposal_form_data pfd WHERE pfd.rfq_ref = r.rfq_reference) AS revision_count,
+            (SELECT pfd2.quote_ref FROM proposal_form_data pfd2 WHERE pfd2.rfq_ref = r.rfq_reference ORDER BY pfd2.saved_at DESC LIMIT 1) AS proposal_quote_ref
         FROM rfq_requests r
         LEFT JOIN projects p ON r.rfq_reference = p.rfq_reference
         WHERE 1=1

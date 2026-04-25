@@ -243,9 +243,21 @@
                         </td>
                         <td>
                             {% if rfq[12] %}
-                                <a href="{{ url_for('quotation_profile', quote_ref=rfq[12]) }}" class="text-info font-weight-bold">{{ rfq[12] }}</a>
+                                <a href="{{ url_for('quotation_profile', quote_ref=rfq[12]) }}"
+                                   class="font-weight-bold"
+                                   style="color:#6366f1;"
+                                   title="Open Quotation Profile">
+                                    <i class="fas fa-file-invoice mr-1" style="font-size:0.75rem;"></i>{{ rfq[12] }}
+                                </a>
+                            {% elif rfq[15] %}
+                                <a href="{{ url_for('proposal_generator_main') }}?rfq={{ rfq[1] }}&quoteref={{ rfq[15] }}&project={{ rfq[2]|urlencode }}"
+                                   class="font-weight-bold"
+                                   style="color:#d97706;"
+                                   title="Open in Proposal Generator (draft revision)">
+                                    <i class="fas fa-code-branch mr-1" style="font-size:0.75rem;"></i>{{ rfq[15] }}
+                                </a>
                             {% else %}
-                                <span class="text-muted">N/A</span>
+                                <span class="text-muted" style="font-size:0.8rem;">—</span>
                             {% endif %}
                         </td>
                         <td><strong>{{ rfq[2] }}</strong></td>
