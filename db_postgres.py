@@ -206,23 +206,45 @@ class Cursor:
             # because %s in LIKE patterns must become %%s before we add real %s.
             sql = sql.replace('%', '%%')
         sql = sql.replace(_PLACEHOLDER_MARKER, '%s')
+        _is_ddl = sql.strip()[:6].upper() in ('ALTER ', 'CREATE')
+        if _is_ddl:
+            try:
+                self._cur.execute("SAVEPOINT _sp_ddl")
+            except Exception:
+                _is_ddl = False
         try:
             if params is not None:
                 self._cur.execute(sql, params)
             else:
                 self._cur.execute(sql)
         except psycopg2.errors.DuplicateColumn:
+            if _is_ddl:
+                try:
+                    self._cur.execute("ROLLBACK TO SAVEPOINT _sp_ddl")
+                except Exception:
+                    pass
             return
         except psycopg2.errors.DuplicateTable:
+            if _is_ddl:
+                try:
+                    self._cur.execute("ROLLBACK TO SAVEPOINT _sp_ddl")
+                except Exception:
+                    pass
             return
         self.rowcount = self._cur.rowcount
         self.lastrowid = None
         if sql.strip().upper().startswith('INSERT'):
             try:
+                self._cur.execute('SAVEPOINT _sp_lastval')
                 self._cur.execute('SELECT lastval()')
                 row = self._cur.fetchone()
                 self.lastrowid = row[0] if row else None
+                self._cur.execute('RELEASE SAVEPOINT _sp_lastval')
             except Exception:
+                try:
+                    self._cur.execute('ROLLBACK TO SAVEPOINT _sp_lastval')
+                except Exception:
+                    pass
                 self.lastrowid = None
 
     def executemany(self, sql, seq):

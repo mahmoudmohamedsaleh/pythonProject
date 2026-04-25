@@ -6872,51 +6872,22 @@ def proposal_save_form():
     form_json = _json.dumps(data.get('form', {}), ensure_ascii=False)
     try:
         conn = sqlite3.connect()
-        conn.execute("""CREATE TABLE IF NOT EXISTS proposal_form_data (
-            rfq_ref   TEXT NOT NULL,
-            quote_ref TEXT NOT NULL,
-            form_json TEXT,
-            saved_at  TEXT,
-            saved_by  TEXT,
-            PRIMARY KEY (rfq_ref, quote_ref)
-        )""")
-        try:
-            conn.execute("ALTER TABLE proposal_form_data ADD COLUMN saved_by TEXT")
-        except Exception:
-            pass
         from flask import session as _sess
         _saved_by = _sess.get('username', 'Unknown')
-        # One quote per RFQ: check if a row already exists for this rfq_ref (any quote_ref)
-        existing = conn.execute(
-            "SELECT quote_ref FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
-            (rfq_ref,)
-        ).fetchone()
-        if existing:
-            # Update the existing row (may rename quote_ref if user changed it)
-            existing_qr = existing[0]
-            if existing_qr == quote_ref:
-                conn.execute(
-                    """UPDATE proposal_form_data SET form_json=?, saved_at=datetime('now'), saved_by=?
-                        WHERE rfq_ref=? AND quote_ref=?""",
-                    (form_json, _saved_by, rfq_ref, quote_ref))
-            else:
-                # Delete old row and insert with new quote_ref
-                conn.execute("DELETE FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
-                             (rfq_ref, existing_qr))
-                conn.execute(
-                    """INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
-                        VALUES (?, ?, ?, datetime('now'), ?)""",
-                    (rfq_ref, quote_ref, form_json, _saved_by))
-        else:
-            conn.execute(
-                """INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
-                    VALUES (?, ?, ?, datetime('now'), ?)""",
-                (rfq_ref, quote_ref, form_json, _saved_by))
+        # UPSERT — each (rfq_ref, quote_ref) revision is its own independent row
+        conn.execute(
+            """INSERT INTO proposal_form_data (rfq_ref, quote_ref, form_json, saved_at, saved_by)
+                VALUES (?, ?, ?, NOW(), ?)
+                ON CONFLICT (rfq_ref, quote_ref)
+                DO UPDATE SET form_json=EXCLUDED.form_json,
+                              saved_at=NOW(),
+                              saved_by=EXCLUDED.saved_by""",
+            (rfq_ref, quote_ref, form_json, _saved_by))
         conn.commit()
         # Fetch saved_at for response
         row = conn.execute(
-            "SELECT saved_at FROM proposal_form_data WHERE rfq_ref=? ORDER BY saved_at DESC LIMIT 1",
-            (rfq_ref,)
+            "SELECT saved_at FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=? LIMIT 1",
+            (rfq_ref, quote_ref)
         ).fetchone()
         conn.close()
         return jsonify({'ok': True, 'saved_by': _saved_by, 'saved_at': row[0] if row else ''})
@@ -6961,13 +6932,12 @@ def proposal_generator_create_revision():
             # Delete any existing row for the new ref first (idempotent)
             c.execute("DELETE FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
                       (rfq_ref, new_quote_ref))
-            now_str = __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             c.execute("""INSERT INTO proposal_form_data
                          (rfq_ref, quote_ref, form_json, tech_form_json, saved_at, saved_by)
-                         VALUES (?,?,?,?,?,?)""",
+                         VALUES (?,?,?,?,NOW(),?)""",
                       (rfq_ref, new_quote_ref,
                        pf['form_json'] or '', pf['tech_form_json'] or '',
-                       now_str, username))
+                       username))
 
         # ── Copy cost_sheets ──────────────────────────────────────────────
         c.execute("SELECT sheets_json, project_name, saved_by FROM cost_sheets "
