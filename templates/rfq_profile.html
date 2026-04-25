@@ -586,6 +586,9 @@
                    class="btn btn-block mb-2" style="background:linear-gradient(135deg,#1e3a5f,#2563eb);color:#fff;border:none;">
                     <i class="fas fa-file-alt mr-1"></i>Open Proposal Generator
                 </a>
+                <button id="newRevisionBtn" class="btn btn-block mb-2" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;">
+                    <i class="fas fa-plus mr-1"></i>New Revision
+                </button>
                 <a href="{{ url_for('rfq_summary') }}" class="btn btn-outline-secondary btn-block">
                     <i class="fas fa-arrow-left mr-1"></i>Back to RFQ Dashboard
                 </a>
@@ -1071,5 +1074,55 @@ function submitRfqActivity() {
         alert('Error: ' + error.message);
     });
 }
+
+// ── New Revision button ───────────────────────────────────────────────────
+document.getElementById('newRevisionBtn').addEventListener('click', function () {
+    var btn = this;
+    var drafts = {{ proposal_drafts | tojson }};
+    var rfqRef  = {{ rfq.rfq_reference | tojson }};
+    var project = {{ rfq.project_name  | tojson }};
+    var pgBase  = "{{ url_for('proposal_generator_main', project='__PROJ__', rfq='__RFQ__', quoteref='__REF__') }}";
+
+    function openPG(quoteref) {
+        window.location.href = pgBase
+            .replace('__PROJ__', encodeURIComponent(project))
+            .replace('__RFQ__',  encodeURIComponent(rfqRef))
+            .replace('__REF__',  encodeURIComponent(quoteref));
+    }
+
+    if (drafts.length === 0) {
+        // No existing drafts — open the Proposal Generator to create the first one
+        openPG('');
+        return;
+    }
+
+    // Sort to find the latest revision and copy from it
+    drafts.sort(function (a, b) { return a.quote_ref.localeCompare(b.quote_ref); });
+    var latestRef = drafts[drafts.length - 1].quote_ref;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Creating…';
+
+    fetch('/proposal_generator/create_revision', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({rfq_ref: rfqRef, quote_ref: latestRef})
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.ok) {
+            openPG(data.new_quote_ref);
+        } else {
+            alert('Could not create revision: ' + (data.error || 'unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plus mr-1"></i>New Revision';
+        }
+    })
+    .catch(function (e) {
+        alert('Network error: ' + e);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plus mr-1"></i>New Revision';
+    });
+});
 </script>
 {% endblock %}
