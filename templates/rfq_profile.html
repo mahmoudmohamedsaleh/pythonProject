@@ -593,16 +593,22 @@
 
         <!-- Quick Stats -->
         <div class="row">
-            <div class="col-6">
-                <div class="stat-box">
-                    <div class="stat-number">{{ age_days }}</div>
-                    <div class="stat-label">Days Old</div>
+            <div class="col-4 pr-1">
+                <div class="stat-box" style="padding:12px;">
+                    <div class="stat-number" style="font-size:1.6rem;">{{ age_days }}</div>
+                    <div class="stat-label" style="font-size:0.7rem;">Days Old</div>
                 </div>
             </div>
-            <div class="col-6">
-                <div class="stat-box green">
-                    <div class="stat-number">{{ quotations|length }}</div>
-                    <div class="stat-label">Quotations</div>
+            <div class="col-4 px-1">
+                <div class="stat-box green" style="padding:12px;">
+                    <div class="stat-number" style="font-size:1.6rem;">{{ quotations|length }}</div>
+                    <div class="stat-label" style="font-size:0.7rem;">Quotations</div>
+                </div>
+            </div>
+            <div class="col-4 pl-1">
+                <div class="stat-box" style="padding:12px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                    <div class="stat-number" style="font-size:1.6rem; color:white;">{{ proposal_drafts|length }}</div>
+                    <div class="stat-label" style="font-size:0.7rem; color:rgba(255,255,255,0.9);">Revisions</div>
                 </div>
             </div>
         </div>
