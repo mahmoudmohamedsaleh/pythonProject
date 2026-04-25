@@ -6995,6 +6995,31 @@ def proposal_generator_create_revision():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/proposal_generator/revisions_for_rfq', methods=['GET'])
+@login_required
+def proposal_generator_revisions_for_rfq():
+    """Return all saved quote revisions for a given rfq_ref, newest first."""
+    rfq_ref = request.args.get('rfq_ref', '').strip()
+    if not rfq_ref:
+        return jsonify({'ok': False, 'error': 'rfq_ref required'}), 400
+    try:
+        conn = sqlite3.connect()
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("""SELECT quote_ref, saved_at, saved_by
+                     FROM proposal_form_data
+                     WHERE rfq_ref = ?
+                     ORDER BY saved_at DESC""", (rfq_ref,))
+        rows = c.fetchall()
+        conn.close()
+        revisions = [{'quote_ref': r['quote_ref'],
+                      'saved_at': r['saved_at'] or '',
+                      'saved_by': r['saved_by'] or ''} for r in rows]
+        return jsonify({'ok': True, 'revisions': revisions})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/proposal_generator/create', methods=['GET'])
 @login_required
 def proposal_generator_main():
@@ -20096,6 +20121,17 @@ def rfq_profile(rfq_id):
     
     # Count pending follow-ups
     pending_follow_ups = len([f for f in follow_ups if f['status'] == 'Pending'])
+
+    # Get proposal drafts (all revisions saved in proposal_form_data for this RFQ)
+    proposal_drafts = []
+    try:
+        c.execute("""SELECT quote_ref, saved_at, saved_by
+                     FROM proposal_form_data
+                     WHERE rfq_ref = ?
+                     ORDER BY saved_at DESC""", (rfq['rfq_reference'],))
+        proposal_drafts = c.fetchall()
+    except Exception:
+        proposal_drafts = []
     
     conn.close()
     
@@ -20115,7 +20151,8 @@ def rfq_profile(rfq_id):
                          distributors=distributors,
                          users=users,
                          current_date=current_date,
-                         pending_follow_ups=pending_follow_ups)
+                         pending_follow_ups=pending_follow_ups,
+                         proposal_drafts=proposal_drafts)
 
 ##############3
 @app.route('/edit_rfq/<int:rfq_id>', methods=['GET', 'POST'])

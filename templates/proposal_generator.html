@@ -175,6 +175,11 @@
                       </button>
                     </div>
                   </div>
+                  <!-- Revision switcher — populated by JS on load -->
+                  <div id="revisionSwitcher" class="mt-1" style="display:none;">
+                    <small class="text-muted">Switch revision: </small>
+                    <span id="revisionLinks"></span>
+                  </div>
                 </div>
                 <div class="form-group col-md-4">
                   <label class="small font-weight-bold text-muted mb-1">Eng. Reference</label>
@@ -1879,6 +1884,39 @@ async function saveTechDraft() {
 
 // Initialise on page load
 _techInit();
+
+// Load existing revisions for this RFQ and show switcher links
+async function loadRevisionSwitcher() {
+  const rfqRef = '{{ rfq_ref }}';
+  const currentRef = '{{ quoteref }}';
+  if (!rfqRef) return;
+  try {
+    const resp = await fetch('/proposal_generator/revisions_for_rfq?rfq_ref=' + encodeURIComponent(rfqRef));
+    const data = await resp.json();
+    if (!data.ok || !data.revisions || data.revisions.length <= 1) return;
+
+    const container = document.getElementById('revisionSwitcher');
+    const linksEl   = document.getElementById('revisionLinks');
+    if (!container || !linksEl) return;
+
+    const url = new URL(window.location.href);
+    let html = '';
+    data.revisions.forEach(rev => {
+      const isCurrent = rev.quote_ref === currentRef;
+      url.searchParams.set('quoteref', rev.quote_ref);
+      if (isCurrent) {
+        html += `<span class="badge badge-primary mr-1" title="Current revision">${rev.quote_ref}</span>`;
+      } else {
+        html += `<a href="${url.toString()}" class="badge badge-light border mr-1" title="Saved ${rev.saved_at} by ${rev.saved_by}">${rev.quote_ref}</a>`;
+      }
+    });
+    linksEl.innerHTML = html;
+    container.style.display = 'block';
+  } catch(e) { /* silent fail */ }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', loadRevisionSwitcher);
 
 async function createNewRevision() {
   const input  = document.getElementById('quoteRefInput');
