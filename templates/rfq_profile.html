@@ -949,6 +949,40 @@
     </div>
 </div>
 
+<!-- New Revision Modal -->
+<div class="modal fade" id="newRevisionModal" tabindex="-1" role="dialog" aria-labelledby="newRevisionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius:12px;border:none;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+            <div class="modal-header" style="background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px 12px 0 0;border:none;">
+                <h5 class="modal-title" id="newRevisionModalLabel" style="color:#fff;font-weight:700;">
+                    <i class="fas fa-code-branch mr-2"></i>Create New Revision
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;opacity:1;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p class="text-muted mb-3" style="font-size:0.92rem;">
+                    A new revision will be created from the latest saved draft. Please provide a brief reason for this revision.
+                </p>
+                <div class="form-group mb-1">
+                    <label for="revisionReasonText" style="font-weight:600;color:#374151;">Revision Reason <span class="text-danger">*</span></label>
+                    <textarea id="revisionReasonText" class="form-control" rows="3" placeholder="e.g. Customer requested updated pricing, scope change, corrected specifications…" style="border-radius:8px;resize:vertical;"></textarea>
+                    <div id="revisionReasonError" class="text-danger mt-1" style="font-size:0.85rem;display:none;">
+                        <i class="fas fa-exclamation-circle mr-1"></i>Please enter a reason before creating the revision.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border:none;padding:1rem 1.5rem 1.5rem;">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius:8px;">Cancel</button>
+                <button type="button" id="confirmNewRevisionBtn" class="btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:8px;font-weight:600;">
+                    <i class="fas fa-plus mr-1"></i>Create Revision
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const vendorsData = [
     {% for v in vendors %}{ id: {{ v.id }}, name: "{{ v.name }}" }{% if not loop.last %},{% endif %}{% endfor %}
@@ -1077,7 +1111,32 @@ function submitRfqActivity() {
 
 // ── New Revision button ───────────────────────────────────────────────────
 document.getElementById('newRevisionBtn').addEventListener('click', function () {
-    var btn = this;
+    var drafts = {{ proposal_drafts | tojson }};
+    if (drafts.length === 0) {
+        // No existing drafts — open the Proposal Generator directly
+        var rfqRef  = {{ rfq.rfq_reference | tojson }};
+        var project = {{ rfq.project_name  | tojson }};
+        var pgBase  = "{{ url_for('proposal_generator_main', project='__PROJ__', rfq='__RFQ__', quoteref='__REF__') }}";
+        window.location.href = pgBase
+            .replace('__PROJ__', encodeURIComponent(project))
+            .replace('__RFQ__',  encodeURIComponent(rfqRef))
+            .replace('__REF__',  '');
+        return;
+    }
+    // Show the reason modal first
+    document.getElementById('revisionReasonText').value = '';
+    document.getElementById('revisionReasonError').style.display = 'none';
+    $('#newRevisionModal').modal('show');
+});
+
+document.getElementById('confirmNewRevisionBtn').addEventListener('click', function () {
+    var reason = document.getElementById('revisionReasonText').value.trim();
+    if (!reason) {
+        document.getElementById('revisionReasonError').style.display = 'block';
+        return;
+    }
+
+    var btn    = this;
     var drafts = {{ proposal_drafts | tojson }};
     var rfqRef  = {{ rfq.rfq_reference | tojson }};
     var project = {{ rfq.project_name  | tojson }};
@@ -1090,13 +1149,6 @@ document.getElementById('newRevisionBtn').addEventListener('click', function () 
             .replace('__REF__',  encodeURIComponent(quoteref));
     }
 
-    if (drafts.length === 0) {
-        // No existing drafts — open the Proposal Generator to create the first one
-        openPG('');
-        return;
-    }
-
-    // Sort to find the latest revision and copy from it
     drafts.sort(function (a, b) { return a.quote_ref.localeCompare(b.quote_ref); });
     var latestRef = drafts[drafts.length - 1].quote_ref;
 
@@ -1106,22 +1158,23 @@ document.getElementById('newRevisionBtn').addEventListener('click', function () 
     fetch('/proposal_generator/create_revision', {
         method:  'POST',
         headers: {'Content-Type': 'application/json'},
-        body:    JSON.stringify({rfq_ref: rfqRef, quote_ref: latestRef})
+        body:    JSON.stringify({rfq_ref: rfqRef, quote_ref: latestRef, revision_reason: reason})
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
         if (data.ok) {
+            $('#newRevisionModal').modal('hide');
             openPG(data.new_quote_ref);
         } else {
             alert('Could not create revision: ' + (data.error || 'unknown error'));
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-plus mr-1"></i>New Revision';
+            btn.innerHTML = '<i class="fas fa-check mr-1"></i>Confirm & Create';
         }
     })
     .catch(function (e) {
         alert('Network error: ' + e);
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-plus mr-1"></i>New Revision';
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>Confirm & Create';
     });
 });
 </script>

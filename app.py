@@ -6903,10 +6903,11 @@ def proposal_generator_create_revision():
     Returns {ok, new_quote_ref} or {ok:False, error}.
     """
     import re as _re, json as _json
-    data         = request.get_json(silent=True) or {}
-    rfq_ref      = (data.get('rfq_ref') or '').strip()
-    current_ref  = (data.get('quote_ref') or '').strip()
-    username     = session.get('username', '')
+    data            = request.get_json(silent=True) or {}
+    rfq_ref         = (data.get('rfq_ref') or '').strip()
+    current_ref     = (data.get('quote_ref') or '').strip()
+    revision_reason = (data.get('revision_reason') or '').strip()
+    username        = session.get('username', '')
 
     if not rfq_ref or not current_ref:
         return jsonify({'ok': False, 'error': 'rfq_ref and quote_ref are required'}), 400
@@ -6933,11 +6934,11 @@ def proposal_generator_create_revision():
             c.execute("DELETE FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
                       (rfq_ref, new_quote_ref))
             c.execute("""INSERT INTO proposal_form_data
-                         (rfq_ref, quote_ref, form_json, tech_form_json, saved_at, saved_by)
-                         VALUES (?,?,?,?,NOW(),?)""",
+                         (rfq_ref, quote_ref, form_json, tech_form_json, saved_at, saved_by, revision_reason)
+                         VALUES (?,?,?,?,NOW(),?,?)""",
                       (rfq_ref, new_quote_ref,
                        pf['form_json'] or '', pf['tech_form_json'] or '',
-                       username))
+                       username, revision_reason))
 
         # ── Copy cost_sheets ──────────────────────────────────────────────
         c.execute("SELECT sheets_json, project_name, saved_by FROM cost_sheets "
