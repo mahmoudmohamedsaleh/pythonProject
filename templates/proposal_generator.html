@@ -177,7 +177,7 @@
                   </div>
                   <!-- Revision switcher — populated by JS on load -->
                   <div id="revisionSwitcher" class="mt-1" style="display:none;">
-                    <small class="text-muted">Switch revision: </small>
+                    <small class="text-muted"><i class="fas fa-history mr-1"></i>Saved revisions: </small>
                     <span id="revisionLinks"></span>
                   </div>
                 </div>
@@ -1229,14 +1229,17 @@ async function saveDraft() {
       if (_pgls) _pgls.style.display = 'block';
       if (_pgby && data.saved_by) _pgby.textContent = data.saved_by;
       if (_pgat && data.saved_at) _pgat.textContent = ' — ' + data.saved_at;
+      return true;
     } else {
       st.style.display = 'block';
       st.style.color   = '#dc3545';
       st.innerHTML     = '<i class="fas fa-exclamation-circle mr-1"></i> ' + (data.error || 'Save failed');
+      return false;
     }
   } catch(e) {
     st.style.display = 'block'; st.style.color = '#dc3545';
     st.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Network error';
+    return false;
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Draft';
@@ -1893,7 +1896,7 @@ async function loadRevisionSwitcher() {
   try {
     const resp = await fetch('/proposal_generator/revisions_for_rfq?rfq_ref=' + encodeURIComponent(rfqRef));
     const data = await resp.json();
-    if (!data.ok || !data.revisions || data.revisions.length <= 1) return;
+    if (!data.ok || !data.revisions || data.revisions.length === 0) return;
 
     const container = document.getElementById('revisionSwitcher');
     const linksEl   = document.getElementById('revisionLinks');
@@ -1927,13 +1930,24 @@ async function createNewRevision() {
   const rfqRef     = '{{ rfq_ref }}';
   const projectArg = encodeURIComponent('{{ project_name }}');
 
-  if (!currentRef) { alert('Please save a draft first before creating a new revision.'); return; }
+  if (!currentRef) { alert('Please fill in a Quote Reference first.'); return; }
   if (!rfqRef)     { alert('No RFQ reference found.'); return; }
 
-  if (!confirm(`Create a new revision from "${currentRef}"?\n\nThis will copy the current proposal and cost sheet to the next revision number.`)) return;
+  if (!confirm(`Create a new revision from "${currentRef}"?\n\nThe current form will be saved as ${currentRef}, then a copy will be created as the next revision.`)) return;
 
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving current…';
+
+  // Step 1: auto-save the current form so R01 is persisted before creating R02
+  const saved = await saveDraft();
+  if (!saved) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-copy"></i> New Revision';
+    alert('Could not save the current draft. Please fix any errors and try again.');
+    return;
+  }
+
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating revision…';
 
   try {
     const resp = await fetch('/proposal_generator/create_revision', {
