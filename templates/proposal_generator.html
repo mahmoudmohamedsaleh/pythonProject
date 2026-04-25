@@ -1932,6 +1932,7 @@ async function loadRevisionSwitcher() {
     if (!container || !linksEl) return;
 
     const baseUrl = new URL(window.location.href);
+    const total = data.revisions.length;
     let html = '';
     data.revisions.forEach((rev, idx) => {
       const isCurrent = rev.quote_ref === currentRef;
@@ -1939,24 +1940,64 @@ async function loadRevisionSwitcher() {
       const href = baseUrl.toString();
       const reason  = (rev.revision_reason || '').trim();
       const savedBy = (rev.saved_by || '').trim();
-      const savedAt = (rev.saved_at || '').replace('T', ' ').substring(0, 16);
-      const revNum  = idx + 1;
 
-      const badgeEl = isCurrent
-        ? `<span class="badge badge-primary" style="font-size:0.8rem;padding:4px 8px;">&#10003; ${rev.quote_ref}</span>`
-        : `<a href="${href}" class="badge badge-light border" style="font-size:0.8rem;padding:4px 8px;color:#374151;">${rev.quote_ref}</a>`;
+      // Format date as "25 Apr 2026, 17:34"
+      let savedAt = '';
+      if (rev.saved_at) {
+        try {
+          const d = new Date(rev.saved_at);
+          savedAt = d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'})
+                  + ', ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+        } catch(e) { savedAt = rev.saved_at.substring(0, 16); }
+      }
 
-      const reasonEl = reason
-        ? `<div style="font-size:0.78rem;color:#92400e;margin-top:2px;"><i class="fas fa-comment-alt mr-1" style="opacity:0.7;"></i>${reason}</div>`
+      // Extract revision label (R01, R02 …) from quote_ref, fall back to index
+      const revMatch = rev.quote_ref.match(/[-_][Rr](\d+)$/);
+      const revLabel = revMatch ? 'R' + revMatch[1].padStart(2,'0') : 'R' + String(idx+1).padStart(2,'0');
+
+      const isLast = idx === total - 1;
+
+      // Left column: revision pill + vertical connector line
+      const pillColor  = isCurrent ? '#5b21b6' : '#6b7280';
+      const pillBg     = isCurrent ? '#ede9fe' : '#f3f4f6';
+      const lineEl     = !isLast
+        ? `<div style="width:2px;background:#e5e7eb;flex:1;margin:3px auto 0;min-height:12px;"></div>`
         : '';
 
-      const metaEl = `<div style="font-size:0.72rem;color:#9ca3af;margin-top:1px;">${savedBy ? 'by ' + savedBy : ''}${savedAt ? ' &mdash; ' + savedAt : ''}</div>`;
+      // Right column content
+      const refEl = isCurrent
+        ? `<div style="font-weight:600;font-size:0.78rem;color:#5b21b6;word-break:break-all;">
+             <i class="fas fa-circle" style="font-size:0.45rem;vertical-align:middle;margin-right:4px;color:#7c3aed;"></i>${rev.quote_ref}
+             <span style="background:#7c3aed;color:#fff;font-size:0.65rem;padding:1px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;">Current</span>
+           </div>`
+        : `<a href="${href}" style="font-weight:500;font-size:0.78rem;color:#374151;word-break:break-all;text-decoration:none;"
+              onmouseover="this.style.color='#5b21b6'" onmouseout="this.style.color='#374151'">
+             <i class="fas fa-circle" style="font-size:0.45rem;vertical-align:middle;margin-right:4px;color:#d1d5db;"></i>${rev.quote_ref}
+           </a>`;
+
+      const reasonEl = reason
+        ? `<div style="font-size:0.74rem;color:#92400e;font-style:italic;margin-top:3px;padding:3px 6px;background:#fef9c3;border-left:2px solid #f59e0b;border-radius:0 4px 4px 0;">
+             &ldquo;${reason}&rdquo;
+           </div>`
+        : '';
+
+      const metaEl = (savedBy || savedAt)
+        ? `<div style="font-size:0.7rem;color:#9ca3af;margin-top:3px;">
+             ${savedBy ? `<i class="fas fa-user mr-1" style="font-size:0.6rem;"></i>${savedBy}` : ''}
+             ${savedAt ? `<span style="margin-left:4px;"><i class="fas fa-clock mr-1" style="font-size:0.6rem;"></i>${savedAt}</span>` : ''}
+           </div>`
+        : '';
 
       html += `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;${idx < data.revisions.length - 1 ? 'border-bottom:1px solid #f3f4f6;' : ''}">
-          <div style="min-width:20px;font-size:0.72rem;color:#d97706;font-weight:700;margin-top:3px;">${revNum}</div>
-          <div style="flex:1;min-width:0;">
-            ${badgeEl}
+        <div style="display:flex;gap:8px;${idx > 0 ? 'margin-top:0;' : ''}">
+          <div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0;">
+            <div style="width:32px;height:20px;border-radius:10px;background:${pillBg};color:${pillColor};font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid ${isCurrent ? '#a78bfa' : '#e5e7eb'};flex-shrink:0;">
+              ${revLabel}
+            </div>
+            ${lineEl}
+          </div>
+          <div style="flex:1;min-width:0;padding-bottom:${isLast ? '0' : '10px'};">
+            ${refEl}
             ${reasonEl}
             ${metaEl}
           </div>
