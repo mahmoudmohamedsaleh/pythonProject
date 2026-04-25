@@ -6924,6 +6924,77 @@ def proposal_save_form():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/proposal_generator/create_revision', methods=['POST'])
+@login_required
+def proposal_generator_create_revision():
+    """Copy an existing quote (R01) to the next revision (R02, R03…).
+    Duplicates both proposal_form_data and cost_sheets rows.
+    Returns {ok, new_quote_ref} or {ok:False, error}.
+    """
+    import re as _re, json as _json
+    data         = request.get_json(silent=True) or {}
+    rfq_ref      = (data.get('rfq_ref') or '').strip()
+    current_ref  = (data.get('quote_ref') or '').strip()
+    username     = session.get('username', '')
+
+    if not rfq_ref or not current_ref:
+        return jsonify({'ok': False, 'error': 'rfq_ref and quote_ref are required'}), 400
+
+    # Compute next revision suffix  (e.g. -R01 → -R02, no suffix → -R01)
+    m = _re.match(r'^(.*)-[Rr](\d+)$', current_ref)
+    if m:
+        new_quote_ref = m.group(1) + '-R' + str(int(m.group(2)) + 1).zfill(2)
+    else:
+        new_quote_ref = current_ref + '-R02'
+
+    try:
+        conn = sqlite3.connect()
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # ── Copy proposal_form_data ───────────────────────────────────────
+        c.execute("SELECT form_json, tech_form_json, saved_by FROM proposal_form_data "
+                  "WHERE rfq_ref=? AND quote_ref=? LIMIT 1", (rfq_ref, current_ref))
+        pf = c.fetchone()
+
+        if pf:
+            # Delete any existing row for the new ref first (idempotent)
+            c.execute("DELETE FROM proposal_form_data WHERE rfq_ref=? AND quote_ref=?",
+                      (rfq_ref, new_quote_ref))
+            now_str = __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            c.execute("""INSERT INTO proposal_form_data
+                         (rfq_ref, quote_ref, form_json, tech_form_json, saved_at, saved_by)
+                         VALUES (?,?,?,?,?,?)""",
+                      (rfq_ref, new_quote_ref,
+                       pf['form_json'] or '', pf['tech_form_json'] or '',
+                       now_str, username))
+
+        # ── Copy cost_sheets ──────────────────────────────────────────────
+        c.execute("SELECT sheets_json, project_name, saved_by FROM cost_sheets "
+                  "WHERE rfq_ref=? AND quote_ref=? LIMIT 1", (rfq_ref, current_ref))
+        cs = c.fetchone()
+
+        if cs:
+            c.execute("DELETE FROM cost_sheets WHERE rfq_ref=? AND quote_ref=?",
+                      (rfq_ref, new_quote_ref))
+            c.execute("""INSERT INTO cost_sheets
+                         (rfq_ref, quote_ref, project_name, sheets_json, saved_by)
+                         VALUES (?,?,?,?,?)""",
+                      (rfq_ref, new_quote_ref,
+                       cs['project_name'] or '', cs['sheets_json'] or '[]',
+                       username))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({'ok': True, 'new_quote_ref': new_quote_ref,
+                        'copied_form': pf is not None, 'copied_costsheet': cs is not None})
+
+    except Exception as e:
+        app.logger.error(f"create_revision error: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/proposal_generator/create', methods=['GET'])
 @login_required
 def proposal_generator_main():

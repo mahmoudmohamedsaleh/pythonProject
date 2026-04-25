@@ -168,10 +168,10 @@
                     <input type="text" class="form-control form-control-sm" name="quoteref"
                            id="quoteRefInput" value="{{ quoteref }}" placeholder="QT-EJT-…">
                     <div class="input-group-append">
-                      <button type="button" class="btn btn-outline-secondary btn-sm"
-                              title="Create next revision (R01 → R02 → …)"
-                              onclick="incrementQuoteRevision()">
-                        <i class="fas fa-plus"></i> Rev
+                      <button type="button" class="btn btn-warning btn-sm" id="btnNewRevision"
+                              title="Create next revision — copies this quote &amp; cost sheet to R02, R03…"
+                              onclick="createNewRevision()">
+                        <i class="fas fa-copy"></i> New Revision
                       </button>
                     </div>
                   </div>
@@ -1880,23 +1880,49 @@ async function saveTechDraft() {
 // Initialise on page load
 _techInit();
 
-function incrementQuoteRevision() {
-  const input = document.getElementById('quoteRefInput');
+async function createNewRevision() {
+  const input  = document.getElementById('quoteRefInput');
+  const btn    = document.getElementById('btnNewRevision');
   if (!input) return;
-  let val = input.value.trim();
-  if (!val) { alert('Quote Reference is empty.'); return; }
 
-  // Match trailing -Rxx or -rxx (e.g. -R01, -R02, -r09)
-  const m = val.match(/^(.*)-[Rr](\d+)$/);
-  if (m) {
-    const base = m[1];
-    const num  = parseInt(m[2], 10) + 1;
-    input.value = base + '-R' + String(num).padStart(2, '0');
-  } else {
-    // No revision suffix yet — append -R01
-    input.value = val + '-R01';
+  const currentRef = input.value.trim();
+  const rfqRef     = '{{ rfq_ref }}';
+  const projectArg = encodeURIComponent('{{ project_name }}');
+
+  if (!currentRef) { alert('Please save a draft first before creating a new revision.'); return; }
+  if (!rfqRef)     { alert('No RFQ reference found.'); return; }
+
+  if (!confirm(`Create a new revision from "${currentRef}"?\n\nThis will copy the current proposal and cost sheet to the next revision number.`)) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…';
+
+  try {
+    const resp = await fetch('/proposal_generator/create_revision', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({rfq_ref: rfqRef, quote_ref: currentRef})
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+      const newRef = data.new_quote_ref;
+      // Reload the page with the new revision so everything (cost sheet, form) is correct
+      const url = new URL(window.location.href);
+      url.searchParams.set('quoteref', newRef);
+      url.searchParams.set('project', '{{ project_name }}');
+      url.searchParams.set('rfq', rfqRef);
+      window.location.href = url.toString();
+    } else {
+      alert('Error creating revision: ' + (data.error || 'Unknown error'));
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-copy"></i> New Revision';
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-copy"></i> New Revision';
   }
-  input.dispatchEvent(new Event('input'));
 }
 
 </script>
