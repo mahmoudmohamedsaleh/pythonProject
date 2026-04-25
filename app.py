@@ -6992,6 +6992,53 @@ def proposal_generator_revisions_for_rfq():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
+@app.route('/proposal_generator/delete_revision', methods=['POST'])
+@login_required
+def proposal_generator_delete_revision():
+    """Delete a single saved revision.
+    Allowed only for:
+      - The Presale Engineer assigned to this RFQ
+      - Any user whose role is 'Technical Team Leader'
+    """
+    data     = request.get_json(silent=True) or {}
+    rfq_ref  = (data.get('rfq_ref') or '').strip()
+    quote_ref = (data.get('quote_ref') or '').strip()
+    if not rfq_ref or not quote_ref:
+        return jsonify({'ok': False, 'error': 'rfq_ref and quote_ref are required'}), 400
+
+    current_username = session.get('username', '')
+    current_role     = session.get('user_role', '')
+
+    try:
+        conn = sqlite3.connect()
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # Fetch the assigned presale engineer for this RFQ
+        c.execute("SELECT sales_engineer_presale FROM rfq_requests WHERE rfq_reference = ? LIMIT 1", (rfq_ref,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return jsonify({'ok': False, 'error': 'RFQ not found'}), 404
+
+        presale_engineer = (row['sales_engineer_presale'] or '').strip()
+
+        # Permission check
+        is_presale  = (current_username == presale_engineer)
+        is_tl       = (current_role == 'Technical Team Leader')
+        if not (is_presale or is_tl):
+            conn.close()
+            return jsonify({'ok': False, 'error': 'Permission denied'}), 403
+
+        c.execute("DELETE FROM proposal_form_data WHERE rfq_ref = ? AND quote_ref = ?",
+                  (rfq_ref, quote_ref))
+        conn.commit()
+        conn.close()
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/proposal_generator/create', methods=['GET'])
 @login_required
 def proposal_generator_main():
